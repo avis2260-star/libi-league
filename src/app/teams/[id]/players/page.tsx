@@ -85,13 +85,14 @@ function PlayerCard({ player }: { player: Player & { team?: Team } }) {
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
-export default async function TeamPlayersPage({ params }: { params: { id: string } }) {
+export default async function TeamPlayersPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const [players, teams] = await Promise.all([
-    getPlayersByTeam(params.id),
+    getPlayersByTeam(id),
     getTeams(),
   ]);
 
-  const team = teams.find((t) => t.id === params.id);
+  const team = teams.find((t) => t.id === id);
   if (!team) notFound();
 
   return (
