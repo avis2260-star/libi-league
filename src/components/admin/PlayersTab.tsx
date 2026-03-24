@@ -60,8 +60,6 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
     }
   }
 
-  const teamMap = Object.fromEntries(teams.map((t) => [t.id, t.name]));
-
   return (
     <div dir="rtl" className="space-y-8">
       <div>
@@ -129,39 +127,53 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
         </button>
       </form>
 
-      {/* Players list */}
+      {/* Players list — grouped by team */}
       {list.length > 0 && (
-        <div className="rounded-xl border border-gray-700 overflow-hidden">
-          <table className="w-full text-sm text-right">
-            <thead className="bg-gray-800 text-gray-400">
-              <tr>
-                <th className="px-4 py-2">שם</th>
-                <th className="px-4 py-2">קבוצה</th>
-                <th className="px-4 py-2 text-center">#</th>
-                <th className="px-4 py-2 text-center">פוזיציה</th>
-                <th className="px-4 py-2 text-center">מחיקה</th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.map((p) => (
-                <tr key={p.id} className="border-t border-gray-700/50 hover:bg-gray-800/40">
-                  <td className="px-4 py-2 font-medium text-white">{p.name}</td>
-                  <td className="px-4 py-2 text-gray-300">{teamMap[p.team_id ?? ''] ?? '—'}</td>
-                  <td className="px-4 py-2 text-center text-gray-400">{p.jersey_number ?? '—'}</td>
-                  <td className="px-4 py-2 text-center text-gray-400">{p.position ?? '—'}</td>
-                  <td className="px-4 py-2 text-center">
-                    <button
-                      onClick={() => handleDelete(p.id, p.name)}
-                      disabled={deleting === p.id}
-                      className="rounded px-2 py-0.5 text-xs text-red-400 hover:bg-red-900/30 disabled:opacity-40"
-                    >
-                      {deleting === p.id ? '...' : '🗑'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-6">
+          {teams
+            .filter((t) => list.some((p) => p.team_id === t.id))
+            .map((team) => {
+              const teamPlayers = list.filter((p) => p.team_id === team.id);
+              return (
+                <div key={team.id} className="rounded-xl border border-gray-700 overflow-hidden">
+                  {/* Team header */}
+                  <div className="flex items-center justify-between bg-gray-800 px-4 py-2.5 border-b border-gray-700">
+                    <span className="font-bold text-orange-400">{team.name}</span>
+                    <span className="text-xs text-gray-500">{teamPlayers.length} שחקנים</span>
+                  </div>
+                  <table className="w-full text-sm text-right">
+                    <thead className="bg-gray-800/50 text-gray-400 text-xs uppercase tracking-wide">
+                      <tr>
+                        <th className="px-4 py-2 w-10 text-center">מס׳</th>
+                        <th className="px-4 py-2">שם</th>
+                        <th className="px-4 py-2 text-center">#</th>
+                        <th className="px-4 py-2 text-center">פוזיציה</th>
+                        <th className="px-4 py-2 text-center">מחיקה</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {teamPlayers.map((p, idx) => (
+                        <tr key={p.id} className="border-t border-gray-700/50 hover:bg-gray-800/40">
+                          <td className="px-4 py-2 text-center text-gray-500 font-mono text-xs">{idx + 1}</td>
+                          <td className="px-4 py-2 font-medium text-white">{p.name}</td>
+                          <td className="px-4 py-2 text-center text-gray-400">{p.jersey_number ?? '—'}</td>
+                          <td className="px-4 py-2 text-center text-gray-400">{p.position ?? '—'}</td>
+                          <td className="px-4 py-2 text-center">
+                            <button
+                              onClick={() => handleDelete(p.id, p.name)}
+                              disabled={deleting === p.id}
+                              className="rounded px-2 py-0.5 text-xs text-red-400 hover:bg-red-900/30 disabled:opacity-40"
+                            >
+                              {deleting === p.id ? '...' : '🗑'}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
         </div>
       )}
     </div>
