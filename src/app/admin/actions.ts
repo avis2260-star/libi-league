@@ -3,8 +3,93 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import type { GameStatus } from '@/types';
 import { revalidatePath } from 'next/cache';
+import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 
 type ActionResult = { error?: string };
+
+// ── Bulk game import ──────────────────────────────────────────────────────────
+
+export type ImportResult = {
+  inserted: number;
+  skipped: number;
+  error?: string;
+  missingTeams?: string[];
+};
+
+export async function bulkImportGames(): Promise<ImportResult> {
+  // 1. Load all teams from DB
+  const { data: teams, error: teamsError } = await supabaseAdmin
+    .from('teams')
+    .select('id, name');
+
+  if (teamsError) return { inserted: 0, skipped: 0, error: teamsError.message };
+  if (!teams?.length) {
+    return {
+      inserted: 0,
+      skipped: 0,
+      error: 'No teams found in the database. Please add your 15 teams first.',
+    };
+  }
+
+  // 2. Build name → UUID map
+  const teamMap = new Map<string, string>(teams.map((t) => [t.name.trim(), t.id]));
+
+  // 3. Check for missing teams
+  const allTeamNames = [...new Set(LIBI_SCHEDULE.flatMap((g) => [g.homeTeam, g.awayTeam]))];
+  const missing = allTeamNames.filter((name) => !teamMap.has(name));
+  if (missing.length > 0) {
+    return { inserted: 0, skipped: 0, missingTeams: missing };
+  }
+
+  // 4. Load existing games to skip duplicates (match on home_team_id + away_team_id + game_date)
+  const { data: existing } = await supabaseAdmin
+    .from('games')
+    .select('home_team_id, away_team_id, game_date');
+
+  const existingSet = new Set(
+    (existing ?? []).map((g) => `${g.home_team_id}|${g.away_team_id}|${g.game_date}`),
+  );
+
+  // 5. Build rows to insert
+  const rows = [];
+  let skipped = 0;
+
+  for (const entry of LIBI_SCHEDULE) {
+    const homeId = teamMap.get(entry.homeTeam)!;
+    const awayId = teamMap.get(entry.awayTeam)!;
+    const key = `${homeId}|${awayId}|${entry.date}`;
+
+    if (existingSet.has(key)) {
+      skipped++;
+      continue;
+    }
+
+    rows.push({
+      home_team_id: homeId,
+      away_team_id: awayId,
+      game_date: entry.date,
+      game_time: '19:00:00',
+      location: 'TBD',
+      home_score: 0,
+      away_score: 0,
+      status: 'Scheduled' as GameStatus,
+    });
+  }
+
+  if (rows.length === 0) {
+    return { inserted: 0, skipped };
+  }
+
+  // 6. Insert new games in one batch
+  const { error: insertError } = await supabaseAdmin.from('games').insert(rows);
+  if (insertError) return { inserted: 0, skipped, error: insertError.message };
+
+  revalidatePath('/admin');
+  revalidatePath('/');
+  revalidatePath('/games');
+
+  return { inserted: rows.length, skipped };
+}
 
 // ── Game score + status ───────────────────────────────────────────────────────
 

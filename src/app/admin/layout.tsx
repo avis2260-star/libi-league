@@ -3,10 +3,10 @@ import { logoutAction } from '@/app/login/actions';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 
-export const metadata = { title: 'Admin — Hoops League' };
+export const metadata = { title: 'Admin — LIBI League' };
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -21,7 +21,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <div className="flex items-center gap-2">
           <span className="text-xl">🏀</span>
           <span className="font-bold text-orange-400">Admin</span>
-          <span className="hidden text-sm text-gray-500 sm:inline">— Hoops League</span>
+          <span className="hidden text-sm text-gray-500 sm:inline">— LIBI League</span>
         </div>
 
         <div className="flex items-center gap-3">

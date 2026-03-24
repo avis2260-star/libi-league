@@ -2,11 +2,12 @@
 // The interactive form is extracted to LoginForm (Client Component).
 import LoginForm from './LoginForm';
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { next?: string };
+  searchParams: Promise<{ next?: string }>;
 }) {
-  const next = searchParams.next ?? '/admin';
+  const params = await searchParams;
+  const next = params.next ?? '/admin';
   return <LoginForm next={next} />;
 }

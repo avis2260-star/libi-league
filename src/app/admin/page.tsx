@@ -20,9 +20,10 @@ async function getAllGames(): Promise<GameWithTeams[]> {
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: { tab?: string };
+  searchParams: Promise<{ tab?: string }>;
 }) {
-  const tab = searchParams.tab ?? 'games';
+  const params = await searchParams;
+  const tab = params.tab ?? 'games';
   const games = await getAllGames();
 
   // Games relevant to each tab

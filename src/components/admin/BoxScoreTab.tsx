@@ -32,7 +32,6 @@ export default function BoxScoreTab({ games }: Props) {
   // Fetch players when game + team side are both selected
   useEffect(() => {
     if (!selectedGame || !selectedTeamSide) {
-      setPlayers([]);
       setStats([]);
       return;
     }

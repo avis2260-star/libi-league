@@ -30,7 +30,7 @@ export default function LoginForm({ next }: Props) {
         <div className="mb-8 text-center">
           <span className="text-4xl font-extrabold text-orange-500">🏀</span>
           <h1 className="mt-2 text-2xl font-bold text-white">Admin Login</h1>
-          <p className="mt-1 text-sm text-gray-400">Hoops League Manager</p>
+          <p className="mt-1 text-sm text-gray-400">LIBI League Manager</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

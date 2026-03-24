@@ -1,37 +1,62 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Heebo } from 'next/font/google';
 import './globals.css';
 
-const inter = Inter({ subsets: ['latin'] });
+const heebo = Heebo({ subsets: ['hebrew', 'latin'], weight: ['300','400','500','600','700','800','900'] });
 
 export const metadata: Metadata = {
-  title: 'Hoops League',
-  description: 'Community basketball league — schedules, standings, and stats.',
+  title: 'ליגת ליבי',
+  description: 'ניהול ליגת כדורסל קהילתית — לוח משחקים, טבלאות ותוצאות.',
 };
+
+const NAV_LINKS = [
+  { href: '/',          label: 'בית'       },
+  { href: '/games',     label: 'משחקים'    },
+  { href: '/results',   label: 'תוצאות'    },
+  { href: '/standings', label: 'טבלאות'    },
+  { href: '/teams',     label: 'קבוצות'    },
+];
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} min-h-screen bg-gray-50 text-gray-900`}>
-        <header className="border-b border-gray-200 bg-white shadow-sm">
-          <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-            <span className="text-xl font-extrabold tracking-tight text-orange-500">
-              🏀 Hoops League
-            </span>
-            <ul className="flex gap-6 text-sm font-medium text-gray-600">
-              <li><a href="/"          className="hover:text-orange-500">Home</a></li>
-              <li><a href="/games"     className="hover:text-orange-500">Games</a></li>
-              <li><a href="/standings" className="hover:text-orange-500">Standings</a></li>
-              <li><a href="/teams"     className="hover:text-orange-500">Teams</a></li>
-              <li><a href="/players"   className="hover:text-orange-500">Players</a></li>
+    <html lang="he" dir="rtl">
+      <body className={`${heebo.className} min-h-screen bg-[#0b1520] text-[#e8edf5]`}>
+
+        {/* ── Top navigation ───────────────────────────────────────────── */}
+        <header className="sticky top-0 z-50 border-b border-white/5 bg-[#0f1e30]/95 backdrop-blur-sm">
+          <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
+
+            <a href="/" className="flex items-center gap-2">
+              <span className="text-2xl">🏀</span>
+              <span className="text-lg font-black text-white leading-tight">
+                ליגת ליבי
+                <span className="block text-[10px] font-medium tracking-widest text-[#5a7a9a] uppercase">
+                  2025 – 2026
+                </span>
+              </span>
+            </a>
+
+            <ul className="flex gap-1 text-sm font-semibold">
+              {NAV_LINKS.map(({ href, label }) => (
+                <li key={href}>
+                  <a
+                    href={href}
+                    className="rounded-lg px-3 py-2 text-[#6b8aaa] transition hover:bg-white/5 hover:text-white"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
             </ul>
           </nav>
         </header>
 
-        <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+        {/* ── Page content ─────────────────────────────────────────────── */}
+        <main className="mx-auto max-w-7xl px-4 py-8">{children}</main>
 
-        <footer className="mt-16 border-t border-gray-200 py-6 text-center text-xs text-gray-400">
-          © {new Date().getFullYear()} Hoops League. All rights reserved.
+        {/* ── Footer ───────────────────────────────────────────────────── */}
+        <footer className="mt-16 border-t border-white/5 py-6 text-center text-xs text-[#3a5a7a]">
+          © {new Date().getFullYear()} ליגת ליבי · כל הזכויות שמורות
         </footer>
       </body>
     </html>

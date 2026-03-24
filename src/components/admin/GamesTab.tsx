@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { updateGameScore } from '@/app/admin/actions';
 import type { GameStatus, GameWithTeams } from '@/types';
+import BulkImportButton from './BulkImportButton';
 
 const STATUS_OPTIONS: GameStatus[] = ['Scheduled', 'Live', 'Finished'];
 
@@ -17,20 +18,22 @@ interface Props {
 }
 
 export default function GamesTab({ games }: Props) {
-  if (games.length === 0) {
-    return (
-      <div className="py-16 text-center text-gray-500">
-        No active games found. All games may already be finished.
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-bold text-white">Game Management</h2>
-      {games.map((game) => (
-        <GameScoreCard key={game.id} game={game} />
-      ))}
+
+      {/* One-click bulk import */}
+      <BulkImportButton />
+
+      {games.length === 0 ? (
+        <div className="py-12 text-center text-gray-500">
+          No active games found. Import the schedule above or add games manually.
+        </div>
+      ) : (
+        games.map((game) => (
+          <GameScoreCard key={game.id} game={game} />
+        ))
+      )}
     </div>
   );
 }
