@@ -1,31 +1,42 @@
+export const dynamic = 'force-dynamic';
+
 import { getTeams } from '@/lib/supabase';
 import { NORTH_TABLE, SOUTH_TABLE } from '@/lib/league-data';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
-export const revalidate = 60;
+type StandingRow = { rank: number; name: string; wins: number; losses: number; diff: number; pts: number; division: string; games: number; pf: number; pa: number; techni: number; penalty: number };
 
-// Build a quick lookup: team name → standing stats
-const ALL_STANDINGS = [...NORTH_TABLE, ...SOUTH_TABLE];
-const DIVISION_MAP: Record<string, 'צפון' | 'דרום'> = {
-  ...Object.fromEntries(NORTH_TABLE.map((t) => [t.name, 'צפון' as const])),
-  ...Object.fromEntries(SOUTH_TABLE.map((t) => [t.name, 'דרום' as const])),
-};
+async function getLiveStandings(): Promise<StandingRow[]> {
+  try {
+    const { data, error } = await supabaseAdmin.from('standings').select('*').order('rank');
+    if (error || !data || data.length === 0) throw new Error('no data');
+    return data as StandingRow[];
+  } catch {
+    return [...NORTH_TABLE.map(t => ({ ...t, division: 'North' })), ...SOUTH_TABLE.map(t => ({ ...t, division: 'South' }))];
+  }
+}
 
 // Normalize: strip all quote/apostrophe variants for fuzzy matching
 function normalize(s: string) {
   return s.replace(/["""''`״׳]/g, '').replace(/\s+/g, ' ').trim();
 }
 
-function findStats(name: string) {
-  const normName = normalize(name ?? '');
-  return ALL_STANDINGS.find((s) => {
-    const normS = normalize(s.name);
-    return (
-      s.name === name ||
-      normS === normName ||
-      normName.includes(normS) ||
-      normS.includes(normName)
-    );
-  });
+function makeFind(standings: StandingRow[]) {
+  return function findStats(name: string) {
+    const normName = normalize(name ?? '');
+    return standings.find((s) => {
+      const normS = normalize(s.name);
+      return s.name === name || normS === normName || normName.includes(normS) || normS.includes(normName);
+    });
+  };
+}
+
+function makeDivisionMap(standings: StandingRow[]): Record<string, 'צפון' | 'דרום'> {
+  const map: Record<string, 'צפון' | 'דרום'> = {};
+  for (const s of standings) {
+    map[s.name] = s.division === 'North' ? 'צפון' : 'דרום';
+  }
+  return map;
 }
 
 // ── Avatar ─────────────────────────────────────────────────────────────────────
@@ -46,14 +57,13 @@ function Avatar({ name, logoUrl }: { name: string; logoUrl?: string | null }) {
 
 // ── Team card ──────────────────────────────────────────────────────────────────
 function TeamCard({
-  team,
-  rank,
+  team, rank, stats, division,
 }: {
   team: Awaited<ReturnType<typeof getTeams>>[number];
   rank?: number;
+  stats?: StandingRow;
+  division?: 'צפון' | 'דרום';
 }) {
-  const stats    = findStats(team.name);
-  const division = stats ? DIVISION_MAP[stats.name] : undefined;
 
   const rankColor =
     rank === 1 ? '#e0c97a'
@@ -127,9 +137,10 @@ function TeamCard({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function TeamsPage() {
-  const teams = await getTeams();
+  const [teams, standings] = await Promise.all([getTeams(), getLiveStandings()]);
+  const findStats  = makeFind(standings);
+  const DIVISION_MAP = makeDivisionMap(standings);
 
-  // Sort teams within each district by standings rank
   function sortByRank(arr: typeof teams) {
     return [...arr].sort((a, b) => {
       const ra = findStats(a.name)?.rank ?? 999;
@@ -139,12 +150,12 @@ export default async function TeamsPage() {
   }
 
   const northTeams = sortByRank(teams.filter((t) => {
-    const stats = findStats(t.name);
-    return stats && DIVISION_MAP[stats.name] === 'צפון';
+    const s = findStats(t.name);
+    return s && DIVISION_MAP[s.name] === 'צפון';
   }));
   const southTeams = sortByRank(teams.filter((t) => {
-    const stats = findStats(t.name);
-    return stats && DIVISION_MAP[stats.name] === 'דרום';
+    const s = findStats(t.name);
+    return s && DIVISION_MAP[s.name] === 'דרום';
   }));
   const otherTeams = teams.filter((t) => !findStats(t.name));
 
@@ -172,9 +183,10 @@ export default async function TeamsPage() {
                 מחוז דרום · {southTeams.length} קבוצות
               </h2>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {southTeams.map((t) => (
-                  <TeamCard key={t.id} team={t} rank={findStats(t.name)?.rank} />
-                ))}
+                {southTeams.map((t) => {
+                  const s = findStats(t.name);
+                  return <TeamCard key={t.id} team={t} rank={s?.rank} stats={s} division={s ? DIVISION_MAP[s.name] : undefined} />;
+                })}
               </div>
             </section>
           )}
@@ -187,9 +199,10 @@ export default async function TeamsPage() {
                 מחוז צפון · {northTeams.length} קבוצות
               </h2>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {northTeams.map((t) => (
-                  <TeamCard key={t.id} team={t} rank={findStats(t.name)?.rank} />
-                ))}
+                {northTeams.map((t) => {
+                  const s = findStats(t.name);
+                  return <TeamCard key={t.id} team={t} rank={s?.rank} stats={s} division={s ? DIVISION_MAP[s.name] : undefined} />;
+                })}
               </div>
             </section>
           )}
