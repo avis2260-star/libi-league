@@ -1,4 +1,20 @@
+export const dynamic = 'force-dynamic';
+
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
+
+async function getCurrentRound(): Promise<number> {
+  try {
+    const { data } = await supabaseAdmin
+      .from('game_results')
+      .select('round')
+      .order('round', { ascending: false })
+      .limit(1);
+    return data?.[0]?.round ?? 8;
+  } catch {
+    return 8;
+  }
+}
 
 // Group all future rounds from the full schedule (rounds 9-14)
 const FUTURE_ROUND_DATES: Record<number, string> = {
@@ -48,7 +64,10 @@ function MatchRow({ game }: { game: ScheduledGame }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function GamesPage() {
+export default async function GamesPage() {
+  const currentRound = await getCurrentRound();
+  const nextRound = currentRound + 1;
+
   return (
     <div className="space-y-10">
       {/* Page title */}
@@ -61,7 +80,7 @@ export default function GamesPage() {
         const northGames = ALL_UPCOMING.filter((g) => g.round === round && g.division === 'North');
         const southGames = ALL_UPCOMING.filter((g) => g.round === round && g.division === 'South');
         const date = FUTURE_ROUND_DATES[round] ?? '';
-        const isNext = round === 9;
+        const isNext = round === nextRound;
 
         return (
           <section key={round}>
