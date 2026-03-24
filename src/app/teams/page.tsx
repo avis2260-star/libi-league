@@ -56,6 +56,8 @@ function Avatar({ name, logoUrl }: { name: string; logoUrl?: string | null }) {
 }
 
 // ── Team card ──────────────────────────────────────────────────────────────────
+import Link from 'next/link';
+
 function TeamCard({
   team, rank, stats, division,
 }: {
@@ -72,7 +74,7 @@ function TeamCard({
     : '#4a6a8a';
 
   return (
-    <div className="group flex gap-4 rounded-2xl border border-white/[0.07] bg-white/[0.04] p-5 transition hover:border-orange-500/30 hover:bg-orange-500/[0.04]">
+    <Link href={`/teams/${team.id}/players`} className="group flex gap-4 rounded-2xl border border-white/[0.07] bg-white/[0.04] p-5 transition hover:border-orange-500/30 hover:bg-orange-500/[0.04]">
       {/* Rank number */}
       {rank !== undefined && (
         <div className="flex shrink-0 items-center">
@@ -130,7 +132,7 @@ function TeamCard({
           </div>
         )}
       </div>
-    </div>
+    </Link>
   );
 }
 
