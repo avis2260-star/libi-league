@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { getAllPlayers } from '@/lib/supabase';
 import type { Position } from '@/types';
 
-export const revalidate = 60;
+export const dynamic = 'force-dynamic';
 
 const POSITION_LABELS: Record<Position, string> = {
   PG: 'Point Guard',
