@@ -96,7 +96,7 @@ export async function getPlayerGameStats(playerId: string): Promise<GameStatWith
   if (error) throw error;
 
   // Sort chronologically by game date client-side (join ordering is unreliable)
-  return (data as GameStatWithGame[]).sort(
+  return (data as unknown as GameStatWithGame[]).sort(
     (a, b) => a.game.game_date.localeCompare(b.game.game_date),
   );
 }
