@@ -3,7 +3,8 @@ import GamesTab from '@/components/admin/GamesTab';
 import BoxScoreTab from '@/components/admin/BoxScoreTab';
 import MediaTab from '@/components/admin/MediaTab';
 import ExcelSyncTab from '@/components/admin/ExcelSyncTab';
-import type { GameWithTeams } from '@/types';
+import PlayersTab from '@/components/admin/PlayersTab';
+import type { GameWithTeams, Team } from '@/types';
 
 async function getAllGames(): Promise<GameWithTeams[]> {
   const { data, error } = await supabaseAdmin
@@ -26,17 +27,27 @@ export default async function AdminPage({
   const params = await searchParams;
   const tab = params.tab ?? 'games';
   const games = await getAllGames();
-
-  // Games relevant to each tab
   const activeGames = games.filter((g) => g.status !== 'Finished');
-  const allGames = games;
+
+  let teams: Team[] = [];
+  let players: { id: string; name: string; jersey_number: number | null; position: string | null; team_id: string | null }[] = [];
+
+  if (tab === 'players') {
+    const [{ data: teamsData }, { data: playersData }] = await Promise.all([
+      supabaseAdmin.from('teams').select('*').order('name'),
+      supabaseAdmin.from('players').select('id,name,jersey_number,position,team_id').order('name'),
+    ]);
+    teams   = (teamsData  ?? []) as Team[];
+    players = (playersData ?? []) as typeof players;
+  }
 
   return (
     <>
-      {tab === 'games' && <GamesTab games={activeGames} />}
-      {tab === 'boxscore' && <BoxScoreTab games={allGames} />}
-      {tab === 'media' && <MediaTab games={allGames} />}
-      {tab === 'sync' && <ExcelSyncTab />}
+      {tab === 'games'    && <GamesTab games={activeGames} />}
+      {tab === 'boxscore' && <BoxScoreTab games={games} />}
+      {tab === 'media'    && <MediaTab games={games} />}
+      {tab === 'sync'     && <ExcelSyncTab />}
+      {tab === 'players'  && <PlayersTab teams={teams} players={players} />}
     </>
   );
 }
