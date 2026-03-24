@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NORTH_TABLE, SOUTH_TABLE, type Standing } from '@/lib/league-data';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 

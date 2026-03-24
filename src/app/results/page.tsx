@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { GAME_RESULTS, type GameResult } from '@/lib/league-data';
 import ResultsContent from './ResultsContent';
