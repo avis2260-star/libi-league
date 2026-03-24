@@ -1,21 +1,10 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import dynamic from 'next/dynamic';
 import { getPlayerById, getPlayerGameStats } from '@/lib/supabase';
 import type { GameStatWithGame, Position } from '@/types';
 import VideoGallery from '@/components/player/VideoGallery';
-
-// Recharts requires browser APIs — load client-only
-const PlayerStatsChart = dynamic(
-  () => import('@/components/player/PlayerStatsChart'),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="h-64 animate-pulse rounded-2xl bg-gray-800" />
-    ),
-  },
-);
+import PlayerStatsChart from '@/components/player/PlayerStatsChart';
 
 // ── Position metadata ─────────────────────────────────────────────────────────
 
