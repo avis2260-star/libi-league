@@ -1,4 +1,25 @@
 import { NORTH_TABLE, SOUTH_TABLE, type Standing } from '@/lib/league-data';
+import { supabaseAdmin } from '@/lib/supabase-admin';
+
+async function getStandings(): Promise<{ north: Standing[]; south: Standing[] }> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('standings')
+      .select('*')
+      .order('rank', { ascending: true });
+
+    if (error || !data || data.length === 0) throw new Error('no data');
+
+    const north = data.filter((r: Standing) => r.division === 'North');
+    const south = data.filter((r: Standing) => r.division === 'South');
+
+    if (north.length === 0 && south.length === 0) throw new Error('empty');
+
+    return { north, south };
+  } catch {
+    return { north: NORTH_TABLE, south: SOUTH_TABLE };
+  }
+}
 
 // ── Table ─────────────────────────────────────────────────────────────────────
 
@@ -119,7 +140,8 @@ function StandingsTable({ data, title }: { data: Standing[]; title: string }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function StandingsPage() {
+export default async function StandingsPage() {
+  const { north, south } = await getStandings();
   return (
     <div className="space-y-8">
       <div>
@@ -133,8 +155,8 @@ export default function StandingsPage() {
         North is placed second → appears on the left side.
       */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <StandingsTable data={SOUTH_TABLE} title="טבלת דרום" />
-        <StandingsTable data={NORTH_TABLE} title="טבלת צפון" />
+        <StandingsTable data={south} title="טבלת דרום" />
+        <StandingsTable data={north} title="טבלת צפון" />
       </div>
     </div>
   );
