@@ -47,11 +47,12 @@ function getResult(stat: GameStatWithGame, teamId: string): 'W' | 'L' | 'D' | nu
 export default async function PlayerProfilePage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const [player, gameStats] = await Promise.all([
-    getPlayerById(params.id),
-    getPlayerGameStats(params.id),
+    getPlayerById(id),
+    getPlayerGameStats(id),
   ]);
 
   if (!player) notFound();
