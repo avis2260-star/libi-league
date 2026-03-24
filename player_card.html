@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>כרטיס שחקן – ליגת ליב"י</title>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 40px;
+      background: #06091a;
+      font-family: 'Heebo', 'Arial', sans-serif;
+      padding: 40px 20px;
+    }
+
+    /* ─── CARD SHELL ──────────────────────────────────────── */
+    .player-card {
+      position: relative;
+      width: 300px;
+      border-radius: 18px;
+      overflow: hidden;
+      direction: rtl;
+      box-shadow:
+        0 0 0 1px rgba(80, 140, 255, 0.25),
+        0 8px 32px rgba(0, 0, 40, 0.7),
+        0 24px 64px rgba(0, 0, 80, 0.5);
+      background:
+        radial-gradient(ellipse 80% 55% at 50% 38%,
+          #1e4db7 0%,
+          #0e2472 35%,
+          #060f3a 65%,
+          #020615 100%);
+    }
+
+    /* Glass sheen */
+    .player-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 18px;
+      background: linear-gradient(
+        135deg,
+        rgba(255,255,255,0.08) 0%,
+        rgba(255,255,255,0.02) 40%,
+        transparent 70%
+      );
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    /* Rim glow */
+    .player-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 18px;
+      border: 1px solid rgba(120,180,255,0.35);
+      pointer-events: none;
+      z-index: 21;
+    }
+
+    /* ─── CORNER LOGO ─────────────────────────────────────── */
+    .card-logo {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 72px;
+      height: auto;
+      border-radius: 8px;
+      z-index: 10;
+      filter: drop-shadow(0 2px 8px rgba(0,0,60,0.6));
+    }
+
+    /* ─── HEADER ──────────────────────────────────────────── */
+    .card-header {
+      position: relative;
+      z-index: 5;
+      padding: 18px 92px 4px 16px;
+      text-align: center;
+    }
+
+    .league-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 1.5px;
+      text-shadow:
+        0 0 12px rgba(120,190,255,0.9),
+        0 0 28px rgba(80,140,255,0.5);
+    }
+
+    .season-label {
+      margin-top: 3px;
+      font-size: 9px;
+      font-weight: 600;
+      color: rgba(160,200,255,0.75);
+      letter-spacing: 1px;
+    }
+
+    .header-rule {
+      width: 60%;
+      height: 1px;
+      margin: 6px auto 0;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(100,160,255,0.5) 30%,
+        rgba(100,160,255,0.5) 70%,
+        transparent
+      );
+    }
+
+    /* ─── FLAMING BALL AREA ───────────────────────────────── */
+    .central-graphic {
+      position: relative;
+      z-index: 5;
+      width: 100%;
+      height: 132px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .central-graphic svg { overflow: visible; }
+
+    /* ─── PLAYER PHOTO ────────────────────────────────────── */
+    .photo-wrap {
+      position: relative;
+      z-index: 5;
+      display: flex;
+      justify-content: center;
+      margin-top: -6px;
+    }
+
+    .photo-frame {
+      width: 82px;
+      height: 88px;
+      border-radius: 12px;
+      border: 2px solid rgba(100,170,255,0.55);
+      background: linear-gradient(160deg, rgba(40,80,180,0.45), rgba(10,20,80,0.55));
+      backdrop-filter: blur(6px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      box-shadow:
+        0 4px 20px rgba(0,0,60,0.5),
+        0 0 12px rgba(60,120,255,0.2) inset;
+      overflow: hidden;
+    }
+
+    .photo-frame img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      border-radius: 10px;
+    }
+
+    .photo-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .photo-placeholder svg { opacity: 0.55; }
+
+    .photo-hint {
+      font-size: 8px;
+      color: rgba(160,200,255,0.6);
+      text-align: center;
+    }
+
+    /* ─── INFO BLOCK ──────────────────────────────────────── */
+    .info-block {
+      position: relative;
+      z-index: 5;
+      margin: 12px 16px 0;
+      border-radius: 11px;
+      border: 1px solid rgba(100,160,255,0.22);
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(10px);
+      padding: 4px 2px;
+      overflow: hidden;
+    }
+
+    .info-block::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(160deg, rgba(255,255,255,0.06) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .info-row {
+      display: flex;
+      align-items: center;
+      padding: 7px 14px;
+      gap: 8px;
+    }
+
+    .info-row + .info-row { border-top: 1px solid rgba(100,160,255,0.1); }
+
+    .info-label {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: rgba(140,190,255,0.85);
+      white-space: nowrap;
+      min-width: 68px;
+      text-align: right;
+    }
+
+    .info-value {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: #ffffff;
+      flex: 1;
+      text-align: right;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .info-value.empty {
+      color: rgba(255,255,255,0.25);
+      font-weight: 400;
+      font-style: italic;
+    }
+
+    /* ─── FOOTER ──────────────────────────────────────────── */
+    .card-footer {
+      position: relative;
+      z-index: 5;
+      text-align: center;
+      padding: 10px 16px 20px;
+    }
+
+    .libi-brand {
+      font-size: 56px;
+      font-weight: 900;
+      line-height: 1;
+      color: #ffffff;
+      letter-spacing: -2px;
+      text-shadow:
+        0 0 20px rgba(255,100,20,0.55),
+        0 0 50px rgba(255,60,0,0.25),
+        0 3px 0 rgba(0,0,0,0.6);
+    }
+
+    .official-label {
+      margin-top: 4px;
+      font-size: 8px;
+      font-weight: 600;
+      color: rgba(160,200,255,0.6);
+      letter-spacing: 1px;
+    }
+
+    /* ─── DEMO GRID ───────────────────────────────────────── */
+    .demo-label {
+      width: 100%;
+      text-align: center;
+      color: rgba(100,140,220,0.7);
+      font-family: 'Heebo', sans-serif;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+    }
+
+    .demo-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════
+     Shared reusable flaming basketball SVG snippet
+     (included twice with different gradient IDs)
+════════════════════════════════════════════════ -->
+
+<!-- ═══════════════════════════════════════════════
+     CARD 1 – Empty / Template
+════════════════════════════════════════════════ -->
+<div class="demo-section">
+  <span class="demo-label">תבנית ריקה</span>
+  <div class="player-card" id="card-template">
+
+    <img class="card-logo" src="ligat_libi_logo.png" alt="ליגת ליב״י" />
+
+    <div class="card-header">
+      <div class="league-name">ליגת בית ישראל</div>
+      <div class="season-label">עונה: 2025 / 2026</div>
+      <div class="header-rule"></div>
+    </div>
+
+    <!-- ── FLAMING BASKETBALL ─── -->
+    <div class="central-graphic">
+      <svg width="290" height="130" viewBox="0 0 290 130">
+        <defs>
+          <!-- Ball fill -->
+          <radialGradient id="bG1" cx="36%" cy="28%" r="68%">
+            <stop offset="0%"   stop-color="#FFD070"/>
+            <stop offset="28%"  stop-color="#FF9200"/>
+            <stop offset="62%"  stop-color="#E85500"/>
+            <stop offset="100%" stop-color="#8C2300"/>
+          </radialGradient>
+          <!-- Ball shadow -->
+          <radialGradient id="bS1" cx="50%" cy="30%" r="55%">
+            <stop offset="0%"   stop-color="#000" stop-opacity="0.5"/>
+            <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+          </radialGradient>
+          <!-- Glow filter for flame -->
+          <filter id="fGlow1" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <!-- Subtle ball glow -->
+          <filter id="bGlow1">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <!-- ░░ FLAME GROUP ░░ -->
+        <g filter="url(#fGlow1)">
+
+          <!-- ────────────────────────────────────────
+               LAYER 1 · Dark crimson (outermost)
+          ──────────────────────────────────────── -->
+          <!-- Main connecting body -->
+          <ellipse cx="152" cy="67" rx="36" ry="47" fill="#9E0E00"/>
+
+          <!-- Tongue A · tiny top (rot -50°) -->
+          <g transform="translate(113,41) rotate(-50)">
+            <path d="M0,-9 C24,-9 46,-3.5 62,0 C46,3.5 24,9 0,9 Z" fill="#9E0E00"/>
+          </g>
+          <!-- Tongue B · top-main (rot -28°) -->
+          <g transform="translate(116,50) rotate(-28)">
+            <path d="M0,-15 C38,-15 74,-5.5 104,0 C74,5.5 38,15 0,15 Z" fill="#9E0E00"/>
+          </g>
+          <!-- Tongue C · upper-mid (rot -7°) -->
+          <g transform="translate(118,63) rotate(-7)">
+            <path d="M0,-18 C48,-18 108,-6.5 154,0 C108,6.5 48,18 0,18 Z" fill="#9E0E00"/>
+          </g>
+          <!-- Tongue D · lower-mid (rot +7°) -->
+          <g transform="translate(119,75) rotate(7)">
+            <path d="M0,-16 C44,-16 100,-5.5 144,0 C100,5.5 44,16 0,16 Z" fill="#9E0E00"/>
+          </g>
+          <!-- Tongue E · bottom (rot +26°) -->
+          <g transform="translate(117,87) rotate(26)">
+            <path d="M0,-11 C26,-11 54,-4 82,0 C54,4 26,11 0,11 Z" fill="#9E0E00"/>
+          </g>
+
+          <!-- ────────────────────────────────────────
+               LAYER 2 · Red-orange
+          ──────────────────────────────────────── -->
+          <ellipse cx="148" cy="67" rx="28" ry="38" fill="#D93000"/>
+
+          <g transform="translate(114,42) rotate(-50)">
+            <path d="M0,-7 C18,-7 37,-2.5 52,0 C37,2.5 18,7 0,7 Z" fill="#D93000"/>
+          </g>
+          <g transform="translate(116,51) rotate(-28)">
+            <path d="M0,-12 C30,-12 60,-4.5 88,0 C60,4.5 30,12 0,12 Z" fill="#D93000"/>
+          </g>
+          <g transform="translate(118,63) rotate(-7)">
+            <path d="M0,-14 C38,-14 88,-5 132,0 C88,5 38,14 0,14 Z" fill="#D93000"/>
+          </g>
+          <g transform="translate(119,75) rotate(7)">
+            <path d="M0,-12 C34,-12 82,-4.5 122,0 C82,4.5 34,12 0,12 Z" fill="#D93000"/>
+          </g>
+          <g transform="translate(117,87) rotate(26)">
+            <path d="M0,-8 C20,-8 44,-3 66,0 C44,3 20,8 0,8 Z" fill="#D93000"/>
+          </g>
+
+          <!-- ────────────────────────────────────────
+               LAYER 3 · Vivid orange
+          ──────────────────────────────────────── -->
+          <ellipse cx="144" cy="67" rx="21" ry="30" fill="#FF5500"/>
+
+          <g transform="translate(114,43) rotate(-50)">
+            <path d="M0,-5 C13,-5 28,-1.8 40,0 C28,1.8 13,5 0,5 Z" fill="#FF5500"/>
+          </g>
+          <g transform="translate(116,52) rotate(-28)">
+            <path d="M0,-9 C22,-9 46,-3 70,0 C46,3 22,9 0,9 Z" fill="#FF5500"/>
+          </g>
+          <g transform="translate(118,64) rotate(-7)">
+            <path d="M0,-10 C28,-10 66,-3.5 104,0 C66,3.5 28,10 0,10 Z" fill="#FF5500"/>
+          </g>
+          <g transform="translate(119,75) rotate(7)">
+            <path d="M0,-9 C26,-9 62,-3 96,0 C62,3 26,9 0,9 Z" fill="#FF5500"/>
+          </g>
+          <g transform="translate(117,87) rotate(26)">
+            <path d="M0,-6 C14,-6 32,-2 50,0 C32,2 14,6 0,6 Z" fill="#FF5500"/>
+          </g>
+
+          <!-- ────────────────────────────────────────
+               LAYER 4 · Orange-yellow
+          ──────────────────────────────────────── -->
+          <ellipse cx="140" cy="67" rx="15" ry="22" fill="#FFAA00"/>
+
+          <g transform="translate(115,44) rotate(-50)">
+            <path d="M0,-3.5 C8,-3.5 19,-1 28,0 C19,1 8,3.5 0,3.5 Z" fill="#FFAA00"/>
+          </g>
+          <g transform="translate(116,52) rotate(-28)">
+            <path d="M0,-6.5 C15,-6.5 33,-2 50,0 C33,2 15,6.5 0,6.5 Z" fill="#FFAA00"/>
+          </g>
+          <g transform="translate(118,64) rotate(-7)">
+            <path d="M0,-7 C18,-7 44,-2.5 72,0 C44,2.5 18,7 0,7 Z" fill="#FFAA00"/>
+          </g>
+          <g transform="translate(119,75) rotate(7)">
+            <path d="M0,-6.5 C17,-6.5 42,-2 66,0 C42,2 17,6.5 0,6.5 Z" fill="#FFAA00"/>
+          </g>
+          <g transform="translate(117,87) rotate(26)">
+            <path d="M0,-4 C9,-4 20,-1.5 32,0 C20,1.5 9,4 0,4 Z" fill="#FFAA00"/>
+          </g>
+
+          <!-- ────────────────────────────────────────
+               LAYER 5 · Bright yellow core (hottest)
+          ──────────────────────────────────────── -->
+          <ellipse cx="136" cy="67" rx="10" ry="15" fill="#FFE840"/>
+
+          <g transform="translate(116,53) rotate(-28)">
+            <path d="M0,-4.5 C9,-4.5 20,-1.5 32,0 C20,1.5 9,4.5 0,4.5 Z" fill="#FFE840"/>
+          </g>
+          <g transform="translate(118,64) rotate(-7)">
+            <path d="M0,-4.5 C10,-4.5 26,-1.5 44,0 C26,1.5 10,4.5 0,4.5 Z" fill="#FFE840"/>
+          </g>
+          <g transform="translate(119,75) rotate(7)">
+            <path d="M0,-4 C9,-4 24,-1.5 40,0 C24,1.5 9,4 0,4 Z" fill="#FFE840"/>
+          </g>
+
+        </g><!-- end flame group -->
+
+        <!-- ░░ BASKETBALL ░░ -->
+        <!-- ground shadow -->
+        <ellipse cx="79" cy="118" rx="37" ry="7" fill="url(#bS1)"/>
+
+        <g filter="url(#bGlow1)">
+          <circle cx="79" cy="66" r="44" fill="url(#bG1)"/>
+
+          <!-- seams -->
+          <path d="M 35,66 Q 79,42 123,66" fill="none" stroke="#2C0800" stroke-width="2.6" stroke-linecap="round"/>
+          <path d="M 35,66 Q 79,90 123,66" fill="none" stroke="#2C0800" stroke-width="2.6" stroke-linecap="round"/>
+          <path d="M 79,22 Q 53,66 79,110"  fill="none" stroke="#2C0800" stroke-width="2.6" stroke-linecap="round"/>
+          <path d="M 79,22 Q 105,66 79,110" fill="none" stroke="#2C0800" stroke-width="2.6" stroke-linecap="round"/>
+
+          <!-- specular highlights -->
+          <ellipse cx="62" cy="45" rx="12" ry="7" fill="rgba(255,255,255,0.22)" transform="rotate(-22,62,45)"/>
+          <ellipse cx="56" cy="40" rx="4.5" ry="2.5" fill="rgba(255,255,255,0.40)" transform="rotate(-22,56,40)"/>
+        </g>
+
+      </svg>
+    </div><!-- end central-graphic -->
+
+    <!-- Player Photo -->
+    <div class="photo-wrap">
+      <div class="photo-frame">
+        <div class="photo-placeholder">
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+            <circle cx="18" cy="12" r="7" stroke="rgba(160,200,255,0.7)" stroke-width="1.5"/>
+            <path d="M4,35 C4,25 32,25 32,35" stroke="rgba(160,200,255,0.7)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          </svg>
+          <span class="photo-hint">תמונת שחקן</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Player Info -->
+    <div class="info-block">
+      <div class="info-row">
+        <span class="info-label">שם שחקן:</span>
+        <span class="info-value empty">— — — — — —</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">ת.ז:</span>
+        <span class="info-value empty">— — — — — —</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">קבוצה:</span>
+        <span class="info-value empty">— — — — — —</span>
+      </div>
+    </div>
+
+    <div class="card-footer">
+      <div class="libi-brand">ליב"י</div>
+      <div class="official-label">כרטיס שחקן רשמי</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     CARD 2 – Filled example
+════════════════════════════════════════════════ -->
+<div class="demo-section">
+  <span class="demo-label">דוגמה עם שחקן</span>
+  <div class="player-card">
+
+    <img class="card-logo" src="ligat_libi_logo.png" alt="ליגת ליב״י" />
+
+    <div class="card-header">
+      <div class="league-name">ליגת בית ישראל</div>
+      <div class="season-label">עונה: 2025 / 2026</div>
+      <div class="header-rule"></div>
+    </div>
+
+    <!-- ── FLAMING BASKETBALL (Card 2 — unique IDs) ── -->
+    <div class="central-graphic">
+      <svg width="290" height="130" viewBox="0 0 290 130">
+        <defs>
+          <radialGradient id="bG2" cx="36%" cy="28%" r="68%">
+            <stop offset="0%"   stop-color="#FFD070"/>
+            <stop offset="28%"  stop-color="#FF9200"/>
+            <stop offset="62%"  stop-color="#E85500"/>
+            <stop offset="100%" stop-color="#8C2300"/>
+          </radialGradient>
+          <radialGradient id="bS2" cx="50%" cy="30%" r="55%">
+            <stop offset="0%"   stop-color="#000" stop-opacity="0.5"/>
+            <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+          </radialGradient>
+          <filter id="fGlow2" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="bGlow2">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <g filter="url(#fGlow2)">
+
+          <!-- Layer 1 · Crimson -->
+          <ellipse cx="152" cy="67" rx="36" ry="47" fill="#9E0E00"/>
+          <g transform="translate(113,41) rotate(-50)">
+            <path d="M0,-9 C24,-9 46,-3.5 62,0 C46,3.5 24,9 0,9 Z" fill="#9E0E00"/>
+          </g>
+          <g transform="translate(116,50) rotate(-28)">
+            <path d="M0,-15 C38,-15 74,-5.5 104,0 C74,5.5 38,15 0,15 Z" fill="#9E0E00"/>
+          </g>
+          <g transform="translate(118,63) rotate(-7)">
+            <path d="M0,-18 C48,-18 108,-6.5 154,0 C108,6.5 48,18 0,18 Z" fill="#9E0E00"/>
+          </g>
+          <g transform="translate(119,75) rotate(7)">
+            <path d="M0,-16 C44,-16 100,-5.5 144,0 C100,5.5 44,16 0,16 Z" fill="#9E0E00"/>
+          </g>
+          <g transform="translate(117,87) rotate(26)">
+            <path d="M0,-11 C26,-11 54,-4 82,0 C54,4 26,11 0,11 Z" fill="#9E0E00"/>
+          </g>
+
+          <!-- Layer 2 · Red-orange -->
+          <ellipse cx="148" cy="67" rx="28" ry="38" fill="#D93000"/>
+          <g transform="translate(114,42) rotate(-50)">
+            <path d="M0,-7 C18,-7 37,-2.5 52,0 C37,2.5 18,7 0,7 Z" fill="#D93000"/>
+          </g>
+          <g transform="translate(116,51) rotate(-28)">
+            <path d="M0,-12 C30,-12 60,-4.5 88,0 C60,4.5 30,12 0,12 Z" fill="#D93000"/>
+          </g>
+          <g transform="translate(118,63) rotate(-7)">
+            <path d="M0,-14 C38,-14 88,-5 132,0 C88,5 38,14 0,14 Z" fill="#D93000"/>
+          </g>
+          <g transform="translate(119,75) rotate(7)">
+            <path d="M0,-12 C34,-12 82,-4.5 122,0 C82,4.5 34,12 0,12 Z" fill="#D93000"/>
+          </g>
+          <g transform="translate(117,87) rotate(26)">
+            <path d="M0,-8 C20,-8 44,-3 66,0 C44,3 20,8 0,8 Z" fill="#D93000"/>
+          </g>
+
+          <!-- Layer 3 · Vivid orange -->
+          <ellipse cx="144" cy="67" rx="21" ry="30" fill="#FF5500"/>
+          <g transform="translate(114,43) rotate(-50)">
+            <path d="M0,-5 C13,-5 28,-1.8 40,0 C28,1.8 13,5 0,5 Z" fill="#FF5500"/>
+          </g>
+          <g transform="translate(116,52) rotate(-28)">
+            <path d="M0,-9 C22,-9 46,-3 70,0 C46,3 22,9 0,9 Z" fill="#FF5500"/>
+          </g>
+          <g transform="translate(118,64) rotate(-7)">
+            <path d="M0,-10 C28,-10 66,-3.5 104,0 C66,3.5 28,10 0,10 Z" fill="#FF5500"/>
+          </g>
+          <g transform="translate(119,75) rotate(7)">
+            <path d="M0,-9 C26,-9 62,-3 96,0 C62,3 26,9 0,9 Z" fill="#FF5500"/>
+          </g>
+          <g transform="translate(117,87) rotate(26)">
+            <path d="M0,-6 C14,-6 32,-2 50,0 C32,2 14,6 0,6 Z" fill="#FF5500"/>
+          </g>
+
+          <!-- Layer 4 · Orange-yellow -->
+          <ellipse cx="140" cy="67" rx="15" ry="22" fill="#FFAA00"/>
+          <g transform="translate(115,44) rotate(-50)">
+            <path d="M0,-3.5 C8,-3.5 19,-1 28,0 C19,1 8,3.5 0,3.5 Z" fill="#FFAA00"/>
+          </g>
+          <g transform="translate(116,52) rotate(-28)">
+            <path d="M0,-6.5 C15,-6.5 33,-2 50,0 C33,2 15,6.5 0,6.5 Z" fill="#FFAA00"/>
+          </g>
+          <g transform="translate(118,64) rotate(-7)">
+            <path d="M0,-7 C18,-7 44,-2.5 72,0 C44,2.5 18,7 0,7 Z" fill="#FFAA00"/>
+          </g>
+          <g transform="translate(119,75) rotate(7)">
+            <path d="M0,-6.5 C17,-6.5 42,-2 66,0 C42,2 17,6.5 0,6.5 Z" fill="#FFAA00"/>
+          </g>
+          <g transform="translate(117,87) rotate(26)">
+            <path d="M0,-4 C9,-4 20,-1.5 32,0 C20,1.5 9,4 0,4 Z" fill="#FFAA00"/>
+          </g>
+
+          <!-- Layer 5 · Bright yellow core -->
+          <ellipse cx="136" cy="67" rx="10" ry="15" fill="#FFE840"/>
+          <g transform="translate(116,53) rotate(-28)">
+            <path d="M0,-4.5 C9,-4.5 20,-1.5 32,0 C20,1.5 9,4.5 0,4.5 Z" fill="#FFE840"/>
+          </g>
+          <g transform="translate(118,64) rotate(-7)">
+            <path d="M0,-4.5 C10,-4.5 26,-1.5 44,0 C26,1.5 10,4.5 0,4.5 Z" fill="#FFE840"/>
+          </g>
+          <g transform="translate(119,75) rotate(7)">
+            <path d="M0,-4 C9,-4 24,-1.5 40,0 C24,1.5 9,4 0,4 Z" fill="#FFE840"/>
+          </g>
+
+        </g><!-- end flame group -->
+
+        <!-- Basketball -->
+        <ellipse cx="79" cy="118" rx="37" ry="7" fill="url(#bS2)"/>
+        <g filter="url(#bGlow2)">
+          <circle cx="79" cy="66" r="44" fill="url(#bG2)"/>
+          <path d="M 35,66 Q 79,42 123,66" fill="none" stroke="#2C0800" stroke-width="2.6" stroke-linecap="round"/>
+          <path d="M 35,66 Q 79,90 123,66" fill="none" stroke="#2C0800" stroke-width="2.6" stroke-linecap="round"/>
+          <path d="M 79,22 Q 53,66 79,110"  fill="none" stroke="#2C0800" stroke-width="2.6" stroke-linecap="round"/>
+          <path d="M 79,22 Q 105,66 79,110" fill="none" stroke="#2C0800" stroke-width="2.6" stroke-linecap="round"/>
+          <ellipse cx="62" cy="45" rx="12" ry="7" fill="rgba(255,255,255,0.22)" transform="rotate(-22,62,45)"/>
+          <ellipse cx="56" cy="40" rx="4.5" ry="2.5" fill="rgba(255,255,255,0.40)" transform="rotate(-22,56,40)"/>
+        </g>
+      </svg>
+    </div>
+
+    <div class="photo-wrap">
+      <div class="photo-frame">
+        <div class="photo-placeholder">
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+            <circle cx="18" cy="12" r="7" stroke="rgba(160,200,255,0.7)" stroke-width="1.5"/>
+            <path d="M4,35 C4,25 32,25 32,35" stroke="rgba(160,200,255,0.7)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-block">
+      <div class="info-row">
+        <span class="info-label">שם שחקן:</span>
+        <span class="info-value">דור מרקוביץ'</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">ת.ז:</span>
+        <span class="info-value">324964931</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">קבוצה:</span>
+        <span class="info-value">אריות טבקה קריית גת</span>
+      </div>
+    </div>
+
+    <div class="card-footer">
+      <div class="libi-brand">ליב"י</div>
+      <div class="official-label">כרטיס שחקן רשמי</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

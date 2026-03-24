@@ -51,6 +51,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           { href: '/admin?tab=games',     label: '🎮 Games',     tab: 'games' },
           { href: '/admin?tab=boxscore',  label: '📊 Box Score', tab: 'boxscore' },
           { href: '/admin?tab=media',     label: '🎥 Media',     tab: 'media' },
+          { href: '/admin?tab=sync',      label: '📋 Sync',      tab: 'sync' },
         ].map(({ href, label }) => (
           <Link
             key={href}

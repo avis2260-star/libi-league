@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import GamesTab from '@/components/admin/GamesTab';
 import BoxScoreTab from '@/components/admin/BoxScoreTab';
 import MediaTab from '@/components/admin/MediaTab';
+import ExcelSyncTab from '@/components/admin/ExcelSyncTab';
 import type { GameWithTeams } from '@/types';
 
 async function getAllGames(): Promise<GameWithTeams[]> {
@@ -35,6 +36,7 @@ export default async function AdminPage({
       {tab === 'games' && <GamesTab games={activeGames} />}
       {tab === 'boxscore' && <BoxScoreTab games={allGames} />}
       {tab === 'media' && <MediaTab games={allGames} />}
+      {tab === 'sync' && <ExcelSyncTab />}
     </>
   );
 }
