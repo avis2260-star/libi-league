@@ -2,46 +2,56 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
 type StandingRow = {
-  rank: number;
-  name: string;
-  games: number;
-  wins: number;
-  losses: number;
-  pf: number;
-  pa: number;
-  diff: number;
-  techni: number;
-  penalty: number;
-  pts: number;
+  rank: number; name: string; games: number; wins: number; losses: number;
+  pf: number; pa: number; diff: number; techni: number; penalty: number; pts: number;
+};
+
+type GameResultRow = {
+  round: number; date: string; division: string;
+  home_team: string; away_team: string;
+  home_score: number; away_score: number;
+  techni: boolean; techni_note: string;
 };
 
 export async function POST(req: NextRequest) {
   try {
-    const { north, south } = (await req.json()) as {
+    const { north, south, results } = (await req.json()) as {
       north: StandingRow[];
       south: StandingRow[];
+      results: GameResultRow[];
     };
 
-    if (!Array.isArray(north) || !Array.isArray(south)) {
-      return NextResponse.json({ error: 'Invalid data format' }, { status: 400 });
-    }
-
-    const allRows = [
+    // Upsert standings
+    const standingRows = [
       ...north.map((r) => ({ ...r, division: 'North' })),
       ...south.map((r) => ({ ...r, division: 'South' })),
     ];
 
-    const { error } = await supabaseAdmin
-      .from('standings')
-      .upsert(allRows, { onConflict: 'name,division' });
+    if (standingRows.length > 0) {
+      const { error } = await supabaseAdmin
+        .from('standings')
+        .upsert(standingRows, { onConflict: 'name,division' });
+      if (error) throw error;
+    }
 
-    if (error) throw error;
+    // Upsert game results
+    let resultsCount = 0;
+    if (Array.isArray(results) && results.length > 0) {
+      const { error } = await supabaseAdmin
+        .from('game_results')
+        .upsert(results, { onConflict: 'round,home_team,away_team' });
+      if (error) throw error;
+      resultsCount = results.length;
+    }
+
+    const parts = [];
+    if (north.length > 0) parts.push(`${north.length} קבוצות צפון`);
+    if (south.length > 0) parts.push(`${south.length} קבוצות דרום`);
+    if (resultsCount > 0) parts.push(`${resultsCount} תוצאות משחקים`);
 
     return NextResponse.json({
       success: true,
-      updated: north.length + south.length,
-      inserted: 0,
-      message: `${north.length} קבוצות צפון + ${south.length} קבוצות דרום עודכנו בהצלחה`,
+      message: `✅ עודכנו: ${parts.join(' + ')}`,
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Sync failed';
