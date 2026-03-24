@@ -66,7 +66,6 @@ function parseStandings(rows: unknown[][]): Preview {
 
       if (inNorth) north.push(standing);
       else south.push(standing);
-      break;
     }
   }
 
