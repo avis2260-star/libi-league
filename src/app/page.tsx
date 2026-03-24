@@ -1,10 +1,13 @@
 export const dynamic = 'force-dynamic';
 
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import {
-  NORTH_TABLE, SOUTH_TABLE, UPCOMING_GAMES,
-  CURRENT_ROUND, TOTAL_ROUNDS,
-} from '@/lib/league-data';
+import { NORTH_TABLE, SOUTH_TABLE, CURRENT_ROUND, TOTAL_ROUNDS } from '@/lib/league-data';
+import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
+
+const ROUND_DATES: Record<number, string> = {
+  9: '28.02.26', 10: '14.03.26', 11: '21.03.26',
+  12: '10.04.26', 13: '17.04.26', 14: '24.04.26',
+};
 
 type Standing = { rank: number; name: string; wins: number; losses: number; pts: number; division: string };
 type GameRow  = { round: number; date: string; home_team: string; away_team: string; home_score: number; away_score: number; techni: boolean };
@@ -98,10 +101,10 @@ export default async function HomePage() {
   const biggestWinner = biggestWin.sh > biggestWin.sa ? biggestWin.home : biggestWin.away;
   const biggestLoser  = biggestWin.sh > biggestWin.sa ? biggestWin.away : biggestWin.home;
 
-  const northUpcoming = UPCOMING_GAMES.filter((g) => g.division === 'North');
-  const southUpcoming = UPCOMING_GAMES.filter((g) => g.division === 'South');
-  const nextRound = UPCOMING_GAMES[0]?.round ?? currentRound + 1;
-  const nextDate  = UPCOMING_GAMES[0]?.date ?? '';
+  const nextRound = currentRound + 1;
+  const nextDate  = ROUND_DATES[nextRound] ?? '';
+  const northUpcoming = LIBI_SCHEDULE.filter((g) => g.round === nextRound && g.division === 'North').map(g => ({ home: g.homeTeam, away: g.awayTeam }));
+  const southUpcoming = LIBI_SCHEDULE.filter((g) => g.round === nextRound && g.division === 'South').map(g => ({ home: g.homeTeam, away: g.awayTeam }));
 
   return (
     <div className="space-y-8">
