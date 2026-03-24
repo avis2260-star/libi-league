@@ -10,8 +10,8 @@ async function getStandings(): Promise<{ north: Standing[]; south: Standing[] }>
 
     if (error || !data || data.length === 0) throw new Error('no data');
 
-    const north = data.filter((r: Standing) => r.division === 'North');
-    const south = data.filter((r: Standing) => r.division === 'South');
+    const north = (data as (Standing & { division: string })[]).filter((r) => r.division === 'North');
+    const south = (data as (Standing & { division: string })[]).filter((r) => r.division === 'South');
 
     if (north.length === 0 && south.length === 0) throw new Error('empty');
 
