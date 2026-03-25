@@ -124,75 +124,93 @@ function parseResults(rows: unknown[][]): GameResultRow[] {
 function parseCupGames(rows: unknown[][]): CupGameRow[] {
   const games: CupGameRow[] = [];
 
-  const ROUND_KEYWORDS: Record<string, { name: string; order: number }> = {
-    'שמינית': { name: 'שמינית גמר', order: 1 },
-    'רבע':    { name: 'רבע גמר',    order: 2 },
-    'חצי':    { name: 'חצי גמר',    order: 3 },
-    'גמר':    { name: 'גמר',        order: 4 },
-  };
+  const ROUND_PATTERNS = [
+    { keyword: 'שמינית', name: 'שמינית גמר', order: 1 },
+    { keyword: 'רבע',    name: 'רבע גמר',    order: 2 },
+    { keyword: 'חצי',    name: 'חצי גמר',    order: 3 },
+    { keyword: 'גמר',    name: 'גמר',         order: 4 },
+  ];
 
-  let currentRound = 'רבע גמר';
-  let currentOrder = 2;
-  let gameNumInRound = 0;
+  // Step 1: Find round header positions (column index → round info)
+  const roundByCol: Record<number, { name: string; order: number; date: string }> = {};
 
   for (const row of rows) {
     if (!row || !Array.isArray(row)) continue;
-    const rowText = row.map(c => String(c ?? '').trim()).join(' ');
-
-    // Detect round header
-    let foundRound = false;
-    for (const [key, val] of Object.entries(ROUND_KEYWORDS)) {
-      if (rowText.includes(key)) {
-        currentRound = val.name;
-        currentOrder = val.order;
-        gameNumInRound = 0;
-        foundRound = true;
-        break;
+    for (let col = 0; col < row.length; col++) {
+      const cell = String(row[col] ?? '').trim();
+      for (const p of ROUND_PATTERNS) {
+        if (cell.includes(p.keyword)) {
+          // Search nearby cells in this row and adjacent rows for a date
+          let date = '';
+          for (let dc = 0; dc < row.length; dc++) {
+            const v = String(row[dc] ?? '').trim();
+            if (/^\d{1,2}\.\d{1,2}\.(\d{2}|\d{4})$/.test(v)) { date = v; break; }
+          }
+          // Mark every column in a ±5 range as belonging to this round
+          for (let c = Math.max(0, col - 6); c <= col + 6; c++) {
+            if (!roundByCol[c] || roundByCol[c].order > p.order) {
+              roundByCol[c] = { name: p.name, order: p.order, date };
+            }
+          }
+        }
       }
     }
-    if (foundRound) continue;
+  }
 
-    // Find team names (non-empty string cells)
-    const cells = row.map(c => ({ raw: c, str: String(c ?? '').trim() }));
-    const stringCells = cells.filter(c => c.str && isNaN(Number(c.str)) && c.str.length > 1);
-    const numCells = cells.filter(c => typeof c.raw === 'number');
+  // Step 2: Scan row pairs for בית/חוץ patterns
+  const gamesPerRound: Record<string, number> = {};
 
-    if (stringCells.length >= 2) {
-      const homeTeam = stringCells[0].str;
-      const awayTeam = stringCells[1].str;
-      const homeScore = numCells[0]?.raw as number ?? null;
-      const awayScore = numCells[1]?.raw as number ?? null;
+  for (let i = 0; i < rows.length - 1; i++) {
+    const row     = rows[i];
+    const nextRow = rows[i + 1];
+    if (!row || !Array.isArray(row) || !nextRow || !Array.isArray(nextRow)) continue;
 
-      // Look for date
-      let dateStr = '';
-      for (const cell of cells) {
-        if (cell.raw instanceof Date) {
-          dateStr = cell.raw.toLocaleDateString('he-IL');
-          break;
-        }
-        if (typeof cell.raw === 'number' && cell.raw > 40000 && cell.raw < 50000) {
-          // Excel date serial
-          const d = new Date(Math.round((cell.raw - 25569) * 86400 * 1000));
-          dateStr = d.toLocaleDateString('he-IL');
-          break;
-        }
+    for (let col = 0; col < row.length; col++) {
+      if (String(row[col] ?? '').trim() !== 'בית') continue;
+      if (String(nextRow[col] ?? '').trim() !== 'חוץ') continue;
+
+      // Extract home team name and score from row (search left & right of "בית")
+      let homeName = ''; let homeScore: number | null = null;
+      let awayName = ''; let awayScore: number | null = null;
+
+      for (let d = 1; d <= 4; d++) {
+        const lv = row[col - d];  const rv = row[col + d];
+        if (typeof lv === 'number' && homeScore === null) homeScore = lv;
+        if (typeof rv === 'number' && homeScore === null) homeScore = rv;
+        if (typeof lv === 'string' && lv.trim().length > 1 && !homeName) homeName = lv.trim();
+        if (typeof rv === 'string' && rv.trim().length > 1 && !homeName) homeName = rv.trim();
+
+        const nlv = nextRow[col - d]; const nrv = nextRow[col + d];
+        if (typeof nlv === 'number' && awayScore === null) awayScore = nlv;
+        if (typeof nrv === 'number' && awayScore === null) awayScore = nrv;
+        if (typeof nlv === 'string' && nlv.trim().length > 1 && !awayName) awayName = nlv.trim();
+        if (typeof nrv === 'string' && nrv.trim().length > 1 && !awayName) awayName = nrv.trim();
       }
 
-      gameNumInRound++;
+      if (!homeName || !awayName) continue;
+      // Skip header-like cells
+      if (['בית','חוץ','שלב','גמר','גביע'].some(k => homeName.includes(k) || awayName.includes(k))) continue;
+
+      // Find round for this column
+      const round = roundByCol[col] ?? { name: 'גמר', order: 4, date: '' };
+      gamesPerRound[round.name] = (gamesPerRound[round.name] ?? 0) + 1;
+
       games.push({
-        round: currentRound,
-        round_order: currentOrder,
-        game_number: gameNumInRound,
-        home_team: homeTeam,
-        away_team: awayTeam,
+        round: round.name,
+        round_order: round.order,
+        game_number: gamesPerRound[round.name],
+        home_team: homeName,
+        away_team: awayName,
         home_score: homeScore,
         away_score: awayScore,
-        date: dateStr,
+        date: round.date,
         played: homeScore !== null && awayScore !== null,
       });
     }
   }
 
+  // Sort by round order then game number
+  games.sort((a, b) => a.round_order - b.round_order || a.game_number - b.game_number);
   return games;
 }
 
