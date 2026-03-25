@@ -136,6 +136,7 @@ function parseCupGames(rows: unknown[][]): CupGameRow[] {
   let gameNumInRound = 0;
 
   for (const row of rows) {
+    if (!row || !Array.isArray(row)) continue;
     const rowText = row.map(c => String(c ?? '').trim()).join(' ');
 
     // Detect round header
@@ -221,13 +222,15 @@ export async function POST(req: NextRequest) {
       results = parseResults(resultsRows);
     }
 
-    // Parse cup games
-    const cupSheet = wb.SheetNames.find((n) => n.includes('גביע') || n.includes('טורניר'));
+    // Parse cup games (safely — never break main sync)
     let cupGames: CupGameRow[] = [];
-    if (cupSheet) {
-      const cupRows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[cupSheet], { header: 1 });
-      cupGames = parseCupGames(cupRows);
-    }
+    try {
+      const cupSheet = wb.SheetNames.find((n) => n.includes('גביע') || n.includes('טורניר'));
+      if (cupSheet) {
+        const cupRows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[cupSheet], { header: 1 });
+        cupGames = parseCupGames(cupRows ?? []);
+      }
+    } catch { /* cup sheet parsing failed — skip silently */ }
 
     if (north.length === 0 && south.length === 0 && results.length === 0) {
       return NextResponse.json({ error: 'No data found in Excel file' }, { status: 400 });
