@@ -1,0 +1,179 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase-admin';
+
+const NORTH_NAMES = new Set([
+  'ידרסל חדרה', 'חולון', 'בני נתניה', 'גוטלמן השרון',
+  'בני מוצקין', 'כ.ע. בת-ים', 'גלי בת-ים',
+]);
+const SOUTH_NAMES = new Set([
+  'ראשון "גפן" לציון', 'אחים קריית משה', 'קריית מלאכי',
+  'אוריה ירושלים', 'אופק רחובות', 'אריות קריית גת',
+  'אדיס אשדוד', "החבר'ה הטובים גדרה",
+]);
+
+type StandingRow = {
+  rank: number; name: string; games: number; wins: number; losses: number;
+  pf: number; pa: number; diff: number; techni: number; penalty: number; pts: number;
+};
+
+type GameResultRow = {
+  round: number; date: string; division: string;
+  home_team: string; away_team: string;
+  home_score: number; away_score: number;
+  techni: boolean; techni_note: string;
+};
+
+function parseStandings(rows: unknown[][]): { north: StandingRow[]; south: StandingRow[] } {
+  const north: StandingRow[] = [];
+  const south: StandingRow[] = [];
+
+  for (const row of rows) {
+    for (let i = 0; i < row.length; i++) {
+      const cell = String(row[i] ?? '').trim();
+      const inNorth = NORTH_NAMES.has(cell);
+      const inSouth = SOUTH_NAMES.has(cell);
+      if (!inNorth && !inSouth) continue;
+
+      const nums = (row.slice(i + 1) as unknown[])
+        .map((v) => (typeof v === 'number' ? v : parseFloat(String(v ?? 0)) || 0));
+      const rankCell = row[i - 1];
+      const rank = typeof rankCell === 'number' ? rankCell : (inNorth ? north.length : south.length) + 1;
+
+      const standing: StandingRow = {
+        rank,
+        name: cell,
+        games:   nums[0] ?? 0,
+        wins:    nums[1] ?? 0,
+        losses:  nums[2] ?? 0,
+        pf:      nums[3] ?? 0,
+        pa:      nums[4] ?? 0,
+        diff:    nums[5] ?? 0,
+        techni:  nums[6] ?? 0,
+        penalty: nums[7] ?? 0,
+        pts:     nums[8] ?? 0,
+      };
+
+      if (inNorth) north.push(standing);
+      else south.push(standing);
+    }
+  }
+
+  north.sort((a, b) => a.rank - b.rank);
+  south.sort((a, b) => a.rank - b.rank);
+  return { north, south };
+}
+
+function parseResults(rows: unknown[][]): GameResultRow[] {
+  const results: GameResultRow[] = [];
+  let currentDate = '';
+  let currentRound = 0;
+  let currentDivision: 'North' | 'South' = 'South';
+
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.length < 7) continue;
+
+    const col0 = String(row[0] ?? '').trim();
+    const col1 = row[1];
+    const col2 = String(row[2] ?? '').trim();
+    const col3 = String(row[3] ?? '').trim();
+    const col4 = row[4];
+    const col5 = row[5];
+    const col6 = String(row[6] ?? '').trim();
+    const col10 = String(row[10] ?? '').trim();
+
+    if (col0.includes('פגרה') || col0.includes('גביע')) continue;
+    if (col0 && /\d{1,2}[./]\d{1,2}[./]\d{2,4}/.test(col0)) currentDate = col0;
+    if (typeof col1 === 'number' && col1 > 0) currentRound = col1;
+    if (col2 === 'צפון') currentDivision = 'North';
+    else if (col2 === 'דרום') currentDivision = 'South';
+
+    const homeScore = typeof col4 === 'number' ? col4 : parseInt(String(col4 ?? ''));
+    const awayScore = typeof col5 === 'number' ? col5 : parseInt(String(col5 ?? ''));
+
+    if (!col3 || !col6 || isNaN(homeScore) || isNaN(awayScore) || currentRound === 0) continue;
+
+    results.push({
+      round: currentRound,
+      date: currentDate,
+      division: currentDivision,
+      home_team: col3,
+      away_team: col6,
+      home_score: homeScore,
+      away_score: awayScore,
+      techni: col10.startsWith('טכני'),
+      techni_note: col10,
+    });
+  }
+
+  return results;
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    // Read multipart file
+    const formData = await req.formData();
+    const file = formData.get('file') as File | null;
+    if (!file) return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+
+    const buffer = await file.arrayBuffer();
+
+    // Parse Excel server-side
+    const XLSX = await import('xlsx');
+    const wb = XLSX.read(buffer, { type: 'array' });
+
+    // Parse standings
+    const standingsSheet = wb.SheetNames.find((n) => n.includes('טבלאות')) ?? wb.SheetNames[0];
+    const standingsRows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[standingsSheet], { header: 1 });
+    const { north, south } = parseStandings(standingsRows);
+
+    // Parse results
+    const resultsSheet = wb.SheetNames.find((n) => n.includes('תוצאות'));
+    let results: GameResultRow[] = [];
+    if (resultsSheet) {
+      const resultsRows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[resultsSheet], { header: 1 });
+      results = parseResults(resultsRows);
+    }
+
+    if (north.length === 0 && south.length === 0 && results.length === 0) {
+      return NextResponse.json({ error: 'No data found in Excel file' }, { status: 400 });
+    }
+
+    // Upsert standings
+    const standingRows = [
+      ...north.map((r) => ({ ...r, division: 'North' })),
+      ...south.map((r) => ({ ...r, division: 'South' })),
+    ];
+
+    if (standingRows.length > 0) {
+      const { error } = await supabaseAdmin
+        .from('standings')
+        .upsert(standingRows, { onConflict: 'name,division' });
+      if (error) throw error;
+    }
+
+    // Upsert game results
+    let resultsCount = 0;
+    if (results.length > 0) {
+      const { error } = await supabaseAdmin
+        .from('game_results')
+        .upsert(results, { onConflict: 'round,home_team,away_team' });
+      if (error) throw error;
+      resultsCount = results.length;
+    }
+
+    const parts = [];
+    if (north.length > 0) parts.push(`${north.length} קבוצות צפון`);
+    if (south.length > 0) parts.push(`${south.length} קבוצות דרום`);
+    if (resultsCount > 0) parts.push(`${resultsCount} תוצאות משחקים`);
+
+    return NextResponse.json({
+      success: true,
+      message: `✅ עודכנו: ${parts.join(' + ')}`,
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Sync failed';
+    console.error('sync-excel-file error:', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
