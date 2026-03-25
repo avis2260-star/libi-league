@@ -127,6 +127,22 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
     setMsg({ ok: true, text: '✅ תמונת השחקן עודכנה!' });
   }
 
+  async function handleDeletePhoto(id: string, playerName: string) {
+    if (!confirm(`למחוק את התמונה של ${playerName}?`)) return;
+    try {
+      const res = await fetch('/api/admin/players', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, photo_url: null }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      setList((prev) => prev.map((p) => p.id === id ? { ...p, photo_url: null } : p));
+      setMsg({ ok: true, text: `🗑 תמונת ${playerName} נמחקה` });
+    } catch {
+      setMsg({ ok: false, text: 'מחיקת תמונה נכשלה' });
+    }
+  }
+
   const teamsWithPlayers = teams.filter((t) => list.some((p) => p.team_id === t.id));
 
   return (
@@ -289,13 +305,24 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
                           <td className="px-4 py-2 text-center text-gray-400">{p.jersey_number ?? '—'}</td>
                           <td className="px-4 py-2 text-center text-gray-400">{p.position ?? '—'}</td>
                           <td className="px-4 py-2 text-center">
-                            <button
-                              onClick={() => setEditTarget(p)}
-                              title="עדכן תמונה"
-                              className="rounded px-2 py-0.5 text-xs text-blue-400 hover:bg-blue-900/30"
-                            >
-                              🖼️
-                            </button>
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                onClick={() => setEditTarget(p)}
+                                title="העלה תמונה"
+                                className="rounded px-2 py-0.5 text-xs text-blue-400 hover:bg-blue-900/30"
+                              >
+                                🖼️
+                              </button>
+                              {p.photo_url && (
+                                <button
+                                  onClick={() => handleDeletePhoto(p.id, p.name)}
+                                  title="מחק תמונה"
+                                  className="rounded px-2 py-0.5 text-xs text-orange-400 hover:bg-orange-900/30"
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-2 text-center">
                             <button
