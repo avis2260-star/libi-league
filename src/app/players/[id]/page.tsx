@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -100,9 +102,17 @@ export default async function PlayerProfilePage({
         )}
 
         <div className="relative mx-auto flex max-w-4xl flex-col gap-5 px-4 py-10 sm:flex-row sm:items-center sm:gap-8">
-          {/* Team logo */}
-          <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full border-4 border-gray-700 bg-gray-800 sm:h-32 sm:w-32">
-            {player.team?.logo_url ? (
+          {/* Player photo (primary) — falls back to team logo */}
+          <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full border-4 border-orange-500/60 bg-gray-800 shadow-lg shadow-orange-500/10 sm:h-32 sm:w-32">
+            {player.photo_url ? (
+              <Image
+                src={player.photo_url}
+                alt={player.name}
+                fill
+                className="object-cover"
+                priority
+              />
+            ) : player.team?.logo_url ? (
               <Image
                 src={player.team.logo_url}
                 alt={player.team.name}
@@ -112,7 +122,7 @@ export default async function PlayerProfilePage({
               />
             ) : (
               <span className="flex h-full w-full items-center justify-center text-4xl font-black text-gray-500">
-                {player.team?.name?.charAt(0) ?? '?'}
+                {player.name?.charAt(0) ?? '?'}
               </span>
             )}
           </div>
