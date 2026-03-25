@@ -49,6 +49,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <nav className="flex overflow-x-auto border-b border-gray-800 bg-gray-900">
         {[
           { href: '/admin?tab=games',        label: '🎮 Games' },
+          { href: '/admin?tab=teams',        label: '🛡️ קבוצות' },
           { href: '/admin?tab=boxscore',     label: '📊 Box Score' },
           { href: '/admin?tab=media',        label: '🎥 Media' },
           { href: '/admin?tab=players',      label: '👤 שחקנים' },

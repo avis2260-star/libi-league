@@ -12,6 +12,7 @@ import DisciplinaryTab from '@/components/admin/DisciplinaryTab';
 import LeagueSettingsTab from '@/components/admin/LeagueSettingsTab';
 import AnnouncementsTab from '@/components/admin/AnnouncementsTab';
 import SyncLogTab from '@/components/admin/SyncLogTab';
+import TeamsTab from '@/components/admin/TeamsTab';
 import type { GameWithTeams, Team } from '@/types';
 
 async function getAllGames(): Promise<GameWithTeams[]> {
@@ -47,6 +48,13 @@ export default async function AdminPage({
     ]);
     teams   = (teamsData  ?? []) as Team[];
     players = (playersData ?? []) as typeof players;
+  }
+
+  // Teams tab
+  let teamsForTab: { id: string; name: string; logo_url: string | null; captain_name: string | null; contact_info: string | null }[] = [];
+  if (tab === 'teams') {
+    const { data } = await supabaseAdmin.from('teams').select('id,name,logo_url,captain_name,contact_info').order('name');
+    teamsForTab = (data ?? []) as typeof teamsForTab;
   }
 
   // Seasons tab
@@ -110,6 +118,7 @@ export default async function AdminPage({
   return (
     <>
       {tab === 'games'         && <GamesTab games={activeGames} />}
+      {tab === 'teams'         && <TeamsTab teams={teamsForTab} />}
       {tab === 'boxscore'      && <BoxScoreTab games={games} />}
       {tab === 'media'         && <MediaTab games={games} />}
       {tab === 'sync'          && <ExcelSyncTab />}
