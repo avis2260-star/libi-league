@@ -17,6 +17,7 @@ export interface Player {
   team_id: string | null;
   jersey_number: number | null;
   position: Position | null;
+  photo_url: string | null;
   points: number;
   fouls: number;
   three_pointers: number;
