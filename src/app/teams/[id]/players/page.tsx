@@ -33,17 +33,20 @@ function PlayerCard({ player }: { player: Player & { team?: Team } }) {
         </div>
 
         {/* Player photo area */}
-        <div className="flex items-center justify-center bg-gradient-to-b from-[#1e3048] to-[#0f1e2e] py-6">
-          {player.team?.logo_url ? (
+        <div className="relative flex items-center justify-center bg-gradient-to-b from-[#1e3048] to-[#0f1e2e] py-6">
+          {player.photo_url ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={player.team.logo_url} alt={teamName} className="h-16 w-16 rounded-full object-cover opacity-20" />
+            <img src={player.photo_url} alt={player.name} className="h-24 w-24 rounded-full object-cover border-2 border-orange-500/40 shadow-lg" />
+          ) : player.team?.logo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={player.team.logo_url} alt={teamName} className="h-20 w-20 rounded-full object-cover border-2 border-white/20" />
           ) : (
             <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-white/10 bg-white/5 text-4xl font-black text-[#2a4a6a]">
               {[...player.name].find(c => c.trim()) ?? '?'}
             </div>
           )}
           {/* Glow effect */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0b1520] via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0b1520] via-transparent to-transparent pointer-events-none" />
         </div>
 
         {/* Player name + position */}
@@ -110,8 +113,15 @@ export default async function TeamPlayersPage({ params }: { params: Promise<{ id
 
       {/* Team info card */}
       <div className="flex items-center gap-4 rounded-2xl border border-white/[0.07] bg-white/[0.04] p-5">
-        <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-white/10 bg-orange-500/10 text-2xl font-black text-orange-400">
-          {[...team.name].find(c => c.trim()) ?? '🏀'}
+        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-orange-500/10 flex items-center justify-center">
+          {team.logo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={team.logo_url} alt={team.name} className="h-full w-full object-cover" />
+          ) : (
+            <span className="text-2xl font-black text-orange-400">
+              {[...team.name].find(c => c.trim()) ?? '🏀'}
+            </span>
+          )}
         </div>
         <div>
           <p className="font-bold text-white">{team.name}</p>
