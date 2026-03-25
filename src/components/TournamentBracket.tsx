@@ -1,5 +1,4 @@
 'use client';
-import { useRef, useEffect, useState } from 'react';
 
 type CupGame = {
   id: string;
@@ -21,123 +20,128 @@ function getWinner(game: CupGame): string | null {
   return null;
 }
 
-function GameCard({ game }: { game: CupGame }) {
+/* ── Single matchup card (mirrors the games-page style) ──────────────────── */
+function MatchupCard({ game }: { game: CupGame }) {
   const winner  = getWinner(game);
   const homeWin = winner === game.home_team;
   const awayWin = winner === game.away_team;
 
   return (
-    <div className="bg-[#0c1a28] border border-[#1e3a5f] rounded-lg overflow-hidden shadow-md w-40">
-      {/* Home */}
-      <div className={`flex items-center justify-between px-2 py-1.5 border-b border-[#152030] ${homeWin ? 'bg-orange-500/10' : ''}`}>
-        <span className={`text-[10px] font-semibold truncate flex-1 text-right leading-tight
-          ${homeWin ? 'text-orange-400 font-bold' : game.played ? 'text-[#4a6a8a]' : 'text-[#c8d8e8]'}`}>
-          {game.home_team}
-        </span>
-        {game.played && game.home_score !== null && (
-          <span className={`text-xs font-black ml-1.5 min-w-[1.4rem] text-center shrink-0
-            ${homeWin ? 'text-orange-400' : 'text-[#4a6a8a]'}`}>
-            {game.home_score}
-          </span>
-        )}
+    <div className="flex items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.04] px-4 py-3 hover:border-orange-500/20 transition-colors">
+      {/* Game number badge */}
+      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#1e3a5f] text-[10px] font-bold text-[#5a7a9a]">
+        {game.game_number}
       </div>
-      {/* Away */}
-      <div className={`flex items-center justify-between px-2 py-1.5 ${awayWin ? 'bg-orange-500/10' : ''}`}>
-        <span className={`text-[10px] font-semibold truncate flex-1 text-right leading-tight
-          ${awayWin ? 'text-orange-400 font-bold' : game.played ? 'text-[#4a6a8a]' : 'text-[#c8d8e8]'}`}>
-          {game.away_team}
-        </span>
-        {game.played && game.away_score !== null && (
-          <span className={`text-xs font-black ml-1.5 min-w-[1.4rem] text-center shrink-0
-            ${awayWin ? 'text-orange-400' : 'text-[#4a6a8a]'}`}>
+
+      {/* Home team */}
+      <span
+        className={`flex-1 truncate text-sm font-semibold text-right
+          ${homeWin ? 'text-orange-400' : game.played ? 'text-[#8aaac8]' : 'text-white'}`}
+      >
+        {game.home_team}
+      </span>
+
+      {/* Score or VS */}
+      <div className="w-20 shrink-0 text-center">
+        {game.played && game.home_score !== null && game.away_score !== null ? (
+          <span className="text-sm font-black text-white tabular-nums">
+            {game.home_score}
+            <span className="mx-1 text-[#3a5a7a] font-normal">–</span>
             {game.away_score}
           </span>
+        ) : (
+          <span className="inline-block rounded border border-[#1e3a5f] px-2 py-0.5 text-[10px] font-bold text-[#3a5a7a]">
+            VS
+          </span>
         )}
       </div>
-      {/* Not played */}
-      {!game.played && (
-        <div className="px-2 py-0.5 text-[8px] text-[#2a4a6a] text-center bg-[#080f18]">
-          ממתין לתוצאה
+
+      {/* Away team */}
+      <span
+        className={`flex-1 truncate text-sm font-semibold text-left
+          ${awayWin ? 'text-orange-400' : game.played ? 'text-[#8aaac8]' : 'text-white'}`}
+      >
+        {game.away_team}
+      </span>
+    </div>
+  );
+}
+
+/* ── One round section ───────────────────────────────────────────────────── */
+function RoundSection({
+  label, games, isLast,
+}: {
+  label: string; games: CupGame[]; isLast: boolean;
+}) {
+  const allPlayed = games.length > 0 && games.every((g) => g.played);
+
+  return (
+    <div>
+      {/* Round header */}
+      <div className="mb-3 flex items-center gap-3">
+        <span className="text-[11px] font-black uppercase tracking-widest text-[#5a7a9a]">
+          {label}
+        </span>
+        {allPlayed && (
+          <span className="rounded-full bg-green-900/40 px-2 py-0.5 text-[10px] font-bold text-green-400">
+            ✓ הסתיים
+          </span>
+        )}
+        {!allPlayed && games.some((g) => !g.played) && (
+          <span className="rounded-full bg-orange-900/30 px-2 py-0.5 text-[10px] font-bold text-orange-400">
+            ● פעיל
+          </span>
+        )}
+      </div>
+
+      {/* Games grid — 1 column on mobile, 2 on md+ */}
+      <div className={`grid gap-2 ${games.length === 1 ? 'max-w-lg' : 'md:grid-cols-2'}`}>
+        {games.map((game) => (
+          <MatchupCard key={game.id} game={game} />
+        ))}
+      </div>
+
+      {/* Downward arrow between rounds */}
+      {!isLast && (
+        <div className="my-4 flex justify-center">
+          <svg width="20" height="24" viewBox="0 0 20 24" fill="none">
+            <path
+              d="M10 2V22M10 22L4 15M10 22L16 15"
+              stroke="#1e3a5f"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </div>
       )}
     </div>
   );
 }
 
-function RoundColumn({ label, games }: { label: string; games: CupGame[] }) {
+/* ── Champion banner ─────────────────────────────────────────────────────── */
+function ChampionBanner({ teamName }: { teamName: string }) {
   return (
-    <div className="flex flex-col items-center gap-0 min-w-0">
-      {/* Header */}
-      <div className="mb-3 text-center">
-        <div className="text-[9px] font-black uppercase tracking-widest text-[#5a7a9a]">{label}</div>
-      </div>
-      {/* Games */}
-      <div className="flex flex-col gap-2.5 items-center justify-center flex-1">
-        {games.map((game) => (
-          <div key={game.id} className="flex items-center gap-1">
-            <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#1e3a5f] text-[8px] font-bold text-[#5a7a9a]">
-              {game.game_number}
-            </div>
-            <GameCard game={game} />
-          </div>
-        ))}
-      </div>
+    <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-yellow-400/40 bg-gradient-to-b from-yellow-400/10 to-transparent p-6 shadow-[0_0_40px_rgba(250,204,21,0.12)]">
+      <div className="text-5xl">🏆</div>
+      <p className="text-[11px] font-black uppercase tracking-widest text-[#a08020]">אלוף הגביע 2025–2026</p>
+      <p className="text-2xl font-black text-yellow-400 text-center">{teamName}</p>
     </div>
   );
 }
 
-function Arrow() {
+function TBDBanner() {
   return (
-    <div className="flex items-center self-center mx-1.5 text-[#1e3a5f]">
-      <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
-        <path d="M6 14H22M22 14L15 7M22 14L15 21" stroke="#1e3a5f" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
+    <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-[#1e3a5f] bg-[#080f18]/60 p-6">
+      <div className="text-4xl">🏆</div>
+      <p className="text-[11px] font-black uppercase tracking-widest text-[#3a5a7a]">אלוף הגביע</p>
+      <p className="text-sm font-bold text-[#2a4a6a]">טרם נקבע — ממתין לגמר</p>
     </div>
   );
 }
 
-function ChampionCard({ teamName }: { teamName: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-yellow-400/50 bg-gradient-to-b from-yellow-400/10 to-[#0c1a28] shadow-[0_0_32px_rgba(250,204,21,0.15)] w-44">
-      <div className="text-4xl mb-2">🏆</div>
-      <div className="text-[#a08020] text-[9px] uppercase tracking-widest mb-1 font-bold">אלוף הגביע</div>
-      <div className="text-yellow-400 font-black text-sm text-center leading-tight">{teamName}</div>
-    </div>
-  );
-}
-
-function TBDCard() {
-  return (
-    <div className="flex flex-col items-center justify-center w-44 h-28 rounded-2xl border-2 border-dashed border-[#1e3a5f] bg-[#080f18]">
-      <div className="text-2xl mb-1.5">🏆</div>
-      <div className="text-[#3a5a7a] text-[10px] text-center">טרם נקבע</div>
-    </div>
-  );
-}
-
+/* ── Main export ─────────────────────────────────────────────────────────── */
 export default function TournamentBracket({ games }: { games: CupGame[] }) {
-  // ── Auto-scale desktop bracket to fit viewport without horizontal scroll ──
-  const wrapRef  = useRef<HTMLDivElement>(null);
-  const innerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
-
-  useEffect(() => {
-    function measure() {
-      const wrap  = wrapRef.current;
-      const inner = innerRef.current;
-      if (!wrap || !inner) return;
-      // scrollWidth is layout-based (unaffected by CSS transform), so this
-      // gives the true natural width regardless of the current scale value.
-      const natural   = inner.scrollWidth;
-      const available = wrap.clientWidth;
-      setScale(natural > available ? available / natural : 1);
-    }
-    measure();
-    const ro = new ResizeObserver(measure);
-    if (wrapRef.current) ro.observe(wrapRef.current);
-    return () => ro.disconnect();
-  }, [games.length]);
-
   if (games.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-24 space-y-6">
@@ -146,7 +150,10 @@ export default function TournamentBracket({ games }: { games: CupGame[] }) {
           <h2 className="text-2xl font-bold text-white">טורניר הגביע</h2>
           <p className="text-[#5a7a9a] text-sm">הנתונים יופיעו לאחר סנכרון קובץ האקסל</p>
         </div>
-        <a href="/admin?tab=sync" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-400 transition text-white font-semibold text-sm">
+        <a
+          href="/admin?tab=sync"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-400 transition text-white font-semibold text-sm"
+        >
           סנכרן עכשיו
         </a>
       </div>
@@ -159,82 +166,41 @@ export default function TournamentBracket({ games }: { games: CupGame[] }) {
     if (!roundsMap.has(g.round_order)) roundsMap.set(g.round_order, []);
     roundsMap.get(g.round_order)!.push(g);
   }
-  const sortedOrders = Array.from(roundsMap.keys()).sort((a, b) => a - b);
-  const rounds = sortedOrders.map(o => ({ order: o, games: roundsMap.get(o)! }));
+  const rounds = Array.from(roundsMap.keys())
+    .sort((a, b) => a - b)
+    .map((o) => ({ order: o, label: roundsMap.get(o)![0].round, games: roundsMap.get(o)! }));
 
-  // Champion = winner of the LAST round (גמר) only if it was played
+  // Champion = winner of the actual גמר (last round) only if it was played
   const finalGames = rounds[rounds.length - 1]?.games ?? [];
   const champion   = finalGames[0] ? getWinner(finalGames[0]) : null;
 
   return (
-    <div>
-      {/* ── Desktop: auto-scaled to fit ─────────────────────────────── */}
-      <div ref={wrapRef} className="hidden lg:block w-full overflow-hidden">
-        <div
-          ref={innerRef}
-          dir="ltr"
-          style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}
-          className="inline-flex items-start gap-0 pb-4"
-        >
-          {rounds.map((round, idx) => {
-            const isLast = idx === rounds.length - 1;
-            const label  = round.games[0]?.round ?? '';
-            return (
-              <div key={round.order} className="flex items-center self-stretch">
-                <RoundColumn label={label} games={round.games} />
-                {!isLast && <Arrow />}
-              </div>
-            );
-          })}
+    <div className="space-y-0">
+      {rounds.map((round, idx) => (
+        <RoundSection
+          key={round.order}
+          label={round.label}
+          games={round.games}
+          isLast={idx === rounds.length - 1}
+        />
+      ))}
 
-          {/* Champion column */}
-          <div className="flex items-center self-stretch">
-            <Arrow />
-            <div className="flex flex-col items-center gap-2">
-              <div className="text-[9px] font-black uppercase tracking-widest text-[#5a7a9a] mb-3">אלוף</div>
-              {champion ? <ChampionCard teamName={champion} /> : <TBDCard />}
-            </div>
-          </div>
-        </div>
+      {/* Arrow to champion */}
+      <div className="my-4 flex justify-center">
+        <svg width="20" height="24" viewBox="0 0 20 24" fill="none">
+          <path
+            d="M10 2V22M10 22L4 15M10 22L16 15"
+            stroke="#1e3a5f"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
       </div>
 
-      {/* ── Mobile: vertical stacked ─────────────────────────────────── */}
-      <div className="lg:hidden space-y-6">
-        {rounds.map((round, idx) => {
-          const isLast = idx === rounds.length - 1;
-          const label  = round.games[0]?.round ?? '';
-          return (
-            <div key={round.order} className="space-y-3">
-              <div className="text-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-[#5a7a9a]">{label}</span>
-              </div>
-              <div className="flex flex-col items-center gap-3">
-                {round.games.map((game) => (
-                  <div key={game.id} className="flex items-center gap-2">
-                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1e3a5f] text-[9px] font-bold text-[#5a7a9a]">
-                      {game.game_number}
-                    </div>
-                    <GameCard game={game} />
-                  </div>
-                ))}
-              </div>
-              {!isLast && (
-                <div className="flex justify-center">
-                  <svg width="20" height="28" viewBox="0 0 20 28" fill="none">
-                    <path d="M10 4V24M10 24L4 17M10 24L16 17" stroke="#1e3a5f" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </div>
-              )}
-            </div>
-          );
-        })}
-        {/* Champion on mobile */}
-        <div className="space-y-3">
-          <div className="text-[10px] font-black uppercase tracking-widest text-[#5a7a9a] text-center">אלוף</div>
-          <div className="flex justify-center">
-            {champion ? <ChampionCard teamName={champion} /> : <TBDCard />}
-          </div>
-        </div>
+      {/* Champion */}
+      <div className="max-w-sm mx-auto">
+        {champion ? <ChampionBanner teamName={champion} /> : <TBDBanner />}
       </div>
     </div>
   );

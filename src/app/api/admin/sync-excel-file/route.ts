@@ -235,49 +235,58 @@ function parseCupGames(rows: unknown[][]): CupGameRow[] {
     }
   }
 
-  // Step 3: Fallback for rounds with no בית/חוץ games found.
-  // The גמר (final) often uses a single-row format:
-  //   "Team A  -  Team B"  (no scores when not yet played)
-  // Scan rows below the header and collect the first row that has ≥2 team strings.
-  for (const rh of roundHeaders) {
-    if (gamesPerRound[rh.name]) continue; // already found games for this round
+  // Step 3: Fallback for rounds with no בית/חוץ games found (e.g. גמר final).
+  //
+  // CRITICAL INSIGHT: In a horizontal bracket Excel, different rounds share the
+  // SAME ROW INDICES but use different COLUMN RANGES.  We must NOT filter rows
+  // based on content outside our target column range — "בית"/"חוץ" in column 3
+  // (שמינית area) must not prevent us from reading the גמר teams in column 20.
+  //
+  // Strategy: scan every row; check only the cells in the round's column window.
+  const STEP3_SKIP = new Set(['בית','חוץ','גמר','שלב','גביע','שמינית','רבע','חצי','-','–','—','vs','VS']);
 
-    for (let ri = rh.row + 1; ri < Math.min(rows.length, rh.row + 20); ri++) {
+  for (const rh of roundHeaders) {
+    if (gamesPerRound[rh.name]) continue;
+
+    const colMin = Math.max(0, rh.col - 15);
+    const colMax = colMin + 30; // fixed 30-column window centred on header
+
+    for (let ri = 0; ri < rows.length; ri++) {
       const row = rows[ri];
       if (!row || !Array.isArray(row)) continue;
 
-      // Skip rows that look like headers OR regular game rows (contain בית/חוץ labels)
-      const rowStr = row.map((c) => String(c ?? '').trim()).join(' ');
-      if (['שלב','גביע','שמינית','רבע','חצי','בית','חוץ'].some((k) => rowStr.includes(k))) continue;
-      // Skip if the row itself looks like a round header (contains גמר as a label)
-      if (row.some((c) => { const s = String(c ?? '').trim(); return s === 'גמר' || s.endsWith(' גמר'); })) continue;
+      // Check only cells inside our column window for disqualifying keywords
+      const windowStr = Array.from(
+        { length: Math.min(colMax, row.length - 1) - colMin + 1 },
+        (_, i) => String(row[colMin + i] ?? '').trim(),
+      ).join(' ');
 
-      // Collect meaningful strings within ±15 columns of the header column
-      // Exclude known labels that are not team names
-      const SKIP_WORDS = new Set(['בית','חוץ','גמר','שלב','גביע','-','–','—']);
+      // Skip if the window itself contains round-header or game-label keywords
+      if (['שלב','גביע','שמינית','רבע','חצי','בית','חוץ'].some((k) => windowStr.includes(k))) continue;
+      // Skip blank-looking windows
+      if (windowStr.trim().length < 3) continue;
+
+      // Collect team-like strings from the window
       const teams: string[] = [];
-      const colMin = Math.max(0, rh.col - 15);
-      const colMax = Math.min(row.length - 1, rh.col + 15);
-      for (let c = colMin; c <= colMax; c++) {
-        const v = String(row[c] ?? '').trim();
-        // Must be a plausible team name: length > 2, not a known label, not purely numeric, not a date
-        if (v.length > 2 && !SKIP_WORDS.has(v) && !/^\d+$/.test(v) && !/\d{1,2}\.\d{1,2}/.test(v)) {
+      let homeScore: number | null = null;
+      let awayScore: number | null = null;
+
+      for (let c = colMin; c <= Math.min(colMax, row.length - 1); c++) {
+        const raw = row[c];
+        const v   = String(raw ?? '').trim();
+
+        if (typeof raw === 'number') {
+          if (homeScore === null) homeScore = raw;
+          else if (awayScore === null) awayScore = raw;
+          continue;
+        }
+        if (v.length > 2 && !STEP3_SKIP.has(v) && !/^\d+$/.test(v) && !/\d{1,2}\.\d{1,2}/.test(v)) {
           teams.push(v);
         }
       }
 
       if (teams.length >= 2) {
         gamesPerRound[rh.name] = 1;
-        // Check whether scores are present alongside the teams
-        let homeScore: number | null = null;
-        let awayScore: number | null = null;
-        for (let c = colMin; c <= colMax; c++) {
-          const v = row[c];
-          if (typeof v === 'number') {
-            if (homeScore === null) homeScore = v;
-            else if (awayScore === null) awayScore = v;
-          }
-        }
         games.push({
           round:       rh.name,
           round_order: rh.order,
