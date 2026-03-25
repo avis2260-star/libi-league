@@ -19,6 +19,23 @@ export async function POST(req: NextRequest) {
   }
 }
 
+export async function PATCH(req: NextRequest) {
+  try {
+    const { id, photo_url } = await req.json();
+    if (!id) return NextResponse.json({ error: 'חסר id' }, { status: 400 });
+
+    const { error } = await supabaseAdmin
+      .from('players')
+      .update({ photo_url })
+      .eq('id', id);
+
+    if (error) throw error;
+    return NextResponse.json({ success: true });
+  } catch (err: unknown) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'שגיאה' }, { status: 500 });
+  }
+}
+
 export async function DELETE(req: NextRequest) {
   try {
     const id = new URL(req.url).searchParams.get('id');

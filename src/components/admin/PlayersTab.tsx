@@ -1,7 +1,10 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import type { Team } from '@/types';
+
+const PlayerImageModal = dynamic(() => import('./PlayerImageModal'), { ssr: false });
 
 type PlayerRow = {
   id: string;
@@ -24,14 +27,17 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
   const [msg, setMsg]             = useState<{ ok: boolean; text: string } | null>(null);
   const [deleting, setDeleting]   = useState<string | null>(null);
 
-  // Photo upload
+  // Photo upload (add form)
   const [photoFile, setPhotoFile]       = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [uploading, setUploading]       = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Collapsible teams — store which team IDs are open
+  // Collapsible teams
   const [openTeams, setOpenTeams] = useState<Set<string>>(new Set());
+
+  // Edit image modal
+  const [editTarget, setEditTarget] = useState<PlayerRow | null>(null);
 
   function toggleTeam(id: string) {
     setOpenTeams((prev) => {
@@ -89,7 +95,6 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'שגיאה');
       setList((prev) => [...prev, data.player]);
-      // Auto-open the team the player was added to
       setOpenTeams((prev) => new Set(prev).add(teamId));
       setName(''); setJersey(''); setPosition('');
       setPhotoFile(null); setPhotoPreview(null);
@@ -115,6 +120,11 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
     } finally {
       setDeleting(null);
     }
+  }
+
+  function handleImageSuccess(playerId: string, newUrl: string) {
+    setList((prev) => prev.map((p) => p.id === playerId ? { ...p, photo_url: newUrl } : p));
+    setMsg({ ok: true, text: '✅ תמונת השחקן עודכנה!' });
   }
 
   const teamsWithPlayers = teams.filter((t) => list.some((p) => p.team_id === t.id));
@@ -176,7 +186,6 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
         <div>
           <label className="mb-1 block text-xs text-gray-400">תמונת שחקן (אופציונלי)</label>
           <div className="flex items-center gap-4">
-            {/* Preview */}
             <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full border-2 border-dashed border-gray-600 bg-gray-800 flex items-center justify-center">
               {photoPreview ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -240,12 +249,8 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
                   className="w-full flex items-center justify-between bg-gray-800 px-4 py-3 border-b border-gray-700/50 hover:bg-gray-750 transition-colors group"
                 >
                   <div className="flex items-center gap-3">
-                    <span className={`text-lg transition-transform duration-200 ${isOpen ? 'rotate-90' : 'rotate-0'}`}>
-                      ›
-                    </span>
-                    <span className="font-bold text-orange-400 group-hover:text-orange-300">
-                      {team.name}
-                    </span>
+                    <span className={`text-lg transition-transform duration-200 ${isOpen ? 'rotate-90' : 'rotate-0'}`}>›</span>
+                    <span className="font-bold text-orange-400 group-hover:text-orange-300">{team.name}</span>
                   </div>
                   <span className="rounded-full bg-gray-700 px-2.5 py-0.5 text-xs font-semibold text-gray-300">
                     {teamPlayers.length} שחקנים
@@ -262,6 +267,7 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
                         <th className="px-4 py-2">שם</th>
                         <th className="px-4 py-2 text-center">#</th>
                         <th className="px-4 py-2 text-center">פוזיציה</th>
+                        <th className="px-4 py-2 text-center">עריכה</th>
                         <th className="px-4 py-2 text-center">מחיקה</th>
                       </tr>
                     </thead>
@@ -284,6 +290,15 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
                           <td className="px-4 py-2 text-center text-gray-400">{p.position ?? '—'}</td>
                           <td className="px-4 py-2 text-center">
                             <button
+                              onClick={() => setEditTarget(p)}
+                              title="עדכן תמונה"
+                              className="rounded px-2 py-0.5 text-xs text-blue-400 hover:bg-blue-900/30"
+                            >
+                              🖼️
+                            </button>
+                          </td>
+                          <td className="px-4 py-2 text-center">
+                            <button
                               onClick={() => handleDelete(p.id, p.name)}
                               disabled={deleting === p.id}
                               className="rounded px-2 py-0.5 text-xs text-red-400 hover:bg-red-900/30 disabled:opacity-40"
@@ -300,6 +315,16 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
             );
           })}
         </div>
+      )}
+
+      {/* ── Edit Image Modal ─────────────────────────────────────────── */}
+      {editTarget && (
+        <PlayerImageModal
+          player={editTarget}
+          teamLogoUrl={teams.find((t) => t.id === editTarget.team_id)?.logo_url}
+          onClose={() => setEditTarget(null)}
+          onSuccess={handleImageSuccess}
+        />
       )}
     </div>
   );
