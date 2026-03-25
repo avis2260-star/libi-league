@@ -46,18 +46,24 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </header>
 
       {/* Tab nav */}
-      <nav className="flex border-b border-gray-800 bg-gray-900">
+      <nav className="flex overflow-x-auto border-b border-gray-800 bg-gray-900">
         {[
-          { href: '/admin?tab=games',     label: '🎮 Games' },
-          { href: '/admin?tab=boxscore',  label: '📊 Box Score' },
-          { href: '/admin?tab=media',     label: '🎥 Media' },
-          { href: '/admin?tab=players',   label: '👤 שחקנים' },
-          { href: '/admin?tab=sync',      label: '📋 Sync' },
+          { href: '/admin?tab=games',        label: '🎮 Games' },
+          { href: '/admin?tab=boxscore',     label: '📊 Box Score' },
+          { href: '/admin?tab=media',        label: '🎥 Media' },
+          { href: '/admin?tab=players',      label: '👤 שחקנים' },
+          { href: '/admin?tab=sync',         label: '📋 Sync' },
+          { href: '/admin?tab=seasons',      label: '📅 עונות' },
+          { href: '/admin?tab=officials',    label: '🦺 שופטים' },
+          { href: '/admin?tab=disciplinary', label: '⚠️ משמעת' },
+          { href: '/admin?tab=settings',     label: '⚙️ הגדרות' },
+          { href: '/admin?tab=announcements',label: '📢 הודעות' },
+          { href: '/admin?tab=synclog',      label: '📜 לוג' },
         ].map(({ href, label }) => (
           <Link
             key={href}
             href={href}
-            className="flex h-12 flex-1 items-center justify-center gap-1.5 border-b-2 border-transparent px-2 text-sm font-medium text-gray-400 transition hover:border-orange-500 hover:text-white sm:flex-none sm:px-6"
+            className="flex h-12 shrink-0 items-center justify-center gap-1.5 border-b-2 border-transparent px-4 text-sm font-medium text-gray-400 transition hover:border-orange-500 hover:text-white sm:px-6"
           >
             {label}
           </Link>

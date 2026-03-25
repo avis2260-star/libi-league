@@ -139,6 +139,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No data found in Excel file' }, { status: 400 });
     }
 
+    // Snapshot existing data before replacing
+    const [{ data: prevStandings }, { data: prevResults }] = await Promise.all([
+      supabaseAdmin.from('standings').select('*'),
+      supabaseAdmin.from('game_results').select('*'),
+    ]);
+
     // ── Replace standings: delete all, then insert fresh ──
     const standingRows = [
       ...north.map((r) => ({ ...r, division: 'North' })),
@@ -174,6 +180,16 @@ export async function POST(req: NextRequest) {
       if (insErr) throw insErr;
       resultsCount = results.length;
     }
+
+    // Insert sync log
+    await supabaseAdmin.from('sync_logs').insert({
+      filename: file.name,
+      north_count: north.length,
+      south_count: south.length,
+      results_count: resultsCount,
+      snapshot_standings: prevStandings ?? [],
+      snapshot_results: prevResults ?? [],
+    });
 
     const parts = [];
     if (north.length > 0) parts.push(`${north.length} קבוצות צפון`);

@@ -12,6 +12,28 @@ const ROUND_DATES: Record<number, string> = {
 type Standing = { rank: number; name: string; wins: number; losses: number; pts: number; division: string };
 type GameRow  = { round: number; date: string; home_team: string; away_team: string; home_score: number; away_score: number; techni: boolean };
 
+type ActiveAnnouncement = { id: string; message: string; type: string; bg_color: string };
+
+const BG_COLOR_CLASSES: Record<string, string> = {
+  orange: 'bg-orange-500',
+  red: 'bg-red-600',
+  blue: 'bg-blue-600',
+  green: 'bg-green-600',
+};
+
+async function getActiveAnnouncements(): Promise<ActiveAnnouncement[]> {
+  try {
+    const { data } = await supabaseAdmin
+      .from('announcements')
+      .select('id,message,type,bg_color')
+      .eq('active', true)
+      .order('created_at', { ascending: false });
+    return (data ?? []) as ActiveAnnouncement[];
+  } catch {
+    return [];
+  }
+}
+
 async function getLiveData() {
   try {
     const [{ data: standings }, { data: results }] = await Promise.all([
@@ -91,11 +113,16 @@ function RecordCard({ icon, label, value, sub, detail, color }: { icon: string; 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function HomePage() {
+  const [liveData, activeAnnouncements] = await Promise.all([
+    getLiveData(),
+    getActiveAnnouncements(),
+  ]);
+
   const {
     northLeader, southLeader,
     gamesPlayed, currentRound,
     highScore, highCombined, biggestWin, closestCount,
-  } = await getLiveData();
+  } = liveData;
 
   const biggestMargin = Math.abs(biggestWin.sh - biggestWin.sa);
   const biggestWinner = biggestWin.sh > biggestWin.sa ? biggestWin.home : biggestWin.away;
@@ -106,8 +133,35 @@ export default async function HomePage() {
   const northUpcoming = LIBI_SCHEDULE.filter((g) => g.round === nextRound && g.division === 'North').map(g => ({ home: g.homeTeam, away: g.awayTeam }));
   const southUpcoming = LIBI_SCHEDULE.filter((g) => g.round === nextRound && g.division === 'South').map(g => ({ home: g.homeTeam, away: g.awayTeam }));
 
+  const banners   = activeAnnouncements.filter((a) => a.type === 'banner');
+  const tickers   = activeAnnouncements.filter((a) => a.type === 'ticker');
+
   return (
     <div className="space-y-8">
+      {/* Banners */}
+      {banners.map((ann) => (
+        <div
+          key={ann.id}
+          className={`w-full px-4 py-3 text-center text-sm font-bold text-white ${BG_COLOR_CLASSES[ann.bg_color] ?? 'bg-orange-500'}`}
+        >
+          {ann.message}
+        </div>
+      ))}
+
+      {/* Tickers */}
+      {tickers.length > 0 && (
+        <div className="overflow-hidden rounded-lg bg-gray-900 border border-gray-800 py-2">
+          <div className="flex animate-marquee whitespace-nowrap gap-16">
+            {[...tickers, ...tickers].map((ann, i) => (
+              <span key={`${ann.id}-${i}`} className={`inline-flex items-center gap-2 text-sm font-medium text-white`}>
+                <span className={`inline-block h-2 w-2 rounded-full ${BG_COLOR_CLASSES[ann.bg_color] ?? 'bg-orange-500'}`} />
+                {ann.message}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div>
         <h1 className="text-3xl font-black text-white">סקירה כללית</h1>
         <p className="mt-1 text-sm text-[#5a7a9a]">עונת 2025–2026 · עד מחזור {currentRound}</p>
