@@ -128,36 +128,58 @@ function parseCupGames(rows: unknown[][]): CupGameRow[] {
     { keyword: 'שמינית', name: 'שמינית גמר', order: 1 },
     { keyword: 'רבע',    name: 'רבע גמר',    order: 2 },
     { keyword: 'חצי',    name: 'חצי גמר',    order: 3 },
+    // Final: must contain 'גמר' but NOT any earlier-round keyword
     { keyword: 'גמר',    name: 'גמר',         order: 4 },
   ];
 
-  // Step 1: Find round header positions (column index → round info)
-  const roundByCol: Record<number, { name: string; order: number; date: string }> = {};
+  // Step 1: Collect all round header anchor columns (one entry per distinct round).
+  // Strategy: scan every cell; for each pattern, record the column where the
+  // header appears.  For the final "גמר" we exclude cells that also contain
+  // שמינית / רבע / חצי (because those are sub-round headers, not the final).
+  const roundHeaders: { col: number; name: string; order: number; date: string }[] = [];
 
   for (const row of rows) {
     if (!row || !Array.isArray(row)) continue;
     for (let col = 0; col < row.length; col++) {
       const cell = String(row[col] ?? '').trim();
+      if (!cell) continue;
+
       for (const p of ROUND_PATTERNS) {
-        if (cell.includes(p.keyword)) {
-          // Search nearby cells in this row and adjacent rows for a date
-          let date = '';
-          for (let dc = 0; dc < row.length; dc++) {
-            const v = String(row[dc] ?? '').trim();
-            if (/^\d{1,2}\.\d{1,2}\.(\d{2}|\d{4})$/.test(v)) { date = v; break; }
-          }
-          // Mark every column in a ±5 range as belonging to this round
-          for (let c = Math.max(0, col - 6); c <= col + 6; c++) {
-            if (!roundByCol[c] || roundByCol[c].order > p.order) {
-              roundByCol[c] = { name: p.name, order: p.order, date };
-            }
-          }
+        let matches = false;
+        if (p.order === 4) {
+          // Final round: 'גמר' must appear without any earlier-round keyword
+          matches = cell.includes('גמר') &&
+                    !cell.includes('שמינית') &&
+                    !cell.includes('רבע') &&
+                    !cell.includes('חצי');
+        } else {
+          matches = cell.includes(p.keyword);
         }
+
+        if (!matches) continue;
+
+        // Deduplicate: skip if we already recorded this round close by
+        const dupe = roundHeaders.some(
+          h => h.order === p.order && Math.abs(h.col - col) < 10,
+        );
+        if (dupe) continue;
+
+        // Look for a date anywhere in the same row
+        let date = '';
+        for (let dc = 0; dc < row.length; dc++) {
+          const v = String(row[dc] ?? '').trim();
+          if (/^\d{1,2}\.\d{1,2}\.(\d{2}|\d{4})$/.test(v)) { date = v; break; }
+        }
+
+        roundHeaders.push({ col, name: p.name, order: p.order, date });
       }
     }
   }
 
-  // Step 2: Scan row pairs for בית/חוץ patterns
+  if (roundHeaders.length === 0) return games;
+
+  // Step 2: Scan row-pairs for בית / חוץ markers.
+  // Assign each game to the NEAREST round header (by column distance).
   const gamesPerRound: Record<string, number> = {};
 
   for (let i = 0; i < rows.length - 1; i++) {
@@ -169,11 +191,10 @@ function parseCupGames(rows: unknown[][]): CupGameRow[] {
       if (String(row[col] ?? '').trim() !== 'בית') continue;
       if (String(nextRow[col] ?? '').trim() !== 'חוץ') continue;
 
-      // Extract home team name and score from row (search left & right of "בית")
       let homeName = ''; let homeScore: number | null = null;
       let awayName = ''; let awayScore: number | null = null;
 
-      for (let d = 1; d <= 4; d++) {
+      for (let d = 1; d <= 5; d++) {
         const lv = row[col - d];  const rv = row[col + d];
         if (typeof lv === 'number' && homeScore === null) homeScore = lv;
         if (typeof rv === 'number' && homeScore === null) homeScore = rv;
@@ -188,28 +209,33 @@ function parseCupGames(rows: unknown[][]): CupGameRow[] {
       }
 
       if (!homeName || !awayName) continue;
-      // Skip header-like cells
-      if (['בית','חוץ','שלב','גמר','גביע'].some(k => homeName.includes(k) || awayName.includes(k))) continue;
+      // Skip header-like / label cells
+      if (['בית','חוץ','שלב','גביע'].some(k => homeName.includes(k) || awayName.includes(k))) continue;
 
-      // Find round for this column
-      const round = roundByCol[col] ?? { name: 'גמר', order: 4, date: '' };
-      gamesPerRound[round.name] = (gamesPerRound[round.name] ?? 0) + 1;
+      // Nearest round header wins
+      let best = roundHeaders[0];
+      let minDist = Math.abs(roundHeaders[0].col - col);
+      for (const rh of roundHeaders) {
+        const dist = Math.abs(rh.col - col);
+        if (dist < minDist) { minDist = dist; best = rh; }
+      }
+
+      gamesPerRound[best.name] = (gamesPerRound[best.name] ?? 0) + 1;
 
       games.push({
-        round: round.name,
-        round_order: round.order,
-        game_number: gamesPerRound[round.name],
-        home_team: homeName,
-        away_team: awayName,
-        home_score: homeScore,
-        away_score: awayScore,
-        date: round.date,
-        played: homeScore !== null && awayScore !== null,
+        round:        best.name,
+        round_order:  best.order,
+        game_number:  gamesPerRound[best.name],
+        home_team:    homeName,
+        away_team:    awayName,
+        home_score:   homeScore,
+        away_score:   awayScore,
+        date:         best.date,
+        played:       homeScore !== null && awayScore !== null,
       });
     }
   }
 
-  // Sort by round order then game number
   games.sort((a, b) => a.round_order - b.round_order || a.game_number - b.game_number);
   return games;
 }

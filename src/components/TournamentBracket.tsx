@@ -151,7 +151,8 @@ export default function TournamentBracket({ games }: { games: CupGame[] }) {
   return (
     <div>
       {/* ── Desktop ─────────────────────────────────────────── */}
-      <div className="hidden lg:flex items-start gap-0 overflow-x-auto pb-6">
+      {/* dir="ltr" so bracket flows left→right even on RTL page */}
+      <div dir="ltr" className="hidden lg:flex items-start gap-0 overflow-x-auto pb-6">
         {rounds.map((round, idx) => {
           const isLast = idx === rounds.length - 1;
           const label  = round.games[0]?.round ?? '';
