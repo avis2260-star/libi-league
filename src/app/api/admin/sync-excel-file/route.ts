@@ -237,52 +237,59 @@ function parseCupGames(rows: unknown[][]): CupGameRow[] {
 
   // Step 3: Fallback for rounds with no בית/חוץ games found (e.g. גמר final).
   //
-  // CRITICAL INSIGHT: In a horizontal bracket Excel, different rounds share the
-  // SAME ROW INDICES but use different COLUMN RANGES.  We must NOT filter rows
-  // based on content outside our target column range — "בית"/"חוץ" in column 3
-  // (שמינית area) must not prevent us from reading the גמר teams in column 20.
-  //
-  // Strategy: scan every row; check only the cells in the round's column window.
-  const STEP3_SKIP = new Set(['בית','חוץ','גמר','שלב','גביע','שמינית','רבע','חצי','-','–','—','vs','VS']);
+  // Root cause of previous failures: the גמר teams sit on the SAME ROWS as
+  // other rounds' game data (horizontal bracket). Filtering entire rows by
+  // keyword killed valid rows.  New approach:
+  //   • Scan every row
+  //   • Look ONLY at cells from the round-header column onwards (to the right)
+  //   • Skip individual cells that are keywords — never skip entire rows
+  //   • The first two valid strings found are the home/away teams
+  const STEP3_CELL_SKIP = new Set([
+    'בית','חוץ','גמר','שלב','גביע','שמינית','רבע','חצי',
+    '-','–','—','vs','VS','',
+  ]);
 
   for (const rh of roundHeaders) {
     if (gamesPerRound[rh.name]) continue;
 
-    const colMin = Math.max(0, rh.col - 15);
-    const colMax = colMin + 30; // fixed 30-column window centred on header
+    // Start scanning from slightly before the header column so we don't miss
+    // a team name that is one or two cells to its left.
+    const scanFrom = Math.max(0, rh.col - 3);
 
     for (let ri = 0; ri < rows.length; ri++) {
+      if (ri === rh.row) continue; // skip the header row itself
+
       const row = rows[ri];
       if (!row || !Array.isArray(row)) continue;
 
-      // Check only cells inside our column window for disqualifying keywords
-      const windowStr = Array.from(
-        { length: Math.min(colMax, row.length - 1) - colMin + 1 },
-        (_, i) => String(row[colMin + i] ?? '').trim(),
-      ).join(' ');
-
-      // Skip if the window itself contains round-header or game-label keywords
-      if (['שלב','גביע','שמינית','רבע','חצי','בית','חוץ'].some((k) => windowStr.includes(k))) continue;
-      // Skip blank-looking windows
-      if (windowStr.trim().length < 3) continue;
-
-      // Collect team-like strings from the window
       const teams: string[] = [];
       let homeScore: number | null = null;
       let awayScore: number | null = null;
 
-      for (let c = colMin; c <= Math.min(colMax, row.length - 1); c++) {
+      for (let c = scanFrom; c < row.length; c++) {
         const raw = row[c];
         const v   = String(raw ?? '').trim();
+        if (!v) continue;
 
         if (typeof raw === 'number') {
-          if (homeScore === null) homeScore = raw;
-          else if (awayScore === null) awayScore = raw;
+          // Ignore tiny numbers — they are likely game-number badges (1-9)
+          // that appear in the שמינית/רבע area of the same row.
+          if (raw > 9) {
+            if (homeScore === null) homeScore = raw;
+            else if (awayScore === null) awayScore = raw;
+          }
           continue;
         }
-        if (v.length > 2 && !STEP3_SKIP.has(v) && !/^\d+$/.test(v) && !/\d{1,2}\.\d{1,2}/.test(v)) {
-          teams.push(v);
-        }
+
+        // Skip known keyword cells
+        if (STEP3_CELL_SKIP.has(v)) continue;
+        if (['שמינית','רבע','חצי','שלב','גביע'].some((k) => v.includes(k))) continue;
+        // Skip date-like strings and pure numbers
+        if (/\d{1,2}\.\d{1,2}/.test(v) || /^\d+$/.test(v)) continue;
+        // Must be a plausible team name (> 2 chars)
+        if (v.length > 2) teams.push(v);
+
+        if (teams.length === 2) break; // found both teams — stop
       }
 
       if (teams.length >= 2) {

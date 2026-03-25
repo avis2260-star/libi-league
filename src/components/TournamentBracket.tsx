@@ -170,9 +170,10 @@ export default function TournamentBracket({ games }: { games: CupGame[] }) {
     .sort((a, b) => a - b)
     .map((o) => ({ order: o, label: roundsMap.get(o)![0].round, games: roundsMap.get(o)! }));
 
-  // Champion = winner of the actual גמר (last round) only if it was played
-  const finalGames = rounds[rounds.length - 1]?.games ?? [];
-  const champion   = finalGames[0] ? getWinner(finalGames[0]) : null;
+  // Champion ONLY from a round explicitly named 'גמר'.
+  // If that round doesn't exist in DB, or the game hasn't been played yet → TBD.
+  const finalRound = rounds.find((r) => r.label === 'גמר');
+  const champion   = finalRound?.games[0] ? getWinner(finalRound.games[0]) : null;
 
   return (
     <div className="space-y-0">
