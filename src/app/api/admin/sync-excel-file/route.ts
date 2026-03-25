@@ -275,30 +275,25 @@ export async function POST(req: NextRequest) {
       resultsCount = results.length;
     }
 
-    // Replace cup games
-    {
-      const { error: delErr } = await supabaseAdmin
-        .from('cup_games')
-        .delete()
-        .neq('round', '');
-      if (delErr) throw delErr;
-    }
-    if (cupGames.length > 0) {
-      const { error: insErr } = await supabaseAdmin
-        .from('cup_games')
-        .insert(cupGames);
-      if (insErr) throw insErr;
-    }
+    // Replace cup games (silently skip if table doesn't exist yet)
+    try {
+      await supabaseAdmin.from('cup_games').delete().neq('round', '');
+      if (cupGames.length > 0) {
+        await supabaseAdmin.from('cup_games').insert(cupGames);
+      }
+    } catch { /* cup_games table not created yet — run SQL in Supabase */ }
 
-    // Insert sync log
-    await supabaseAdmin.from('sync_logs').insert({
-      filename: file.name,
-      north_count: north.length,
-      south_count: south.length,
-      results_count: resultsCount,
-      snapshot_standings: prevStandings ?? [],
-      snapshot_results: prevResults ?? [],
-    });
+    // Insert sync log (silently skip if table doesn't exist yet)
+    try {
+      await supabaseAdmin.from('sync_logs').insert({
+        filename: file.name,
+        north_count: north.length,
+        south_count: south.length,
+        results_count: resultsCount,
+        snapshot_standings: prevStandings ?? [],
+        snapshot_results: prevResults ?? [],
+      });
+    } catch { /* sync_logs table not created yet — run SQL in Supabase */ }
 
     const parts = [];
     if (north.length > 0) parts.push(`${north.length} קבוצות צפון`);
