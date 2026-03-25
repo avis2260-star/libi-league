@@ -23,6 +23,18 @@ type GameResultRow = {
   techni: boolean; techni_note: string;
 };
 
+type CupGameRow = {
+  round: string;
+  round_order: number;
+  game_number: number;
+  home_team: string;
+  away_team: string;
+  home_score: number | null;
+  away_score: number | null;
+  date: string;
+  played: boolean;
+};
+
 function parseStandings(rows: unknown[][]): { north: StandingRow[]; south: StandingRow[] } {
   const north: StandingRow[] = [];
   const south: StandingRow[] = [];
@@ -109,6 +121,80 @@ function parseResults(rows: unknown[][]): GameResultRow[] {
   return results;
 }
 
+function parseCupGames(rows: unknown[][]): CupGameRow[] {
+  const games: CupGameRow[] = [];
+
+  const ROUND_KEYWORDS: Record<string, { name: string; order: number }> = {
+    'שמינית': { name: 'שמינית גמר', order: 1 },
+    'רבע':    { name: 'רבע גמר',    order: 2 },
+    'חצי':    { name: 'חצי גמר',    order: 3 },
+    'גמר':    { name: 'גמר',        order: 4 },
+  };
+
+  let currentRound = 'רבע גמר';
+  let currentOrder = 2;
+  let gameNumInRound = 0;
+
+  for (const row of rows) {
+    const rowText = row.map(c => String(c ?? '').trim()).join(' ');
+
+    // Detect round header
+    let foundRound = false;
+    for (const [key, val] of Object.entries(ROUND_KEYWORDS)) {
+      if (rowText.includes(key)) {
+        currentRound = val.name;
+        currentOrder = val.order;
+        gameNumInRound = 0;
+        foundRound = true;
+        break;
+      }
+    }
+    if (foundRound) continue;
+
+    // Find team names (non-empty string cells)
+    const cells = row.map(c => ({ raw: c, str: String(c ?? '').trim() }));
+    const stringCells = cells.filter(c => c.str && isNaN(Number(c.str)) && c.str.length > 1);
+    const numCells = cells.filter(c => typeof c.raw === 'number');
+
+    if (stringCells.length >= 2) {
+      const homeTeam = stringCells[0].str;
+      const awayTeam = stringCells[1].str;
+      const homeScore = numCells[0]?.raw as number ?? null;
+      const awayScore = numCells[1]?.raw as number ?? null;
+
+      // Look for date
+      let dateStr = '';
+      for (const cell of cells) {
+        if (cell.raw instanceof Date) {
+          dateStr = cell.raw.toLocaleDateString('he-IL');
+          break;
+        }
+        if (typeof cell.raw === 'number' && cell.raw > 40000 && cell.raw < 50000) {
+          // Excel date serial
+          const d = new Date(Math.round((cell.raw - 25569) * 86400 * 1000));
+          dateStr = d.toLocaleDateString('he-IL');
+          break;
+        }
+      }
+
+      gameNumInRound++;
+      games.push({
+        round: currentRound,
+        round_order: currentOrder,
+        game_number: gameNumInRound,
+        home_team: homeTeam,
+        away_team: awayTeam,
+        home_score: homeScore,
+        away_score: awayScore,
+        date: dateStr,
+        played: homeScore !== null && awayScore !== null,
+      });
+    }
+  }
+
+  return games;
+}
+
 export async function POST(req: NextRequest) {
   try {
     // Read multipart file
@@ -133,6 +219,14 @@ export async function POST(req: NextRequest) {
     if (resultsSheet) {
       const resultsRows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[resultsSheet], { header: 1 });
       results = parseResults(resultsRows);
+    }
+
+    // Parse cup games
+    const cupSheet = wb.SheetNames.find((n) => n.includes('גביע') || n.includes('טורניר'));
+    let cupGames: CupGameRow[] = [];
+    if (cupSheet) {
+      const cupRows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[cupSheet], { header: 1 });
+      cupGames = parseCupGames(cupRows);
     }
 
     if (north.length === 0 && south.length === 0 && results.length === 0) {
@@ -181,6 +275,21 @@ export async function POST(req: NextRequest) {
       resultsCount = results.length;
     }
 
+    // Replace cup games
+    {
+      const { error: delErr } = await supabaseAdmin
+        .from('cup_games')
+        .delete()
+        .neq('round', '');
+      if (delErr) throw delErr;
+    }
+    if (cupGames.length > 0) {
+      const { error: insErr } = await supabaseAdmin
+        .from('cup_games')
+        .insert(cupGames);
+      if (insErr) throw insErr;
+    }
+
     // Insert sync log
     await supabaseAdmin.from('sync_logs').insert({
       filename: file.name,
@@ -195,6 +304,7 @@ export async function POST(req: NextRequest) {
     if (north.length > 0) parts.push(`${north.length} קבוצות צפון`);
     if (south.length > 0) parts.push(`${south.length} קבוצות דרום`);
     if (resultsCount > 0) parts.push(`${resultsCount} תוצאות משחקים`);
+    if (cupGames.length > 0) parts.push(`${cupGames.length} משחקי גביע`);
 
     return NextResponse.json({
       success: true,

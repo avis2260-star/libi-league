@@ -15,6 +15,7 @@ const NAV_LINKS = [
   { href: '/results',   label: 'תוצאות'    },
   { href: '/standings', label: 'טבלאות'    },
   { href: '/teams',     label: 'קבוצות'    },
+  { href: '/cup',       label: 'גביע 🏆'   },
 ];
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

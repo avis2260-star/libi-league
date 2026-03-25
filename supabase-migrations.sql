@@ -71,3 +71,18 @@ CREATE TABLE IF NOT EXISTS sync_logs (
   snapshot_results jsonb,
   is_rolled_back boolean DEFAULT false
 );
+
+-- 7. Cup/Trophy Tournament
+CREATE TABLE IF NOT EXISTS cup_games (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  round text NOT NULL,
+  round_order integer NOT NULL DEFAULT 1,
+  game_number integer NOT NULL DEFAULT 1,
+  home_team text NOT NULL,
+  away_team text NOT NULL,
+  home_score integer,
+  away_score integer,
+  date text,
+  played boolean DEFAULT false,
+  created_at timestamptz DEFAULT now()
+);
