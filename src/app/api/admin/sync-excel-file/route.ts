@@ -194,17 +194,17 @@ function parseCupGames(rows: unknown[][]): CupGameRow[] {
       let homeName = ''; let homeScore: number | null = null;
       let awayName = ''; let awayScore: number | null = null;
 
-      for (let d = 1; d <= 5; d++) {
-        const lv = row[col - d];  const rv = row[col + d];
-        if (typeof lv === 'number' && homeScore === null) homeScore = lv;
+      // In Hebrew RTL Excel, team name and score are stored to the RIGHT of the
+      // בית/חוץ label (higher column indices = displayed to the LEFT).
+      // The game number sits to the LEFT of בית (lower column indices), so we
+      // must NOT search left — it would be mistaken for the home score.
+      for (let d = 1; d <= 8; d++) {
+        const rv  = row[col + d];
         if (typeof rv === 'number' && homeScore === null) homeScore = rv;
-        if (typeof lv === 'string' && lv.trim().length > 1 && !homeName) homeName = lv.trim();
         if (typeof rv === 'string' && rv.trim().length > 1 && !homeName) homeName = rv.trim();
 
-        const nlv = nextRow[col - d]; const nrv = nextRow[col + d];
-        if (typeof nlv === 'number' && awayScore === null) awayScore = nlv;
+        const nrv = nextRow[col + d];
         if (typeof nrv === 'number' && awayScore === null) awayScore = nrv;
-        if (typeof nlv === 'string' && nlv.trim().length > 1 && !awayName) awayName = nlv.trim();
         if (typeof nrv === 'string' && nrv.trim().length > 1 && !awayName) awayName = nrv.trim();
       }
 
