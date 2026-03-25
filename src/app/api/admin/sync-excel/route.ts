@@ -28,19 +28,32 @@ export async function POST(req: NextRequest) {
     ];
 
     if (standingRows.length > 0) {
-      const { error } = await supabaseAdmin
+      const { error: delErr } = await supabaseAdmin
         .from('standings')
-        .upsert(standingRows, { onConflict: 'name,division' });
-      if (error) throw error;
+        .delete()
+        .neq('name', '');
+      if (delErr) throw delErr;
+
+      const { error: insErr } = await supabaseAdmin
+        .from('standings')
+        .insert(standingRows);
+      if (insErr) throw insErr;
     }
 
-    // Upsert game results
+    // Replace game results: delete all, then insert fresh
     let resultsCount = 0;
-    if (Array.isArray(results) && results.length > 0) {
-      const { error } = await supabaseAdmin
+    {
+      const { error: delErr } = await supabaseAdmin
         .from('game_results')
-        .upsert(results, { onConflict: 'round,home_team,away_team' });
-      if (error) throw error;
+        .delete()
+        .neq('round', -1);
+      if (delErr) throw delErr;
+    }
+    if (Array.isArray(results) && results.length > 0) {
+      const { error: insErr } = await supabaseAdmin
+        .from('game_results')
+        .insert(results);
+      if (insErr) throw insErr;
       resultsCount = results.length;
     }
 

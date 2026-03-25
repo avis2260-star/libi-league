@@ -139,26 +139,39 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No data found in Excel file' }, { status: 400 });
     }
 
-    // Upsert standings
+    // ── Replace standings: delete all, then insert fresh ──
     const standingRows = [
       ...north.map((r) => ({ ...r, division: 'North' })),
       ...south.map((r) => ({ ...r, division: 'South' })),
     ];
 
     if (standingRows.length > 0) {
-      const { error } = await supabaseAdmin
+      const { error: delErr } = await supabaseAdmin
         .from('standings')
-        .upsert(standingRows, { onConflict: 'name,division' });
-      if (error) throw error;
+        .delete()
+        .neq('name', '');           // delete every row
+      if (delErr) throw delErr;
+
+      const { error: insErr } = await supabaseAdmin
+        .from('standings')
+        .insert(standingRows);
+      if (insErr) throw insErr;
     }
 
-    // Upsert game results
+    // ── Replace game results: delete all, then insert fresh ──
     let resultsCount = 0;
-    if (results.length > 0) {
-      const { error } = await supabaseAdmin
+    {
+      const { error: delErr } = await supabaseAdmin
         .from('game_results')
-        .upsert(results, { onConflict: 'round,home_team,away_team' });
-      if (error) throw error;
+        .delete()
+        .neq('round', -1);          // delete every row
+      if (delErr) throw delErr;
+    }
+    if (results.length > 0) {
+      const { error: insErr } = await supabaseAdmin
+        .from('game_results')
+        .insert(results);
+      if (insErr) throw insErr;
       resultsCount = results.length;
     }
 
