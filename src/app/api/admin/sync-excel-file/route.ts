@@ -246,20 +246,22 @@ function parseCupGames(rows: unknown[][]): CupGameRow[] {
       const row = rows[ri];
       if (!row || !Array.isArray(row)) continue;
 
-      // Skip rows that look like sub-headers or round labels
+      // Skip rows that look like headers OR regular game rows (contain בית/חוץ labels)
       const rowStr = row.map((c) => String(c ?? '').trim()).join(' ');
-      if (['שלב','גביע','שמינית','רבע','חצי'].some((k) => rowStr.includes(k))) continue;
+      if (['שלב','גביע','שמינית','רבע','חצי','בית','חוץ'].some((k) => rowStr.includes(k))) continue;
       // Skip if the row itself looks like a round header (contains גמר as a label)
       if (row.some((c) => { const s = String(c ?? '').trim(); return s === 'גמר' || s.endsWith(' גמר'); })) continue;
 
       // Collect meaningful strings within ±15 columns of the header column
+      // Exclude known labels that are not team names
+      const SKIP_WORDS = new Set(['בית','חוץ','גמר','שלב','גביע','-','–','—']);
       const teams: string[] = [];
       const colMin = Math.max(0, rh.col - 15);
       const colMax = Math.min(row.length - 1, rh.col + 15);
       for (let c = colMin; c <= colMax; c++) {
         const v = String(row[c] ?? '').trim();
-        // Must be a plausible team name: length > 2, not a dash, not purely numeric, not a date
-        if (v.length > 2 && v !== '-' && !/^\d+$/.test(v) && !/\d{1,2}\.\d{1,2}/.test(v)) {
+        // Must be a plausible team name: length > 2, not a known label, not purely numeric, not a date
+        if (v.length > 2 && !SKIP_WORDS.has(v) && !/^\d+$/.test(v) && !/\d{1,2}\.\d{1,2}/.test(v)) {
           teams.push(v);
         }
       }
