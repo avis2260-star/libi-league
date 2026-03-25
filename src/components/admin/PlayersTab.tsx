@@ -39,6 +39,57 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
   // Edit image modal
   const [editTarget, setEditTarget] = useState<PlayerRow | null>(null);
 
+  // Inline edit state
+  type EditDraft = { name: string; jersey: string; position: string; team_id: string };
+  const [editingId, setEditingId]   = useState<string | null>(null);
+  const [editDraft, setEditDraft]   = useState<EditDraft>({ name: '', jersey: '', position: '', team_id: '' });
+  const [editSaving, setEditSaving] = useState(false);
+
+  function startEdit(p: PlayerRow) {
+    setEditingId(p.id);
+    setEditDraft({
+      name:     p.name,
+      jersey:   p.jersey_number != null ? String(p.jersey_number) : '',
+      position: p.position ?? '',
+      team_id:  p.team_id ?? '',
+    });
+  }
+
+  function cancelEdit() { setEditingId(null); }
+
+  async function saveEdit(id: string) {
+    setEditSaving(true);
+    try {
+      const res = await fetch('/api/admin/players', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id,
+          name:          editDraft.name.trim() || undefined,
+          jersey_number: editDraft.jersey !== '' ? parseInt(editDraft.jersey) : null,
+          position:      editDraft.position || null,
+          team_id:       editDraft.team_id || undefined,
+        }),
+      });
+      if (!res.ok) throw new Error('עדכון נכשל');
+      setList((prev) => prev.map((p) =>
+        p.id !== id ? p : {
+          ...p,
+          name:          editDraft.name.trim() || p.name,
+          jersey_number: editDraft.jersey !== '' ? parseInt(editDraft.jersey) : null,
+          position:      editDraft.position || null,
+          team_id:       editDraft.team_id || p.team_id,
+        },
+      ));
+      setMsg({ ok: true, text: '✅ השחקן עודכן בהצלחה' });
+      setEditingId(null);
+    } catch (err) {
+      setMsg({ ok: false, text: err instanceof Error ? err.message : 'שגיאה' });
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
   function toggleTeam(id: string) {
     setOpenTeams((prev) => {
       const next = new Set(prev);
@@ -283,13 +334,94 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
                         <th className="px-4 py-2">שם</th>
                         <th className="px-4 py-2 text-center">#</th>
                         <th className="px-4 py-2 text-center">פוזיציה</th>
-                        <th className="px-4 py-2 text-center">עריכה</th>
+                        <th className="px-4 py-2 text-center">קבוצה</th>
+                        <th className="px-4 py-2 text-center">תמונה / עריכה</th>
                         <th className="px-4 py-2 text-center">מחיקה</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {teamPlayers.map((p, idx) => (
-                        <tr key={p.id} className="border-t border-gray-700/50 hover:bg-gray-800/40">
+                      {teamPlayers.map((p, idx) => {
+                        const isEditing = editingId === p.id;
+                        return isEditing ? (
+                          /* ── Inline edit row ── */
+                          <tr key={p.id} className="border-t border-orange-500/30 bg-orange-500/5">
+                            <td className="px-4 py-2 text-center text-gray-500 font-mono text-xs">{idx + 1}</td>
+                            <td className="px-4 py-2 text-center">
+                              <div className="mx-auto h-9 w-9 overflow-hidden rounded-full border border-gray-700 bg-gray-800 flex items-center justify-center">
+                                {p.photo_url
+                                  ? <img src={p.photo_url} alt={p.name} className="h-full w-full object-cover" /> // eslint-disable-line @next/next/no-img-element
+                                  : <span className="text-base text-gray-600">👤</span>}
+                              </div>
+                            </td>
+                            {/* Name */}
+                            <td className="px-2 py-1.5">
+                              <input
+                                value={editDraft.name}
+                                onChange={(e) => setEditDraft((d) => ({ ...d, name: e.target.value }))}
+                                className="w-full rounded border border-gray-600 bg-gray-900 px-2 py-1 text-sm text-white focus:border-orange-500 focus:outline-none"
+                              />
+                            </td>
+                            {/* Jersey */}
+                            <td className="px-2 py-1.5 w-16">
+                              <input
+                                type="number" min={0} max={99}
+                                value={editDraft.jersey}
+                                onChange={(e) => setEditDraft((d) => ({ ...d, jersey: e.target.value }))}
+                                className="w-full rounded border border-gray-600 bg-gray-900 px-2 py-1 text-sm text-white text-center focus:border-orange-500 focus:outline-none"
+                              />
+                            </td>
+                            {/* Position */}
+                            <td className="px-2 py-1.5">
+                              <select
+                                value={editDraft.position}
+                                onChange={(e) => setEditDraft((d) => ({ ...d, position: e.target.value }))}
+                                className="w-full rounded border border-gray-600 bg-gray-900 px-1 py-1 text-sm text-white focus:border-orange-500 focus:outline-none"
+                              >
+                                <option value="">—</option>
+                                {POSITIONS.map((pos) => <option key={pos} value={pos}>{pos}</option>)}
+                              </select>
+                            </td>
+                            {/* Team */}
+                            <td className="px-2 py-1.5">
+                              <select
+                                value={editDraft.team_id}
+                                onChange={(e) => setEditDraft((d) => ({ ...d, team_id: e.target.value }))}
+                                className="w-full rounded border border-gray-600 bg-gray-900 px-1 py-1 text-sm text-white focus:border-orange-500 focus:outline-none"
+                              >
+                                {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                              </select>
+                            </td>
+                            {/* Save / Cancel */}
+                            <td className="px-2 py-1.5 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  onClick={() => saveEdit(p.id)}
+                                  disabled={editSaving}
+                                  className="rounded bg-orange-500 px-2 py-0.5 text-xs font-bold text-white hover:bg-orange-600 disabled:opacity-50"
+                                >
+                                  {editSaving ? '...' : '✓ שמור'}
+                                </button>
+                                <button
+                                  onClick={cancelEdit}
+                                  className="rounded bg-gray-700 px-2 py-0.5 text-xs text-gray-300 hover:bg-gray-600"
+                                >
+                                  ביטול
+                                </button>
+                              </div>
+                            </td>
+                            <td className="px-4 py-2 text-center">
+                              <button
+                                onClick={() => handleDelete(p.id, p.name)}
+                                disabled={deleting === p.id}
+                                className="rounded px-2 py-0.5 text-xs text-red-400 hover:bg-red-900/30 disabled:opacity-40"
+                              >
+                                {deleting === p.id ? '...' : '🗑'}
+                              </button>
+                            </td>
+                          </tr>
+                        ) : (
+                          /* ── Normal display row ── */
+                          <tr key={p.id} className="border-t border-gray-700/50 hover:bg-gray-800/40">
                           <td className="px-4 py-2 text-center text-gray-500 font-mono text-xs">{idx + 1}</td>
                           <td className="px-4 py-2 text-center">
                             <div className="mx-auto h-9 w-9 overflow-hidden rounded-full border border-gray-700 bg-gray-800 flex items-center justify-center">
@@ -304,8 +436,20 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
                           <td className="px-4 py-2 font-medium text-white">{p.name}</td>
                           <td className="px-4 py-2 text-center text-gray-400">{p.jersey_number ?? '—'}</td>
                           <td className="px-4 py-2 text-center text-gray-400">{p.position ?? '—'}</td>
+                          <td className="px-4 py-2 text-center text-gray-400 text-xs truncate max-w-[80px]">
+                            {teams.find((t) => t.id === p.team_id)?.name ?? '—'}
+                          </td>
                           <td className="px-4 py-2 text-center">
                             <div className="flex items-center justify-center gap-1">
+                              {/* Edit details */}
+                              <button
+                                onClick={() => startEdit(p)}
+                                title="ערוך פרטים"
+                                className="rounded px-2 py-0.5 text-xs text-green-400 hover:bg-green-900/30"
+                              >
+                                ✏️
+                              </button>
+                              {/* Edit photo */}
                               <button
                                 onClick={() => setEditTarget(p)}
                                 title="העלה תמונה"
@@ -334,7 +478,8 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
                             </button>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 )}

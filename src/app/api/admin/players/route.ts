@@ -21,12 +21,20 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const { id, photo_url } = await req.json();
+    const body = await req.json();
+    const { id, ...fields } = body;
     if (!id) return NextResponse.json({ error: 'חסר id' }, { status: 400 });
+
+    // Allow updating any subset of: photo_url, name, jersey_number, position, team_id
+    const allowed = ['photo_url', 'name', 'jersey_number', 'position', 'team_id'];
+    const update: Record<string, unknown> = {};
+    for (const key of allowed) {
+      if (key in fields) update[key] = fields[key];
+    }
 
     const { error } = await supabaseAdmin
       .from('players')
-      .update({ photo_url })
+      .update(update)
       .eq('id', id);
 
     if (error) throw error;
