@@ -13,13 +13,13 @@ export async function POST(req: NextRequest) {
     const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
     const { error: uploadError } = await supabaseAdmin.storage
-      .from('player-photos')
+      .from('Player-photos')
       .upload(path, buffer, { contentType: file.type, upsert: false });
 
     if (uploadError) throw uploadError;
 
     const { data: { publicUrl } } = supabaseAdmin.storage
-      .from('player-photos')
+      .from('Player-photos')
       .getPublicUrl(path);
 
     return NextResponse.json({ url: publicUrl });
