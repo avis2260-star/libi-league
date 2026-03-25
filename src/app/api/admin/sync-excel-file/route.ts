@@ -132,13 +132,12 @@ function parseCupGames(rows: unknown[][]): CupGameRow[] {
     { keyword: 'גמר',    name: 'גמר',         order: 4 },
   ];
 
-  // Step 1: Collect all round header anchor columns (one entry per distinct round).
-  // Strategy: scan every cell; for each pattern, record the column where the
-  // header appears.  For the final "גמר" we exclude cells that also contain
-  // שמינית / רבע / חצי (because those are sub-round headers, not the final).
-  const roundHeaders: { col: number; name: string; order: number; date: string }[] = [];
+  // Step 1: Collect all round header anchor positions (row + col).
+  // For the final "גמר" we exclude cells that also contain שמינית/רבע/חצי.
+  const roundHeaders: { row: number; col: number; name: string; order: number; date: string }[] = [];
 
-  for (const row of rows) {
+  for (let ri = 0; ri < rows.length; ri++) {
+    const row = rows[ri];
     if (!row || !Array.isArray(row)) continue;
     for (let col = 0; col < row.length; col++) {
       const cell = String(row[col] ?? '').trim();
@@ -171,7 +170,7 @@ function parseCupGames(rows: unknown[][]): CupGameRow[] {
           if (/^\d{1,2}\.\d{1,2}\.(\d{2}|\d{4})$/.test(v)) { date = v; break; }
         }
 
-        roundHeaders.push({ col, name: p.name, order: p.order, date });
+        roundHeaders.push({ row: ri, col, name: p.name, order: p.order, date });
       }
     }
   }
@@ -233,6 +232,63 @@ function parseCupGames(rows: unknown[][]): CupGameRow[] {
         date:         best.date,
         played:       homeScore !== null && awayScore !== null,
       });
+    }
+  }
+
+  // Step 3: Fallback for rounds with no בית/חוץ games found.
+  // The גמר (final) often uses a single-row format:
+  //   "Team A  -  Team B"  (no scores when not yet played)
+  // Scan rows below the header and collect the first row that has ≥2 team strings.
+  for (const rh of roundHeaders) {
+    if (gamesPerRound[rh.name]) continue; // already found games for this round
+
+    for (let ri = rh.row + 1; ri < Math.min(rows.length, rh.row + 20); ri++) {
+      const row = rows[ri];
+      if (!row || !Array.isArray(row)) continue;
+
+      // Skip rows that look like sub-headers or round labels
+      const rowStr = row.map((c) => String(c ?? '').trim()).join(' ');
+      if (['שלב','גביע','שמינית','רבע','חצי'].some((k) => rowStr.includes(k))) continue;
+      // Skip if the row itself looks like a round header (contains גמר as a label)
+      if (row.some((c) => { const s = String(c ?? '').trim(); return s === 'גמר' || s.endsWith(' גמר'); })) continue;
+
+      // Collect meaningful strings within ±15 columns of the header column
+      const teams: string[] = [];
+      const colMin = Math.max(0, rh.col - 15);
+      const colMax = Math.min(row.length - 1, rh.col + 15);
+      for (let c = colMin; c <= colMax; c++) {
+        const v = String(row[c] ?? '').trim();
+        // Must be a plausible team name: length > 2, not a dash, not purely numeric, not a date
+        if (v.length > 2 && v !== '-' && !/^\d+$/.test(v) && !/\d{1,2}\.\d{1,2}/.test(v)) {
+          teams.push(v);
+        }
+      }
+
+      if (teams.length >= 2) {
+        gamesPerRound[rh.name] = 1;
+        // Check whether scores are present alongside the teams
+        let homeScore: number | null = null;
+        let awayScore: number | null = null;
+        for (let c = colMin; c <= colMax; c++) {
+          const v = row[c];
+          if (typeof v === 'number') {
+            if (homeScore === null) homeScore = v;
+            else if (awayScore === null) awayScore = v;
+          }
+        }
+        games.push({
+          round:       rh.name,
+          round_order: rh.order,
+          game_number: 1,
+          home_team:   teams[0],
+          away_team:   teams[1],
+          home_score:  homeScore,
+          away_score:  awayScore,
+          date:        rh.date,
+          played:      homeScore !== null && awayScore !== null,
+        });
+        break;
+      }
     }
   }
 
