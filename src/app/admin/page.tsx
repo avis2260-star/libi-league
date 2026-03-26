@@ -14,6 +14,7 @@ import AnnouncementsTab from '@/components/admin/AnnouncementsTab';
 import SyncLogTab from '@/components/admin/SyncLogTab';
 import TeamsTab from '@/components/admin/TeamsTab';
 import TakanonTab from '@/components/admin/TakanonTab';
+import PlayoffTab from '@/components/admin/PlayoffTab';
 import type { GameWithTeams, Team } from '@/types';
 
 async function getAllGames(): Promise<GameWithTeams[]> {
@@ -131,6 +132,7 @@ export default async function AdminPage({
       {tab === 'announcements' && <AnnouncementsTab announcements={announcements} />}
       {tab === 'synclog'       && <SyncLogTab logs={syncLogs} />}
       {tab === 'takanon'       && <TakanonTab />}
+      {tab === 'playoff'       && <PlayoffTab />}
     </>
   );
 }

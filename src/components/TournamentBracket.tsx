@@ -95,7 +95,7 @@ function RoundSection({
       </div>
 
       {/* Games grid — 1 column on mobile, 2 on md+ */}
-      <div className={`grid gap-2 ${games.length === 1 ? 'max-w-lg' : 'md:grid-cols-2'}`}>
+      <div className={`grid gap-2 ${games.length === 1 ? 'max-w-lg mx-auto' : 'md:grid-cols-2'}`}>
         {games.map((game) => (
           <MatchupCard key={game.id} game={game} />
         ))}

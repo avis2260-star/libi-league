@@ -45,7 +45,7 @@ function GameCard({ game }: { game: GameResult }) {
 }
 
 export default function ResultsContent({ games }: { games: GameResult[] }) {
-  const ROUNDS = [...new Set(games.map((g) => g.round))].sort((a, b) => a - b);
+  const ROUNDS = [...new Set(games.map((g) => g.round))].sort((a, b) => b - a);
 
   const [activeRound, setActiveRound]       = useState<number | null>(null);
   const [activeDivision, setActiveDivision] = useState<'all' | 'North' | 'South'>('all');
@@ -58,7 +58,7 @@ export default function ResultsContent({ games }: { games: GameResult[] }) {
 
   const visibleRounds = activeRound !== null
     ? [activeRound]
-    : ROUNDS.filter((r) => filtered.some((g) => g.round === r));
+    : ROUNDS.filter((r) => filtered.some((g) => g.round === r)).sort((a, b) => b - a);
 
   const grouped = visibleRounds.reduce<Record<number, GameResult[]>>((acc, r) => {
     acc[r] = filtered.filter((g) => g.round === r);

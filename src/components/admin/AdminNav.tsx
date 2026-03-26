@@ -24,9 +24,10 @@ const GROUPS = [
   {
     label: '📊 נתונים',
     tabs: [
-      { href: '/admin?tab=sync',         label: '📋 Sync'    },
-      { href: '/admin?tab=synclog',      label: '📜 לוג'     },
-      { href: '/admin?tab=disciplinary', label: '⚠️ משמעת'  },
+      { href: '/admin?tab=sync',         label: '📋 Sync'       },
+      { href: '/admin?tab=synclog',      label: '📜 לוג'        },
+      { href: '/admin?tab=disciplinary', label: '⚠️ משמעת'     },
+      { href: '/admin?tab=playoff',      label: '🏆 פלייאוף'   },
     ],
   },
   {
