@@ -2,6 +2,8 @@ import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { logoutAction } from '@/app/login/actions';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import { Suspense } from 'react';
+import AdminNav from '@/components/admin/AdminNav';
 
 export const metadata = { title: 'Admin — LIBI League' };
 
@@ -45,32 +47,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
       </header>
 
-      {/* Tab nav */}
-      <nav className="flex overflow-x-auto border-b border-gray-800 bg-gray-900">
-        {[
-          { href: '/admin?tab=games',        label: '🎮 Games' },
-          { href: '/admin?tab=teams',        label: '🛡️ קבוצות' },
-          { href: '/admin?tab=boxscore',     label: '📊 Box Score' },
-          { href: '/admin?tab=media',        label: '🎥 Media' },
-          { href: '/admin?tab=players',      label: '👤 שחקנים' },
-          { href: '/admin?tab=sync',         label: '📋 Sync' },
-          { href: '/admin?tab=seasons',      label: '📅 עונות' },
-          { href: '/admin?tab=officials',    label: '🦺 שופטים' },
-          { href: '/admin?tab=disciplinary', label: '⚠️ משמעת' },
-          { href: '/admin?tab=settings',     label: '⚙️ הגדרות' },
-          { href: '/admin?tab=announcements',label: '📢 הודעות' },
-          { href: '/admin?tab=synclog',      label: '📜 לוג' },
-          { href: '/admin?tab=takanon',     label: '📋 תקנון' },
-        ].map(({ href, label }) => (
-          <Link
-            key={href}
-            href={href}
-            className="flex h-12 shrink-0 items-center justify-center gap-1.5 border-b-2 border-transparent px-4 text-sm font-medium text-gray-400 transition hover:border-orange-500 hover:text-white sm:px-6"
-          >
-            {label}
-          </Link>
-        ))}
-      </nav>
+      {/* Tab nav — grouped dropdowns */}
+      <Suspense fallback={<div className="h-12 border-b border-gray-800 bg-gray-900" />}>
+        <AdminNav />
+      </Suspense>
 
       {/* Page content */}
       <main className="mx-auto max-w-4xl px-4 py-6">{children}</main>
