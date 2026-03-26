@@ -130,9 +130,28 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
     }
   }
 
+  // Max date of birth allowed — must be at least 16 years old
+  const maxDob = (() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 16);
+    return d.toISOString().split('T')[0];
+  })();
+
+  function isUnder16(dateStr: string): boolean {
+    if (!dateStr) return false;
+    const birth = new Date(dateStr);
+    const cutoff = new Date();
+    cutoff.setFullYear(cutoff.getFullYear() - 16);
+    return birth > cutoff;
+  }
+
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !teamId) return;
+    if (dob && isUnder16(dob)) {
+      setMsg({ ok: false, text: '⛔ לא ניתן להוסיף שחקן מתחת לגיל 16' });
+      return;
+    }
     setSaving(true);
     setMsg(null);
     try {
@@ -289,13 +308,23 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs text-gray-400">תאריך לידה</label>
+            <label className="mb-1 block text-xs text-gray-400 flex items-center gap-1">
+              תאריך לידה
+              <span className="text-gray-500">(גיל מינימלי: 16)</span>
+            </label>
             <input
               type="date"
               value={dob} onChange={(e) => setDob(e.target.value)}
-              max={new Date().toISOString().split('T')[0]}
-              className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none [color-scheme:dark]"
+              max={maxDob}
+              className={`w-full rounded-lg border bg-gray-800 px-3 py-2 text-sm text-white focus:outline-none [color-scheme:dark] ${
+                dob && isUnder16(dob)
+                  ? 'border-red-500 focus:border-red-400'
+                  : 'border-gray-700 focus:border-orange-500'
+              }`}
             />
+            {dob && isUnder16(dob) && (
+              <p className="mt-1 text-xs text-red-400">⛔ השחקן חייב להיות בן 16 לפחות</p>
+            )}
           </div>
         </div>
 
