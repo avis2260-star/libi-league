@@ -77,28 +77,33 @@ function RoundSection({
 
   return (
     <div>
-      {/* Round header — badge shown only for multi-game rounds; single-game rounds show it above the card */}
-      <div className="mb-3 flex items-center gap-3">
-        <span className="text-[11px] font-black uppercase tracking-widest text-[#5a7a9a]">
-          {label}
-        </span>
-        {games.length > 1 && allPlayed && (
-          <span className="rounded-full bg-green-900/40 px-2 py-0.5 text-[10px] font-bold text-green-400">
-            ✓ הסתיים
+      {/* Round header — only for multi-game rounds */}
+      {games.length > 1 && (
+        <div className="mb-3 flex items-center gap-3">
+          <span className="text-[11px] font-black uppercase tracking-widest text-[#5a7a9a]">
+            {label}
           </span>
-        )}
-        {games.length > 1 && !allPlayed && games.some((g) => !g.played) && (
-          <span className="rounded-full bg-orange-900/30 px-2 py-0.5 text-[10px] font-bold text-orange-400">
-            ● פעיל
-          </span>
-        )}
-      </div>
+          {allPlayed && (
+            <span className="rounded-full bg-green-900/40 px-2 py-0.5 text-[10px] font-bold text-green-400">
+              ✓ הסתיים
+            </span>
+          )}
+          {!allPlayed && games.some((g) => !g.played) && (
+            <span className="rounded-full bg-orange-900/30 px-2 py-0.5 text-[10px] font-bold text-orange-400">
+              ● פעיל
+            </span>
+          )}
+        </div>
+      )}
 
-      {/* Games grid — 1 column on mobile, 2 on md+ */}
+      {/* Games grid */}
       {games.length === 1 ? (
         <div className="max-w-lg mx-auto">
-          {/* Status badge above right (home) team for single-game rounds */}
-          <div className="mb-2 flex justify-start">
+          {/* Label + status badge above the card, right-aligned (above home team) */}
+          <div className="mb-2 flex items-center gap-2 justify-start">
+            <span className="text-[11px] font-black uppercase tracking-widest text-[#5a7a9a]">
+              {label}
+            </span>
             {allPlayed ? (
               <span className="rounded-full bg-green-900/40 px-2 py-0.5 text-[10px] font-bold text-green-400">✓ הסתיים</span>
             ) : (
