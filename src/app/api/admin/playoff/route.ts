@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
-// GET — same as public
+// GET — series + games + top 4 from each division for dropdowns
 export async function GET() {
-  const [{ data: series }, { data: games }] = await Promise.all([
+  const [{ data: series }, { data: games }, { data: standings }] = await Promise.all([
     supabaseAdmin.from('playoff_series').select('*').order('series_number'),
     supabaseAdmin.from('playoff_games').select('*').order('series_number').order('game_number'),
+    supabaseAdmin.from('standings').select('name,division,rank').order('rank', { ascending: true }),
   ]);
-  return NextResponse.json({ series: series ?? [], games: games ?? [] });
+
+  const all = (standings ?? []) as { name: string; division: string; rank: number }[];
+  const northTeams = all.filter(s => s.division === 'North').slice(0, 4).map(s => s.name);
+  const southTeams = all.filter(s => s.division === 'South').slice(0, 4).map(s => s.name);
+
+  return NextResponse.json({ series: series ?? [], games: games ?? [], northTeams, southTeams });
 }
 
 // PUT — update a series team names

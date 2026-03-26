@@ -77,17 +77,17 @@ function RoundSection({
 
   return (
     <div>
-      {/* Round header */}
+      {/* Round header — badge shown only for multi-game rounds; single-game rounds show it above the card */}
       <div className="mb-3 flex items-center gap-3">
         <span className="text-[11px] font-black uppercase tracking-widest text-[#5a7a9a]">
           {label}
         </span>
-        {allPlayed && (
+        {games.length > 1 && allPlayed && (
           <span className="rounded-full bg-green-900/40 px-2 py-0.5 text-[10px] font-bold text-green-400">
             ✓ הסתיים
           </span>
         )}
-        {!allPlayed && games.some((g) => !g.played) && (
+        {games.length > 1 && !allPlayed && games.some((g) => !g.played) && (
           <span className="rounded-full bg-orange-900/30 px-2 py-0.5 text-[10px] font-bold text-orange-400">
             ● פעיל
           </span>
@@ -95,11 +95,25 @@ function RoundSection({
       </div>
 
       {/* Games grid — 1 column on mobile, 2 on md+ */}
-      <div className={`grid gap-2 ${games.length === 1 ? 'max-w-lg mx-auto' : 'md:grid-cols-2'}`}>
-        {games.map((game) => (
-          <MatchupCard key={game.id} game={game} />
-        ))}
-      </div>
+      {games.length === 1 ? (
+        <div className="max-w-lg mx-auto">
+          {/* Status badge above right (home) team for single-game rounds */}
+          <div className="mb-2 flex justify-start">
+            {allPlayed ? (
+              <span className="rounded-full bg-green-900/40 px-2 py-0.5 text-[10px] font-bold text-green-400">✓ הסתיים</span>
+            ) : (
+              <span className="rounded-full bg-orange-900/30 px-2 py-0.5 text-[10px] font-bold text-orange-400">● פעיל</span>
+            )}
+          </div>
+          <div className="grid gap-2">
+            {games.map((game) => <MatchupCard key={game.id} game={game} />)}
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-2 md:grid-cols-2">
+          {games.map((game) => <MatchupCard key={game.id} game={game} />)}
+        </div>
+      )}
 
       {/* Downward arrow between rounds */}
       {!isLast && (
