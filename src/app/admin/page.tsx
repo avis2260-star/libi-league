@@ -39,12 +39,12 @@ export default async function AdminPage({
   const activeGames = games.filter((g) => g.status !== 'Finished');
 
   let teams: Team[] = [];
-  let players: { id: string; name: string; jersey_number: number | null; position: string | null; team_id: string | null; photo_url: string | null }[] = [];
+  let players: { id: string; name: string; jersey_number: number | null; position: string | null; team_id: string | null; photo_url: string | null; date_of_birth: string | null }[] = [];
 
   if (tab === 'players') {
     const [{ data: teamsData }, { data: playersData }] = await Promise.all([
       supabaseAdmin.from('teams').select('*').order('name'),
-      supabaseAdmin.from('players').select('id,name,jersey_number,position,team_id,photo_url').order('name'),
+      supabaseAdmin.from('players').select('id,name,jersey_number,position,team_id,photo_url,date_of_birth').order('name'),
     ]);
     teams   = (teamsData  ?? []) as Team[];
     players = (playersData ?? []) as typeof players;

@@ -13,6 +13,7 @@ type PlayerRow = {
   position: string | null;
   team_id: string | null;
   photo_url: string | null;
+  date_of_birth?: string | null;
 };
 
 const POSITIONS = ['PG', 'SG', 'SF', 'PF', 'C'];
@@ -23,6 +24,7 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
   const [teamId, setTeamId]       = useState('');
   const [jersey, setJersey]       = useState('');
   const [position, setPosition]   = useState('');
+  const [dob, setDob]             = useState('');
   const [saving, setSaving]       = useState(false);
   const [msg, setMsg]             = useState<{ ok: boolean; text: string } | null>(null);
   const [deleting, setDeleting]   = useState<string | null>(null);
@@ -40,9 +42,9 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
   const [editTarget, setEditTarget] = useState<PlayerRow | null>(null);
 
   // Inline edit state
-  type EditDraft = { name: string; jersey: string; position: string; team_id: string };
+  type EditDraft = { name: string; jersey: string; position: string; team_id: string; dob: string };
   const [editingId, setEditingId]   = useState<string | null>(null);
-  const [editDraft, setEditDraft]   = useState<EditDraft>({ name: '', jersey: '', position: '', team_id: '' });
+  const [editDraft, setEditDraft]   = useState<EditDraft>({ name: '', jersey: '', position: '', team_id: '', dob: '' });
   const [editSaving, setEditSaving] = useState(false);
 
   function startEdit(p: PlayerRow) {
@@ -52,6 +54,7 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
       jersey:   p.jersey_number != null ? String(p.jersey_number) : '',
       position: p.position ?? '',
       team_id:  p.team_id ?? '',
+      dob:      p.date_of_birth ?? '',
     });
   }
 
@@ -65,20 +68,22 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id,
-          name:          editDraft.name.trim() || undefined,
-          jersey_number: editDraft.jersey !== '' ? parseInt(editDraft.jersey) : null,
-          position:      editDraft.position || null,
-          team_id:       editDraft.team_id || undefined,
+          name:           editDraft.name.trim() || undefined,
+          jersey_number:  editDraft.jersey !== '' ? parseInt(editDraft.jersey) : null,
+          position:       editDraft.position || null,
+          team_id:        editDraft.team_id || undefined,
+          date_of_birth:  editDraft.dob || null,
         }),
       });
       if (!res.ok) throw new Error('עדכון נכשל');
       setList((prev) => prev.map((p) =>
         p.id !== id ? p : {
           ...p,
-          name:          editDraft.name.trim() || p.name,
-          jersey_number: editDraft.jersey !== '' ? parseInt(editDraft.jersey) : null,
-          position:      editDraft.position || null,
-          team_id:       editDraft.team_id || p.team_id,
+          name:           editDraft.name.trim() || p.name,
+          jersey_number:  editDraft.jersey !== '' ? parseInt(editDraft.jersey) : null,
+          position:       editDraft.position || null,
+          team_id:        editDraft.team_id || p.team_id,
+          date_of_birth:  editDraft.dob || null,
         },
       ));
       setMsg({ ok: true, text: '✅ השחקן עודכן בהצלחה' });
@@ -140,6 +145,7 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
           team_id: teamId,
           jersey_number: jersey ? parseInt(jersey) : null,
           position: position || null,
+          date_of_birth: dob || null,
           photo_url,
         }),
       });
@@ -147,7 +153,7 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
       if (!res.ok) throw new Error(data.error ?? 'שגיאה');
       setList((prev) => [...prev, data.player]);
       setOpenTeams((prev) => new Set(prev).add(teamId));
-      setName(''); setJersey(''); setPosition('');
+      setName(''); setJersey(''); setPosition(''); setDob('');
       setPhotoFile(null); setPhotoPreview(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       setMsg({ ok: true, text: `✅ השחקן ${data.player.name} נוסף בהצלחה` });
@@ -196,6 +202,15 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
 
   const teamsWithPlayers = teams.filter((t) => list.some((p) => p.team_id === t.id));
 
+  // Duplicate name detection — match any existing player whose name contains the typed text (case-insensitive, min 2 chars)
+  const nameTrimmed = name.trim();
+  const duplicateMatches = nameTrimmed.length >= 2
+    ? list.filter((p) => p.name.toLowerCase().includes(nameTrimmed.toLowerCase()))
+    : [];
+  const isExactDuplicate = duplicateMatches.some(
+    (p) => p.name.toLowerCase() === nameTrimmed.toLowerCase(),
+  );
+
   return (
     <div dir="rtl" className="space-y-8">
       <div>
@@ -209,13 +224,39 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-xs text-gray-400">שם מלא *</label>
+            <label className="mb-1 block text-xs text-gray-400 flex items-center gap-1">
+              שם מלא *
+              {isExactDuplicate && (
+                <span className="rounded bg-red-500/20 px-1.5 py-0.5 text-xs font-bold text-red-400">! שם קיים</span>
+              )}
+              {!isExactDuplicate && duplicateMatches.length > 0 && (
+                <span className="rounded bg-yellow-500/20 px-1.5 py-0.5 text-xs font-bold text-yellow-400">⚠ דומה לשחקן קיים</span>
+              )}
+            </label>
             <input
               value={name} onChange={(e) => setName(e.target.value)}
               placeholder="ישראל ישראלי"
-              className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
+              className={`w-full rounded-lg border bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none ${
+                isExactDuplicate
+                  ? 'border-red-500 focus:border-red-400'
+                  : duplicateMatches.length > 0
+                  ? 'border-yellow-500 focus:border-yellow-400'
+                  : 'border-gray-700 focus:border-orange-500'
+              }`}
               required
             />
+            {duplicateMatches.length > 0 && (
+              <ul className="mt-1 space-y-0.5">
+                {duplicateMatches.slice(0, 3).map((p) => (
+                  <li key={p.id} className="text-xs text-yellow-400/80">
+                    ↳ {p.name} ({teams.find((t) => t.id === p.team_id)?.name ?? '?'})
+                  </li>
+                ))}
+                {duplicateMatches.length > 3 && (
+                  <li className="text-xs text-gray-500">ועוד {duplicateMatches.length - 3}…</li>
+                )}
+              </ul>
+            )}
           </div>
           <div>
             <label className="mb-1 block text-xs text-gray-400">קבוצה *</label>
@@ -246,6 +287,15 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
               <option value="">— בחר פוזיציה —</option>
               {POSITIONS.map((p) => <option key={p} value={p}>{p}</option>)}
             </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-400">תאריך לידה</label>
+            <input
+              type="date"
+              value={dob} onChange={(e) => setDob(e.target.value)}
+              max={new Date().toISOString().split('T')[0]}
+              className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none [color-scheme:dark]"
+            />
           </div>
         </div>
 
@@ -334,6 +384,7 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
                         <th className="px-4 py-2">שם</th>
                         <th className="px-4 py-2 text-center">#</th>
                         <th className="px-4 py-2 text-center">פוזיציה</th>
+                        <th className="px-4 py-2 text-center">ת. לידה</th>
                         <th className="px-4 py-2 text-center">קבוצה</th>
                         <th className="px-4 py-2 text-center">תמונה / עריכה</th>
                         <th className="px-4 py-2 text-center">מחיקה</th>
@@ -380,6 +431,16 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
                                 <option value="">—</option>
                                 {POSITIONS.map((pos) => <option key={pos} value={pos}>{pos}</option>)}
                               </select>
+                            </td>
+                            {/* Date of Birth */}
+                            <td className="px-2 py-1.5 w-36">
+                              <input
+                                type="date"
+                                value={editDraft.dob}
+                                onChange={(e) => setEditDraft((d) => ({ ...d, dob: e.target.value }))}
+                                max={new Date().toISOString().split('T')[0]}
+                                className="w-full rounded border border-gray-600 bg-gray-900 px-2 py-1 text-sm text-white focus:border-orange-500 focus:outline-none [color-scheme:dark]"
+                              />
                             </td>
                             {/* Team */}
                             <td className="px-2 py-1.5">
@@ -436,6 +497,11 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
                           <td className="px-4 py-2 font-medium text-white">{p.name}</td>
                           <td className="px-4 py-2 text-center text-gray-400">{p.jersey_number ?? '—'}</td>
                           <td className="px-4 py-2 text-center text-gray-400">{p.position ?? '—'}</td>
+                          <td className="px-4 py-2 text-center text-gray-400 text-xs">
+                            {p.date_of_birth
+                              ? new Date(p.date_of_birth).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                              : '—'}
+                          </td>
                           <td className="px-4 py-2 text-center text-gray-400 text-xs truncate max-w-[80px]">
                             {teams.find((t) => t.id === p.team_id)?.name ?? '—'}
                           </td>
