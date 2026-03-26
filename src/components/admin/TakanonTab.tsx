@@ -15,6 +15,8 @@ export default function TakanonTab() {
   const [uploading, setUploading] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -23,6 +25,23 @@ export default function TakanonTab() {
       .then(setInfo)
       .finally(() => setLoading(false));
   }, []);
+
+  async function handleDelete() {
+    setDeleting(true);
+    setMsg(null);
+    try {
+      const res = await fetch('/api/admin/takanon', { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'שגיאה במחיקה');
+      setInfo({ url: null, filename: null, type: null, updated: null });
+      setMsg({ ok: true, text: '🗑 הקובץ נמחק בהצלחה' });
+      setConfirmDelete(false);
+    } catch (err: unknown) {
+      setMsg({ ok: false, text: err instanceof Error ? err.message : 'שגיאה' });
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   async function handleUpload(file: File) {
     setUploading(true);
@@ -115,14 +134,44 @@ export default function TakanonTab() {
       ) : info.url ? (
         <div className="rounded-xl border border-gray-700 bg-gray-800/60 p-5 text-right space-y-3">
           <div className="flex items-center justify-between">
-            <a
-              href={info.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-400 transition"
-            >
-              פתח קובץ ↗
-            </a>
+            <div className="flex items-center gap-2">
+              <a
+                href={info.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-400 transition"
+              >
+                פתח קובץ ↗
+              </a>
+
+              {/* Delete button / confirm */}
+              {!confirmDelete ? (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  className="rounded-lg border border-red-700 px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-500/15 transition"
+                >
+                  🗑 מחק
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-red-400 font-medium">בטוח?</span>
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-500 transition disabled:opacity-50"
+                  >
+                    {deleting ? 'מוחק...' : 'כן, מחק'}
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    className="rounded-lg border border-gray-600 px-3 py-2 text-sm text-gray-400 hover:text-white transition"
+                  >
+                    ביטול
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div>
               <p className="font-semibold text-white">
                 {fileIcon(info.type)} {info.filename}

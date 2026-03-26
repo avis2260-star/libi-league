@@ -47,6 +47,40 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// DELETE — remove current takanon file from storage and clear settings
+export async function DELETE() {
+  try {
+    // Get current file URL to extract path
+    const { data } = await supabaseAdmin
+      .from('league_settings')
+      .select('key,value')
+      .in('key', ['takanon_url']);
+
+    const url = data?.find(r => r.key === 'takanon_url')?.value ?? null;
+
+    // Extract storage path from public URL and delete from bucket
+    if (url) {
+      const parts = url.split(`/${BUCKET}/`);
+      if (parts.length === 2) {
+        await supabaseAdmin.storage.from(BUCKET).remove([parts[1]]);
+      }
+    }
+
+    // Clear all takanon entries from league_settings
+    await supabaseAdmin
+      .from('league_settings')
+      .delete()
+      .in('key', ['takanon_url', 'takanon_filename', 'takanon_type', 'takanon_updated']);
+
+    return NextResponse.json({ ok: true });
+  } catch (err: unknown) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Delete failed' },
+      { status: 500 },
+    );
+  }
+}
+
 // GET — return current takanon info
 export async function GET() {
   const { data } = await supabaseAdmin
