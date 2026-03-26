@@ -13,6 +13,7 @@ import LeagueSettingsTab from '@/components/admin/LeagueSettingsTab';
 import AnnouncementsTab from '@/components/admin/AnnouncementsTab';
 import SyncLogTab from '@/components/admin/SyncLogTab';
 import TeamsTab from '@/components/admin/TeamsTab';
+import TakanonTab from '@/components/admin/TakanonTab';
 import type { GameWithTeams, Team } from '@/types';
 
 async function getAllGames(): Promise<GameWithTeams[]> {
@@ -129,6 +130,7 @@ export default async function AdminPage({
       {tab === 'settings'      && <LeagueSettingsTab settings={leagueSettings} />}
       {tab === 'announcements' && <AnnouncementsTab announcements={announcements} />}
       {tab === 'synclog'       && <SyncLogTab logs={syncLogs} />}
+      {tab === 'takanon'       && <TakanonTab />}
     </>
   );
 }

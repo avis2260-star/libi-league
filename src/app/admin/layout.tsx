@@ -60,6 +60,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           { href: '/admin?tab=settings',     label: '⚙️ הגדרות' },
           { href: '/admin?tab=announcements',label: '📢 הודעות' },
           { href: '/admin?tab=synclog',      label: '📜 לוג' },
+          { href: '/admin?tab=takanon',     label: '📋 תקנון' },
         ].map(({ href, label }) => (
           <Link
             key={href}
