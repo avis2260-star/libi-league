@@ -19,14 +19,6 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-// Prevent the Map from growing unboundedly in long-running processes
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of rateLimiter.entries()) {
-    if (now > entry.resetAt) rateLimiter.delete(key);
-  }
-}, 5 * 60_000);
-
 // ── Types for Supabase query results ─────────────────────────────────────────
 type TeamName = { name: string } | null;
 
@@ -173,41 +165,29 @@ export async function POST(req: NextRequest) {
 
 ${leagueContext}`;
 
-  // 5. Stream response from Claude
-  let stream;
+  // 5. Call Claude and return the text response
+  let text: string;
   try {
-    stream = await anthropic.messages.stream({
+    const response = await anthropic.messages.create({
       model: 'claude-opus-4-6',
       max_tokens: 1024,
       system: systemPrompt,
       messages,
     });
+    text = response.content
+      .filter(b => b.type === 'text')
+      .map(b => (b as { type: 'text'; text: string }).text)
+      .join('');
   } catch (err) {
-    console.error('[chat] Anthropic stream init error:', err);
+    console.error('[chat] Anthropic error:', err);
     return new Response('שגיאה בשירות AI', { status: 502 });
   }
 
-  const encoder = new TextEncoder();
-  const readable = new ReadableStream({
-    async start(controller) {
-      try {
-        for await (const event of stream) {
-          if (
-            event.type === 'content_block_delta' &&
-            event.delta.type === 'text_delta'
-          ) {
-            controller.enqueue(encoder.encode(event.delta.text));
-          }
-        }
-        controller.close();
-      } catch (err) {
-        console.error('[chat] Anthropic stream error:', err);
-        controller.error(err); // propagates to client reader → widget catch block
-      }
-    },
-  });
+  if (!text.trim()) {
+    return new Response('לא התקבלה תשובה', { status: 502 });
+  }
 
-  return new Response(readable, {
+  return new Response(text, {
     headers: {
       'Content-Type': 'text/plain; charset=utf-8',
       'X-Content-Type-Options': 'nosniff',
