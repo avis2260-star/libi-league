@@ -171,7 +171,7 @@ export default async function PlayoffPage() {
         /* Team rows */
         .po-row {
           display: flex; align-items: center; gap: 7px;
-          padding: 9px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); min-height: 40px;
+          padding: 13px 10px; border-bottom: 1px solid rgba(255,255,255,0.07); min-height: 48px;
         }
         .po-row:last-child { border-bottom: none; }
         .po-win  { background: rgba(249,115,22,0.1); }
