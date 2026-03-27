@@ -1,6 +1,9 @@
+export const dynamic = 'force-dynamic';
+
 import type { Metadata } from 'next';
 import { Heebo } from 'next/font/google';
 import './globals.css';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 const heebo = Heebo({ subsets: ['hebrew', 'latin'], weight: ['300','400','500','600','700','800','900'] });
 
@@ -8,6 +11,19 @@ export const metadata: Metadata = {
   title: 'ליגת ליבי',
   description: 'ניהול ליגת כדורסל קהילתית — לוח משחקים, טבלאות ותוצאות.',
 };
+
+async function getLogoUrl(): Promise<string> {
+  try {
+    const { data } = await supabaseAdmin
+      .from('league_settings')
+      .select('value')
+      .eq('key', 'league_logo_url')
+      .maybeSingle();
+    return data?.value ?? '/logo.png';
+  } catch {
+    return '/logo.png';
+  }
+}
 
 const NAV_LINKS = [
   { href: '/',          label: 'בית'       },
@@ -20,7 +36,8 @@ const NAV_LINKS = [
   { href: '/playoff',  label: 'פלייאוף'   },
 ];
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const logoUrl = await getLogoUrl();
   return (
     <html lang="he" dir="rtl">
       <body className={`${heebo.className} min-h-screen bg-[#0b1520] text-[#e8edf5]`}>
@@ -31,7 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
             <a href="/" className="flex items-center gap-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.png" alt="ליגת ליבי" className="h-10 w-10 object-contain rounded-full" />
+              <img src={logoUrl} alt="ליגת ליבי" className="h-10 w-10 object-contain rounded-full" />
               <span className="text-lg font-black text-white leading-tight">
                 ליגת ליבי
                 <span className="block text-[10px] font-medium tracking-widest text-[#5a7a9a] uppercase">
