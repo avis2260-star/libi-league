@@ -15,10 +15,21 @@ const POSITION_LABELS: Record<string, string> = {
 function PlayerCard({ player }: { player: Player & { team?: Team } }) {
   const position = player.position ? POSITION_LABELS[player.position] ?? player.position : null;
   const teamName = player.team?.name ?? '';
+  const isInactive = player.is_active === false;
 
   return (
     <Link href={`/players/${player.id}`} className="group block">
-      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-[#1a2a3a] to-[#0b1520] transition-all duration-300 hover:-translate-y-1 hover:border-orange-500/40 hover:shadow-[0_8px_32px_rgba(255,107,26,0.15)]">
+      <div
+        className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-[#1a2a3a] to-[#0b1520] transition-all duration-300 hover:-translate-y-1 hover:border-orange-500/40 hover:shadow-[0_8px_32px_rgba(255,107,26,0.15)]"
+        style={isInactive ? { filter: 'grayscale(55%)', opacity: 0.72 } : undefined}
+      >
+        {/* Inactive ribbon */}
+        {isInactive && (
+          <div className="absolute top-3 right-0 z-10 flex items-center gap-1 rounded-r-none rounded-l-full bg-red-600/90 px-3 py-0.5 text-[10px] font-black text-white shadow-md">
+            <span className="h-1.5 w-1.5 rounded-full bg-white" />
+            לא פעיל
+          </div>
+        )}
 
         {/* Top banner with team name */}
         <div className="relative bg-gradient-to-l from-orange-600 to-orange-800 px-4 py-2">
@@ -77,9 +88,20 @@ function PlayerCard({ player }: { player: Player & { team?: Team } }) {
           </div>
         </div>
 
-        {/* Card footer */}
-        <div className="border-t border-white/[0.05] px-4 py-2 text-center">
+        {/* Card footer — status indicator */}
+        <div className="border-t border-white/[0.05] px-4 py-2 flex items-center justify-between">
           <p className="text-[9px] font-semibold tracking-widest text-[#2a4a6a]">LIBI LEAGUE · OFFICIAL CARD</p>
+          {isInactive ? (
+            <span className="flex items-center gap-1 text-[9px] font-bold text-red-500">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+              לא פעיל
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-[9px] font-bold text-green-500">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-500 shadow-[0_0_4px_rgba(74,222,128,0.7)]" />
+              פעיל
+            </span>
+          )}
         </div>
       </div>
     </Link>

@@ -22,6 +22,7 @@ export interface Player {
   fouls: number;
   three_pointers: number;
   created_at: string;
+  is_active?: boolean;
   // Joined
   team?: Team;
 }
