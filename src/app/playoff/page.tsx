@@ -212,16 +212,16 @@ export default async function PlayoffPage() {
         .po-open { background: transparent; border: 1px solid #1e3a5f; }
         /* Bracket connectors */
         .po-arm {
-          position: relative; width: 38px; height: 200px; flex-shrink: 0;
+          position: relative; width: 38px; height: 320px; flex-shrink: 0;
         }
         .po-arm-v { position: absolute; width: 2px; background: #1e3a5f; }
         .po-arm-h { position: absolute; height: 2px; background: #1e3a5f; }
         .po-hconn { width: 36px; height: 2px; background: #1e3a5f; flex-shrink: 0; align-self: center; }
         /* Round label */
         .po-round-lbl {
-          text-align: center; margin-bottom: 10px;
-          font-size: 9px; font-weight: 800; letter-spacing: 1.5px;
-          text-transform: uppercase; color: #2a4a6a;
+          text-align: center; margin-bottom: 12px;
+          font-size: 13px; font-weight: 800; letter-spacing: 1.5px;
+          text-transform: uppercase; color: #4a6a8a;
         }
         /* Detail cards */
         .po-detail {
@@ -273,7 +273,7 @@ export default async function PlayoffPage() {
               {/* ██ LEFT QF — S3 & S4 (צפון נגד דרום) ██ */}
               <div>
                 <div className="po-round-lbl">רבע גמר</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20, alignItems: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 60, alignItems: 'center' }}>
                   <MatchCard series={s3} allGames={allGames} alignStart={false} />
                   <MatchCard series={s4} allGames={allGames} alignStart={false} />
                 </div>
@@ -281,10 +281,10 @@ export default async function PlayoffPage() {
 
               {/* ██ LEFT CONNECTOR ██ */}
               <div className="po-arm">
-                <div className="po-arm-h" style={{ top: 44, left: 0, right: 8 }} />
-                <div className="po-arm-h" style={{ top: 154, left: 0, right: 8 }} />
-                <div className="po-arm-v" style={{ top: 44, left: 30, height: 112 }} />
-                <div className="po-arm-h" style={{ top: 99, left: 30, right: 0 }} />
+                <div className="po-arm-h" style={{ top: 48, left: 0, right: 8 }} />
+                <div className="po-arm-h" style={{ top: 238, left: 0, right: 8 }} />
+                <div className="po-arm-v" style={{ top: 48, left: 30, height: 190 }} />
+                <div className="po-arm-h" style={{ top: 143, left: 30, right: 0 }} />
               </div>
 
               {/* ██ LEFT SF ██ */}
@@ -304,7 +304,7 @@ export default async function PlayoffPage() {
 
               {/* ██ FINAL ██ */}
               <div>
-                <div className="po-round-lbl" style={{ color: '#a08020' }}>גמר</div>
+                <div className="po-round-lbl" style={{ color: '#b89030', fontSize: 15 }}>גמר</div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
                   <div className="po-card" style={{ borderColor: 'rgba(250,204,21,0.25)', background: 'linear-gradient(135deg,#0f1e2e,#1a2a1a)', boxShadow: '0 0 30px rgba(250,204,21,0.08)' }}>
                     <div className="po-row po-tbd"><span className="po-seed" style={{ color: '#a08020' }}>🏆</span><span className="po-tname" style={{ color: '#5a7a2a' }}>ממתין לנצח</span><span className="po-wnum" style={{ color: '#1a2a1a' }}>—</span></div>
@@ -331,16 +331,16 @@ export default async function PlayoffPage() {
 
               {/* ██ RIGHT CONNECTOR ██ */}
               <div className="po-arm">
-                <div className="po-arm-h" style={{ top: 99, left: 0, right: 30 }} />
-                <div className="po-arm-v" style={{ top: 44, right: 30, height: 112 }} />
-                <div className="po-arm-h" style={{ top: 44, left: 8, right: 0 }} />
-                <div className="po-arm-h" style={{ top: 154, left: 8, right: 0 }} />
+                <div className="po-arm-h" style={{ top: 143, left: 0, right: 30 }} />
+                <div className="po-arm-v" style={{ top: 48, right: 30, height: 190 }} />
+                <div className="po-arm-h" style={{ top: 48, left: 8, right: 0 }} />
+                <div className="po-arm-h" style={{ top: 238, left: 8, right: 0 }} />
               </div>
 
               {/* ██ RIGHT QF — S1 & S2 (דרום נגד צפון) ██ */}
               <div>
                 <div className="po-round-lbl">רבע גמר</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20, alignItems: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 60, alignItems: 'center' }}>
                   <MatchCard series={s1} allGames={allGames} alignStart={true} />
                   <MatchCard series={s2} allGames={allGames} alignStart={true} />
                 </div>
