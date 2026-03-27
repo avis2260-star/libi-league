@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { NextRequest } from 'next/server';
 
@@ -92,8 +92,8 @@ async function getLeagueContext(): Promise<string> {
   }
 }
 
-// ── Anthropic client (API key is server-only, never sent to client) ─────────
-const anthropic = new Anthropic();
+// ── Gemini client (API key is server-only, never sent to client) ─────────────
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? '');
 
 // ── POST /api/chat ───────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
@@ -142,14 +142,13 @@ export async function POST(req: NextRequest) {
     )
     .map(m => ({
       role: m.role,
-      content: m.content.slice(0, 1000), // hard cap per message
+      content: m.content.slice(0, 1000),
     }));
 
   if (messages.length === 0) {
     return new Response('No valid messages', { status: 400 });
   }
 
-  // Ensure conversation starts with a user message
   if (messages[0].role !== 'user') {
     return new Response('First message must be from user', { status: 400 });
   }
@@ -165,21 +164,26 @@ export async function POST(req: NextRequest) {
 
 ${leagueContext}`;
 
-  // 5. Call Claude and return the text response
+  // 5. Call Gemini (free tier — gemini-1.5-flash)
   let text: string;
   try {
-    const response = await anthropic.messages.create({
-      model: 'claude-opus-4-6',
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages,
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      systemInstruction: systemPrompt,
     });
-    text = response.content
-      .filter(b => b.type === 'text')
-      .map(b => (b as { type: 'text'; text: string }).text)
-      .join('');
+
+    // Convert history (all messages except last) to Gemini format
+    const history = messages.slice(0, -1).map(m => ({
+      role: m.role === 'user' ? 'user' : 'model',
+      parts: [{ text: m.content }],
+    }));
+
+    const chat = model.startChat({ history });
+    const lastMessage = messages[messages.length - 1].content;
+    const result = await chat.sendMessage(lastMessage);
+    text = result.response.text();
   } catch (err) {
-    console.error('[chat] Anthropic error:', err);
+    console.error('[chat] Gemini error:', err);
     return new Response('שגיאה בשירות AI', { status: 502 });
   }
 
