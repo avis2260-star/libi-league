@@ -67,7 +67,11 @@ export default function ChatWidget() {
         setStreaming(full);
       }
 
-      setMessages(prev => [...prev, { role: 'assistant', content: full }]);
+      if (!full.trim()) {
+        setError('לא התקבלה תשובה מהשרת. נסה שוב.');
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', content: full }]);
+      }
       setStreaming('');
     } catch {
       setError('בעיית חיבור. בדוק את האינטרנט ונסה שוב.');

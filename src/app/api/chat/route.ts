@@ -174,12 +174,18 @@ export async function POST(req: NextRequest) {
 ${leagueContext}`;
 
   // 5. Stream response from Claude
-  const stream = await anthropic.messages.stream({
-    model: 'claude-opus-4-6',
-    max_tokens: 1024,
-    system: systemPrompt,
-    messages,
-  });
+  let stream;
+  try {
+    stream = await anthropic.messages.stream({
+      model: 'claude-opus-4-6',
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages,
+    });
+  } catch (err) {
+    console.error('[chat] Anthropic stream init error:', err);
+    return new Response('שגיאה בשירות AI', { status: 502 });
+  }
 
   const encoder = new TextEncoder();
   const readable = new ReadableStream({
@@ -193,8 +199,10 @@ ${leagueContext}`;
             controller.enqueue(encoder.encode(event.delta.text));
           }
         }
-      } finally {
         controller.close();
+      } catch (err) {
+        console.error('[chat] Anthropic stream error:', err);
+        controller.error(err); // propagates to client reader → widget catch block
       }
     },
   });
