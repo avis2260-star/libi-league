@@ -14,6 +14,7 @@ type PlayerRow = {
   team_id: string | null;
   photo_url: string | null;
   date_of_birth?: string | null;
+  is_active?: boolean;
 };
 
 const POSITIONS = ['PG', 'SG', 'SF', 'PF', 'C'];
@@ -195,6 +196,27 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
       setMsg({ ok: false, text: 'מחיקה נכשלה' });
     } finally {
       setDeleting(null);
+    }
+  }
+
+  // Active / Inactive toggle
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  async function toggleActive(id: string, currentActive: boolean) {
+    setTogglingId(id);
+    try {
+      const res = await fetch('/api/admin/players', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, is_active: !currentActive }),
+      });
+      if (!res.ok) throw new Error('עדכון נכשל');
+      setList((prev) => prev.map((p) => p.id === id ? { ...p, is_active: !currentActive } : p));
+      setMsg({ ok: true, text: !currentActive ? `✅ ${list.find(p=>p.id===id)?.name} סומן כפעיל` : `⚠️ ${list.find(p=>p.id===id)?.name} סומן כלא פעיל` });
+    } catch {
+      setMsg({ ok: false, text: 'עדכון סטטוס נכשל' });
+    } finally {
+      setTogglingId(null);
     }
   }
 
@@ -415,6 +437,7 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
                         <th className="px-4 py-2 text-center">פוזיציה</th>
                         <th className="px-4 py-2 text-center">ת. לידה</th>
                         <th className="px-4 py-2 text-center">קבוצה</th>
+                        <th className="px-4 py-2 text-center">סטטוס</th>
                         <th className="px-4 py-2 text-center">תמונה / עריכה</th>
                         <th className="px-4 py-2 text-center">מחיקה</th>
                       </tr>
@@ -481,6 +504,23 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
                                 {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                               </select>
                             </td>
+                            {/* Status in edit row — show current, can toggle */}
+                            <td className="px-2 py-1.5 text-center">
+                              <button
+                                type="button"
+                                onClick={() => toggleActive(p.id, p.is_active !== false)}
+                                disabled={togglingId === p.id}
+                                title="לחץ לשינוי סטטוס"
+                                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold border transition ${
+                                  p.is_active !== false
+                                    ? 'bg-green-900/30 border-green-600/40 text-green-400 hover:bg-green-900/50'
+                                    : 'bg-red-900/30 border-red-600/40 text-red-400 hover:bg-red-900/50'
+                                }`}
+                              >
+                                <span className={`h-2 w-2 rounded-full ${p.is_active !== false ? 'bg-green-400' : 'bg-red-500'}`} />
+                                {togglingId === p.id ? '...' : p.is_active !== false ? 'פעיל' : 'לא פעיל'}
+                              </button>
+                            </td>
                             {/* Save / Cancel */}
                             <td className="px-2 py-1.5 text-center">
                               <div className="flex items-center justify-center gap-1">
@@ -533,6 +573,25 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
                           </td>
                           <td className="px-4 py-2 text-center text-gray-400 text-xs truncate max-w-[80px]">
                             {teams.find((t) => t.id === p.team_id)?.name ?? '—'}
+                          </td>
+                          {/* Status toggle */}
+                          <td className="px-4 py-2 text-center">
+                            <button
+                              type="button"
+                              onClick={() => toggleActive(p.id, p.is_active !== false)}
+                              disabled={togglingId === p.id}
+                              title={p.is_active !== false ? 'לחץ לסימון כלא פעיל' : 'לחץ לסימון כפעיל'}
+                              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold border transition ${
+                                p.is_active !== false
+                                  ? 'bg-green-900/30 border-green-600/40 text-green-400 hover:bg-green-900/50'
+                                  : 'bg-red-900/30 border-red-600/40 text-red-400 hover:bg-red-900/50'
+                              }`}
+                            >
+                              <span className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${
+                                p.is_active !== false ? 'bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.6)]' : 'bg-red-500'
+                              }`} />
+                              {togglingId === p.id ? '...' : p.is_active !== false ? 'פעיל' : 'לא פעיל'}
+                            </button>
                           </td>
                           <td className="px-4 py-2 text-center">
                             <div className="flex items-center justify-center gap-1">

@@ -30,7 +30,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
 
             <a href="/" className="flex items-center gap-2">
-              <span className="text-2xl">🏀</span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="ליגת ליבי" className="h-10 w-10 object-contain rounded-full" />
               <span className="text-lg font-black text-white leading-tight">
                 ליגת ליבי
                 <span className="block text-[10px] font-medium tracking-widest text-[#5a7a9a] uppercase">

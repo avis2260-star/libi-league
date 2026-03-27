@@ -50,7 +50,11 @@ export default function TeamsTab({ teams: initial }: { teams: TeamRow[] }) {
   return (
     <div dir="rtl" className="space-y-6">
       <div>
-        <h2 className="text-xl font-bold text-white">לוגואים של קבוצות</h2>
+        <div className="flex items-center gap-3 mb-1">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="ליגת ליבי" className="h-10 w-10 object-contain rounded-full border border-orange-500/30" />
+          <h2 className="text-xl font-bold text-white">לוגואים של קבוצות · ליגת ליבי</h2>
+        </div>
         <p className="text-sm text-gray-400">העלה לוגו לכל קבוצה · {teams.length} קבוצות</p>
       </div>
 

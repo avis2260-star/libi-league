@@ -25,8 +25,8 @@ export async function PATCH(req: NextRequest) {
     const { id, ...fields } = body;
     if (!id) return NextResponse.json({ error: 'חסר id' }, { status: 400 });
 
-    // Allow updating any subset of: photo_url, name, jersey_number, position, team_id, date_of_birth
-    const allowed = ['photo_url', 'name', 'jersey_number', 'position', 'team_id', 'date_of_birth'];
+    // Allow updating any subset of: photo_url, name, jersey_number, position, team_id, date_of_birth, is_active
+    const allowed = ['photo_url', 'name', 'jersey_number', 'position', 'team_id', 'date_of_birth', 'is_active'];
     const update: Record<string, unknown> = {};
     for (const key of allowed) {
       if (key in fields) update[key] = fields[key];

@@ -241,8 +241,14 @@ export default async function PlayoffPage() {
 
       {/* ── Page header ─────────────────────────────────────────────────── */}
       <div className="mb-8 text-center">
-        <h1 className="text-3xl font-black text-white">🏆 פלייאוף ליגת ליבי</h1>
-        <p className="mt-1 text-sm text-[#5a7a9a]">2025–2026 · מיטב מ-3 משחקים · חצי גמר</p>
+        <div className="flex items-center justify-center gap-3 mb-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="ליגת ליבי" className="h-12 w-12 object-contain rounded-full" />
+          <h1 className="text-3xl font-black text-white">🏆 פלייאוף ליגת ליבי</h1>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="ליגת ליבי" className="h-12 w-12 object-contain rounded-full" />
+        </div>
+        <p className="text-sm text-[#5a7a9a]">2025–2026 · מיטב מ-3 משחקים · חצי גמר</p>
       </div>
 
       {allSeries.length === 0 ? (
