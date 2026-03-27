@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import { Heebo } from 'next/font/google';
 import './globals.css';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import ChatWidget from '@/components/ChatWidget';
 
 const heebo = Heebo({ subsets: ['hebrew', 'latin'], weight: ['300','400','500','600','700','800','900'] });
 
@@ -79,6 +80,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <footer className="mt-16 border-t border-white/5 py-6 text-center text-xs text-[#3a5a7a]">
           © {new Date().getFullYear()} ליגת ליבי · כל הזכויות שמורות
         </footer>
+
+        {/* ── AI Chat Widget ────────────────────────────────────────────── */}
+        <ChatWidget />
       </body>
     </html>
   );
