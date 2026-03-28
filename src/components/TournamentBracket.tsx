@@ -67,11 +67,6 @@ function MatchCard({ game, teamLogos, isFinal }: { game: CupGame; teamLogos: Rec
         )}
         {awayWin && <span className="text-orange-400 text-xs shrink-0">✓</span>}
       </div>
-      {!game.played && (
-        <div className="py-1 text-center">
-          <span className="text-[9px] font-black tracking-widest text-[#1e3a5f] uppercase">vs</span>
-        </div>
-      )}
     </div>
   );
 }
