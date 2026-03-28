@@ -1,13 +1,57 @@
 export const dynamic = 'force-dynamic';
 import { NORTH_TABLE, SOUTH_TABLE, type Standing } from '@/lib/league-data';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import TeamLink from '@/components/TeamLink';
 
-async function getStandings(): Promise<{ north: Standing[]; south: Standing[] }> {
+/* ── Team name aliases ────────────────────────────────────────────────────── */
+const TEAM_ALIASES: [string, string][] = [
+  ['אריות קריית גת', 'א.ס. ק. גת'],
+  ['אריות קריית גת', 'א.ט. ק. גת'],
+  ['אריות קריית גת', 'אריות ק. גת'],
+  ['ה.ה. גדרה',      'החברה הטובים גדרה'],
+  ['ה.ה. גדרה',      'החברה הטובים'],
+];
+
+/* ── Logo helpers ─────────────────────────────────────────────────────────── */
+function normName(s: string) {
+  return s.replace(/["""״'']/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+function resolveAlias(name: string): string {
+  const norm = normName(name);
+  for (const [canonical, alias] of TEAM_ALIASES) {
+    if (normName(alias) === norm || normName(canonical) === norm) return canonical;
+  }
+  return name;
+}
+function findLogo(name: string, logos: Record<string, string>): string | undefined {
+  if (logos[name]) return logos[name];
+  const resolved = resolveAlias(name);
+  for (const [k, v] of Object.entries(logos)) {
+    if (normName(k) === normName(name) || resolveAlias(k) === resolved) return v;
+  }
+  return undefined;
+}
+
+function TeamLogo({ name, logos }: { name: string; logos: Record<string, string> }) {
+  const url = findLogo(name, logos);
+  if (url) return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={url} alt={name} className="h-6 w-6 shrink-0 rounded-full object-cover border border-white/10" />
+  );
+  return (
+    <div className="h-6 w-6 shrink-0 rounded-full bg-[#1a2e45] border border-white/10 flex items-center justify-center text-[9px] font-black text-[#3a5a7a]">
+      {[...name].find(c => /\S/.test(c)) ?? '?'}
+    </div>
+  );
+}
+
+/* ── Data fetching ────────────────────────────────────────────────────────── */
+async function getStandings(): Promise<{ north: Standing[]; south: Standing[]; logos: Record<string, string> }> {
   try {
-    const { data, error } = await supabaseAdmin
-      .from('standings')
-      .select('*')
-      .order('rank', { ascending: true });
+    const [{ data, error }, { data: teamsData }] = await Promise.all([
+      supabaseAdmin.from('standings').select('*').order('rank', { ascending: true }),
+      supabaseAdmin.from('teams').select('name, logo_url'),
+    ]);
 
     if (error || !data || data.length === 0) throw new Error('no data');
 
@@ -16,15 +60,19 @@ async function getStandings(): Promise<{ north: Standing[]; south: Standing[] }>
 
     if (north.length === 0 && south.length === 0) throw new Error('empty');
 
-    return { north, south };
+    const logos: Record<string, string> = {};
+    for (const t of teamsData ?? []) {
+      if (t.name && t.logo_url) logos[t.name] = t.logo_url;
+    }
+
+    return { north, south, logos };
   } catch {
-    return { north: NORTH_TABLE, south: SOUTH_TABLE };
+    return { north: NORTH_TABLE, south: SOUTH_TABLE, logos: {} };
   }
 }
 
-// ── Table ─────────────────────────────────────────────────────────────────────
-
-function StandingsTable({ data, title }: { data: Standing[]; title: string }) {
+/* ── Table ────────────────────────────────────────────────────────────────── */
+function StandingsTable({ data, title, logos }: { data: Standing[]; title: string; logos: Record<string, string> }) {
   const COLS = ["#", "קבוצה", "מ'", "נ'", "ה'", "זכות", "חובה", "+/-", "טכ'", "*", "נק'"];
 
   return (
@@ -83,9 +131,12 @@ function StandingsTable({ data, title }: { data: Standing[]; title: string }) {
                     </span>
                   </td>
 
-                  {/* Team name */}
-                  <td className="px-3 py-2.5 text-right font-semibold text-[#e8edf5]">
-                    {team.name}
+                  {/* Team name + logo */}
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-2 justify-end">
+                      <TeamLink name={team.name} className="font-semibold text-[#e8edf5] text-right" />
+                      <TeamLogo name={team.name} logos={logos} />
+                    </div>
                   </td>
 
                   {/* Games played */}
@@ -103,17 +154,17 @@ function StandingsTable({ data, title }: { data: Standing[]; title: string }) {
                   {/* Points against */}
                   <td className="px-3 py-2.5 text-center text-[#8aaac8]">{team.pa}</td>
 
-                  {/* +/- Spread — dir="ltr" so sign appears before number */}
+                  {/* +/- Spread */}
                   <td dir="ltr" className={`px-3 py-2.5 text-center font-semibold ${diffPositive ? 'text-green-400' : 'text-red-400'}`}>
                     {diffPositive ? `+${team.diff}` : team.diff}
                   </td>
 
-                  {/* טכ' — game-forfeit count; empty if 0 */}
+                  {/* טכ' */}
                   <td className="px-3 py-2.5 text-center text-[#8aaac8]">
                     {hasTechni ? team.techni : ''}
                   </td>
 
-                  {/* * — point deduction from Excel; empty if 0 */}
+                  {/* * penalty */}
                   <td dir="ltr" className="px-3 py-2.5 text-center font-semibold text-red-400">
                     {hasPenalty ? team.penalty : ''}
                   </td>
@@ -139,10 +190,9 @@ function StandingsTable({ data, title }: { data: Standing[]; title: string }) {
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
-
+/* ── Page ─────────────────────────────────────────────────────────────────── */
 export default async function StandingsPage() {
-  const { north, south } = await getStandings();
+  const { north, south, logos } = await getStandings();
   return (
     <div className="space-y-8">
       <div>
@@ -150,14 +200,9 @@ export default async function StandingsPage() {
         <p className="mt-1 text-sm text-[#5a7a9a]">עדכני עד מחזור 8 · עונת 2025–2026</p>
       </div>
 
-      {/*
-        RTL grid: first child renders on the RIGHT.
-        South is placed first → appears on the right side.
-        North is placed second → appears on the left side.
-      */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <StandingsTable data={south} title="טבלת דרום" />
-        <StandingsTable data={north} title="טבלת צפון" />
+        <StandingsTable data={south} title="טבלת דרום" logos={logos} />
+        <StandingsTable data={north} title="טבלת צפון" logos={logos} />
       </div>
     </div>
   );

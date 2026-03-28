@@ -1,10 +1,13 @@
 export const dynamic = 'force-dynamic';
 
+import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { NORTH_TABLE, SOUTH_TABLE, CURRENT_ROUND, TOTAL_ROUNDS } from '@/lib/league-data';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 
 const ROUND_DATES: Record<number, string> = {
+  1: '01.11.25', 2: '08.11.25', 3: '29.11.25', 4:  '20.12.25',
+  5: '10.01.26', 6: '17.01.26', 7: '07.02.26', 8:  '21.02.26',
   9: '28.02.26', 10: '14.03.26', 11: '21.03.26',
   12: '10.04.26', 13: '17.04.26', 14: '24.04.26',
 };
@@ -168,8 +171,12 @@ export default async function HomePage() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard value="15"                    label="קבוצות"        icon="🏀" colorClass="bg-gradient-to-l from-transparent to-orange-500" />
-        <StatCard value={String(gamesPlayed)}   label="משחקי ליגה"    icon="📊" colorClass="bg-gradient-to-l from-transparent to-green-500"  />
+        <a href="/teams" className="block hover:opacity-80 transition-opacity">
+          <StatCard value="15"                    label="קבוצות"        icon="🏀" colorClass="bg-gradient-to-l from-transparent to-orange-500" />
+        </a>
+        <a href="/games" className="block hover:opacity-80 transition-opacity">
+          <StatCard value={String(gamesPlayed)}   label="משחקי ליגה"    icon="📊" colorClass="bg-gradient-to-l from-transparent to-green-500"  />
+        </a>
         <StatCard value={String(currentRound)}  label="מחזורים עד כה" icon="📆" colorClass="bg-gradient-to-l from-transparent to-yellow-400" />
         <StatCard value={String(TOTAL_ROUNDS)}  label="מחזורי עונה"   icon="🗓" colorClass="bg-gradient-to-l from-transparent to-blue-500"   />
       </div>
@@ -182,7 +189,7 @@ export default async function HomePage() {
           <div key={label} className="rounded-2xl border border-white/[0.07] bg-white/[0.04]" style={{ borderTop: '3px solid #e0c97a' }}>
             <div className="p-5">
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-[#5a7a9a]">{label}</p>
-              <p className="text-xl font-black text-[#e0c97a]">{team.name}</p>
+              <Link href={`/team/${encodeURIComponent(team.name)}`} className="text-xl font-black text-[#e0c97a] hover:underline underline-offset-2 transition-colors">{team.name}</Link>
               <p className="mt-1 text-sm text-[#8aaac8]">
                 {team.wins}נ / {team.losses}ה ·{' '}
                 <span className="font-bold text-orange-400">{team.pts} נקודות</span>
@@ -250,9 +257,9 @@ export default async function HomePage() {
             <div className="divide-y divide-white/[0.05]">
               {northUpcoming.map((g, i) => (
                 <div key={i} className="flex items-center gap-2 px-5 py-3 text-sm">
-                  <span className="flex-1 truncate text-right font-semibold text-white">{g.home}</span>
+                  <Link href={`/team/${encodeURIComponent(g.home)}`} className="flex-1 truncate text-right font-semibold text-white hover:text-orange-400 transition-colors">{g.home}</Link>
                   <span className="shrink-0 rounded-full border border-blue-500/20 bg-blue-500/10 px-2.5 py-0.5 text-[10px] font-black text-blue-400">VS</span>
-                  <span className="flex-1 truncate text-left font-semibold text-white">{g.away}</span>
+                  <Link href={`/team/${encodeURIComponent(g.away)}`} className="flex-1 truncate text-left font-semibold text-white hover:text-orange-400 transition-colors">{g.away}</Link>
                 </div>
               ))}
             </div>
@@ -264,9 +271,9 @@ export default async function HomePage() {
             <div className="divide-y divide-white/[0.05]">
               {southUpcoming.map((g, i) => (
                 <div key={i} className="flex items-center gap-2 px-5 py-3 text-sm">
-                  <span className="flex-1 truncate text-right font-semibold text-white">{g.home}</span>
+                  <Link href={`/team/${encodeURIComponent(g.home)}`} className="flex-1 truncate text-right font-semibold text-white hover:text-orange-400 transition-colors">{g.home}</Link>
                   <span className="shrink-0 rounded-full border border-orange-500/20 bg-orange-500/10 px-2.5 py-0.5 text-[10px] font-black text-orange-400">VS</span>
-                  <span className="flex-1 truncate text-left font-semibold text-white">{g.away}</span>
+                  <Link href={`/team/${encodeURIComponent(g.away)}`} className="flex-1 truncate text-left font-semibold text-white hover:text-orange-400 transition-colors">{g.away}</Link>
                 </div>
               ))}
             </div>

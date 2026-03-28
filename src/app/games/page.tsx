@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 
+import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 
@@ -33,9 +34,9 @@ async function getCurrentRound(): Promise<number> {
 function UpcomingRow({ home, away }: { home: string; away: string }) {
   return (
     <div className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.04] px-4 py-3">
-      <span className="flex-1 text-right text-sm font-semibold text-white">{home}</span>
+      <Link href={`/team/${encodeURIComponent(home)}`} className="flex-1 text-right text-sm font-semibold text-white hover:text-orange-400 transition-colors">{home}</Link>
       <span className="shrink-0 rounded-lg bg-black/30 px-3 py-1.5 text-xs font-bold text-[#4a6a8a]">VS</span>
-      <span className="flex-1 text-left text-sm font-semibold text-white">{away}</span>
+      <Link href={`/team/${encodeURIComponent(away)}`} className="flex-1 text-left text-sm font-semibold text-white hover:text-orange-400 transition-colors">{away}</Link>
     </div>
   );
 }

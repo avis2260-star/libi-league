@@ -1,7 +1,19 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { type GameResult } from '@/lib/league-data';
+
+function TLink({ name, won }: { name: string; won: boolean }) {
+  return (
+    <Link
+      href={`/team/${encodeURIComponent(name)}`}
+      className={`text-sm font-semibold leading-tight hover:text-orange-400 hover:underline underline-offset-2 transition-colors ${won ? 'text-white' : 'text-[#5a7a9a]'}`}
+    >
+      {name}
+    </Link>
+  );
+}
 
 const isTechniScore = (sh: number, sa: number) =>
   (sh === 20 && sa === 0) || (sh === 0 && sa === 20);
@@ -15,9 +27,7 @@ function GameCard({ game }: { game: GameResult }) {
   return (
     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.04] px-4 py-3 transition hover:-translate-y-0.5 hover:border-orange-500/30">
       <div className="text-right">
-        <p className={`text-sm font-semibold leading-tight ${homeWins ? 'text-white' : 'text-[#5a7a9a]'}`}>
-          {game.home}
-        </p>
+        <TLink name={game.home} won={homeWins} />
         {techniOnHome && (
           <p className="mt-0.5 text-[9px] font-semibold text-red-400">🔴 הפסד טכני</p>
         )}
@@ -33,9 +43,7 @@ function GameCard({ game }: { game: GameResult }) {
       </div>
 
       <div className="text-left">
-        <p className={`text-sm font-semibold leading-tight ${!homeWins ? 'text-white' : 'text-[#5a7a9a]'}`}>
-          {game.away}
-        </p>
+        <TLink name={game.away} won={!homeWins} />
         {techniOnAway && (
           <p className="mt-0.5 text-[9px] font-semibold text-red-400">🔴 הפסד טכני</p>
         )}

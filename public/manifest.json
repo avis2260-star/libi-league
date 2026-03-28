@@ -1,0 +1,26 @@
+{
+  "name": "ליגת ליבי",
+  "short_name": "ליגת ליבי",
+  "description": "ניהול ליגת כדורסל קהילתית — לוח משחקים, טבלאות ותוצאות",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0b1520",
+  "background_color": "#0b1520",
+  "lang": "he",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
