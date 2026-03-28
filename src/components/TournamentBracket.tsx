@@ -16,9 +16,23 @@ function getWinner(g: CupGame): string | null {
 
 const HEADER_H = 44; // h-11 in px
 
+/* ── Normalize team name for fuzzy logo lookup ───────────────────────────── */
+function normalizeName(s: string) {
+  return s.replace(/["""״'']/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function findLogoUrl(name: string, logos: Record<string, string>): string | undefined {
+  if (logos[name]) return logos[name];
+  const norm = normalizeName(name);
+  for (const [key, url] of Object.entries(logos)) {
+    if (normalizeName(key) === norm) return url;
+  }
+  return undefined;
+}
+
 /* ── Team logo ───────────────────────────────────────────────────────────── */
 function TeamLogo({ name, logos, large }: { name: string; logos: Record<string, string>; large?: boolean }) {
-  const url = logos[name];
+  const url = findLogoUrl(name, logos);
   const sz = large ? 'h-11 w-11' : 'h-7 w-7';
   if (url) {
     // eslint-disable-next-line @next/next/no-img-element
