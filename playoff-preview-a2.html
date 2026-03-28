@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>פלייאוף Preview — Option A v2</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0b1520;
+    color: #e8edf5;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    min-height: 100vh;
+    padding: 32px 16px;
+    direction: rtl;
+  }
+
+  .page-header { text-align: center; margin-bottom: 36px; }
+  .page-header h1 { font-size: 2rem; font-weight: 900; color: #fff; }
+  .page-header p  { color: #5a7a9a; font-size: 0.85rem; margin-top: 4px; }
+
+  /* ── Two-column bracket layout ── */
+  .bracket-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    max-width: 960px;
+    margin: 0 auto;
+    align-items: start;
+  }
+
+  /* ── Column headers ── */
+  .col-header {
+    text-align: center;
+    padding: 10px 16px 18px;
+  }
+  .col-badge {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 5px 18px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+  .col-badge.south {
+    background: rgba(249,115,22,0.1);
+    border: 1px solid rgba(249,115,22,0.25);
+    color: #f97316;
+  }
+  .col-badge.north {
+    background: rgba(99,179,237,0.08);
+    border: 1px solid rgba(99,179,237,0.2);
+    color: #63b3ed;
+  }
+
+  /* ── Vertical center divider ── */
+  .bracket-columns .col-right { border-left: 1px solid rgba(255,255,255,0.05); padding-left: 20px; }
+  .bracket-columns .col-left  { padding-right: 20px; }
+
+  /* ── Series block ── */
+  .series-block { margin-bottom: 28px; }
+
+  /* ── Match card ── */
+  .match-card {
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.07);
+    background: #0f1e2e;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+
+  .team-slot {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .team-slot:last-child { border-bottom: none; }
+  .team-slot.winner { background: rgba(249,115,22,0.08); }
+  .team-slot.loser  { background: transparent; }
+  .team-slot.tbd    { background: rgba(255,255,255,0.02); }
+
+  .seed-tag {
+    font-size: 9px; font-weight: 800; color: #3a5a7a;
+    background: rgba(255,255,255,0.05);
+    border-radius: 5px; padding: 2px 6px;
+    white-space: nowrap;
+  }
+  .team-name { flex: 1; font-size: 0.9rem; font-weight: 700; }
+  .team-slot.winner .team-name { color: #fff; }
+  .team-slot.loser  .team-name { color: #4a6a8a; }
+  .team-slot.tbd    .team-name { color: #2a4a6a; }
+
+  .wins-num {
+    font-size: 1.3rem; font-weight: 900; min-width: 26px; text-align: center;
+  }
+  .team-slot.winner .wins-num { color: #f97316; }
+  .team-slot.loser  .wins-num { color: #1e3a5f; }
+  .team-slot.tbd    .wins-num { color: #1a2a3a; }
+
+  /* ── Status row ── */
+  .status-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0 6px;
+  }
+  .status-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    border-radius: 999px; padding: 3px 12px;
+    font-size: 10px; font-weight: 800;
+  }
+  .status-chip.done    { background: rgba(34,197,94,0.1);  border: 1px solid rgba(34,197,94,0.2);  color: #22c55e; }
+  .status-chip.live    { background: rgba(249,115,22,0.1); border: 1px solid rgba(249,115,22,0.2); color: #f97316; }
+  .status-chip.pending { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); color: #2a4a6a; }
+  .live-dot { width:6px; height:6px; border-radius:50%; background:#f97316; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  /* ── Winner label ── */
+  .winner-label {
+    font-size: 11px; color: #f97316; font-weight: 800;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .winner-label.pending-label { color: #2a4a6a; }
+
+  /* ── Game pills ── */
+  .game-pills { display: flex; gap: 5px; margin-top: 6px; }
+  .gpill {
+    flex: 1; border-radius: 8px; padding: 5px 3px;
+    text-align: center; font-size: 10px; font-weight: 700;
+  }
+  .gpill.win-home { background: rgba(249,115,22,0.1); border: 1px solid rgba(249,115,22,0.2); color: #f97316; }
+  .gpill.win-away { background: rgba(99,179,237,0.08); border: 1px solid rgba(99,179,237,0.18); color: #63b3ed; }
+  .gpill.pend     { background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.06); color: #1e3a5f; }
+  .gpill .gn  { font-size: 8px; opacity: 0.6; display: block; }
+  .gpill .gs  { font-size: 11px; font-weight: 900; }
+  .gpill .gw  { font-size: 7px; opacity: 0.5; margin-top: 1px; display: block; }
+
+  /* ── Divider between series 1 and 2 ── */
+  .series-sep {
+    height: 1px; background: rgba(255,255,255,0.04);
+    margin: 8px 0 24px;
+  }
+
+  @media (max-width: 640px) {
+    .bracket-columns { grid-template-columns: 1fr; }
+    .bracket-columns .col-right { border-left: none; padding-left: 0; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 24px; margin-bottom: 24px; }
+    .bracket-columns .col-left  { padding-right: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>🏆 פלייאוף ליגת ליבי</h1>
+  <p>2025–2026 · מיטב 3 משחקים · חצי גמר</p>
+</div>
+
+<div class="bracket-columns">
+
+  <!-- ══ RIGHT COLUMN — דרום נגד צפון ══ -->
+  <div class="col-right">
+    <div class="col-header">
+      <span class="col-badge south">🟠 דרום נגד צפון</span>
+    </div>
+
+    <!-- Series 1 -->
+    <div class="series-block">
+      <div class="match-card">
+        <div class="team-slot winner">
+          <span class="seed-tag">דרום #1</span>
+          <span class="team-name">גדרה</span>
+          <span class="wins-num">2</span>
+        </div>
+        <div class="team-slot loser">
+          <span class="seed-tag">צפון #4</span>
+          <span class="team-name">חיפה</span>
+          <span class="wins-num">0</span>
+        </div>
+      </div>
+      <div class="status-row">
+        <span class="status-chip done">✓ הסתיים · 2–0</span>
+        <span class="winner-label">🏆 גדרה עולה</span>
+      </div>
+      <div class="game-pills">
+        <div class="gpill win-home"><span class="gn">משחק 1</span><span class="gs">78–65</span><span class="gw">בגדרה</span></div>
+        <div class="gpill win-away"><span class="gn">משחק 2</span><span class="gs">82–70</span><span class="gw">בחיפה</span></div>
+        <div class="gpill pend"><span class="gn">משחק 3</span><span class="gs">—</span><span class="gw">לא נדרש</span></div>
+      </div>
+    </div>
+
+    <div class="series-sep"></div>
+
+    <!-- Series 2 -->
+    <div class="series-block">
+      <div class="match-card">
+        <div class="team-slot winner">
+          <span class="seed-tag">דרום #2</span>
+          <span class="team-name">אשדוד</span>
+          <span class="wins-num">1</span>
+        </div>
+        <div class="team-slot winner">
+          <span class="seed-tag">צפון #3</span>
+          <span class="team-name">נצרת</span>
+          <span class="wins-num">1</span>
+        </div>
+      </div>
+      <div class="status-row">
+        <span class="status-chip live"><div class="live-dot"></div> פעיל · 1–1</span>
+        <span class="winner-label" style="color:#5a7a9a;">משחק 3 · 30/03 · באשדוד</span>
+      </div>
+      <div class="game-pills">
+        <div class="gpill win-home"><span class="gn">משחק 1</span><span class="gs">71–68</span><span class="gw">באשדוד</span></div>
+        <div class="gpill win-away"><span class="gn">משחק 2</span><span class="gs">75–72</span><span class="gw">בנצרת</span></div>
+        <div class="gpill pend"><span class="gn">משחק 3</span><span class="gs">?</span><span class="gw">30/03</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ LEFT COLUMN — צפון נגד דרום ══ -->
+  <div class="col-left">
+    <div class="col-header">
+      <span class="col-badge north">🔵 צפון נגד דרום</span>
+    </div>
+
+    <!-- Series 3 -->
+    <div class="series-block">
+      <div class="match-card">
+        <div class="team-slot tbd">
+          <span class="seed-tag">צפון #1</span>
+          <span class="team-name">— טרם נקבע</span>
+          <span class="wins-num">0</span>
+        </div>
+        <div class="team-slot tbd">
+          <span class="seed-tag">דרום #4</span>
+          <span class="team-name">— טרם נקבע</span>
+          <span class="wins-num">0</span>
+        </div>
+      </div>
+      <div class="status-row">
+        <span class="status-chip pending">⏳ טרם החל</span>
+        <span class="winner-label pending-label">ממתין לקביעת קבוצות</span>
+      </div>
+      <div class="game-pills">
+        <div class="gpill pend"><span class="gn">משחק 1</span><span class="gs">—</span><span class="gw">ממתין</span></div>
+        <div class="gpill pend"><span class="gn">משחק 2</span><span class="gs">—</span><span class="gw">ממתין</span></div>
+        <div class="gpill pend"><span class="gn">משחק 3</span><span class="gs">—</span><span class="gw">ממתין</span></div>
+      </div>
+    </div>
+
+    <div class="series-sep"></div>
+
+    <!-- Series 4 -->
+    <div class="series-block">
+      <div class="match-card">
+        <div class="team-slot tbd">
+          <span class="seed-tag">צפון #2</span>
+          <span class="team-name">— טרם נקבע</span>
+          <span class="wins-num">0</span>
+        </div>
+        <div class="team-slot tbd">
+          <span class="seed-tag">דרום #3</span>
+          <span class="team-name">— טרם נקבע</span>
+          <span class="wins-num">0</span>
+        </div>
+      </div>
+      <div class="status-row">
+        <span class="status-chip pending">⏳ טרם החל</span>
+        <span class="winner-label pending-label">ממתין לקביעת קבוצות</span>
+      </div>
+      <div class="game-pills">
+        <div class="gpill pend"><span class="gn">משחק 1</span><span class="gs">—</span><span class="gw">ממתין</span></div>
+        <div class="gpill pend"><span class="gn">משחק 2</span><span class="gs">—</span><span class="gw">ממתין</span></div>
+        <div class="gpill pend"><span class="gn">משחק 3</span><span class="gs">—</span><span class="gw">ממתין</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

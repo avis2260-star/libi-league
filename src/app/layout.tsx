@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 import { Heebo } from 'next/font/google';
 import './globals.css';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import ChatWidget from '@/components/ChatWidget';
+import MobileNav from '@/components/MobileNav';
 
 const heebo = Heebo({ subsets: ['hebrew', 'latin'], weight: ['300','400','500','600','700','800','900'] });
 
@@ -45,7 +45,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
         {/* ── Top navigation ───────────────────────────────────────────── */}
         <header className="sticky top-0 z-50 border-b border-white/5 bg-[#0f1e30]/95 backdrop-blur-sm">
-          <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
+          <nav className="relative mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
 
             <a href="/" className="flex items-center gap-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -58,7 +58,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               </span>
             </a>
 
-            <ul className="flex gap-1 text-sm font-semibold">
+            {/* Desktop nav */}
+            <ul className="hidden sm:flex gap-1 text-sm font-semibold">
               {NAV_LINKS.map(({ href, label }) => (
                 <li key={href}>
                   <a
@@ -70,6 +71,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 </li>
               ))}
             </ul>
+
+            {/* Mobile nav */}
+            <MobileNav />
           </nav>
         </header>
 
@@ -81,8 +85,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           © {new Date().getFullYear()} ליגת ליבי · כל הזכויות שמורות
         </footer>
 
-        {/* ── AI Chat Widget ────────────────────────────────────────────── */}
-        <ChatWidget />
       </body>
     </html>
   );

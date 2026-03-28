@@ -249,10 +249,10 @@ export default async function HomePage() {
             </div>
             <div className="divide-y divide-white/[0.05]">
               {northUpcoming.map((g, i) => (
-                <div key={i} className="flex items-center gap-4 px-5 py-3 text-sm">
-                  <span className="font-semibold text-white">{g.home}</span>
-                  <span className="mx-auto text-xs font-bold text-[#4a6a8a]">VS</span>
-                  <span className="font-semibold text-white">{g.away}</span>
+                <div key={i} className="flex items-center gap-2 px-5 py-3 text-sm">
+                  <span className="flex-1 truncate text-right font-semibold text-white">{g.home}</span>
+                  <span className="shrink-0 rounded-full border border-blue-500/20 bg-blue-500/10 px-2.5 py-0.5 text-[10px] font-black text-blue-400">VS</span>
+                  <span className="flex-1 truncate text-left font-semibold text-white">{g.away}</span>
                 </div>
               ))}
             </div>
@@ -263,10 +263,10 @@ export default async function HomePage() {
             </div>
             <div className="divide-y divide-white/[0.05]">
               {southUpcoming.map((g, i) => (
-                <div key={i} className="flex items-center gap-4 px-5 py-3 text-sm">
-                  <span className="font-semibold text-white">{g.home}</span>
-                  <span className="mx-auto text-xs font-bold text-[#4a6a8a]">VS</span>
-                  <span className="font-semibold text-white">{g.away}</span>
+                <div key={i} className="flex items-center gap-2 px-5 py-3 text-sm">
+                  <span className="flex-1 truncate text-right font-semibold text-white">{g.home}</span>
+                  <span className="shrink-0 rounded-full border border-orange-500/20 bg-orange-500/10 px-2.5 py-0.5 text-[10px] font-black text-orange-400">VS</span>
+                  <span className="flex-1 truncate text-left font-semibold text-white">{g.away}</span>
                 </div>
               ))}
             </div>

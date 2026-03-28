@@ -11,10 +11,16 @@ async function getLogoUrl() {
 }
 
 export default async function CupPage() {
-  const [{ data: games }, logoUrl] = await Promise.all([
+  const [{ data: games }, { data: teams }, logoUrl] = await Promise.all([
     supabaseAdmin.from('cup_games').select('*').order('round_order', { ascending: true }).order('game_number', { ascending: true }),
+    supabaseAdmin.from('teams').select('name, logo_url'),
     getLogoUrl(),
   ]);
+
+  const teamLogos: Record<string, string> = {};
+  for (const t of teams ?? []) {
+    if (t.name && t.logo_url) teamLogos[t.name] = t.logo_url;
+  }
 
   return (
     <div className="space-y-8" dir="rtl">
@@ -28,7 +34,7 @@ export default async function CupPage() {
         </div>
         <p className="text-[#5a7a9a]">טורניר הגביע העונתי 2025–2026</p>
       </div>
-      <TournamentBracket games={games ?? []} />
+      <TournamentBracket games={games ?? []} teamLogos={teamLogos} />
     </div>
   );
 }

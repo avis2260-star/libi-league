@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>פלייאוף Preview — Option C</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0b1520;
+    color: #e8edf5;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    min-height: 100vh;
+    padding: 32px 16px;
+    direction: rtl;
+  }
+
+  .page-header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .page-header h1 {
+    font-size: 2rem;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: -0.5px;
+  }
+  .page-header p {
+    color: #5a7a9a;
+    font-size: 0.85rem;
+    margin-top: 4px;
+  }
+
+  /* ── Grid ── */
+  .series-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    max-width: 900px;
+    margin: 0 auto 40px;
+  }
+
+  /* ── Scoreboard Card ── */
+  .scoreboard {
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: #0f1e2e;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+  }
+
+  /* Card top bar */
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
+    background: #0a1624;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .card-label {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #4a6a8a;
+  }
+  .badge-live {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(249,115,22,0.15);
+    border: 1px solid rgba(249,115,22,0.4);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 10px;
+    font-weight: 800;
+    color: #f97316;
+  }
+  .badge-live .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #f97316;
+    animation: pulse 1.2s infinite;
+  }
+  .badge-done {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(34,197,94,0.12);
+    border: 1px solid rgba(34,197,94,0.3);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 10px;
+    font-weight: 800;
+    color: #22c55e;
+  }
+  @keyframes pulse {
+    0%,100% { opacity:1 } 50% { opacity:0.3 }
+  }
+
+  /* Teams block */
+  .teams-block {
+    padding: 20px 18px;
+  }
+  .team-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    margin-bottom: 6px;
+    transition: background 0.2s;
+  }
+  .team-row.winner {
+    background: rgba(249,115,22,0.1);
+    border: 1px solid rgba(249,115,22,0.2);
+  }
+  .team-row.loser {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+  .team-row.tbd {
+    background: rgba(255,255,255,0.02);
+    border: 1px dashed rgba(255,255,255,0.06);
+  }
+  .team-seed {
+    font-size: 10px;
+    font-weight: 800;
+    color: #3a5a7a;
+    min-width: 52px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 6px;
+    padding: 3px 6px;
+    text-align: center;
+  }
+  .team-name {
+    flex: 1;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #e8edf5;
+  }
+  .team-row.winner .team-name { color: #fff; }
+  .team-row.loser  .team-name { color: #6a8aaa; }
+  .wins-badge {
+    font-size: 1.6rem;
+    font-weight: 900;
+    min-width: 36px;
+    text-align: center;
+  }
+  .team-row.winner .wins-badge { color: #f97316; }
+  .team-row.loser  .wins-badge { color: #2a4a6a; }
+  .team-row.tbd    .wins-badge { color: #2a4a6a; }
+  .win-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #f97316;
+    box-shadow: 0 0 8px rgba(249,115,22,0.6);
+    margin-right: 6px;
+  }
+
+  /* Game pills */
+  .games-track {
+    padding: 4px 18px 18px;
+  }
+  .games-track-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #3a5a7a;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 8px;
+  }
+  .game-pills {
+    display: flex;
+    gap: 6px;
+  }
+  .pill {
+    flex: 1;
+    border-radius: 10px;
+    padding: 8px 6px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .pill.played-home {
+    background: rgba(249,115,22,0.15);
+    border: 1px solid rgba(249,115,22,0.25);
+    color: #f97316;
+  }
+  .pill.played-away {
+    background: rgba(99,179,237,0.1);
+    border: 1px solid rgba(99,179,237,0.2);
+    color: #63b3ed;
+  }
+  .pill.pending {
+    background: rgba(255,255,255,0.03);
+    border: 1px dashed rgba(255,255,255,0.08);
+    color: #3a5a7a;
+  }
+  .pill .game-num { font-size: 9px; color: inherit; opacity: 0.7; display: block; margin-bottom: 2px; }
+  .pill .score { font-size: 12px; font-weight: 900; }
+  .pill .home-label { font-size: 8px; opacity: 0.6; margin-top: 2px; display: block; }
+
+  /* Divider between series */
+  .vs-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 0;
+    color: #1e3a5f;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 2px;
+  }
+  .divider-line {
+    flex: 1;
+    height: 1px;
+    background: rgba(255,255,255,0.05);
+  }
+
+  /* Section header */
+  .section-header {
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .section-badge {
+    display: inline-block;
+    background: rgba(249,115,22,0.1);
+    border: 1px solid rgba(249,115,22,0.2);
+    border-radius: 999px;
+    padding: 4px 16px;
+    font-size: 11px;
+    font-weight: 800;
+    color: #f97316;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* Arrow */
+  .arrow-down {
+    text-align: center;
+    color: #1e3a5f;
+    font-size: 20px;
+    margin: 8px 0;
+  }
+
+  @media (max-width: 640px) {
+    .series-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Page header -->
+<div class="page-header">
+  <h1>🏆 פלייאוף ליגת ליבי</h1>
+  <p>2025–2026 · מיטב 3 משחקים · חצי גמר</p>
+</div>
+
+<!-- North vs South section -->
+<div class="section-header">
+  <span class="section-badge">🔵 דרום נגד צפון</span>
+</div>
+
+<div class="series-grid">
+
+  <!-- Series 1 -->
+  <div class="scoreboard">
+    <div class="card-header">
+      <span class="card-label">סדרה 1</span>
+      <span class="badge-done">✓ הסתיים</span>
+    </div>
+    <div class="teams-block">
+      <div class="team-row winner">
+        <span class="team-seed">דרום #1</span>
+        <span class="team-name">גדרה</span>
+        <div style="display:flex;align-items:center">
+          <div class="win-dot"></div>
+          <span class="wins-badge">2</span>
+        </div>
+      </div>
+      <div class="vs-divider">
+        <div class="divider-line"></div>
+        <span style="margin:0 10px">VS</span>
+        <div class="divider-line"></div>
+      </div>
+      <div class="team-row loser">
+        <span class="team-seed">צפון #4</span>
+        <span class="team-name">חיפה</span>
+        <span class="wins-badge">0</span>
+      </div>
+    </div>
+    <div class="games-track">
+      <div class="games-track-label">תוצאות משחקים</div>
+      <div class="game-pills">
+        <div class="pill played-home">
+          <span class="game-num">משחק 1</span>
+          <span class="score">78–65</span>
+          <span class="home-label">בגדרה</span>
+        </div>
+        <div class="pill played-away">
+          <span class="game-num">משחק 2</span>
+          <span class="score">70–82</span>
+          <span class="home-label">בחיפה</span>
+        </div>
+        <div class="pill pending">
+          <span class="game-num">משחק 3</span>
+          <span class="score">—</span>
+          <span class="home-label">לא נדרש</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Series 2 -->
+  <div class="scoreboard">
+    <div class="card-header">
+      <span class="card-label">סדרה 2</span>
+      <span class="badge-live"><div class="dot"></div> פעיל</span>
+    </div>
+    <div class="teams-block">
+      <div class="team-row winner">
+        <span class="team-seed">דרום #2</span>
+        <span class="team-name">אשדוד</span>
+        <div style="display:flex;align-items:center">
+          <div class="win-dot"></div>
+          <span class="wins-badge">1</span>
+        </div>
+      </div>
+      <div class="vs-divider">
+        <div class="divider-line"></div>
+        <span style="margin:0 10px">VS</span>
+        <div class="divider-line"></div>
+      </div>
+      <div class="team-row winner">
+        <span class="team-seed">צפון #3</span>
+        <span class="team-name">נצרת</span>
+        <div style="display:flex;align-items:center">
+          <div class="win-dot"></div>
+          <span class="wins-badge">1</span>
+        </div>
+      </div>
+    </div>
+    <div class="games-track">
+      <div class="games-track-label">תוצאות משחקים</div>
+      <div class="game-pills">
+        <div class="pill played-home">
+          <span class="game-num">משחק 1</span>
+          <span class="score">71–68</span>
+          <span class="home-label">באשדוד</span>
+        </div>
+        <div class="pill played-away">
+          <span class="game-num">משחק 2</span>
+          <span class="score">75–72</span>
+          <span class="home-label">בנצרת</span>
+        </div>
+        <div class="pill pending">
+          <span class="game-num">משחק 3</span>
+          <span class="score">?</span>
+          <span class="home-label">30/03 · באשדוד</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- North vs South reversed section -->
+<div class="section-header" style="margin-top:8px">
+  <span class="section-badge">🔴 צפון נגד דרום</span>
+</div>
+
+<div class="series-grid">
+
+  <!-- Series 3 -->
+  <div class="scoreboard">
+    <div class="card-header">
+      <span class="card-label">סדרה 3</span>
+      <span class="badge-live"><div class="dot"></div> פעיל</span>
+    </div>
+    <div class="teams-block">
+      <div class="team-row tbd">
+        <span class="team-seed">צפון #1</span>
+        <span class="team-name" style="color:#4a6a8a">— טרם נקבע</span>
+        <span class="wins-badge">0</span>
+      </div>
+      <div class="vs-divider">
+        <div class="divider-line"></div>
+        <span style="margin:0 10px">VS</span>
+        <div class="divider-line"></div>
+      </div>
+      <div class="team-row tbd">
+        <span class="team-seed">דרום #4</span>
+        <span class="team-name" style="color:#4a6a8a">— טרם נקבע</span>
+        <span class="wins-badge">0</span>
+      </div>
+    </div>
+    <div class="games-track">
+      <div class="games-track-label">תוצאות משחקים</div>
+      <div class="game-pills">
+        <div class="pill pending"><span class="game-num">משחק 1</span><span class="score">—</span><span class="home-label">ממתין</span></div>
+        <div class="pill pending"><span class="game-num">משחק 2</span><span class="score">—</span><span class="home-label">ממתין</span></div>
+        <div class="pill pending"><span class="game-num">משחק 3</span><span class="score">—</span><span class="home-label">ממתין</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Series 4 -->
+  <div class="scoreboard">
+    <div class="card-header">
+      <span class="card-label">סדרה 4</span>
+      <span class="badge-live"><div class="dot"></div> פעיל</span>
+    </div>
+    <div class="teams-block">
+      <div class="team-row tbd">
+        <span class="team-seed">צפון #2</span>
+        <span class="team-name" style="color:#4a6a8a">— טרם נקבע</span>
+        <span class="wins-badge">0</span>
+      </div>
+      <div class="vs-divider">
+        <div class="divider-line"></div>
+        <span style="margin:0 10px">VS</span>
+        <div class="divider-line"></div>
+      </div>
+      <div class="team-row tbd">
+        <span class="team-seed">דרום #3</span>
+        <span class="team-name" style="color:#4a6a8a">— טרם נקבע</span>
+        <span class="wins-badge">0</span>
+      </div>
+    </div>
+    <div class="games-track">
+      <div class="games-track-label">תוצאות משחקים</div>
+      <div class="game-pills">
+        <div class="pill pending"><span class="game-num">משחק 1</span><span class="score">—</span><span class="home-label">ממתין</span></div>
+        <div class="pill pending"><span class="game-num">משחק 2</span><span class="score">—</span><span class="home-label">ממתין</span></div>
+        <div class="pill pending"><span class="game-num">משחק 3</span><span class="score">—</span><span class="home-label">ממתין</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
