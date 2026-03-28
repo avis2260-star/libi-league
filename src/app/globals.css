@@ -1,3 +1,110 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── CSS custom properties ───────────────────────────────────────────────── */
+:root {
+  --bg-base:  #0b1520;
+  --bg-nav:   #0f1e30;
+  --bg-card:  #0c1825;
+  --border:   rgba(255,255,255,0.07);
+  --text-1:   #e8edf5;
+  --text-2:   #8aaac8;
+  --text-3:   #5a7a9a;
+  --text-4:   #4a6a8a;
+  --text-5:   #3a5a7a;
+}
+
+html.light {
+  --bg-base:  #f0f4f8;
+  --bg-nav:   #ffffff;
+  --bg-card:  #ffffff;
+  --border:   rgba(0,0,0,0.08);
+  --text-1:   #0f1e30;
+  --text-2:   #1e3a5a;
+  --text-3:   #2a5070;
+  --text-4:   #3a6080;
+  --text-5:   #4a7090;
+}
+
+/* ── Base ────────────────────────────────────────────────────────────────── */
+body {
+  background-color: var(--bg-base) !important;
+  color: var(--text-1);
+  transition: background-color 0.25s ease, color 0.2s ease;
+}
+
+/* ── Light mode structural overrides ─────────────────────────────────────── */
+html.light header {
+  background-color: rgba(255,255,255,0.97) !important;
+  border-color: rgba(0,0,0,0.08) !important;
+}
+
+/* Cards & rounded panels */
+html.light main div[class*="rounded"],
+html.light main section div[class*="rounded"] {
+  background-color: var(--bg-card);
+  border-color: var(--border);
+}
+
+/* Table rows */
+html.light tr { border-color: var(--border) !important; }
+html.light th { color: var(--text-3) !important; }
+
+/* ── Text: all links (team names) and regular text dark in light mode ─────── */
+html.light main a               { color: var(--text-1) !important; }
+html.light main a:hover         { color: #f97316 !important; }  /* keep orange hover */
+html.light main td              { color: var(--text-1); }
+html.light main td span         { color: inherit; }
+html.light main p               { color: var(--text-3); }
+html.light main h1,
+html.light main h2,
+html.light main h3              { color: var(--text-1) !important; }
+html.light h1, html.light h2    { color: var(--text-1) !important; }
+
+/* Logo+title in nav */
+html.light header span          { color: var(--text-1); }
+html.light header a             { color: var(--text-1); }
+
+/* ── Nav pill buttons ─────────────────────────────────────────────────────── */
+html.light nav button[class*="rounded-full"],
+html.light nav a[class*="rounded-full"] {
+  border-color: rgba(0,0,0,0.10) !important;
+  background-color: rgba(0,0,0,0.04) !important;
+  color: #1e3a5a !important;
+}
+html.light nav button[class*="rounded-full"]:hover,
+html.light nav a[class*="rounded-full"]:hover {
+  background-color: rgba(0,0,0,0.07) !important;
+  color: #0f1e30 !important;
+}
+
+/* Active/open pill (orange) — keep accent */
+html.light nav button[class*="text-orange-400"],
+html.light nav a[class*="text-orange-400"] {
+  color: #ea580c !important;
+}
+
+/* ── White/dark opacity backgrounds → light equivalents ──────────────────── */
+html.light main [class*="bg-white/"],
+html.light main [class*="bg-black/"] {
+  background-color: rgba(0,0,0,0.03) !important;
+}
+
+/* Preserve colored accent backgrounds */
+html.light main [class*="bg-orange-"],
+html.light main [class*="bg-green-"],
+html.light main [class*="bg-red-"],
+html.light main [class*="bg-yellow-"],
+html.light main [class*="bg-blue-"] {
+  background-color: revert;
+}
+
+/* Stat numbers — keep their accent colors */
+html.light main [class*="text-orange-"],
+html.light main [class*="text-green-"],
+html.light main [class*="text-red-"],
+html.light main [class*="text-yellow-"],
+html.light main [class*="text-blue-"] {
+  color: revert !important;
+}

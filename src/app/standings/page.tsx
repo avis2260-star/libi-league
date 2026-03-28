@@ -133,9 +133,9 @@ function StandingsTable({ data, title, logos }: { data: Standing[]; title: strin
 
                   {/* Team name + logo */}
                   <td className="px-3 py-2.5">
-                    <div className="flex items-center gap-2 justify-end">
-                      <TeamLink name={team.name} className="font-semibold text-[#e8edf5] text-right" />
+                    <div className="flex items-center gap-2 justify-start">
                       <TeamLogo name={team.name} logos={logos} />
+                      <TeamLink name={team.name} className="font-semibold text-[#e8edf5] text-right" />
                     </div>
                   </td>
 
