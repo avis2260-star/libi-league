@@ -205,9 +205,9 @@ export default async function GamePreviewPage({
             { label: 'ממוצע ספיגה',  home: homeStats?.games ? (homeStats.pa / homeStats.games).toFixed(1) : '—', away: awayStats?.games ? (awayStats.pa / awayStats.games).toFixed(1) : '—' },
           ].map(({ label, home, away }) => (
             <div key={label} className="grid grid-cols-3 border-b border-white/[0.04] px-5 py-3 text-sm last:border-0">
-              <span className="font-bold text-[#e8edf5] text-right">{home}</span>
+              <span dir="ltr" className="font-bold text-[#e8edf5] text-right">{home}</span>
               <span className="text-center text-[10px] text-[#5a7a9a] self-center">{label}</span>
-              <span className="font-semibold text-[#8aaac8] text-left">{away}</span>
+              <span dir="ltr" className="font-semibold text-[#8aaac8] text-left">{away}</span>
             </div>
           ))}
         </div>
