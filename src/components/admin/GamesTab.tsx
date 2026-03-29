@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { updateGameScore, updateGameDetails } from '@/app/admin/actions';
+import { updateGameScore, updateGameDetails, resetAllGameDetails } from '@/app/admin/actions';
 import type { GameStatus, GameWithTeams } from '@/types';
 import BulkImportButton from './BulkImportButton';
 
@@ -17,6 +17,50 @@ interface Props {
   games: GameWithTeams[];
 }
 
+function ResetAllButton() {
+  const [isPending, startTransition] = useTransition();
+  const [feedback, setFeedback] = useState<{ ok?: boolean; msg?: string }>({});
+  const [confirmed, setConfirmed] = useState(false);
+
+  function handleClick() {
+    if (!confirmed) { setConfirmed(true); return; }
+    setFeedback({});
+    startTransition(async () => {
+      const result = await resetAllGameDetails();
+      if (result?.error) {
+        setFeedback({ ok: false, msg: result.error });
+      } else {
+        setFeedback({ ok: true, msg: 'כל המשחקים עודכנו ל-TBD!' });
+      }
+      setConfirmed(false);
+    });
+  }
+
+  return (
+    <div className="rounded-2xl border border-yellow-600/30 bg-yellow-900/10 p-4">
+      <p className="mb-2 text-xs text-yellow-400/80">
+        🔄 איפוס שעה ומיקום לכל המשחקים — יציג &quot;TBD / יתווסף בקרוב&quot; עד שתעדכן ידנית
+      </p>
+      {feedback.msg && (
+        <p className={`mb-2 rounded-lg px-3 py-2 text-sm ${feedback.ok ? 'bg-green-900/40 text-green-400' : 'bg-red-900/40 text-red-400'}`}>
+          {feedback.msg}
+        </p>
+      )}
+      <button
+        onClick={handleClick}
+        disabled={isPending}
+        className={`h-10 w-full rounded-xl text-sm font-bold transition active:scale-[0.98] disabled:opacity-60 ${
+          confirmed
+            ? 'bg-yellow-500 text-black'
+            : 'border border-yellow-600/50 text-yellow-400 hover:bg-yellow-600/20'
+        }`}
+      >
+        {isPending ? 'מאפס…' : confirmed ? '⚠️ לחץ שוב לאישור' : '🔄 אפס שעה ומיקום לכל המשחקים'}
+      </button>
+    </div>
+  );
+}
+
 export default function GamesTab({ games }: Props) {
   return (
     <div className="space-y-4">
@@ -24,6 +68,9 @@ export default function GamesTab({ games }: Props) {
 
       {/* One-click bulk import */}
       <BulkImportButton />
+
+      {/* Bulk reset time & location */}
+      <ResetAllButton />
 
       {games.length === 0 ? (
         <div className="py-12 text-center text-gray-500">

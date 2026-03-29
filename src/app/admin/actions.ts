@@ -146,6 +146,22 @@ export async function updateGameDetails(
   return {};
 }
 
+// ── Reset ALL games time + location ──────────────────────────────────────────
+
+export async function resetAllGameDetails(): Promise<ActionResult> {
+  const { error } = await supabaseAdmin
+    .from('games')
+    .update({ game_time: '00:00:00', location: 'TBD' })
+    .neq('id', '00000000-0000-0000-0000-000000000000'); // matches all rows
+
+  if (error) return { error: error.message };
+
+  revalidatePath('/admin');
+  revalidatePath('/');
+  revalidatePath('/games');
+  return {};
+}
+
 // ── Video URL ─────────────────────────────────────────────────────────────────
 
 export async function updateVideoUrl(
