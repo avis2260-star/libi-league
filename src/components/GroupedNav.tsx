@@ -212,10 +212,5 @@ export default function GroupedNav() {
     </div>
   );
 
-  return (
-    <>
-      {Desktop}
-      {Mobile}
-    </>
-  );
+  return <>{Desktop}</>;
 }
