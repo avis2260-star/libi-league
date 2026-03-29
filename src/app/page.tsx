@@ -153,10 +153,10 @@ export default async function HomePage() {
 
       {/* Tickers */}
       {tickers.length > 0 && (
-        <div className="overflow-hidden rounded-lg bg-gray-900 border border-gray-800 py-2">
+        <div className="overflow-hidden rounded-lg bg-[#0d1a28] border border-white/[0.07] py-2">
           <div className="flex animate-marquee whitespace-nowrap gap-16">
             {[...tickers, ...tickers].map((ann, i) => (
-              <span key={`${ann.id}-${i}`} className={`inline-flex items-center gap-2 text-sm font-medium text-white`}>
+              <span key={`${ann.id}-${i}`} className={`inline-flex items-center gap-2 text-sm font-medium text-[#e8edf5]`}>
                 <span className={`inline-block h-2 w-2 rounded-full ${BG_COLOR_CLASSES[ann.bg_color] ?? 'bg-orange-500'}`} />
                 {ann.message}
               </span>

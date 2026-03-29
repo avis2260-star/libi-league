@@ -133,8 +133,11 @@ export default async function TeamPlayersPage({ params }: { params: Promise<{ id
         </p>
       </div>
 
-      {/* Team info card */}
-      <div className="flex items-center gap-4 rounded-2xl border border-white/[0.07] bg-white/[0.04] p-5">
+      {/* Team info card — click to go to team stats */}
+      <Link
+        href={`/team/${encodeURIComponent(team.name)}`}
+        className="flex items-center gap-4 rounded-2xl border border-white/[0.07] bg-white/[0.04] p-5 transition hover:border-orange-500/30 hover:bg-orange-500/[0.04] group"
+      >
         <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-orange-500/10 flex items-center justify-center">
           {team.logo_url ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -145,8 +148,8 @@ export default async function TeamPlayersPage({ params }: { params: Promise<{ id
             </span>
           )}
         </div>
-        <div>
-          <p className="font-bold text-white">{team.name}</p>
+        <div className="flex-1">
+          <p className="font-bold text-white group-hover:text-orange-400 transition-colors">{team.name}</p>
           {team.captain_name && team.captain_name !== 'TBD' && (
             <p className="text-sm text-[#5a7a9a]">קפטן: <span className="text-[#8aaac8]">{team.captain_name}</span></p>
           )}
@@ -154,7 +157,8 @@ export default async function TeamPlayersPage({ params }: { params: Promise<{ id
             <p className="text-sm text-[#5a7a9a]">פרטי קשר: <span className="text-[#8aaac8]">{team.contact_info}</span></p>
           )}
         </div>
-      </div>
+        <span className="text-[#3a5a7a] group-hover:text-orange-400 transition-colors text-lg">←</span>
+      </Link>
 
       {/* Player cards grid */}
       {players.length === 0 ? (

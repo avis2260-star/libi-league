@@ -34,13 +34,13 @@ export default async function PlayersPage() {
 
   return (
     <div>
-      <h1 className="mb-2 text-3xl font-bold">Players</h1>
-      <p className="mb-8 text-sm text-gray-400">
-        {players.length} players across {Object.keys(byTeam).length} teams
+      <h1 className="mb-2 text-3xl font-black text-white">שחקנים</h1>
+      <p className="mb-8 text-sm text-[#5a7a9a]">
+        {players.length} שחקנים · {Object.keys(byTeam).length} קבוצות
       </p>
 
       {Object.keys(byTeam).length === 0 && (
-        <p className="text-gray-500">No players found.</p>
+        <p className="text-[#5a7a9a]">לא נמצאו שחקנים.</p>
       )}
 
       <div className="space-y-10">
@@ -56,15 +56,15 @@ export default async function PlayersPage() {
                     alt={teamName}
                     width={32}
                     height={32}
-                    className="rounded-full object-cover"
+                    className="rounded-full object-cover border border-white/10"
                   />
                 ) : (
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm font-bold text-gray-500">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.06] border border-white/10 text-sm font-bold text-[#8aaac8]">
                     {teamName.charAt(0)}
                   </span>
                 )}
-                <h2 className="text-xl font-bold">{teamName}</h2>
-                <span className="text-sm text-gray-400">({teamPlayers.length})</span>
+                <h2 className="text-xl font-bold text-white">{teamName}</h2>
+                <span className="text-sm text-[#5a7a9a]">({teamPlayers.length})</span>
               </div>
 
               {/* Players grid */}
@@ -73,15 +73,15 @@ export default async function PlayersPage() {
                   <Link
                     key={player.id}
                     href={`/players/${player.id}`}
-                    className="group flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:border-orange-300 hover:shadow-md"
+                    className="group flex items-center gap-4 rounded-xl border border-white/[0.07] bg-white/[0.03] p-4 transition hover:border-orange-500/30 hover:bg-orange-500/[0.04]"
                   >
                     {/* Jersey number circle */}
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gray-100 text-lg font-black text-gray-700">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/[0.06] border border-white/10 text-lg font-black text-[#e8edf5]">
                       {player.jersey_number !== null ? `#${player.jersey_number}` : '—'}
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-semibold text-gray-900 group-hover:text-orange-500">
+                      <p className="truncate font-semibold text-[#e8edf5] group-hover:text-orange-400 transition-colors">
                         {player.name}
                       </p>
                       {player.position && (
@@ -93,7 +93,7 @@ export default async function PlayersPage() {
                       )}
                     </div>
 
-                    <span className="text-gray-300 transition group-hover:text-orange-400">→</span>
+                    <span className="text-[#3a5a7a] transition group-hover:text-orange-400">→</span>
                   </Link>
                 ))}
               </div>

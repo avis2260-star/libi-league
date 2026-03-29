@@ -5,26 +5,20 @@
 /* ── CSS custom properties ───────────────────────────────────────────────── */
 :root {
   --bg-base:  #0b1520;
-  --bg-nav:   #0f1e30;
   --bg-card:  #0c1825;
-  --border:   rgba(255,255,255,0.07);
   --text-1:   #e8edf5;
   --text-2:   #8aaac8;
   --text-3:   #5a7a9a;
   --text-4:   #4a6a8a;
-  --text-5:   #3a5a7a;
 }
 
 html.light {
-  --bg-base:  #f0f4f8;
-  --bg-nav:   #ffffff;
+  --bg-base:  #f1f5f9;
   --bg-card:  #ffffff;
-  --border:   rgba(0,0,0,0.08);
-  --text-1:   #0f1e30;
-  --text-2:   #1e3a5a;
-  --text-3:   #2a5070;
-  --text-4:   #3a6080;
-  --text-5:   #4a7090;
+  --text-1:   #0f172a;
+  --text-2:   #334155;
+  --text-3:   #475569;
+  --text-4:   #64748b;
 }
 
 /* ── Base ────────────────────────────────────────────────────────────────── */
@@ -34,77 +28,147 @@ body {
   transition: background-color 0.25s ease, color 0.2s ease;
 }
 
-/* ── Light mode structural overrides ─────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   LIGHT MODE — comprehensive overrides
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Backgrounds ──────────────────────────────────────────────────────────── */
+
+/* All dark hex (#0x...) card / surface backgrounds → white */
+html.light [class*="bg-[#0"],
+html.light [class*="bg-[#1"] {
+  background-color: var(--bg-card) !important;
+  background-image: none !important;
+}
+
+/* Gradient froms/vias/tos → neutralize */
+html.light [class*="from-[#"],
+html.light [class*="via-[#"],
+html.light [class*="to-[#"] {
+  --tw-gradient-from: transparent;
+  --tw-gradient-to:   transparent;
+  --tw-gradient-stops: transparent;
+  background-image: none !important;
+}
+
+/* White-opacity → subtle dark-opacity */
+html.light [class*="bg-white/"] {
+  background-color: rgba(15,23,42,0.04) !important;
+}
+html.light [class*="bg-black/"] {
+  background-color: rgba(15,23,42,0.03) !important;
+}
+
+/* Keep orange / green / red / yellow / blue accent bgs */
+html.light [class*="bg-orange-"] { background-color: revert !important; }
+html.light [class*="bg-green-"]  { background-color: revert !important; }
+html.light [class*="bg-red-"]    { background-color: revert !important; }
+html.light [class*="bg-yellow-"] { background-color: revert !important; }
+html.light [class*="bg-blue-"]   { background-color: revert !important; }
+
+/* Header / nav specifically */
 html.light header {
-  background-color: rgba(255,255,255,0.97) !important;
-  border-color: rgba(0,0,0,0.08) !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08) !important;
+  border-color: #e2e8f0 !important;
 }
 
-/* Cards & rounded panels */
-html.light main div[class*="rounded"],
-html.light main section div[class*="rounded"] {
-  background-color: var(--bg-card);
-  border-color: var(--border);
+/* ── Borders ──────────────────────────────────────────────────────────────── */
+html.light [class*="border-white/"] {
+  border-color: #e2e8f0 !important;
+}
+html.light [class*="divide-white/"] > * + * {
+  border-color: #e2e8f0 !important;
 }
 
-/* Table rows */
-html.light tr { border-color: var(--border) !important; }
-html.light th { color: var(--text-3) !important; }
+/* Keep accent borders */
+html.light [class*="border-orange-"] { border-color: revert !important; }
+html.light [class*="border-green-"]  { border-color: revert !important; }
+html.light [class*="border-red-"]    { border-color: revert !important; }
+html.light [class*="border-yellow-"] { border-color: revert !important; }
+html.light [class*="border-blue-"]   { border-color: revert !important; }
 
-/* ── Text: all links (team names) and regular text dark in light mode ─────── */
-html.light main a               { color: var(--text-1) !important; }
-html.light main a:hover         { color: #f97316 !important; }  /* keep orange hover */
-html.light main td              { color: var(--text-1); }
-html.light main td span         { color: inherit; }
-html.light main p               { color: var(--text-3); }
-html.light main h1,
-html.light main h2,
-html.light main h3              { color: var(--text-1) !important; }
-html.light h1, html.light h2    { color: var(--text-1) !important; }
+/* ── Text ─────────────────────────────────────────────────────────────────── */
 
-/* Logo+title in nav */
-html.light header span          { color: var(--text-1); }
-html.light header a             { color: var(--text-1); }
+/* ALL hardcoded hex gray text → dark slate */
+html.light [class*="text-[#"] {
+  color: var(--text-1) !important;
+}
+html.light .text-white {
+  color: var(--text-1) !important;
+}
 
-/* ── Nav pill buttons ─────────────────────────────────────────────────────── */
+/* Keep all accent text colors */
+html.light [class*="text-orange-"] { color: revert !important; }
+html.light [class*="text-green-"]  { color: revert !important; }
+html.light [class*="text-red-"]    { color: revert !important; }
+html.light [class*="text-yellow-"] { color: revert !important; }
+html.light [class*="text-blue-"]   { color: revert !important; }
+
+/* Headings */
+html.light h1, html.light h2, html.light h3 {
+  color: var(--text-1) !important;
+}
+
+/* Links */
+html.light a { color: var(--text-1); }
+html.light a:hover { color: #f97316; }
+
+/* ── Inline style overrides (rank colors, row stripes) ────────────────────── */
+
+/* Silver rank (#b0b8c8) — too light on white */
+html.light [style*="#b0b8c8"] { color: #64748b !important; }
+/* Blue-gray rank (#4a6a8a) — too light on white */
+html.light [style*="#4a6a8a"] { color: #3a6080 !important; }
+/* Gold rank (#e0c97a) — fine, keep as is */
+/* Bronze rank (#c87d3a) — fine, keep as is */
+/* rankColor used in TeamPage */
+html.light [style*="#7aaac8"] { color: #4a7090 !important; }
+
+/* Alternating row stripe (rgba white → subtle dark) */
+html.light [style*="rgba(255,255,255,0.015)"] {
+  background: rgba(15,23,42,0.025) !important;
+}
+/* Row tints for rank 1-4 (gold/silver/bronze/blue) keep as-is — they're subtle */
+
+/* ── Cards: add subtle shadow in light mode ───────────────────────────────── */
+html.light main div[class*="rounded-2xl"],
+html.light main div[class*="rounded-xl"] {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+}
+
+/* ── Nav pills ────────────────────────────────────────────────────────────── */
 html.light nav button[class*="rounded-full"],
 html.light nav a[class*="rounded-full"] {
-  border-color: rgba(0,0,0,0.10) !important;
-  background-color: rgba(0,0,0,0.04) !important;
-  color: #1e3a5a !important;
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #1e3a5f !important;
 }
 html.light nav button[class*="rounded-full"]:hover,
 html.light nav a[class*="rounded-full"]:hover {
-  background-color: rgba(0,0,0,0.07) !important;
-  color: #0f1e30 !important;
+  background-color: #f1f5f9 !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
 }
 
-/* Active/open pill (orange) — keep accent */
+/* Active/open pill */
 html.light nav button[class*="text-orange-400"],
-html.light nav a[class*="text-orange-400"] {
+html.light nav button[class*="border-orange-"] {
+  background-color: #fff7ed !important;
+  border-color: #fb923c !important;
   color: #ea580c !important;
 }
 
-/* ── White/dark opacity backgrounds → light equivalents ──────────────────── */
-html.light main [class*="bg-white/"],
-html.light main [class*="bg-black/"] {
-  background-color: rgba(0,0,0,0.03) !important;
+/* Nav dropdown panel */
+html.light nav div[class*="rounded-2xl"] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.06) !important;
 }
-
-/* Preserve colored accent backgrounds */
-html.light main [class*="bg-orange-"],
-html.light main [class*="bg-green-"],
-html.light main [class*="bg-red-"],
-html.light main [class*="bg-yellow-"],
-html.light main [class*="bg-blue-"] {
-  background-color: revert;
+html.light nav div[class*="rounded-2xl"] a {
+  color: #334155 !important;
 }
-
-/* Stat numbers — keep their accent colors */
-html.light main [class*="text-orange-"],
-html.light main [class*="text-green-"],
-html.light main [class*="text-red-"],
-html.light main [class*="text-yellow-"],
-html.light main [class*="text-blue-"] {
-  color: revert !important;
+html.light nav div[class*="rounded-2xl"] a:hover {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
 }
