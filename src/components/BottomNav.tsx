@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
@@ -66,42 +67,110 @@ const NAV = [
   },
 ];
 
+const MORE_LINKS = [
+  { href: '/results',  label: 'תוצאות',  emoji: '📊' },
+  { href: '/playoff',  label: 'פלייאוף', emoji: '🏆' },
+  { href: '/takanon',  label: 'תקנון',   emoji: '📋' },
+  { href: '/about',    label: 'אודות',   emoji: 'ℹ️' },
+];
+
 export default function BottomNav() {
   const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 sm:hidden" dir="rtl">
-      {/* Top glow line */}
-      <div className="h-px bg-gradient-to-r from-transparent via-orange-500/40 to-transparent" />
+    <>
+      {/* Backdrop */}
+      {menuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 sm:hidden"
+          onClick={() => setMenuOpen(false)}
+        />
+      )}
 
-      <div className="flex items-stretch bg-[#0b1520]/95 backdrop-blur-md border-t border-white/[0.06]"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        {NAV.map(({ href, label, icon }) => {
-          const isActive = href === '/' ? pathname === '/' : pathname.startsWith(href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              className="flex-1 flex flex-col items-center justify-center gap-1 py-2.5 relative transition-all"
-            >
-              {/* Active indicator dot */}
-              {isActive && (
-                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
-              )}
-
-              {/* Icon */}
-              <span className={`transition-all ${isActive ? 'text-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.6)]' : 'text-[#3a5a7a]'}`}>
-                {icon}
-              </span>
-
-              {/* Label */}
-              <span className={`text-[10px] font-bold transition-all ${isActive ? 'text-orange-400' : 'text-[#3a5a7a]'}`}>
-                {label}
-              </span>
-            </Link>
-          );
-        })}
+      {/* Slide-up extra menu */}
+      <div
+        className={`fixed left-0 right-0 z-50 sm:hidden transition-transform duration-300 ease-in-out ${
+          menuOpen ? 'translate-y-0' : 'translate-y-full'
+        }`}
+        style={{ bottom: 'calc(56px + env(safe-area-inset-bottom))' }}
+        dir="rtl"
+      >
+        <div className="mx-3 mb-2 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0f1e30]/98 backdrop-blur-md shadow-2xl">
+          <p className="border-b border-white/[0.06] px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-[#3a5a7a]">
+            עוד דפים
+          </p>
+          <div className="grid grid-cols-2 gap-px bg-white/[0.04]">
+            {MORE_LINKS.map(({ href, label, emoji }) => {
+              const isActive = pathname.startsWith(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setMenuOpen(false)}
+                  className={`flex items-center gap-3 bg-[#0f1e30] px-4 py-4 text-sm font-bold transition-colors hover:bg-white/[0.05] ${
+                    isActive ? 'text-orange-400' : 'text-[#6b8aaa]'
+                  }`}
+                >
+                  <span className="text-xl">{emoji}</span>
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
       </div>
-    </nav>
+
+      {/* Bottom bar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 sm:hidden" dir="rtl">
+        <div className="h-px bg-gradient-to-r from-transparent via-orange-500/40 to-transparent" />
+
+        <div
+          className="flex items-stretch bg-[#0b1520]/95 backdrop-blur-md border-t border-white/[0.06]"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        >
+          {/* Main nav items */}
+          {NAV.map(({ href, label, icon }) => {
+            const isActive = href === '/' ? pathname === '/' : pathname.startsWith(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className="flex-1 flex flex-col items-center justify-center gap-1 py-2.5 relative transition-all"
+              >
+                {isActive && (
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
+                )}
+                <span className={`transition-all ${isActive ? 'text-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.6)]' : 'text-[#3a5a7a]'}`}>
+                  {icon}
+                </span>
+                <span className={`text-[10px] font-bold transition-all ${isActive ? 'text-orange-400' : 'text-[#3a5a7a]'}`}>
+                  {label}
+                </span>
+              </Link>
+            );
+          })}
+
+          {/* Hamburger — left side (RTL end) */}
+          <button
+            onClick={() => setMenuOpen(o => !o)}
+            className="flex-1 flex flex-col items-center justify-center gap-1 py-2.5 relative transition-all"
+            aria-label="עוד"
+          >
+            {menuOpen && (
+              <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
+            )}
+            <span className={`flex flex-col gap-1 transition-all ${menuOpen ? 'text-orange-400' : 'text-[#3a5a7a]'}`}>
+              <span className={`block h-0.5 w-5 rounded-full bg-current transition-transform duration-200 ${menuOpen ? 'translate-y-1.5 rotate-45' : ''}`} />
+              <span className={`block h-0.5 w-5 rounded-full bg-current transition-opacity duration-200 ${menuOpen ? 'opacity-0' : ''}`} />
+              <span className={`block h-0.5 w-5 rounded-full bg-current transition-transform duration-200 ${menuOpen ? '-translate-y-1.5 -rotate-45' : ''}`} />
+            </span>
+            <span className={`text-[10px] font-bold transition-all ${menuOpen ? 'text-orange-400' : 'text-[#3a5a7a]'}`}>
+              עוד
+            </span>
+          </button>
+        </div>
+      </nav>
+    </>
   );
 }
