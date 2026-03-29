@@ -70,8 +70,8 @@ export default async function GamePreviewPage({
   // Time + location from Supabase games table
   let gameTime: string | null = null;
   let gameLocation: string | null = null;
-  const dbGames = (dbGamesRes.data ?? []) as { game_time: string; location: string; home_team: { name: string } }[];
-  const dbMatch = dbGames.find(g => normalize((g.home_team as { name: string })?.name ?? '') === normalize(game.homeTeam));
+  const dbGames = (dbGamesRes.data ?? []) as unknown as { game_time: string; location: string; home_team: { name: string } }[];
+  const dbMatch = dbGames.find(g => normalize(g.home_team?.name ?? '') === normalize(game.homeTeam));
   if (dbMatch) {
     gameTime     = dbMatch.game_time   || null;
     gameLocation = dbMatch.location    || null;
