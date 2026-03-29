@@ -62,7 +62,7 @@ export default async function GamesPage() {
         const southGames = LIBI_SCHEDULE.filter((g) => g.round === round && g.division === 'South');
 
         return (
-          <section key={round}>
+          <section key={round} id={`round-${round}`}>
             <div className="mb-4 flex items-center gap-3">
               <div className={`rounded-2xl border px-4 py-1.5 text-sm font-bold ${
                 isNext   ? 'border-orange-500/50 bg-orange-500/15 text-orange-400' :
