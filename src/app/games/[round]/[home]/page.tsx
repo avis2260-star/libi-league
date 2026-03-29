@@ -171,7 +171,7 @@ export default async function GamePreviewPage({
           <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#5a7a9a]">⏰ שעה</p>
           {gameTime
             ? <p className="text-lg font-black text-white">{gameTime.slice(0, 5)}</p>
-            : <p className="text-lg font-black text-[#3a5a7a]">TBD</p>
+            : <><p className="text-lg font-black text-[#3a5a7a]">TBD</p><p className="mt-0.5 text-xs text-[#3a5a7a]">טרם נקבע</p></>
           }
         </div>
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] p-5">
