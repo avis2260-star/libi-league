@@ -5,6 +5,7 @@ import { Heebo } from 'next/font/google';
 import './globals.css';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import ChatWidget from '@/components/ChatWidget';
+import { Analytics } from '@vercel/analytics/next';
 
 const heebo = Heebo({ subsets: ['hebrew', 'latin'], weight: ['300','400','500','600','700','800','900'] });
 
@@ -83,6 +84,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
         {/* ── AI Chat Widget ────────────────────────────────────────────── */}
         <ChatWidget />
+
+        {/* ── Vercel Analytics ──────────────────────────────────────────── */}
+        <Analytics />
       </body>
     </html>
   );
