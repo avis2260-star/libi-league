@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { updateGameScore } from '@/app/admin/actions';
+import { updateGameScore, updateGameDetails } from '@/app/admin/actions';
 import type { GameStatus, GameWithTeams } from '@/types';
 import BulkImportButton from './BulkImportButton';
 
@@ -45,8 +45,12 @@ function GameScoreCard({ game }: { game: GameWithTeams }) {
   const [homeScore, setHomeScore] = useState(String(game.home_score));
   const [awayScore, setAwayScore] = useState(String(game.away_score));
   const [status, setStatus] = useState<GameStatus>(game.status);
+  const [gameTime, setGameTime] = useState(game.game_time ?? '');
+  const [location, setLocation] = useState(game.location ?? '');
   const [feedback, setFeedback] = useState<{ ok?: boolean; msg?: string }>({});
+  const [detailsFeedback, setDetailsFeedback] = useState<{ ok?: boolean; msg?: string }>({});
   const [isPending, startTransition] = useTransition();
+  const [isDetailsPending, startDetailsTransition] = useTransition();
 
   function handleSave() {
     const hs = parseInt(homeScore, 10);
@@ -64,6 +68,18 @@ function GameScoreCard({ game }: { game: GameWithTeams }) {
       } else {
         setFeedback({ ok: true, msg: 'Saved!' });
         setOpen(false);
+      }
+    });
+  }
+
+  function handleSaveDetails() {
+    setDetailsFeedback({});
+    startDetailsTransition(async () => {
+      const result = await updateGameDetails(game.id, gameTime, location);
+      if (result?.error) {
+        setDetailsFeedback({ ok: false, msg: result.error });
+      } else {
+        setDetailsFeedback({ ok: true, msg: 'Updated!' });
       }
     });
   }
@@ -140,6 +156,43 @@ function GameScoreCard({ game }: { game: GameWithTeams }) {
               ))}
             </div>
           </div>
+
+          {/* Time & Location */}
+          <div className="mb-2 grid grid-cols-2 gap-4">
+            <div>
+              <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">Time</p>
+              <input
+                type="time"
+                value={gameTime}
+                onChange={(e) => setGameTime(e.target.value)}
+                className="h-11 w-full rounded-xl border border-gray-700 bg-gray-900 px-3 text-sm text-white focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+              />
+            </div>
+            <div>
+              <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">Location</p>
+              <input
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="e.g. Arena name"
+                className="h-11 w-full rounded-xl border border-gray-700 bg-gray-900 px-3 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+              />
+            </div>
+          </div>
+          {detailsFeedback.msg && (
+            <p className={`mb-2 rounded-lg px-4 py-2 text-sm ${
+              detailsFeedback.ok ? 'bg-green-900/40 text-green-400' : 'bg-red-900/40 text-red-400'
+            }`}>
+              {detailsFeedback.msg}
+            </p>
+          )}
+          <button
+            onClick={handleSaveDetails}
+            disabled={isDetailsPending}
+            className="mb-5 h-10 w-full rounded-xl border border-blue-600 text-sm font-semibold text-blue-400 transition hover:bg-blue-600 hover:text-white active:scale-[0.98] disabled:opacity-60"
+          >
+            {isDetailsPending ? 'Applying…' : '📍 Apply Time & Location'}
+          </button>
 
           {/* Feedback */}
           {feedback.msg && (

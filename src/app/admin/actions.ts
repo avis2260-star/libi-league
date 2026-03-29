@@ -98,12 +98,18 @@ export async function updateGameScore(
   homeScore: number,
   awayScore: number,
   status: GameStatus,
+  gameTime?: string,
+  location?: string,
 ): Promise<ActionResult> {
   if (homeScore < 0 || awayScore < 0) return { error: 'Scores cannot be negative.' };
 
+  const update: Record<string, unknown> = { home_score: homeScore, away_score: awayScore, status };
+  if (gameTime !== undefined) update.game_time = gameTime;
+  if (location !== undefined) update.location  = location;
+
   const { error } = await supabaseAdmin
     .from('games')
-    .update({ home_score: homeScore, away_score: awayScore, status })
+    .update(update)
     .eq('id', gameId);
 
   if (error) return { error: error.message };
@@ -112,6 +118,31 @@ export async function updateGameScore(
   revalidatePath('/');
   revalidatePath('/games');
   revalidatePath('/standings');
+  return {};
+}
+
+// ── Game time + location ──────────────────────────────────────────────────────
+
+export async function updateGameDetails(
+  gameId: string,
+  gameTime: string,
+  location: string,
+): Promise<ActionResult> {
+  const update: Record<string, unknown> = {
+    game_time: gameTime || null,
+    location:  location  || null,
+  };
+
+  const { error } = await supabaseAdmin
+    .from('games')
+    .update(update)
+    .eq('id', gameId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath('/admin');
+  revalidatePath('/');
+  revalidatePath('/games');
   return {};
 }
 

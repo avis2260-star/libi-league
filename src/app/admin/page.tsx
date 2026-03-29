@@ -38,7 +38,12 @@ export default async function AdminPage({
   const params = await searchParams;
   const tab = params.tab ?? 'games';
   const games = await getAllGames();
-  const activeGames = games.filter((g) => g.status !== 'Finished');
+  const activeGames = games
+    .filter((g) => g.status !== 'Finished')
+    .sort((a, b) => {
+      const d = a.game_date.localeCompare(b.game_date);
+      return d !== 0 ? d : (a.game_time ?? '').localeCompare(b.game_time ?? '');
+    });
 
   let teams: Team[] = [];
   let players: { id: string; name: string; jersey_number: number | null; position: string | null; team_id: string | null; photo_url: string | null; date_of_birth: string | null; is_active: boolean }[] = [];

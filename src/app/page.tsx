@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { NORTH_TABLE, SOUTH_TABLE, CURRENT_ROUND, TOTAL_ROUNDS } from '@/lib/league-data';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
+import { getTeams } from '@/lib/supabase';
+import ScoreboardStrip from '@/components/ScoreboardStrip';
 
 const ROUND_DATES: Record<number, string> = {
   1: '01.11.25', 2: '08.11.25', 3: '29.11.25', 4:  '20.12.25',
@@ -116,10 +118,16 @@ function RecordCard({ icon, label, value, sub, detail, color }: { icon: string; 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function HomePage() {
-  const [liveData, activeAnnouncements] = await Promise.all([
+  const [liveData, activeAnnouncements, teams] = await Promise.all([
     getLiveData(),
     getActiveAnnouncements(),
+    getTeams(),
   ]);
+
+  // Build logo lookup (normalize quotes/spaces like teams page does)
+  function norm(s: string) { return s.replace(/["""''`״׳]/g, '').replace(/\s+/g, ' ').trim(); }
+  const logoMap: Record<string, string | null> = {};
+  for (const t of teams) logoMap[norm(t.name)] = t.logo_url;
 
   const {
     northLeader, southLeader,
@@ -137,9 +145,9 @@ export default async function HomePage() {
   const southUpcoming = LIBI_SCHEDULE.filter((g) => g.round === nextRound && g.division === 'South').map(g => ({ home: g.homeTeam, away: g.awayTeam }));
 
   // Scoreboard strip — all games for next round combined
-  const allNextGames: { home: string; away: string; div: 'North' | 'South' }[] = [
-    ...southUpcoming.map(g => ({ ...g, div: 'South' as const })),
-    ...northUpcoming.map(g => ({ ...g, div: 'North' as const })),
+  const allNextGames: { home: string; away: string; div: 'North' | 'South'; homeLogo: string | null; awayLogo: string | null }[] = [
+    ...southUpcoming.map(g => ({ ...g, div: 'South' as const, homeLogo: logoMap[norm(g.home)] ?? null, awayLogo: logoMap[norm(g.away)] ?? null })),
+    ...northUpcoming.map(g => ({ ...g, div: 'North' as const, homeLogo: logoMap[norm(g.home)] ?? null, awayLogo: logoMap[norm(g.away)] ?? null })),
   ];
   const nextDateRaw = LIBI_SCHEDULE.find(g => g.round === nextRound)?.date ?? '';
   const heDay = nextDateRaw
@@ -177,66 +185,12 @@ export default async function HomePage() {
 
       {/* ── NBA-style Scoreboard Strip ── */}
       {allNextGames.length > 0 && nextRound <= TOTAL_ROUNDS && (
-        <div className="rounded-xl overflow-hidden border border-white/[0.07] bg-[#0d1a28]">
-          {/* Strip header */}
-          <div className="flex items-center gap-3 border-b border-white/[0.05] px-3 py-2">
-            {heDay && (
-              <div className="shrink-0 text-center min-w-[3.5rem]">
-                <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6a8a]">{heDay}</p>
-                <p className="text-[11px] font-bold text-[#8aaac8]">{nextDate}</p>
-              </div>
-            )}
-            <div className="h-6 w-px bg-white/[0.06] shrink-0" />
-            <p className="flex-1 text-[11px] font-bold text-[#5a7a9a]">מחזור {nextRound} · משחקים קרובים</p>
-            <Link
-              href={`/games#round-${nextRound}`}
-              className="shrink-0 text-[11px] font-bold text-orange-400 hover:text-orange-300 transition-colors"
-            >
-              ← כל המשחקים
-            </Link>
-          </div>
-
-          {/* Scrollable cards */}
-          <div className="flex overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-            {allNextGames.map((g, i) => (
-              <Link
-                key={i}
-                href={`/games#round-${nextRound}`}
-                className={`group shrink-0 w-44 p-3 transition-colors hover:bg-white/[0.04] ${
-                  i < allNextGames.length - 1 ? 'border-l border-white/[0.05]' : ''
-                }`}
-              >
-                {/* Division badge */}
-                <div className={`mb-2.5 flex items-center gap-1 text-[9px] font-bold ${
-                  g.div === 'North' ? 'text-blue-400' : 'text-orange-400'
-                }`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${g.div === 'North' ? 'bg-blue-400' : 'bg-orange-400'}`} />
-                  {g.div === 'North' ? 'מחוז צפון' : 'מחוז דרום'}
-                </div>
-
-                {/* Home team */}
-                <p className="truncate text-xs font-black text-[#e8edf5] group-hover:text-orange-400 transition-colors leading-snug">
-                  {g.home}
-                </p>
-
-                {/* VS divider */}
-                <div className="my-1.5 flex items-center gap-1.5">
-                  <div className="h-px flex-1 bg-white/[0.06]" />
-                  <span className="text-[9px] font-black text-[#3a5a7a]">VS</span>
-                  <div className="h-px flex-1 bg-white/[0.06]" />
-                </div>
-
-                {/* Away team */}
-                <p className="truncate text-xs font-semibold text-[#8aaac8] leading-snug">
-                  {g.away}
-                </p>
-
-                {/* Date hint */}
-                <p className="mt-2 text-[9px] text-[#3a5a7a]">{nextDate}</p>
-              </Link>
-            ))}
-          </div>
-        </div>
+        <ScoreboardStrip
+          games={allNextGames}
+          nextRound={nextRound}
+          nextDate={nextDate}
+          heDay={heDay}
+        />
       )}
 
       <div>
@@ -316,44 +270,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section>
-        <h2 className="mb-4 flex items-center gap-3 text-lg font-black text-white">
-          <span className="rounded-xl border border-orange-500/30 bg-orange-500/15 px-3 py-1 text-sm font-bold text-orange-400">
-            מחזור {nextRound}
-          </span>
-          המחזור הבא · {nextDate}
-        </h2>
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-          <div className="rounded-2xl border border-blue-500/20 bg-blue-500/5">
-            <div className="border-b border-white/[0.06] px-5 py-3">
-              <h3 className="text-sm font-bold text-blue-400">🏀 מחוז צפון</h3>
-            </div>
-            <div className="divide-y divide-white/[0.05]">
-              {northUpcoming.map((g, i) => (
-                <div key={i} className="flex items-center gap-2 px-5 py-3 text-sm">
-                  <Link href={`/team/${encodeURIComponent(g.home)}`} className="flex-1 truncate text-right font-semibold text-white hover:text-orange-400 transition-colors">{g.home}</Link>
-                  <span className="shrink-0 rounded-full border border-blue-500/20 bg-blue-500/10 px-2.5 py-0.5 text-[10px] font-black text-blue-400">VS</span>
-                  <Link href={`/team/${encodeURIComponent(g.away)}`} className="flex-1 truncate text-left font-semibold text-white hover:text-orange-400 transition-colors">{g.away}</Link>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5">
-            <div className="border-b border-white/[0.06] px-5 py-3">
-              <h3 className="text-sm font-bold text-orange-400">🏀 מחוז דרום</h3>
-            </div>
-            <div className="divide-y divide-white/[0.05]">
-              {southUpcoming.map((g, i) => (
-                <div key={i} className="flex items-center gap-2 px-5 py-3 text-sm">
-                  <Link href={`/team/${encodeURIComponent(g.home)}`} className="flex-1 truncate text-right font-semibold text-white hover:text-orange-400 transition-colors">{g.home}</Link>
-                  <span className="shrink-0 rounded-full border border-orange-500/20 bg-orange-500/10 px-2.5 py-0.5 text-[10px] font-black text-orange-400">VS</span>
-                  <Link href={`/team/${encodeURIComponent(g.away)}`} className="flex-1 truncate text-left font-semibold text-white hover:text-orange-400 transition-colors">{g.away}</Link>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }
