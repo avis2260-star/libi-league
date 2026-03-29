@@ -86,10 +86,11 @@ function GameScoreCard({ game }: { game: GameWithTeams }) {
 
   const homeTeam = game.home_team.name;
   const awayTeam = game.away_team.name;
-  const dateStr = new Date(`${game.game_date}T${game.game_time}`).toLocaleString('en-US', {
+  const hasTime = game.game_time && game.game_time !== '00:00:00';
+  const dateStr = new Date(`${game.game_date}T${hasTime ? game.game_time : '00:00:00'}`).toLocaleString('en-US', {
     weekday: 'short', month: 'short', day: 'numeric',
-    hour: 'numeric', minute: '2-digit', hour12: true,
-  });
+    ...(hasTime ? { hour: 'numeric', minute: '2-digit', hour12: true } : {}),
+  }) + (hasTime ? '' : ' · TBD');
 
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-800 bg-gray-900">

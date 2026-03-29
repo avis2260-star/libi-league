@@ -129,8 +129,8 @@ export async function updateGameDetails(
   location: string,
 ): Promise<ActionResult> {
   const update: Record<string, unknown> = {
-    game_time: gameTime || null,
-    location:  location  || null,
+    game_time: gameTime || '00:00:00',
+    location:  location || 'TBD',
   };
 
   const { error } = await supabaseAdmin

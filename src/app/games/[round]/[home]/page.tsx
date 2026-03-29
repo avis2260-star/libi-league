@@ -73,8 +73,10 @@ export default async function GamePreviewPage({
   const dbGames = (dbGamesRes.data ?? []) as unknown as { game_time: string; location: string; home_team: { name: string } }[];
   const dbMatch = dbGames.find(g => normalize(g.home_team?.name ?? '') === normalize(game.homeTeam));
   if (dbMatch) {
-    gameTime     = dbMatch.game_time   || null;
-    gameLocation = dbMatch.location    || null;
+    const t = dbMatch.game_time;
+    gameTime     = (t && t !== '00:00:00') ? t : null;
+    const l = dbMatch.location;
+    gameLocation = (l && l !== 'TBD') ? l : null;
   }
 
   const dateStr    = ROUND_DATES[round] ?? game.date;
