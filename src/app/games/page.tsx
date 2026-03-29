@@ -54,7 +54,7 @@ export default async function GamesPage() {
         <p className="mt-1 text-sm text-[#5a7a9a]">מחזורים 1–14 · עונת 2025–2026</p>
       </div>
 
-      {Array.from({ length: 14 }, (_, i) => i + 1).map((round) => {
+      {Array.from({ length: 14 }, (_, i) => 14 - i).map((round) => {
         const isPlayed = round <= currentRound;
         const isNext   = round === nextRound;
         const date     = ALL_ROUND_DATES[round] ?? '';
