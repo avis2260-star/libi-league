@@ -9,6 +9,7 @@ import BottomNav from '@/components/BottomNav';
 import CollapsibleHeader from '@/components/CollapsibleHeader';
 import ThemeProvider from '@/components/ThemeProvider';
 import ThemeToggle from '@/components/ThemeToggle';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const heebo = Heebo({ subsets: ['hebrew', 'latin'], weight: ['300','400','500','600','700','800','900'] });
 
@@ -86,6 +87,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <BottomNav />
 
         </ThemeProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
