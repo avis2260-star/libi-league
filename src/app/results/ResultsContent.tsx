@@ -4,36 +4,51 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { type GameResult } from '@/lib/league-data';
 
-function TLink({ name, won }: { name: string; won: boolean }) {
+function normName(n: string) {
+  return n.replace(/["""״'']/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+function findLogo(name: string, logos: Record<string, string>) {
+  return logos[name] ?? Object.entries(logos).find(([k]) => normName(k) === normName(name))?.[1];
+}
+
+function TeamLogo({ name, logos }: { name: string; logos: Record<string, string> }) {
+  const url = findLogo(name, logos);
+  if (url) return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={url} alt={name}
+      className="h-7 w-7 shrink-0 rounded-full object-cover border border-white/10 shadow-sm" />
+  );
   return (
-    <Link
-      href={`/team/${encodeURIComponent(name)}`}
-      className={`text-sm font-semibold leading-tight hover:text-orange-400 hover:underline underline-offset-2 transition-colors ${won ? 'text-white' : 'text-[#5a7a9a]'}`}
-    >
-      {name}
-    </Link>
+    <div className="h-7 w-7 shrink-0 rounded-full bg-[#1a2e45] border border-white/10 flex items-center justify-center text-[9px] font-black text-[#3a5a7a]">
+      {[...name].find(c => /\S/.test(c)) ?? '?'}
+    </div>
   );
 }
 
 const isTechniScore = (sh: number, sa: number) =>
   (sh === 20 && sa === 0) || (sh === 0 && sa === 20);
 
-function GameCard({ game }: { game: GameResult }) {
-  const homeWins = game.sh > game.sa;
-  const techni   = !!game.techni || isTechniScore(game.sh, game.sa);
+function GameCard({ game, logos }: { game: GameResult; logos: Record<string, string> }) {
+  const homeWins     = game.sh > game.sa;
+  const techni       = !!game.techni || isTechniScore(game.sh, game.sa);
   const techniOnHome = techni && !homeWins;
   const techniOnAway = techni && homeWins;
 
   return (
-    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.04] px-4 py-3 transition hover:-translate-y-0.5 hover:border-orange-500/30">
-      <div className="text-right">
-        <TLink name={game.home} won={homeWins} />
-        {techniOnHome && (
-          <p className="mt-0.5 text-[9px] font-semibold text-red-400">🔴 הפסד טכני</p>
-        )}
-      </div>
+    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 transition hover:-translate-y-0.5 hover:border-orange-500/30">
+      {/* Home */}
+      <Link href={`/team/${encodeURIComponent(game.home)}`} className="flex items-center justify-end gap-2 min-w-0 group">
+        <div className="text-right min-w-0">
+          <p className={`text-sm font-semibold leading-tight truncate group-hover:text-orange-400 transition-colors ${homeWins ? 'text-white' : 'text-[#5a7a9a]'}`}>
+            {game.home}
+          </p>
+          {techniOnHome && <p className="mt-0.5 text-[9px] font-semibold text-red-400">🔴 הפסד טכני</p>}
+        </div>
+        <TeamLogo name={game.home} logos={logos} />
+      </Link>
 
-      <div className="min-w-[72px] rounded-lg bg-black/40 px-3 py-2 text-center">
+      {/* Score */}
+      <div className="min-w-[68px] shrink-0 rounded-lg bg-black/40 px-2.5 py-2 text-center">
         <div className="flex items-center justify-center gap-1.5">
           <span className={`text-lg font-black ${homeWins ? 'text-orange-400' : 'text-[#4a6a8a]'}`}>{game.sh}</span>
           <span className="text-xs text-[#3a5a7a]">:</span>
@@ -42,17 +57,21 @@ function GameCard({ game }: { game: GameResult }) {
         {techni && <p className="mt-0.5 text-[8px] font-bold tracking-wide text-red-400">טכני *</p>}
       </div>
 
-      <div className="text-left">
-        <TLink name={game.away} won={!homeWins} />
-        {techniOnAway && (
-          <p className="mt-0.5 text-[9px] font-semibold text-red-400">🔴 הפסד טכני</p>
-        )}
-      </div>
+      {/* Away */}
+      <Link href={`/team/${encodeURIComponent(game.away)}`} className="flex items-center justify-start gap-2 min-w-0 group">
+        <TeamLogo name={game.away} logos={logos} />
+        <div className="text-left min-w-0">
+          <p className={`text-sm font-semibold leading-tight truncate group-hover:text-orange-400 transition-colors ${!homeWins ? 'text-white' : 'text-[#5a7a9a]'}`}>
+            {game.away}
+          </p>
+          {techniOnAway && <p className="mt-0.5 text-[9px] font-semibold text-red-400">🔴 הפסד טכני</p>}
+        </div>
+      </Link>
     </div>
   );
 }
 
-export default function ResultsContent({ games }: { games: GameResult[] }) {
+export default function ResultsContent({ games, logos }: { games: GameResult[]; logos: Record<string, string> }) {
   const ROUNDS = [...new Set(games.map((g) => g.round))].sort((a, b) => b - a);
 
   const [activeRound, setActiveRound]       = useState<number | null>(null);
@@ -142,7 +161,7 @@ export default function ResultsContent({ games }: { games: GameResult[] }) {
               <span className="text-xs text-[#4a6a8a]">{grouped[r].length} משחקים</span>
             </div>
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-              {grouped[r].map((g, i) => <GameCard key={i} game={g} />)}
+              {grouped[r].map((g, i) => <GameCard key={i} game={g} logos={logos} />)}
             </div>
           </div>
         ))

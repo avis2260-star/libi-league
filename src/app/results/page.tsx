@@ -27,7 +27,20 @@ async function getResults(): Promise<GameResult[]> {
   }
 }
 
+async function getTeamLogos(): Promise<Record<string, string>> {
+  try {
+    const { data } = await supabaseAdmin.from('teams').select('name, logo_url');
+    const map: Record<string, string> = {};
+    for (const t of data ?? []) {
+      if (t.name && t.logo_url) map[t.name] = t.logo_url;
+    }
+    return map;
+  } catch {
+    return {};
+  }
+}
+
 export default async function ResultsPage() {
-  const games = await getResults();
-  return <ResultsContent games={games} />;
+  const [games, logos] = await Promise.all([getResults(), getTeamLogos()]);
+  return <ResultsContent games={games} logos={logos} />;
 }
