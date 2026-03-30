@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { updateGameScore, updateGameDetails, resetAllGameDetails } from '@/app/admin/actions';
 import type { GameStatus, GameWithTeams } from '@/types';
 import BulkImportButton from './BulkImportButton';
+import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 
 const STATUS_OPTIONS: GameStatus[] = ['Scheduled', 'Live', 'Finished'];
 
@@ -13,10 +14,21 @@ const STATUS_COLORS: Record<GameStatus, string> = {
   Finished:  'bg-gray-800    text-gray-400',
 };
 
+// ── Build date → round map from schedule ─────────────────────────────────────
+const DATE_TO_ROUND: Record<string, number> = {};
+for (const g of LIBI_SCHEDULE) {
+  if (!DATE_TO_ROUND[g.date]) DATE_TO_ROUND[g.date] = g.round;
+}
+
+function getRoundForGame(game: GameWithTeams): number {
+  return DATE_TO_ROUND[game.game_date] ?? 0;
+}
+
 interface Props {
   games: GameWithTeams[];
 }
 
+// ── Reset All button ──────────────────────────────────────────────────────────
 function ResetAllButton() {
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ ok?: boolean; msg?: string }>({});
@@ -61,15 +73,33 @@ function ResetAllButton() {
   );
 }
 
+// ── Main tab ──────────────────────────────────────────────────────────────────
 export default function GamesTab({ games }: Props) {
+  // Group games by round number
+  const roundMap = new Map<number, GameWithTeams[]>();
+  for (const g of games) {
+    const r = getRoundForGame(g);
+    if (!roundMap.has(r)) roundMap.set(r, []);
+    roundMap.get(r)!.push(g);
+  }
+
+  // Find the "active" round: lowest round that has any non-Finished game
+  const allRounds = [...roundMap.keys()].sort((a, b) => a - b);
+  const activeRound = allRounds.find(r =>
+    roundMap.get(r)!.some(g => g.status !== 'Finished')
+  ) ?? allRounds[allRounds.length - 1] ?? 0;
+
+  // Display order: descending but active round first
+  const sortedRounds = [...allRounds].sort((a, b) => b - a);
+  const displayRounds = [
+    activeRound,
+    ...sortedRounds.filter(r => r !== activeRound),
+  ];
+
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-bold text-white">Game Management</h2>
-
-      {/* One-click bulk import */}
       <BulkImportButton />
-
-      {/* Bulk reset time & location */}
       <ResetAllButton />
 
       {games.length === 0 ? (
@@ -77,16 +107,92 @@ export default function GamesTab({ games }: Props) {
           No active games found. Import the schedule above or add games manually.
         </div>
       ) : (
-        games.map((game) => (
-          <GameScoreCard key={game.id} game={game} />
-        ))
+        <div className="space-y-3">
+          {displayRounds.map(round => (
+            <RoundSection
+              key={round}
+              round={round}
+              games={roundMap.get(round)!}
+              defaultOpen={round === activeRound}
+              isActive={round === activeRound}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Round collapsible section ─────────────────────────────────────────────────
+function RoundSection({
+  round, games, defaultOpen, isActive,
+}: {
+  round: number;
+  games: GameWithTeams[];
+  defaultOpen: boolean;
+  isActive: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  const total    = games.length;
+  const finished = games.filter(g => g.status === 'Finished').length;
+  const live     = games.filter(g => g.status === 'Live').length;
+  const date     = games[0]?.game_date
+    ? new Date(games[0].game_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '';
+
+  return (
+    <div className={`overflow-hidden rounded-2xl border ${
+      isActive
+        ? 'border-orange-500/40 bg-orange-500/[0.04]'
+        : 'border-gray-800 bg-gray-900/40'
+    }`}>
+      {/* Round header */}
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-right transition hover:bg-white/[0.03]"
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={`text-xs font-black px-2.5 py-0.5 rounded-full ${
+            isActive
+              ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+              : finished === total
+              ? 'bg-gray-700/60 text-gray-400 border border-gray-700'
+              : 'bg-blue-900/30 text-blue-400 border border-blue-700/30'
+          }`}>
+            {isActive ? '← הבא' : finished === total ? '✓' : `${finished}/${total}`}
+          </span>
+          {live > 0 && (
+            <span className="animate-pulse text-xs font-black px-2 py-0.5 rounded-full bg-red-900/40 text-red-400 border border-red-700/30">
+              🔴 LIVE
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <p className={`text-sm font-black ${isActive ? 'text-orange-400' : 'text-white'}`}>
+              מחזור {round === 0 ? '—' : round}
+            </p>
+            {date && <p className="text-xs text-gray-500">{date}</p>}
+          </div>
+          <span className={`text-gray-500 transition-transform duration-200 text-xs ${open ? 'rotate-180' : ''}`}>▾</span>
+        </div>
+      </button>
+
+      {/* Games list */}
+      {open && (
+        <div className="border-t border-gray-800/60 divide-y divide-gray-800/60">
+          {games.map(game => (
+            <GameScoreCard key={game.id} game={game} />
+          ))}
+        </div>
       )}
     </div>
   );
 }
 
 // ── Per-game card ─────────────────────────────────────────────────────────────
-
 function GameScoreCard({ game }: { game: GameWithTeams }) {
   const [open, setOpen] = useState(false);
   const [homeScore, setHomeScore] = useState(String(game.home_score));
@@ -106,7 +212,6 @@ function GameScoreCard({ game }: { game: GameWithTeams }) {
       setFeedback({ ok: false, msg: 'Scores must be valid numbers.' });
       return;
     }
-
     setFeedback({});
     startTransition(async () => {
       const result = await updateGameScore(game.id, hs, as_, status);
@@ -140,56 +245,45 @@ function GameScoreCard({ game }: { game: GameWithTeams }) {
   }) + (hasTime ? '' : ' · TBD');
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-800 bg-gray-900">
-      {/* Card header — always visible */}
-      <div className="flex items-center justify-between gap-3 p-4">
+    <div className="bg-transparent">
+      {/* Card header */}
+      <div className="flex items-center justify-between gap-3 px-4 py-3">
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold text-white">
+          <p className="truncate font-semibold text-white text-sm">
             {homeTeam} <span className="text-gray-500">vs</span> {awayTeam}
           </p>
-          <p className="mt-0.5 text-xs text-gray-400">{dateStr} · {game.location}</p>
+          <p className="mt-0.5 text-xs text-gray-500">{dateStr} · {game.location}</p>
         </div>
-
         <div className="flex shrink-0 items-center gap-2">
+          {game.status === 'Finished' && (
+            <span className="text-xs text-gray-500 tabular-nums">
+              {game.home_score} – {game.away_score}
+            </span>
+          )}
           <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_COLORS[game.status]}`}>
             {game.status}
           </span>
-          {/* Large touch target for on-court use */}
           <button
-            onClick={() => setOpen((v) => !v)}
-            className="h-11 rounded-xl bg-orange-500 px-4 text-sm font-semibold text-white transition hover:bg-orange-600 active:scale-95"
+            onClick={() => setOpen(v => !v)}
+            className="h-9 rounded-xl bg-orange-500 px-3 text-sm font-semibold text-white transition hover:bg-orange-600 active:scale-95"
           >
-            {open ? 'Cancel' : 'Edit Score'}
+            {open ? 'ביטול' : 'Edit Score'}
           </button>
         </div>
       </div>
 
       {/* Expandable edit form */}
       {open && (
-        <div className="border-t border-gray-800 bg-gray-950 p-4">
-          {/* Score inputs */}
+        <div className="border-t border-gray-800/60 bg-gray-950 p-4">
           <div className="mb-4 grid grid-cols-2 gap-4">
-            {/* Home */}
-            <ScoreInput
-              label={homeTeam}
-              value={homeScore}
-              onChange={setHomeScore}
-            />
-            {/* Away */}
-            <ScoreInput
-              label={awayTeam}
-              value={awayScore}
-              onChange={setAwayScore}
-            />
+            <ScoreInput label={homeTeam} value={homeScore} onChange={setHomeScore} />
+            <ScoreInput label={awayTeam} value={awayScore} onChange={setAwayScore} />
           </div>
 
-          {/* Status selector */}
           <div className="mb-5">
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
-              Status
-            </p>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">Status</p>
             <div className="flex gap-2">
-              {STATUS_OPTIONS.map((s) => (
+              {STATUS_OPTIONS.map(s => (
                 <button
                   key={s}
                   onClick={() => setStatus(s)}
@@ -205,14 +299,13 @@ function GameScoreCard({ game }: { game: GameWithTeams }) {
             </div>
           </div>
 
-          {/* Time & Location */}
           <div className="mb-2 grid grid-cols-2 gap-4">
             <div>
               <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">Time</p>
               <input
                 type="time"
                 value={gameTime}
-                onChange={(e) => setGameTime(e.target.value)}
+                onChange={e => setGameTime(e.target.value)}
                 className="h-11 w-full rounded-xl border border-gray-700 bg-gray-900 px-3 text-sm text-white focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30"
               />
             </div>
@@ -221,16 +314,15 @@ function GameScoreCard({ game }: { game: GameWithTeams }) {
               <input
                 type="text"
                 value={location}
-                onChange={(e) => setLocation(e.target.value)}
+                onChange={e => setLocation(e.target.value)}
                 placeholder="e.g. Arena name"
                 className="h-11 w-full rounded-xl border border-gray-700 bg-gray-900 px-3 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30"
               />
             </div>
           </div>
+
           {detailsFeedback.msg && (
-            <p className={`mb-2 rounded-lg px-4 py-2 text-sm ${
-              detailsFeedback.ok ? 'bg-green-900/40 text-green-400' : 'bg-red-900/40 text-red-400'
-            }`}>
+            <p className={`mb-2 rounded-lg px-4 py-2 text-sm ${detailsFeedback.ok ? 'bg-green-900/40 text-green-400' : 'bg-red-900/40 text-red-400'}`}>
               {detailsFeedback.msg}
             </p>
           )}
@@ -242,16 +334,11 @@ function GameScoreCard({ game }: { game: GameWithTeams }) {
             {isDetailsPending ? 'Applying…' : '📍 Apply Time & Location'}
           </button>
 
-          {/* Feedback */}
           {feedback.msg && (
-            <p className={`mb-3 rounded-lg px-4 py-2.5 text-sm ${
-              feedback.ok ? 'bg-green-900/40 text-green-400' : 'bg-red-900/40 text-red-400'
-            }`}>
+            <p className={`mb-3 rounded-lg px-4 py-2.5 text-sm ${feedback.ok ? 'bg-green-900/40 text-green-400' : 'bg-red-900/40 text-red-400'}`}>
               {feedback.msg}
             </p>
           )}
-
-          {/* Save button */}
           <button
             onClick={handleSave}
             disabled={isPending}
@@ -265,17 +352,8 @@ function GameScoreCard({ game }: { game: GameWithTeams }) {
   );
 }
 
-// ── Score number input ────────────────────────────────────────────────────────
-
-function ScoreInput({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
+// ── Score input ───────────────────────────────────────────────────────────────
+function ScoreInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div>
       <p className="mb-1.5 truncate text-xs font-medium text-gray-400">{label}</p>
@@ -284,7 +362,7 @@ function ScoreInput({
         inputMode="numeric"
         min={0}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={e => onChange(e.target.value)}
         className="h-16 w-full rounded-xl border border-gray-700 bg-gray-900 text-center text-2xl font-bold text-white focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30"
       />
     </div>
