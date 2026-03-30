@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { resetSeason } from '@/app/admin/actions';
 
 type Season = {
   id: string;
@@ -190,6 +191,163 @@ export default function SeasonsTab({ seasons: initial }: { seasons: Season[] }) 
 
       {list.length === 0 && (
         <p className="text-center text-gray-500 py-8">אין עונות עדיין</p>
+      )}
+
+      {/* ── Reset Season ── */}
+      <ResetSeasonPanel />
+    </div>
+  );
+}
+
+/* ── Reset Season Panel ─────────────────────────────────────────────────────── */
+function ResetSeasonPanel() {
+  const [step, setStep]       = useState<0 | 1 | 2>(0);
+  const [confirm, setConfirm] = useState('');
+  const [running, setRunning] = useState(false);
+  const [result, setResult]   = useState<{ ok: boolean; lines: string[] } | null>(null);
+
+  const [opts, setOpts] = useState({
+    resetGames:       true,
+    resetPlayerStats: true,
+    resetStandings:   false,
+    resetPlayoff:     true,
+  });
+
+  const CONFIRM_WORD = 'אני מאשר';
+
+  function toggle(key: keyof typeof opts) {
+    setOpts(prev => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  async function handleReset() {
+    if (confirm.trim() !== CONFIRM_WORD) return;
+    setRunning(true);
+    setResult(null);
+    try {
+      const res = await resetSeason(opts);
+      if (res.error) {
+        setResult({ ok: false, lines: [res.error] });
+      } else {
+        setResult({ ok: true, lines: res.done });
+        setStep(0);
+        setConfirm('');
+      }
+    } catch (e: unknown) {
+      setResult({ ok: false, lines: [e instanceof Error ? e.message : 'שגיאה לא ידועה'] });
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-red-800/50 bg-red-950/20 p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-bold text-red-400 text-base">🔄 איפוס לעונה חדשה</h3>
+          <p className="text-xs text-gray-500 mt-0.5">מאפס ציונים, סטטיסטיקות ופלייאוף — הקבוצות והשחקנים נשמרים</p>
+        </div>
+        {step === 0 && (
+          <button
+            onClick={() => { setStep(1); setResult(null); }}
+            className="rounded-lg border border-red-700/60 bg-red-900/30 px-4 py-2 text-sm font-bold text-red-400 hover:bg-red-900/50 transition"
+          >
+            התחל איפוס
+          </button>
+        )}
+      </div>
+
+      {/* Step 1 — choose what to reset */}
+      {step >= 1 && (
+        <div className="rounded-lg border border-red-800/40 bg-black/30 p-4 space-y-3">
+          <p className="text-sm font-semibold text-red-300">שלב 1 — בחר מה לאפס:</p>
+          {([
+            { key: 'resetGames',       label: '🎮 ניקוי תוצאות משחקים',           desc: 'מוחק ציונים, שעות ומיקומים' },
+            { key: 'resetPlayerStats', label: '👤 איפוס סטטיסטיקת שחקנים',        desc: 'נקודות, 3-נקודות, עבירות → 0' },
+            { key: 'resetStandings',   label: '📊 איפוס טבלת הליגה',              desc: 'ניצחונות, הפסדים, נקודות → 0' },
+            { key: 'resetPlayoff',     label: '🏆 מחיקת נתוני פלייאוף',           desc: 'מוחק סדרות ומשחקי פלייאוף' },
+          ] as { key: keyof typeof opts; label: string; desc: string }[]).map(({ key, label, desc }) => (
+            <label key={key} className="flex items-start gap-3 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={opts[key]}
+                onChange={() => toggle(key)}
+                className="mt-0.5 h-4 w-4 accent-red-500 cursor-pointer"
+              />
+              <span>
+                <span className="text-sm font-medium text-white group-hover:text-red-300 transition">{label}</span>
+                <span className="block text-xs text-gray-500">{desc}</span>
+              </span>
+            </label>
+          ))}
+
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={() => setStep(2)}
+              disabled={!Object.values(opts).some(Boolean)}
+              className="rounded-lg bg-red-700/40 border border-red-600/50 px-4 py-1.5 text-sm font-bold text-red-300 hover:bg-red-700/60 transition disabled:opacity-40"
+            >
+              המשך →
+            </button>
+            <button
+              onClick={() => { setStep(0); setConfirm(''); }}
+              className="rounded-lg px-4 py-1.5 text-sm text-gray-500 hover:text-gray-300 transition"
+            >
+              ביטול
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 2 — type confirmation */}
+      {step === 2 && (
+        <div className="rounded-lg border border-red-700/50 bg-black/40 p-4 space-y-3">
+          <p className="text-sm font-semibold text-red-300">שלב 2 — אישור סופי</p>
+          <p className="text-xs text-gray-400">
+            פעולה זו <span className="text-red-400 font-bold">בלתי הפיכה</span>.
+            הקלד <span className="font-mono bg-gray-800 px-1.5 py-0.5 rounded text-yellow-300">{CONFIRM_WORD}</span> כדי להמשיך:
+          </p>
+          <input
+            value={confirm}
+            onChange={e => setConfirm(e.target.value)}
+            placeholder={CONFIRM_WORD}
+            dir="rtl"
+            className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-red-500 focus:outline-none"
+          />
+
+          {/* Summary of what will be reset */}
+          <ul className="text-xs text-gray-500 space-y-0.5 pr-2">
+            {opts.resetGames       && <li>• תוצאות כל המשחקים יאופסו</li>}
+            {opts.resetPlayerStats && <li>• סטטיסטיקת כל השחקנים תאופס ל-0</li>}
+            {opts.resetStandings   && <li>• טבלת הליגה תאופס ל-0</li>}
+            {opts.resetPlayoff     && <li>• כל נתוני הפלייאוף יימחקו</li>}
+          </ul>
+
+          <div className="flex gap-2">
+            <button
+              onClick={handleReset}
+              disabled={confirm.trim() !== CONFIRM_WORD || running}
+              className="rounded-lg bg-red-600 px-5 py-2 text-sm font-black text-white hover:bg-red-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {running ? '⏳ מאפס...' : '🔄 אפס עונה'}
+            </button>
+            <button
+              onClick={() => { setStep(1); setConfirm(''); }}
+              className="rounded-lg px-4 py-1.5 text-sm text-gray-500 hover:text-gray-300 transition"
+            >
+              ← חזור
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Result */}
+      {result && (
+        <div className={`rounded-lg px-4 py-3 text-sm space-y-1 ${result.ok ? 'bg-green-900/30 border border-green-700/40' : 'bg-red-900/30 border border-red-700/40'}`}>
+          {result.ok
+            ? result.lines.map((l, i) => <p key={i} className="text-green-300">✅ {l}</p>)
+            : result.lines.map((l, i) => <p key={i} className="text-red-300">❌ {l}</p>)
+          }
+        </div>
       )}
     </div>
   );

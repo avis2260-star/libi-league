@@ -162,6 +162,78 @@ export async function resetAllGameDetails(): Promise<ActionResult> {
   return {};
 }
 
+// ── Reset Season ──────────────────────────────────────────────────────────────
+
+export type ResetSeasonOptions = {
+  resetGames: boolean;
+  resetPlayerStats: boolean;
+  resetStandings: boolean;
+  resetPlayoff: boolean;
+};
+
+export type ResetSeasonResult = {
+  error?: string;
+  done: string[];
+};
+
+export async function resetSeason(opts: ResetSeasonOptions): Promise<ResetSeasonResult> {
+  const done: string[] = [];
+
+  if (opts.resetGames) {
+    const { error } = await supabaseAdmin
+      .from('games')
+      .update({
+        home_score: null,
+        away_score: null,
+        played: false,
+        game_time: '00:00:00',
+        location: 'TBD',
+      })
+      .neq('id', '00000000-0000-0000-0000-000000000000');
+    if (error) return { error: `שגיאה באיפוס משחקים: ${error.message}`, done };
+    done.push('משחקים אופסו');
+  }
+
+  if (opts.resetPlayerStats) {
+    const { error } = await supabaseAdmin
+      .from('players')
+      .update({ points: 0, three_pointers: 0, fouls: 0 })
+      .neq('id', '00000000-0000-0000-0000-000000000000');
+    if (error) return { error: `שגיאה באיפוס שחקנים: ${error.message}`, done };
+    done.push('סטטיסטיקת שחקנים אופסה');
+  }
+
+  if (opts.resetStandings) {
+    const { error } = await supabaseAdmin
+      .from('standings')
+      .update({ wins: 0, losses: 0, points_for: 0, points_against: 0, draws: 0 })
+      .neq('id', '00000000-0000-0000-0000-000000000000');
+    if (error) return { error: `שגיאה באיפוס טבלה: ${error.message}`, done };
+    done.push('טבלת הליגה אופסה');
+  }
+
+  if (opts.resetPlayoff) {
+    const { error: e1 } = await supabaseAdmin
+      .from('playoff_games')
+      .delete()
+      .neq('id', 0);
+    if (e1) return { error: `שגיאה במחיקת משחקי פלייאוף: ${e1.message}`, done };
+
+    const { error: e2 } = await supabaseAdmin
+      .from('playoff_series')
+      .delete()
+      .neq('series_number', 0);
+    if (e2) return { error: `שגיאה במחיקת סדרות פלייאוף: ${e2.message}`, done };
+    done.push('פלייאוף נמחק');
+  }
+
+  revalidatePath('/admin');
+  revalidatePath('/');
+  revalidatePath('/games');
+  revalidatePath('/playoff');
+  return { done };
+}
+
 // ── Video URL ─────────────────────────────────────────────────────────────────
 
 export async function updateVideoUrl(
