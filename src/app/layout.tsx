@@ -9,6 +9,7 @@ import BottomNav from '@/components/BottomNav';
 import CollapsibleHeader from '@/components/CollapsibleHeader';
 import ThemeProvider from '@/components/ThemeProvider';
 import ThemeToggle from '@/components/ThemeToggle';
+import CourtBackground from '@/components/CourtBackground';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const heebo = Heebo({ subsets: ['hebrew', 'latin'], weight: ['300','400','500','600','700','800','900'] });
@@ -44,7 +45,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <link rel="apple-touch-icon" href="/logo.png" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
-      <body className={`${heebo.className} min-h-screen bg-[#0b1520] text-[#e8edf5]`}>
+      <body className={`${heebo.className} min-h-screen bg-[#060810] text-[#e8edf5]`}>
+        <CourtBackground />
         <ThemeProvider>
 
           {/* ── Top navigation ───────────────────────────────────────────── */}

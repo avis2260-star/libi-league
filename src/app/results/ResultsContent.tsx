@@ -38,13 +38,13 @@ function GameCard({ game, logos }: { game: GameResult; logos: Record<string, str
     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 transition hover:-translate-y-0.5 hover:border-orange-500/30">
       {/* Home */}
       <Link href={`/team/${encodeURIComponent(game.home)}`} className="flex items-center justify-end gap-2 min-w-0 group">
+        <TeamLogo name={game.home} logos={logos} />
         <div className="text-right min-w-0">
           <p className={`text-sm font-semibold leading-tight truncate group-hover:text-orange-400 transition-colors ${homeWins ? 'text-white' : 'text-[#5a7a9a]'}`}>
             {game.home}
           </p>
           {techniOnHome && <p className="mt-0.5 text-[9px] font-semibold text-red-400">🔴 הפסד טכני</p>}
         </div>
-        <TeamLogo name={game.home} logos={logos} />
       </Link>
 
       {/* Score */}
@@ -59,13 +59,13 @@ function GameCard({ game, logos }: { game: GameResult; logos: Record<string, str
 
       {/* Away */}
       <Link href={`/team/${encodeURIComponent(game.away)}`} className="flex items-center justify-start gap-2 min-w-0 group">
-        <TeamLogo name={game.away} logos={logos} />
         <div className="text-left min-w-0">
           <p className={`text-sm font-semibold leading-tight truncate group-hover:text-orange-400 transition-colors ${!homeWins ? 'text-white' : 'text-[#5a7a9a]'}`}>
             {game.away}
           </p>
           {techniOnAway && <p className="mt-0.5 text-[9px] font-semibold text-red-400">🔴 הפסד טכני</p>}
         </div>
+        <TeamLogo name={game.away} logos={logos} />
       </Link>
     </div>
   );

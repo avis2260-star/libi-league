@@ -174,7 +174,7 @@ function RoundSection({
             <p className={`text-sm font-black ${isActive ? 'text-orange-400' : 'text-white'}`}>
               מחזור {round === 0 ? '—' : round}
             </p>
-            {date && <p className="text-xs text-gray-500">{date}</p>}
+            {date && <p className="text-xs font-bold text-gray-500">{date}</p>}
           </div>
           <span className={`text-gray-500 transition-transform duration-200 text-xs ${open ? 'rotate-180' : ''}`}>▾</span>
         </div>

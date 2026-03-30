@@ -76,10 +76,10 @@ export default async function TakanonPage() {
           )}
         </div>
       ) : (
-        <div className="rounded-xl border border-white/10 bg-gray-800/40 p-16 text-center">
+        <div className="rounded-xl border border-white/[0.07] bg-white/5 p-16 text-center">
           <div className="text-5xl mb-4">📋</div>
-          <p className="text-gray-400 text-lg">התקנון טרם הועלה</p>
-          <p className="text-gray-600 text-sm mt-1">חזור מאוחר יותר</p>
+          <p className="text-[#8aaac8] text-lg">התקנון טרם הועלה</p>
+          <p className="text-[#5a7a9a] text-sm mt-1">חזור מאוחר יותר</p>
         </div>
       )}
     </div>
