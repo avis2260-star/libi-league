@@ -114,7 +114,7 @@ export default function GamesContent({
       {/* Empty state */}
       {visibleRounds.length === 0 && (
         <p className="rounded-xl border border-white/[0.07] py-12 text-center text-sm text-[#5a7a9a]">
-          {filter === 'live' ? 'אין משחקים חיים כרגע' : 'אין מחזורים להצגה'}
+          {'אין מחזורים להצגה'}
         </p>
       )}
 
