@@ -157,7 +157,10 @@ export default async function TeamPlayersPage({ params }: { params: Promise<{ id
             <p className="text-sm text-[#5a7a9a]">פרטי קשר: <span className="text-[#8aaac8]">{team.contact_info}</span></p>
           )}
         </div>
-        <span className="text-[#3a5a7a] group-hover:text-orange-400 transition-colors text-lg">←</span>
+        <div className="flex flex-col items-end gap-0.5 shrink-0">
+          <p className="text-[9px] font-bold text-[#3a5a7a] group-hover:text-orange-400 transition-colors whitespace-nowrap">למעבר לסטטיסטיקה קבוצתית</p>
+          <span className="text-[#3a5a7a] group-hover:text-orange-400 transition-colors text-lg">←</span>
+        </div>
       </Link>
 
       {/* Player cards grid */}

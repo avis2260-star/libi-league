@@ -104,7 +104,7 @@ export default function ScoreboardStrip({
             {/* Home team */}
             <div className="flex items-center gap-2 mb-1">
               <TeamLogo logo={g.homeLogo} name={g.home} />
-              <p className="truncate text-xs font-black text-[#e8edf5] group-hover:text-orange-400 transition-colors leading-snug flex-1">
+              <p className="truncate text-xs font-black text-[#e8edf5] group-hover:text-white transition-colors leading-snug flex-1">
                 {g.home}
               </p>
             </div>
@@ -119,7 +119,7 @@ export default function ScoreboardStrip({
             {/* Away team */}
             <div className="flex items-center gap-2">
               <TeamLogo logo={g.awayLogo} name={g.away} />
-              <p className="truncate text-xs font-semibold text-[#8aaac8] leading-snug flex-1">
+              <p className="truncate text-xs font-black text-[#e8edf5] group-hover:text-white transition-colors leading-snug flex-1">
                 {g.away}
               </p>
             </div>

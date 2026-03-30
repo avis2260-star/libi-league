@@ -119,44 +119,44 @@ export default async function GamePreviewPage({
 
         <div className="flex items-center justify-between gap-4 px-6 py-10 sm:py-12">
           {/* Home team */}
-          <div className="flex flex-col items-center gap-3 flex-1">
+          <Link href={`/team/${encodeURIComponent(game.homeTeam)}`} className="group/team flex flex-col items-center gap-3 flex-1 hover:opacity-90 transition-opacity">
             {homeStats?.rank && (
               <span className="text-xs font-black" style={{ color: rankColor(homeStats.rank) }}>
                 #{homeStats.rank}
               </span>
             )}
-            <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full border-2 border-white/10 bg-white/[0.05] overflow-hidden flex items-center justify-center shadow-lg">
+            <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full border-2 border-white/10 bg-white/[0.05] overflow-hidden flex items-center justify-center shadow-lg group-hover/team:border-orange-500/40 transition-colors">
               {homeLogo
                 ? <img src={homeLogo} alt={game.homeTeam} className="h-full w-full object-cover" />
                 : <span className="text-3xl font-black text-[#4a6a8a]">{[...game.homeTeam].find(c => c.trim()) ?? '?'}</span>
               }
             </div>
             <div className="text-center">
-              <p className="text-base font-black text-white leading-tight">{game.homeTeam}</p>
+              <p className="text-base font-black text-white leading-tight group-hover/team:text-orange-400 transition-colors">{game.homeTeam}</p>
               <p className="mt-0.5 text-xs text-[#5a7a9a]">קבוצת בית</p>
             </div>
-          </div>
+          </Link>
 
           <span className="text-2xl font-black text-[#2a4a6a] shrink-0">VS</span>
 
           {/* Away team */}
-          <div className="flex flex-col items-center gap-3 flex-1">
+          <Link href={`/team/${encodeURIComponent(game.awayTeam)}`} className="group/team flex flex-col items-center gap-3 flex-1 hover:opacity-90 transition-opacity">
             {awayStats?.rank && (
               <span className="text-xs font-black" style={{ color: rankColor(awayStats.rank) }}>
                 #{awayStats.rank}
               </span>
             )}
-            <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full border-2 border-white/10 bg-white/[0.05] overflow-hidden flex items-center justify-center shadow-lg">
+            <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full border-2 border-white/10 bg-white/[0.05] overflow-hidden flex items-center justify-center shadow-lg group-hover/team:border-orange-500/40 transition-colors">
               {awayLogo
                 ? <img src={awayLogo} alt={game.awayTeam} className="h-full w-full object-cover" />
                 : <span className="text-3xl font-black text-[#4a6a8a]">{[...game.awayTeam].find(c => c.trim()) ?? '?'}</span>
               }
             </div>
             <div className="text-center">
-              <p className="text-base font-black text-white leading-tight">{game.awayTeam}</p>
+              <p className="text-base font-black text-white leading-tight group-hover/team:text-orange-400 transition-colors">{game.awayTeam}</p>
               <p className="mt-0.5 text-xs text-[#5a7a9a]">קבוצת חוץ</p>
             </div>
-          </div>
+          </Link>
         </div>
       </div>
 

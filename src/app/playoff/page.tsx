@@ -1,7 +1,10 @@
 export const dynamic = 'force-dynamic';
 
+import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { NORTH_TABLE, SOUTH_TABLE } from '@/lib/league-data';
+import ChampionshipPlate from '@/components/ChampionshipPlate';
+import ChampionReveal from '@/components/ChampionReveal';
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
 interface Series {
@@ -140,10 +143,11 @@ function GameDots({ series, allGames }: { series: Series; allGames: Game[] }) {
 
 /* ── NBA Scoreboard Card ────────────────────────────────────────────────── */
 function ScoreboardCard({
-  series, allGames, teamLogos, roundLabel, isFinal,
+  series, allGames, teamLogos, roundLabel, isFinal, champion,
 }: {
   series: Series | null; allGames: Game[];
   teamLogos: Record<string, string>; roundLabel: string; isFinal?: boolean;
+  champion?: string | null;
 }) {
   const hasTeams = !!(series?.team_a?.trim()) && !!(series?.team_b?.trim());
 
@@ -157,7 +161,12 @@ function ScoreboardCard({
         <div className={`flex items-center justify-between px-4 py-2.5 border-b
           ${isFinal ? 'border-yellow-400/10' : 'border-white/[0.05]'}`}>
           <div className="flex items-center gap-2">
-            {isFinal && <span className="text-yellow-400 text-sm">🏆</span>}
+            {isFinal && (
+            <span className="inline-flex h-5 w-5 shrink-0 rounded-full border border-yellow-400/60 items-center justify-center"
+              style={{ background: 'radial-gradient(circle at 38% 35%, #e8e8e8, #a0a0a0)', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.4)' }}>
+              <span className="text-[7px]">🏀</span>
+            </span>
+          )}
             <span className={`text-[11px] font-black tracking-widest uppercase
               ${isFinal ? 'text-yellow-400' : 'text-[#4a6a8a]'}`}>{roundLabel}</span>
             {series && <span className="text-[10px] text-[#2a4a6a] font-semibold">· סדרה {series.series_number}</span>}
@@ -166,13 +175,15 @@ function ScoreboardCard({
             טרם נקבע
           </span>
         </div>
+        {isFinal && (
+          <div className="py-6 flex justify-center border-b border-yellow-400/10">
+            <ChampionReveal champion={champion ?? null} season="2025–2026" />
+          </div>
+        )}
         <div className="px-4 sm:px-6 py-5 flex items-center gap-2 sm:gap-4">
           <div className="flex-1 flex flex-col items-center gap-2">
             <div className="h-11 w-11 rounded-full bg-[#1a2e45] border-2 border-white/[0.07] flex items-center justify-center text-[#2a4a6a] text-lg font-black">?</div>
-            <div className="text-center">
-              <p className="text-xs font-bold text-[#2a4a6a] italic">ממתין לנצח</p>
-              {lA && <p className="text-[10px] text-[#1e3a5f] mt-0.5">{lA.full}</p>}
-            </div>
+            {lA && <p className="text-[10px] text-[#1e3a5f] text-center">{lA.full}</p>}
           </div>
           <div className="flex flex-col items-center gap-1 shrink-0">
             <div className="flex items-center gap-3">
@@ -180,14 +191,11 @@ function ScoreboardCard({
               <span className="text-lg text-[#1a2e45] font-black leading-none">:</span>
               <span className="text-4xl sm:text-5xl font-black text-[#1a2e45] tabular-nums leading-none">–</span>
             </div>
-            <p className="text-[9px] text-[#1e3a5f] tracking-widest uppercase font-bold mt-0.5">הטוב מ-3</p>
+            {!isFinal && <p className="text-[9px] text-[#1e3a5f] tracking-widest uppercase font-bold mt-0.5">הטוב מ-3</p>}
           </div>
           <div className="flex-1 flex flex-col items-center gap-2">
             <div className="h-11 w-11 rounded-full bg-[#1a2e45] border-2 border-white/[0.07] flex items-center justify-center text-[#2a4a6a] text-lg font-black">?</div>
-            <div className="text-center">
-              <p className="text-xs font-bold text-[#2a4a6a] italic">ממתין לנצח</p>
-              {lB && <p className="text-[10px] text-[#1e3a5f] mt-0.5">{lB.full}</p>}
-            </div>
+            {lB && <p className="text-[10px] text-[#1e3a5f] text-center">{lB.full}</p>}
           </div>
         </div>
       </div>
@@ -211,13 +219,25 @@ function ScoreboardCard({
       <div className={`flex items-center justify-between px-4 py-2.5 border-b
         ${isFinal ? 'border-orange-500/15 bg-orange-500/[0.05]' : 'border-white/[0.05]'}`}>
         <div className="flex items-center gap-2">
-          {isFinal && <span className="text-yellow-400 text-sm">🏆</span>}
+          {isFinal && (
+            <span className="inline-flex h-5 w-5 shrink-0 rounded-full border border-yellow-400/60 items-center justify-center"
+              style={{ background: 'radial-gradient(circle at 38% 35%, #e8e8e8, #a0a0a0)', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.4)' }}>
+              <span className="text-[7px]">🏀</span>
+            </span>
+          )}
           <span className={`text-[11px] font-black tracking-widest uppercase
             ${isFinal ? 'text-yellow-400' : 'text-[#4a6a8a]'}`}>{roundLabel}</span>
           <span className="text-[10px] text-[#2a4a6a] font-semibold">· סדרה {series.series_number}</span>
         </div>
         <StatusBadge winsA={winsA} winsB={winsB} winner={winner} teamA={series.team_a} teamB={series.team_b} />
       </div>
+
+      {/* Championship Plate for final */}
+      {isFinal && (
+        <div className="py-6 flex justify-center border-b border-orange-500/10">
+          <ChampionReveal champion={champion ?? null} season="2025–2026" />
+        </div>
+      )}
 
       {/* Scoreboard */}
       <div className="px-4 sm:px-6 py-5 flex items-center gap-2 sm:gap-4">
@@ -245,9 +265,11 @@ function ScoreboardCard({
               {started ? winsB : '–'}
             </span>
           </div>
-          <p className="text-[9px] text-[#2a4a6a] tracking-widest uppercase font-bold mt-0.5">
-            {started ? 'ניצחונות' : 'הטוב מ-3'}
-          </p>
+          {!isFinal && (
+            <p className="text-[9px] text-[#2a4a6a] tracking-widest uppercase font-bold mt-0.5">
+              {started ? 'ניצחונות' : 'הטוב מ-3'}
+            </p>
+          )}
           <GameDots series={series} allGames={allGames} />
         </div>
 
@@ -380,7 +402,7 @@ export default async function PlayoffPage() {
   const rounds = [
     { label: 'רבע גמר', series: [s1, s2, s3, s4], cols: 'sm:grid-cols-2', isFinal: false },
     { label: 'חצי גמר', series: [s5, s6],          cols: 'sm:grid-cols-2', isFinal: false },
-    { label: 'גמר',      series: [s7],              cols: 'sm:grid-cols-1 max-w-xl mx-auto', isFinal: true },
+    { label: 'גמר',      series: [s7],              cols: 'sm:grid-cols-1 max-w-3xl mx-auto', isFinal: true },
   ];
 
   return (
@@ -394,7 +416,7 @@ export default async function PlayoffPage() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={logoUrl} alt="ליגת ליבי" className="h-12 w-12 object-contain rounded-full" />
         </div>
-        <p className="text-sm text-[#5a7a9a]">2025–2026 · הטוב מ-3 משחקים</p>
+        <p className="text-sm text-[#5a7a9a]">2025–2026 · רבע גמר וחצי גמר: הטוב מ-3 · גמר: משחק אחד</p>
       </div>
 
       <div className="space-y-10">
@@ -406,21 +428,29 @@ export default async function PlayoffPage() {
                 ${round.isFinal
                   ? 'border-yellow-400/30 bg-yellow-400/10 text-yellow-400'
                   : 'border-white/[0.08] bg-white/[0.03] text-[#7aaac8]'}`}>
-                {round.isFinal ? '🏆 ' : ''}{round.label}
+                {round.isFinal && (
+                  <span className="inline-flex h-5 w-5 shrink-0 rounded-full border border-yellow-400/60 items-center justify-center mr-1"
+                    style={{ background: 'radial-gradient(circle at 38% 35%, #e8e8e8, #a0a0a0)', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.4)' }}>
+                    <span className="text-[7px] font-black" style={{ color: '#3a2a00' }}>🏀</span>
+                  </span>
+                )}
+                {round.label}
               </div>
               <div className="h-px flex-1 bg-white/[0.04]" />
             </div>
 
             <div className={`grid grid-cols-1 gap-4 ${round.cols}`}>
               {round.series.map((sr, i) => (
-                <ScoreboardCard
-                  key={i}
-                  series={sr}
-                  allGames={allGames}
-                  teamLogos={teamLogos}
-                  roundLabel={round.label}
-                  isFinal={round.isFinal}
-                />
+                <Link key={i} href={sr ? `/playoff/series/${sr.series_number}` : '#'} className="block transition hover:scale-[1.01]">
+                  <ScoreboardCard
+                    series={sr}
+                    allGames={allGames}
+                    teamLogos={teamLogos}
+                    roundLabel={round.label}
+                    isFinal={round.isFinal}
+                    champion={round.isFinal ? champion : undefined}
+                  />
+                </Link>
               ))}
             </div>
           </section>
@@ -430,8 +460,8 @@ export default async function PlayoffPage() {
         {champion && (
           <div className="flex flex-col items-center gap-4 rounded-2xl border-2 border-yellow-400/40
             bg-gradient-to-b from-yellow-400/10 to-transparent p-10
-            shadow-[0_0_80px_rgba(250,204,21,0.15)] max-w-sm mx-auto">
-            <div className="text-6xl">🏆</div>
+            shadow-[0_0_80px_rgba(250,204,21,0.15)] max-w-lg mx-auto">
+            <ChampionshipPlate year="2025–2026" />
             <TeamLogo name={champion} logos={teamLogos} size="lg" />
             <p className="text-[11px] font-black uppercase tracking-[3px] text-[#a08020]">
               אלוף הפלייאוף 2025–2026
@@ -440,11 +470,6 @@ export default async function PlayoffPage() {
           </div>
         )}
 
-        {/* ── Home advantage note ──────────────────────────────────────────── */}
-        <div className="rounded-xl border border-[#1e3a5f] bg-[#0a1628]/60 px-4 py-3 text-xs text-[#5a7a9a] text-right">
-          <span className="font-bold text-[#8aaac8]">כלל הבית:</span>{' '}
-          הקבוצה המדורגת גבוה יותר מארחת את משחק 1 ומשחק 3. הקבוצה המדורגת נמוך יותר מארחת את משחק 2.
-        </div>
       </div>
     </>
   );
