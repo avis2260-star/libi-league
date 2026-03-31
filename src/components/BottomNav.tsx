@@ -68,10 +68,11 @@ const NAV = [
 ];
 
 const MORE_LINKS = [
-  { href: '/results',  label: 'תוצאות',  emoji: '📊' },
-  { href: '/playoff',  label: 'פלייאוף', emoji: '🏆' },
-  { href: '/takanon',  label: 'תקנון',   emoji: '📋' },
-  { href: '/about',    label: 'אודות',   emoji: 'ℹ️' },
+  { href: '/submit',   label: 'הגשת תוצאות', emoji: '📥' },
+  { href: '/results',  label: 'תוצאות',      emoji: '📊' },
+  { href: '/playoff',  label: 'פלייאוף',     emoji: '🏆' },
+  { href: '/takanon',  label: 'תקנון',       emoji: '📋' },
+  { href: '/about',    label: 'אודות',       emoji: 'ℹ️' },
 ];
 
 export default function BottomNav() {
