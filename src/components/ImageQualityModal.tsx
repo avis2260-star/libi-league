@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, RefreshCw, ChevronLeft } from 'lucide-react';
+// icons inlined — no external dependency needed
 
 interface Props {
   isOpen: boolean;
@@ -24,7 +24,9 @@ export default function ImageQualityModal({
         {/* Header */}
         <div className="bg-red-500/10 p-5 flex items-center gap-4 border-b border-red-500/20">
           <div className="bg-red-500/20 p-3 rounded-xl shrink-0">
-            <AlertTriangle className="text-red-400" size={24} />
+            <svg className="text-red-400 w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
           </div>
           <div>
             <h3 className="text-lg font-bold text-white">איכות תמונה בעייתית</h3>
@@ -68,13 +70,13 @@ export default function ImageQualityModal({
             onClick={onReupload}
             className="flex-1 flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-400 text-white font-bold py-3 px-5 rounded-xl transition-all"
           >
-            <RefreshCw size={16} /> צלם מחדש (מומלץ)
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> צלם מחדש (מומלץ)
           </button>
           <button
             onClick={onProceed}
             className="flex-1 flex items-center justify-center gap-2 border border-white/10 text-[#8aaac8] font-medium py-3 px-5 rounded-xl hover:bg-white/5 transition-all text-sm"
           >
-            המשך בכל זאת <ChevronLeft size={16} />
+            המשך בכל זאת <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
         </div>
       </div>
