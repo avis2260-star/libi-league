@@ -24,14 +24,20 @@ export default async function SubmitPage() {
     id: string;
     game_date: string;
     game_time: string | null;
-    home_team: { name: string } | null;
-    away_team: { name: string } | null;
+    home_team: { name: string }[] | { name: string } | null;
+    away_team: { name: string }[] | { name: string } | null;
   };
 
-  const formattedGames = ((games ?? []) as RawGame[]).map((g) => ({
+  function teamName(t: { name: string }[] | { name: string } | null): string {
+    if (!t) return '';
+    if (Array.isArray(t)) return t[0]?.name ?? '';
+    return t.name ?? '';
+  }
+
+  const formattedGames = ((games ?? []) as unknown as RawGame[]).map((g) => ({
     id: g.id,
-    home_name: g.home_team?.name ?? 'בית',
-    away_name: g.away_team?.name ?? 'חוץ',
+    home_name: teamName(g.home_team) || 'בית',
+    away_name: teamName(g.away_team) || 'חוץ',
     game_date: g.game_date,
     game_time: g.game_time,
     is_locked: lockedIds.has(g.id),
