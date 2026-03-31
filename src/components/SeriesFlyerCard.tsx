@@ -38,12 +38,8 @@ export default function SeriesFlyerCard({
     >
       {/* Animated SVG court lines */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 400 600" preserveAspectRatio="xMidYMid slice">
-        <circle cx="200" cy="300" r="120" fill="none" stroke="white" strokeWidth="2"
-          strokeDasharray="300" style={{ animation: 'courtDraw 1.2s ease 0.2s both' }} />
         <line x1="0" y1="300" x2="400" y2="300" stroke="white" strokeWidth="2"
           strokeDasharray="300" style={{ animation: 'courtDraw 1s ease 0.4s both' }} />
-        <circle cx="200" cy="300" r="24" fill="none" stroke="white" strokeWidth="2"
-          strokeDasharray="200" style={{ animation: 'courtDraw 0.8s ease 0.6s both' }} />
         <path d="M80 500 Q200 400 320 500" fill="none" stroke="white" strokeWidth="2"
           strokeDasharray="300" style={{ animation: 'courtDraw 1s ease 0.5s both' }} />
         <path d="M80 100 Q200 200 320 100" fill="none" stroke="white" strokeWidth="2"
@@ -146,13 +142,7 @@ export default function SeriesFlyerCard({
           <div
             key={g.gameNumber}
             className="rounded-2xl flex flex-col items-center gap-2 py-4 px-2 animate-fade-in-up"
-            style={{
-              background: g.played
-                ? 'linear-gradient(160deg, rgba(255,140,0,0.1), rgba(0,0,0,0.3))'
-                : 'rgba(255,255,255,0.02)',
-              border: `1px solid ${g.played ? 'rgba(255,140,0,0.25)' : 'rgba(255,255,255,0.05)'}`,
-              animationDelay: `${0.3 + idx * 0.1}s`,
-            }}
+            style={{ animationDelay: `${0.3 + idx * 0.1}s` }}
           >
             <p className="text-[9px] font-black uppercase tracking-widest text-[#3a5a7a]">
               משחק {g.gameNumber}

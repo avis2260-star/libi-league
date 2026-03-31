@@ -13,6 +13,8 @@ type Game = {
   is_locked: boolean;
 };
 
+type Team = { id: string; name: string };
+
 type ExtractedPlayer = {
   name: string;
   jersey: number | null;
@@ -30,10 +32,18 @@ type ExtractedData = {
 
 type Step = 'select' | 'upload' | 'confirm' | 'success';
 
-export default function SubmitFlow({ games }: { games: Game[] }) {
+export default function SubmitFlow({ games, teams }: { games: Game[]; teams: Team[] }) {
   const [step, setStep] = useState<Step>('select');
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [submitterName, setSubmitterName] = useState('');
+  const [selectedTeamId, setSelectedTeamId] = useState('');
+
+  const selectedTeamName = teams.find(t => t.id === selectedTeamId)?.name ?? '';
+
+  // When a team is selected, filter games to only those involving that team
+  const visibleGames = selectedTeamId
+    ? games.filter(g => g.home_name === selectedTeamName || g.away_name === selectedTeamName)
+    : games;
   const [preview, setPreview] = useState<string | null>(null);
   const [base64, setBase64] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<string>('image/jpeg');
@@ -49,7 +59,7 @@ export default function SubmitFlow({ games }: { games: Game[] }) {
 
   // ── Step 1: Select game ────────────────────────────────────────────────────
   function handleGameSelect() {
-    if (!selectedGame || !submitterName.trim()) return;
+    if (!selectedGame || !submitterName.trim() || !selectedTeamId) return;
     setStep('upload');
   }
 
@@ -157,7 +167,7 @@ export default function SubmitFlow({ games }: { games: Game[] }) {
 
     const result = await submitGameResult({
       gameId: selectedGame.id,
-      submittedBy: submitterName.trim(),
+      submittedBy: selectedTeamName ? `${submitterName.trim()} · ${selectedTeamName}` : submitterName.trim(),
       homeScore: editedData.home_score,
       awayScore: editedData.away_score,
       extractedStats: editedData,
@@ -182,16 +192,39 @@ export default function SubmitFlow({ games }: { games: Game[] }) {
         {/* ── Step 1: Select game + name ───────────────────────────────────── */}
         {step === 'select' && (
           <div className="space-y-5">
+
+            {/* Team selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-[#8aaac8]">הקבוצה שלך *</label>
+              <select
+                className="w-full rounded-xl border border-white/10 px-4 py-3 text-white text-sm focus:outline-none focus:border-orange-500/50"
+                style={{ backgroundColor: '#0f1e30' }}
+                value={selectedTeamId}
+                onChange={e => { setSelectedTeamId(e.target.value); setSelectedGame(null); }}
+              >
+                <option value="" style={{ backgroundColor: '#0f1e30', color: 'white' }}>-- בחר קבוצה --</option>
+                {teams.map(t => (
+                  <option key={t.id} value={t.id} style={{ backgroundColor: '#0f1e30', color: 'white' }}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Game selector — filtered by team once selected */}
             <div className="space-y-2">
               <label className="text-sm font-bold text-[#8aaac8]">בחר משחק</label>
               <select
                 className="w-full rounded-xl border border-white/10 px-4 py-3 text-white text-sm focus:outline-none focus:border-orange-500/50"
                 style={{ backgroundColor: '#0f1e30' }}
                 value={selectedGame?.id ?? ''}
-                onChange={e => setSelectedGame(games.find(g => g.id === e.target.value) ?? null)}
+                onChange={e => setSelectedGame(visibleGames.find(g => g.id === e.target.value) ?? null)}
+                disabled={!selectedTeamId}
               >
-                <option value="" style={{ backgroundColor: '#0f1e30', color: 'white' }}>-- בחר משחק --</option>
-                {games.map(g => (
+                <option value="" style={{ backgroundColor: '#0f1e30', color: 'white' }}>
+                  {selectedTeamId ? '-- בחר משחק --' : '-- בחר קבוצה תחילה --'}
+                </option>
+                {visibleGames.map(g => (
                   <option
                     key={g.id}
                     value={g.id}
@@ -202,13 +235,16 @@ export default function SubmitFlow({ games }: { games: Game[] }) {
                   </option>
                 ))}
               </select>
+              {selectedTeamId && visibleGames.length === 0 && (
+                <p className="text-xs text-[#5a7a9a]">לא נמצאו משחקים שהסתיימו לקבוצה זו</p>
+              )}
               {selectedGame?.is_locked && (
                 <p className="text-xs text-red-400">משחק זה כבר הוגש ונמצא בבדיקה. פנה למנהל הליגה לביטול.</p>
               )}
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-bold text-[#8aaac8]">שמך המלא</label>
+              <label className="text-sm font-bold text-[#8aaac8]">שמך המלא *</label>
               <input
                 type="text"
                 placeholder="ישראל ישראלי"
@@ -220,7 +256,7 @@ export default function SubmitFlow({ games }: { games: Game[] }) {
 
             <button
               onClick={handleGameSelect}
-              disabled={!selectedGame || !submitterName.trim() || selectedGame.is_locked}
+              disabled={!selectedGame || !submitterName.trim() || !selectedTeamId || selectedGame.is_locked}
               className="w-full bg-orange-500 hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all"
             >
               המשך להעלאת טופס ←

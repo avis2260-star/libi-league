@@ -4,12 +4,13 @@ import SubmitFlow from './SubmitFlow';
 export const dynamic = 'force-dynamic';
 
 export default async function SubmitPage() {
-  // Fetch all games with team names
+  // Only fetch finished/played games — submissions are for games that already happened
   const { data: games } = await supabaseAdmin
     .from('games')
     .select(
-      'id, game_date, game_time, home_team:teams!games_home_team_id_fkey(name), away_team:teams!games_away_team_id_fkey(name)',
+      'id, game_date, game_time, status, home_team:teams!games_home_team_id_fkey(name), away_team:teams!games_away_team_id_fkey(name)',
     )
+    .eq('status', 'Finished')
     .order('game_date', { ascending: false });
 
   // Fetch locked game IDs — games that already have an active submission
@@ -19,6 +20,12 @@ export default async function SubmitPage() {
     .in('status', ['pending', 'needs_review', 'approved']);
 
   const lockedIds = new Set((submissions ?? []).map((s: { game_id: string }) => s.game_id));
+
+  // Fetch all teams for the team selector
+  const { data: teamsData } = await supabaseAdmin
+    .from('teams')
+    .select('id, name')
+    .order('name');
 
   type RawGame = {
     id: string;
@@ -43,6 +50,8 @@ export default async function SubmitPage() {
     is_locked: lockedIds.has(g.id),
   }));
 
+  const teams = (teamsData ?? []) as { id: string; name: string }[];
+
   return (
     <main className="container mx-auto px-4 py-8 max-w-2xl" dir="rtl">
       <div className="mb-8 space-y-1">
@@ -52,7 +61,7 @@ export default async function SubmitPage() {
         </h1>
         <p className="text-sm text-[#5a7a9a]">צלם את דף הסטטיסטיקות של המשחק ושלח לאישור</p>
       </div>
-      <SubmitFlow games={formattedGames} />
+      <SubmitFlow games={formattedGames} teams={teams} />
     </main>
   );
 }

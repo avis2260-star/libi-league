@@ -241,6 +241,36 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
     }
   }
 
+  // ── Bulk import state ──────────────────────────────────────────────────────
+  const [importTeamId, setImportTeamId]   = useState('');
+  const [importFile,   setImportFile]     = useState<File | null>(null);
+  const [importing,    setImporting]      = useState(false);
+  const [importMsg,    setImportMsg]      = useState<{ ok: boolean; text: string } | null>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
+
+  async function handleImport() {
+    if (!importTeamId || !importFile) return;
+    setImporting(true);
+    setImportMsg(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', importFile);
+      fd.append('team_id', importTeamId);
+      const res = await fetch('/api/admin/players/import', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'שגיאה');
+      setList((prev) => [...prev, ...(data.players ?? [])]);
+      setOpenTeams((prev) => new Set(prev).add(importTeamId));
+      setImportMsg({ ok: true, text: `✅ ${data.inserted} שחקנים יובאו בהצלחה` });
+      setImportFile(null);
+      if (importFileRef.current) importFileRef.current.value = '';
+    } catch (err: unknown) {
+      setImportMsg({ ok: false, text: err instanceof Error ? err.message : 'שגיאה' });
+    } finally {
+      setImporting(false);
+    }
+  }
+
   const teamsWithPlayers = teams.filter((t) => list.some((p) => p.team_id === t.id));
 
   // Duplicate name detection — match any existing player whose name contains the typed text (case-insensitive, min 2 chars)
@@ -258,6 +288,61 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
         <h2 className="text-xl font-bold text-white">ניהול שחקנים</h2>
         <p className="text-sm text-gray-400">הוסף שחקנים לקבוצות · {list.length} שחקנים רשומים</p>
       </div>
+
+      {/* ── Bulk import ────────────────────────────────────────────── */}
+      <details className="rounded-xl border border-gray-700 bg-gray-900/40">
+        <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-3 font-semibold text-orange-400 hover:text-orange-300 transition-colors">
+          <span>📂 ייבוא רשימת שחקנים מקובץ</span>
+          <span className="text-xs text-gray-500">(.txt / .xlsx)</span>
+        </summary>
+        <div className="space-y-4 border-t border-gray-700/50 px-5 pb-5 pt-4">
+          <p className="text-xs text-gray-500">
+            כל שורה / תא בעמודה הראשונה = שם שחקן אחד. כל השחקנים יוצמדו לקבוצה שתבחר.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs text-gray-400">קבוצה *</label>
+              <select
+                value={importTeamId}
+                onChange={(e) => setImportTeamId(e.target.value)}
+                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
+              >
+                <option value="">— בחר קבוצה —</option>
+                {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-gray-400">קובץ שחקנים *</label>
+              <input
+                ref={importFileRef}
+                type="file"
+                accept=".txt,.xlsx,.xls"
+                onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+                className="block w-full cursor-pointer text-sm text-gray-400
+                  file:mr-3 file:rounded-lg file:border-0
+                  file:bg-gray-700 file:px-3 file:py-1.5
+                  file:text-xs file:font-medium file:text-gray-300
+                  hover:file:bg-gray-600"
+              />
+            </div>
+          </div>
+
+          {importMsg && (
+            <p className={`rounded-lg px-3 py-2 text-sm font-medium ${importMsg.ok ? 'bg-green-900/40 text-green-300' : 'bg-red-900/40 text-red-300'}`}>
+              {importMsg.text}
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={handleImport}
+            disabled={!importTeamId || !importFile || importing}
+            className="rounded-lg bg-orange-500 px-5 py-2 text-sm font-bold text-white transition hover:bg-orange-600 disabled:opacity-50"
+          >
+            {importing ? 'מייבא...' : '📥 ייבא שחקנים'}
+          </button>
+        </div>
+      </details>
 
       {/* ── Add player form ─────────────────────────────────────────── */}
       <form onSubmit={handleAdd} className="rounded-xl border border-gray-700 bg-gray-900/60 p-5 space-y-4">
