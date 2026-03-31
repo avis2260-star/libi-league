@@ -258,6 +258,112 @@ export async function updateVideoUrl(
   return {};
 }
 
+// ── Game submission (public scoresheet upload) ────────────────────────────────
+
+export type SubmitGameResultInput = {
+  gameId: string;
+  submittedBy: string;
+  homeScore: number;
+  awayScore: number;
+  extractedStats: object;
+  confidenceScore: number;
+  qualityStatus: 'pass' | 'fail';
+  status: 'pending' | 'needs_review';
+};
+
+export async function submitGameResult(input: SubmitGameResultInput): Promise<ActionResult> {
+  // Enforce lock: only one active submission per game
+  const { data: existing } = await supabaseAdmin
+    .from('game_submissions')
+    .select('id')
+    .eq('game_id', input.gameId)
+    .in('status', ['pending', 'needs_review', 'approved'])
+    .limit(1);
+
+  if (existing?.length) {
+    return { error: 'משחק זה כבר הוגש ונמצא בבדיקה. פנה למנהל הליגה לביטול.' };
+  }
+
+  const { error } = await supabaseAdmin.from('game_submissions').insert({
+    game_id: input.gameId,
+    submitted_by: input.submittedBy,
+    home_score: input.homeScore,
+    away_score: input.awayScore,
+    extracted_stats: input.extractedStats,
+    confidence_score: input.confidenceScore,
+    quality_status: input.qualityStatus,
+    status: input.status,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath('/admin');
+  revalidatePath('/submit');
+  return {};
+}
+
+export async function approveSubmission(submissionId: string): Promise<ActionResult> {
+  // Fetch submission
+  const { data: sub, error: fetchErr } = await supabaseAdmin
+    .from('game_submissions')
+    .select('*')
+    .eq('id', submissionId)
+    .single();
+
+  if (fetchErr || !sub) return { error: 'הגשה לא נמצאה' };
+
+  // Apply score to the game
+  const { error: gameErr } = await supabaseAdmin
+    .from('games')
+    .update({
+      home_score: sub.home_score,
+      away_score: sub.away_score,
+      status: 'Finished',
+    })
+    .eq('id', sub.game_id);
+
+  if (gameErr) return { error: gameErr.message };
+
+  // Mark submission approved
+  const { error } = await supabaseAdmin
+    .from('game_submissions')
+    .update({ status: 'approved' })
+    .eq('id', submissionId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath('/admin');
+  revalidatePath('/');
+  revalidatePath('/results');
+  revalidatePath('/standings');
+  return {};
+}
+
+export async function rejectSubmission(submissionId: string, notes?: string): Promise<ActionResult> {
+  const { error } = await supabaseAdmin
+    .from('game_submissions')
+    .update({ status: 'rejected', review_notes: notes ?? null })
+    .eq('id', submissionId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath('/admin');
+  return {};
+}
+
+export async function clearSubmission(submissionId: string): Promise<ActionResult> {
+  const { error } = await supabaseAdmin
+    .from('game_submissions')
+    .delete()
+    .eq('id', submissionId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath('/admin');
+  revalidatePath('/submit');
+  return {};
+}
+
 // ── Box score (per-game player stats) ────────────────────────────────────────
 
 export type PlayerStatInput = {

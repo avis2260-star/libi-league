@@ -15,6 +15,7 @@ import SyncLogTab from '@/components/admin/SyncLogTab';
 import TeamsTab from '@/components/admin/TeamsTab';
 import TakanonTab from '@/components/admin/TakanonTab';
 import PlayoffTab from '@/components/admin/PlayoffTab';
+import SubmissionsTab, { type SubmissionRow } from '@/components/admin/SubmissionsTab';
 import type { GameWithTeams, Team } from '@/types';
 
 async function getAllGames(): Promise<GameWithTeams[]> {
@@ -111,6 +112,51 @@ export default async function AdminPage({
     announcements = (data ?? []) as typeof announcements;
   }
 
+  // Submissions tab
+  let submissions: SubmissionRow[] = [];
+  if (tab === 'submissions') {
+    type RawSub = {
+      id: string; game_id: string; submitted_by: string; confidence_score: number;
+      quality_status: string; extracted_stats: SubmissionRow['extracted_stats'];
+      home_score: number; away_score: number;
+      status: 'pending' | 'needs_review' | 'approved' | 'rejected';
+      review_notes: string | null; created_at: string;
+      game: {
+        game_date: string;
+        home_team: { name: string } | null;
+        away_team: { name: string } | null;
+      } | null;
+    };
+    const { data: subData } = await supabaseAdmin
+      .from('game_submissions')
+      .select(`
+        *,
+        game:games(
+          game_date,
+          home_team:teams!games_home_team_id_fkey(name),
+          away_team:teams!games_away_team_id_fkey(name)
+        )
+      `)
+      .order('created_at', { ascending: false });
+
+    submissions = ((subData ?? []) as RawSub[]).map((s) => ({
+      id: s.id,
+      game_id: s.game_id,
+      submitted_by: s.submitted_by,
+      confidence_score: s.confidence_score ?? 0,
+      quality_status: s.quality_status ?? 'pass',
+      extracted_stats: s.extracted_stats,
+      home_score: s.home_score ?? 0,
+      away_score: s.away_score ?? 0,
+      status: s.status,
+      review_notes: s.review_notes,
+      created_at: s.created_at,
+      home_name: s.game?.home_team?.name ?? 'בית',
+      away_name: s.game?.away_team?.name ?? 'חוץ',
+      game_date: s.game?.game_date ?? '',
+    }));
+  }
+
   // Sync log tab
   let syncLogs: { id: string; uploaded_at: string; filename: string | null; north_count: number; south_count: number; results_count: number; is_rolled_back: boolean }[] = [];
   if (tab === 'synclog') {
@@ -138,6 +184,7 @@ export default async function AdminPage({
       {tab === 'synclog'       && <SyncLogTab logs={syncLogs} />}
       {tab === 'takanon'       && <TakanonTab />}
       {tab === 'playoff'       && <PlayoffTab />}
+      {tab === 'submissions'   && <SubmissionsTab submissions={submissions} />}
     </>
   );
 }

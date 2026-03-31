@@ -8,9 +8,10 @@ const GROUPS = [
   {
     label: '🎮 משחקים',
     tabs: [
-      { href: '/admin?tab=games',    label: '🎮 Games'     },
-      { href: '/admin?tab=boxscore', label: '📊 Box Score'  },
-      { href: '/admin?tab=media',    label: '🎥 Media'      },
+      { href: '/admin?tab=games',       label: '🎮 Games'     },
+      { href: '/admin?tab=boxscore',    label: '📊 Box Score'  },
+      { href: '/admin?tab=media',       label: '🎥 Media'      },
+      { href: '/admin?tab=submissions', label: '📥 הגשות'      },
     ],
   },
   {
