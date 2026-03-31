@@ -185,13 +185,19 @@ export default function SubmitFlow({ games }: { games: Game[] }) {
             <div className="space-y-2">
               <label className="text-sm font-bold text-[#8aaac8]">בחר משחק</label>
               <select
-                className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white text-sm focus:outline-none focus:border-orange-500/50"
+                className="w-full rounded-xl border border-white/10 px-4 py-3 text-white text-sm focus:outline-none focus:border-orange-500/50"
+                style={{ backgroundColor: '#0f1e30' }}
                 value={selectedGame?.id ?? ''}
                 onChange={e => setSelectedGame(games.find(g => g.id === e.target.value) ?? null)}
               >
-                <option value="">-- בחר משחק --</option>
+                <option value="" style={{ backgroundColor: '#0f1e30', color: 'white' }}>-- בחר משחק --</option>
                 {games.map(g => (
-                  <option key={g.id} value={g.id} disabled={g.is_locked}>
+                  <option
+                    key={g.id}
+                    value={g.id}
+                    disabled={g.is_locked}
+                    style={{ backgroundColor: '#0f1e30', color: g.is_locked ? '#5a7a9a' : 'white' }}
+                  >
                     {g.home_name} נגד {g.away_name} · {g.game_date}{g.is_locked ? ' 🔒 כבר הוגש' : ''}
                   </option>
                 ))}
