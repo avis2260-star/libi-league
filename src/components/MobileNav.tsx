@@ -16,6 +16,7 @@ const NAV_GROUPS = [
       { href: '/results',   label: 'תוצאות' },
       { href: '/standings', label: 'טבלאות' },
       { href: '/teams',     label: 'קבוצות' },
+      { href: '/live',      label: '🔴 משחק חי'       },
       { href: '/submit',    label: '📥 הגשת תוצאות' },
     ],
   },

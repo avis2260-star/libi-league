@@ -61,6 +61,7 @@ export default async function SubmitPage() {
         </h1>
         <p className="text-sm text-[#5a7a9a]">צלם את דף הסטטיסטיקות של המשחק ושלח לאישור</p>
       </div>
+
       <SubmitFlow games={formattedGames} teams={teams} />
     </main>
   );

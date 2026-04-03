@@ -68,6 +68,7 @@ const NAV = [
 ];
 
 const MORE_LINKS = [
+  { href: '/live',     label: 'משחק חי',      emoji: '🔴' },
   { href: '/submit',   label: 'הגשת תוצאות', emoji: '📥' },
   { href: '/results',  label: 'תוצאות',      emoji: '📊' },
   { href: '/playoff',  label: 'פלייאוף',     emoji: '🏆' },
