@@ -28,9 +28,11 @@ function TeamLogo({ logo, name, size = 10 }: { logo: string | null; name: string
 export default function LiveClient({
   games,
   players,
+  currentRound,
 }: {
   games: LiveGame[];
   players: LivePlayer[];
+  currentRound: number | null;
 }) {
   const iframeRef    = useRef<HTMLIFrameElement>(null);
   const [loaded,     setLoaded]     = useState(false);
@@ -47,6 +49,38 @@ export default function LiveClient({
     document.addEventListener('fullscreenchange', onFsChange);
     return () => document.removeEventListener('fullscreenchange', onFsChange);
   }, []);
+
+  /* Auto-rotate when device tilts to landscape */
+  useEffect(() => {
+    function onOrientationChange() {
+      const angle = (screen.orientation?.angle ??
+        (window as unknown as { orientation: number }).orientation ?? 0) as number;
+      const isLandscape = Math.abs(angle) === 90 || angle === 270;
+      setRotated(isLandscape);
+      if (isLandscape) {
+        // Lock browser to portrait so only our CSS rotation is in effect
+        screen.orientation?.lock?.('portrait-primary').catch(() => {});
+      } else {
+        screen.orientation?.unlock?.();
+      }
+    }
+    window.addEventListener('orientationchange', onOrientationChange);
+    screen.orientation?.addEventListener('change', onOrientationChange);
+    return () => {
+      window.removeEventListener('orientationchange', onOrientationChange);
+      screen.orientation?.removeEventListener('change', onOrientationChange);
+    };
+  }, []);
+
+  function toggleRotate() {
+    const next = !rotated;
+    setRotated(next);
+    if (next) {
+      screen.orientation?.lock?.('portrait-primary').catch(() => {});
+    } else {
+      screen.orientation?.unlock?.();
+    }
+  }
 
   function toggleFullscreen() {
     if (!document.fullscreenElement) iframeRef.current?.requestFullscreen();
@@ -175,7 +209,7 @@ export default function LiveClient({
 
         {/* Rotate — mobile only */}
         <button
-          onClick={() => setRotated(r => !r)}
+          onClick={toggleRotate}
           title="סובב למצב רוחב"
           className="sm:hidden flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] text-[#8aaac8] hover:bg-white/[0.08] hover:text-white transition-all"
         >
@@ -211,15 +245,19 @@ export default function LiveClient({
       {/* ── Game picker panel ────────────────────────────────────────────── */}
       {panelOpen && (
         <div className="border-b border-white/[0.07] bg-[#0b1824] overflow-y-auto max-h-[50vh]">
+          {/* Panel header */}
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06]">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[#3a5a7a]">
+              {currentRound ? `מחזור ${currentRound}` : 'משחקים'}
+            </span>
+            <span className="text-[10px] text-[#2a4a6a]">{games.length} משחקים</span>
+          </div>
           {games.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-[#5a7a9a]">אין משחקים מתוכננים</p>
+            <p className="px-4 py-8 text-center text-sm text-[#5a7a9a]">אין משחקים למחזור זה</p>
           ) : (
             <div className="p-3 space-y-4">
               {rounds.map(round => (
                 <div key={round}>
-                  <p className="px-1 mb-2 text-[10px] font-black uppercase tracking-widest text-[#3a5a7a]">
-                    מחזור {round}
-                  </p>
                   <div className="space-y-1.5">
                     {byRound[round].map(game => {
                       const isSelected = selected?.id === game.id;
@@ -330,6 +368,7 @@ export default function LiveClient({
           )}
         </div>
       )}
+
 
       {/* ── Iframe ──────────────────────────────────────────────────────── */}
       <div className="relative flex-1">

@@ -23,18 +23,43 @@ export type LivePlayer = {
 };
 
 export default async function LivePage() {
-  // Fetch the next 20 non-finished games (upcoming / scheduled)
-  const { data: rawGames } = await supabaseAdmin
+  const today = new Date().toISOString().split('T')[0];
+
+  // Find the next upcoming round (closest future game_date)
+  const { data: nextRoundRow } = await supabaseAdmin
     .from('games')
-    .select(`
-      id, game_date, game_time, round,
-      home_team_id, away_team_id,
-      home_team:teams!games_home_team_id_fkey(name, logo_url),
-      away_team:teams!games_away_team_id_fkey(name, logo_url)
-    `)
-    .neq('status', 'Finished')
+    .select('round')
+    .gte('game_date', today)
     .order('game_date', { ascending: true })
-    .limit(30);
+    .limit(1)
+    .single();
+
+  let targetRound = nextRoundRow?.round ?? null;
+
+  if (targetRound === null) {
+    // All games are in the past — use the most recent round
+    const { data: lastRoundRow } = await supabaseAdmin
+      .from('games')
+      .select('round')
+      .order('game_date', { ascending: false })
+      .limit(1)
+      .single();
+    targetRound = lastRoundRow?.round ?? null;
+  }
+
+  // Fetch all games from that round (regardless of status)
+  const { data: rawGames } = targetRound !== null
+    ? await supabaseAdmin
+        .from('games')
+        .select(`
+          id, game_date, game_time, round,
+          home_team_id, away_team_id,
+          home_team:teams!games_home_team_id_fkey(name, logo_url),
+          away_team:teams!games_away_team_id_fkey(name, logo_url)
+        `)
+        .eq('round', targetRound)
+        .order('game_date', { ascending: true })
+    : { data: [] };
 
   type RawGame = {
     id: string; game_date: string; game_time: string | null; round: number | null;
@@ -71,5 +96,5 @@ export default async function LivePage() {
 
   const players: LivePlayer[] = (rawPlayers ?? []) as LivePlayer[];
 
-  return <LiveClient games={games} players={players} />;
+  return <LiveClient games={games} players={players} currentRound={targetRound} />;
 }
