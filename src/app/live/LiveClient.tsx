@@ -100,9 +100,15 @@ export default function LiveClient({
     setIframeKey(k => k + 1);
   }
 
-  /* Build player lists for a team */
+  /* Build player lists for a team (deduplicated by name) */
   function playersFor(teamId: string) {
-    return players.filter(p => p.team_id === teamId);
+    const seen = new Set<string>();
+    return players.filter(p => {
+      if (p.team_id !== teamId) return false;
+      if (seen.has(p.name)) return false;
+      seen.add(p.name);
+      return true;
+    });
   }
 
   /* Send game data into the scoreboard via postMessage */
