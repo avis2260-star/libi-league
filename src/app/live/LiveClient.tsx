@@ -57,11 +57,14 @@ export default function LiveClient({
         (window as unknown as { orientation: number }).orientation ?? 0) as number;
       const isLandscape = Math.abs(angle) === 90 || angle === 270;
       setRotated(isLandscape);
+      const so = screen.orientation as ScreenOrientation & {
+        lock?: (o: string) => Promise<void>;
+        unlock?: () => void;
+      };
       if (isLandscape) {
-        // Lock browser to portrait so only our CSS rotation is in effect
-        screen.orientation?.lock?.('portrait-primary').catch(() => {});
+        so?.lock?.('portrait-primary')?.catch(() => {});
       } else {
-        screen.orientation?.unlock?.();
+        so?.unlock?.();
       }
     }
     window.addEventListener('orientationchange', onOrientationChange);
@@ -75,10 +78,14 @@ export default function LiveClient({
   function toggleRotate() {
     const next = !rotated;
     setRotated(next);
+    const so = screen.orientation as ScreenOrientation & {
+      lock?: (o: string) => Promise<void>;
+      unlock?: () => void;
+    };
     if (next) {
-      screen.orientation?.lock?.('portrait-primary').catch(() => {});
+      so?.lock?.('portrait-primary')?.catch(() => {});
     } else {
-      screen.orientation?.unlock?.();
+      so?.unlock?.();
     }
   }
 

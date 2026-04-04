@@ -26,25 +26,25 @@ export default async function LivePage() {
   const today = new Date().toISOString().split('T')[0];
 
   // Find the next upcoming round (closest future game_date)
-  const { data: nextRoundRow } = await supabaseAdmin
+  const { data: nextRows } = await supabaseAdmin
     .from('games')
     .select('round')
     .gte('game_date', today)
+    .not('round', 'is', null)
     .order('game_date', { ascending: true })
-    .limit(1)
-    .single();
+    .limit(1);
 
-  let targetRound = nextRoundRow?.round ?? null;
+  let targetRound: number | null = nextRows?.[0]?.round ?? null;
 
   if (targetRound === null) {
     // All games are in the past — use the most recent round
-    const { data: lastRoundRow } = await supabaseAdmin
+    const { data: lastRows } = await supabaseAdmin
       .from('games')
       .select('round')
+      .not('round', 'is', null)
       .order('game_date', { ascending: false })
-      .limit(1)
-      .single();
-    targetRound = lastRoundRow?.round ?? null;
+      .limit(1);
+    targetRound = lastRows?.[0]?.round ?? null;
   }
 
   // Fetch all games from that round (regardless of status)
