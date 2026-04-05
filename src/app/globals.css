@@ -61,19 +61,6 @@ body {
   transition: background-color 0.25s ease, color 0.2s ease;
 }
 
-/* ── Whole-app landscape rotation (mobile) ───────────────────────────────── */
-body.app-rotated {
-  position: fixed;
-  top: calc((100vh - 100vw) / 2);
-  left: calc((100vw - 100vh) / 2);
-  width: 100vh !important;
-  height: 100vw !important;
-  transform: rotate(90deg);
-  overflow-y: auto;
-  overflow-x: hidden;
-  touch-action: pan-y;
-}
-
 /* ═══════════════════════════════════════════════════════════════════════════
    LIGHT MODE — comprehensive overrides
    ═══════════════════════════════════════════════════════════════════════════ */
