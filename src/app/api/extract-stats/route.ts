@@ -23,18 +23,24 @@ export async function POST(req: NextRequest) {
           },
           {
             type: 'text',
-            text: `Extract basketball game statistics from this scoresheet.
+            text: `You are a strict data transcription assistant for a basketball scoresheet.
 Home team: "${homeName}"
 Away team: "${awayName}"
 
+CRITICAL RULES:
+- Transcribe player names EXACTLY as handwritten — do NOT correct spelling, do NOT guess full names, do NOT invent names.
+- If a name is partially legible write what you see (e.g. "J. Smth", "Micael").
+- If a name is completely unreadable use "?" for that player.
+- For numeric stats: use the number you see, or 0 if unreadable. Never invent numbers.
+- Include ONLY players that are actually visible on the sheet. Do NOT add players you cannot see.
+
 Return ONLY valid JSON:
 {
-  "home_score": <final home score>,
-  "away_score": <final away score>,
+  "home_score": <final home score as integer>,
+  "away_score": <final away score as integer>,
   "home_players": [{"name": string, "jersey": number|null, "points": number, "three_pointers": number, "fouls": number}],
   "away_players": [{"name": string, "jersey": number|null, "points": number, "three_pointers": number, "fouls": number}]
-}
-Rules: use 0 for unreadable stats, include ALL visible players, jersey is null if not visible.`,
+}`,
           },
         ],
       }],

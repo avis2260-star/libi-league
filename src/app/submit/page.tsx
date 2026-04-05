@@ -27,6 +27,13 @@ export default async function SubmitPage() {
     .select('id, name')
     .order('name');
 
+  // Fetch active players for fuzzy roster matching in the confirm step
+  const { data: playersData } = await supabaseAdmin
+    .from('players')
+    .select('id, name, jersey_number, team_id')
+    .eq('is_active', true)
+    .order('name');
+
   type RawGame = {
     id: string;
     game_date: string;
@@ -50,7 +57,8 @@ export default async function SubmitPage() {
     is_locked: lockedIds.has(g.id),
   }));
 
-  const teams = (teamsData ?? []) as { id: string; name: string }[];
+  const teams   = (teamsData   ?? []) as { id: string; name: string }[];
+  const players = (playersData ?? []) as { id: string; name: string; jersey_number: number | null; team_id: string | null }[];
 
   return (
     <main className="container mx-auto px-4 py-8 max-w-2xl" dir="rtl">
@@ -62,7 +70,7 @@ export default async function SubmitPage() {
         <p className="text-sm text-[#5a7a9a]">צלם את דף הסטטיסטיקות של המשחק ושלח לאישור</p>
       </div>
 
-      <SubmitFlow games={formattedGames} teams={teams} />
+      <SubmitFlow games={formattedGames} teams={teams} players={players} />
     </main>
   );
 }

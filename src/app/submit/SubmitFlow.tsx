@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
+import Fuse from 'fuse.js';
 import ImageQualityModal from '@/components/ImageQualityModal';
 import { submitGameResult } from '@/app/admin/actions';
 
@@ -14,6 +15,13 @@ type Game = {
 };
 
 type Team = { id: string; name: string };
+
+type RosterPlayer = {
+  id: string;
+  name: string;
+  jersey_number: number | null;
+  team_id: string | null;
+};
 
 type ExtractedPlayer = {
   name: string;
@@ -30,9 +38,111 @@ type ExtractedData = {
   away_players: ExtractedPlayer[];
 };
 
+// Fuzzy match result
+type NameMatch = {
+  ocr: string;           // raw text Claude transcribed
+  matched: string;       // best official name (or ocr if no match)
+  score: number;         // 0–1, higher = more confident
+  candidates: string[];  // top alternatives for dropdown
+};
+
+const FUZZY_THRESHOLD = 0.4; // fuse score below this = high confidence (fuse uses 0=perfect, 1=no match)
+const DROPDOWN_THRESHOLD = 0.7; // above this = show dropdown instead of auto-filling
+
+function buildFuse(roster: RosterPlayer[]) {
+  return new Fuse(roster, {
+    keys: ['name'],
+    includeScore: true,
+    threshold: 0.6,
+    distance: 100,
+  });
+}
+
+function matchName(ocr: string, fuse: Fuse<RosterPlayer> | null): NameMatch {
+  if (!fuse || !ocr || ocr === '?') {
+    return { ocr, matched: ocr, score: 0, candidates: [] };
+  }
+  const results = fuse.search(ocr, { limit: 4 });
+  if (!results.length) {
+    return { ocr, matched: ocr, score: 0, candidates: [] };
+  }
+  const best = results[0];
+  const fuseScore = best.score ?? 1;
+  const confidence = 1 - fuseScore; // flip: 1 = perfect match
+  return {
+    ocr,
+    matched: confidence >= (1 - FUZZY_THRESHOLD) ? best.item.name : ocr,
+    score: confidence,
+    candidates: results.slice(1).map(r => r.item.name),
+  };
+}
+
 type Step = 'select' | 'upload' | 'confirm' | 'success';
 
-export default function SubmitFlow({ games, teams }: { games: Game[]; teams: Team[] }) {
+// ── Player name cell with OCR hint + optional dropdown ────────────────────────
+function NameCell({
+  match,
+  value,
+  onChange,
+  roster,
+}: {
+  match: NameMatch | null;
+  value: string;
+  onChange: (v: string) => void;
+  roster: RosterPlayer[];
+}) {
+  const showSuggestion = match && match.score > 0 && match.ocr !== match.matched;
+  const isLowConfidence = match && match.score < (1 - DROPDOWN_THRESHOLD) && match.score > 0;
+
+  if (isLowConfidence && roster.length > 0) {
+    // Show a dropdown with roster options
+    return (
+      <div className="space-y-0.5">
+        <select
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          className="w-full bg-transparent text-white text-xs focus:outline-none focus:text-orange-300 border-b border-white/10 pb-0.5"
+          style={{ backgroundColor: 'transparent' }}
+        >
+          <option value={match.ocr} style={{ backgroundColor: '#0d1a28' }}>
+            {match.ocr} (OCR)
+          </option>
+          {roster.map(p => (
+            <option key={p.id} value={p.name} style={{ backgroundColor: '#0d1a28' }}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        <p className="text-[9px] text-yellow-500/70">⚠ בחר שחקן מהרשימה</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-0.5">
+      <input
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-full bg-transparent text-white text-xs focus:outline-none focus:text-orange-300"
+      />
+      {showSuggestion && (
+        <p className="text-[9px] text-[#4a6a8a]">
+          OCR: <span className="text-[#5a7a9a]">{match.ocr}</span>
+        </p>
+      )}
+    </div>
+  );
+}
+
+export default function SubmitFlow({
+  games,
+  teams,
+  players,
+}: {
+  games: Game[];
+  teams: Team[];
+  players: RosterPlayer[];
+}) {
   const [step, setStep] = useState<Step>('select');
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [submitterName, setSubmitterName] = useState('');
@@ -40,10 +150,10 @@ export default function SubmitFlow({ games, teams }: { games: Game[]; teams: Tea
 
   const selectedTeamName = teams.find(t => t.id === selectedTeamId)?.name ?? '';
 
-  // When a team is selected, filter games to only those involving that team
   const visibleGames = selectedTeamId
     ? games.filter(g => g.home_name === selectedTeamName || g.away_name === selectedTeamName)
     : games;
+
   const [preview, setPreview] = useState<string | null>(null);
   const [base64, setBase64] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<string>('image/jpeg');
@@ -54,16 +164,52 @@ export default function SubmitFlow({ games, teams }: { games: Game[]; teams: Tea
   const [isNeedsReview, setIsNeedsReview] = useState(false);
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
   const [editedData, setEditedData] = useState<ExtractedData | null>(null);
+  // Stores original OCR names so we can show them as hints alongside matched names
+  const [nameMatches, setNameMatches] = useState<{
+    home: NameMatch[];
+    away: NameMatch[];
+  } | null>(null);
   const [submitError, setSubmitError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ── Step 1: Select game ────────────────────────────────────────────────────
+  // Build Fuse instances per team once game is selected
+  const homeFuse = useMemo(() => {
+    if (!selectedGame) return null;
+    const roster = players.filter(p => {
+      const team = teams.find(t => t.name === selectedGame.home_name);
+      return team && p.team_id === team.id;
+    });
+    return roster.length ? buildFuse(roster) : null;
+  }, [selectedGame, players, teams]);
+
+  const awayFuse = useMemo(() => {
+    if (!selectedGame) return null;
+    const roster = players.filter(p => {
+      const team = teams.find(t => t.name === selectedGame.away_name);
+      return team && p.team_id === team.id;
+    });
+    return roster.length ? buildFuse(roster) : null;
+  }, [selectedGame, players, teams]);
+
+  const homeRoster = useMemo(() => {
+    if (!selectedGame) return [];
+    const team = teams.find(t => t.name === selectedGame.home_name);
+    return team ? players.filter(p => p.team_id === team.id) : [];
+  }, [selectedGame, players, teams]);
+
+  const awayRoster = useMemo(() => {
+    if (!selectedGame) return [];
+    const team = teams.find(t => t.name === selectedGame.away_name);
+    return team ? players.filter(p => p.team_id === team.id) : [];
+  }, [selectedGame, players, teams]);
+
+  // ── Step 1 ─────────────────────────────────────────────────────────────────
   function handleGameSelect() {
     if (!selectedGame || !submitterName.trim() || !selectedTeamId) return;
     setStep('upload');
   }
 
-  // ── Step 2: Upload + pre-flight ────────────────────────────────────────────
+  // ── Step 2 ─────────────────────────────────────────────────────────────────
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -81,7 +227,6 @@ export default function SubmitFlow({ games, teams }: { games: Game[]; teams: Tea
       setBase64(b64);
 
       try {
-        // Pre-flight quality check
         const res = await fetch('/api/analyze-scoresheet', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -119,8 +264,22 @@ export default function SubmitFlow({ games, teams }: { games: Game[]; teams: Tea
         }),
       });
       const data: ExtractedData = await res.json();
+
+      // ── Fuzzy-match extracted names against official rosters ──────────────
+      setLoadingMsg('מתאים שמות לרשימת שחקנים...');
+      const homeMatches = data.home_players.map(p => matchName(p.name, homeFuse));
+      const awayMatches = data.away_players.map(p => matchName(p.name, awayFuse));
+      setNameMatches({ home: homeMatches, away: awayMatches });
+
+      // Apply matched names to editedData
+      const patched: ExtractedData = {
+        ...data,
+        home_players: data.home_players.map((p, i) => ({ ...p, name: homeMatches[i].matched })),
+        away_players: data.away_players.map((p, i) => ({ ...p, name: awayMatches[i].matched })),
+      };
+
       setExtractedData(data);
-      setEditedData(JSON.parse(JSON.stringify(data))); // deep copy for editing
+      setEditedData(JSON.parse(JSON.stringify(patched)));
       setStep('confirm');
     } catch {
       alert('שגיאה בחילוץ הנתונים. נסה שוב.');
@@ -141,30 +300,26 @@ export default function SubmitFlow({ games, teams }: { games: Game[]; teams: Tea
     await extractStats(base64!, mediaType, true);
   }
 
-  // ── Step 3: Edit extracted data ────────────────────────────────────────────
+  // ── Step 3 ─────────────────────────────────────────────────────────────────
   function updateScore(team: 'home' | 'away', val: string) {
     if (!editedData) return;
-    setEditedData({
-      ...editedData,
-      [`${team}_score`]: parseInt(val) || 0,
-    });
+    setEditedData({ ...editedData, [`${team}_score`]: parseInt(val) || 0 });
   }
 
   function updatePlayer(team: 'home' | 'away', idx: number, field: keyof ExtractedPlayer, val: string) {
     if (!editedData) return;
     const key = `${team}_players` as 'home_players' | 'away_players';
-    const players = [...editedData[key]];
-    players[idx] = { ...players[idx], [field]: field === 'name' ? val : (parseInt(val) || 0) };
-    setEditedData({ ...editedData, [key]: players });
+    const ps = [...editedData[key]];
+    ps[idx] = { ...ps[idx], [field]: field === 'name' ? val : (parseInt(val) || 0) };
+    setEditedData({ ...editedData, [key]: ps });
   }
 
-  // ── Step 4: Submit ─────────────────────────────────────────────────────────
+  // ── Step 4 ─────────────────────────────────────────────────────────────────
   async function handleSubmit() {
     if (!editedData || !selectedGame) return;
     setLoading(true);
     setSubmitError('');
 
-    // Upload scoresheet image to storage so admin can compare against extracted data
     let scoresheetImageUrl: string | undefined;
     if (base64 && mediaType) {
       setLoadingMsg('מעלה תמונה...');
@@ -181,7 +336,7 @@ export default function SubmitFlow({ games, teams }: { games: Game[]; teams: Tea
         const uploadData = await uploadRes.json();
         if (uploadData.url) scoresheetImageUrl = uploadData.url;
       } catch {
-        // Non-fatal: continue submission without image
+        // Non-fatal
       }
     }
 
@@ -211,11 +366,9 @@ export default function SubmitFlow({ games, teams }: { games: Game[]; teams: Tea
     <div className="min-h-[60vh] flex items-start justify-center pt-8 px-4">
       <div className="w-full max-w-xl space-y-6">
 
-        {/* ── Step 1: Select game + name ───────────────────────────────────── */}
+        {/* ── Step 1 ── */}
         {step === 'select' && (
           <div className="space-y-5">
-
-            {/* Team selector */}
             <div className="space-y-2">
               <label className="text-sm font-bold text-[#8aaac8]">הקבוצה שלך *</label>
               <select
@@ -233,7 +386,6 @@ export default function SubmitFlow({ games, teams }: { games: Game[]; teams: Tea
               </select>
             </div>
 
-            {/* Game selector — filtered by team once selected */}
             <div className="space-y-2">
               <label className="text-sm font-bold text-[#8aaac8]">בחר משחק</label>
               <select
@@ -286,7 +438,7 @@ export default function SubmitFlow({ games, teams }: { games: Game[]; teams: Tea
           </div>
         )}
 
-        {/* ── Step 2: Upload ───────────────────────────────────────────────── */}
+        {/* ── Step 2: Upload ── */}
         {step === 'upload' && (
           <div className="space-y-5">
             <div className="text-center">
@@ -344,12 +496,20 @@ export default function SubmitFlow({ games, teams }: { games: Game[]; teams: Tea
           </div>
         )}
 
-        {/* ── Step 3: Confirm extracted stats ─────────────────────────────── */}
+        {/* ── Step 3: Confirm ── */}
         {step === 'confirm' && editedData && selectedGame && (
           <div className="space-y-5">
             {isNeedsReview && (
               <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 text-sm text-yellow-300">
                 ⚠️ איכות תמונה נמוכה — אנא בדוק את הנתונים שחולצו ותקן שגיאות לפני שליחה
+              </div>
+            )}
+
+            {/* Fuzzy matching legend */}
+            {nameMatches && (
+              <div className="flex flex-wrap gap-3 text-[10px] text-[#4a6a8a] bg-white/[0.02] rounded-xl px-3 py-2 border border-white/[0.05]">
+                <span>🔍 שמות תואמו אוטומטית לרשימת השחקנים</span>
+                <span className="text-[#5a7a9a]">· שורת ה-OCR (מה שנקרא מהטופס) מוצגת בצבע אפור מתחת לכל שם</span>
               </div>
             )}
 
@@ -381,8 +541,11 @@ export default function SubmitFlow({ games, teams }: { games: Game[]; teams: Tea
 
             {/* Players */}
             {(['home', 'away'] as const).map(team => {
-              const players = editedData[`${team}_players`];
+              const ps      = editedData[`${team}_players`];
+              const matches = nameMatches?.[team] ?? [];
+              const roster  = team === 'home' ? homeRoster : awayRoster;
               const teamName = team === 'home' ? selectedGame.home_name : selectedGame.away_name;
+
               return (
                 <div key={team} className="bg-white/5 rounded-xl p-4 space-y-3">
                   <p className="text-xs font-bold text-[#8aaac8] uppercase tracking-wide">{teamName}</p>
@@ -398,13 +561,14 @@ export default function SubmitFlow({ games, teams }: { games: Game[]; teams: Tea
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/[0.04]">
-                        {players.map((p, i) => (
+                        {ps.map((p, i) => (
                           <tr key={i}>
                             <td className="py-1.5 pr-1">
-                              <input
+                              <NameCell
+                                match={matches[i] ?? null}
                                 value={p.name}
-                                onChange={e => updatePlayer(team, i, 'name', e.target.value)}
-                                className="w-full bg-transparent text-white text-xs focus:outline-none focus:text-orange-300"
+                                onChange={v => updatePlayer(team, i, 'name', v)}
+                                roster={roster}
                               />
                             </td>
                             <td className="py-1.5">
@@ -468,7 +632,7 @@ export default function SubmitFlow({ games, teams }: { games: Game[]; teams: Tea
           </div>
         )}
 
-        {/* ── Step 4: Success ──────────────────────────────────────────────── */}
+        {/* ── Step 4: Success ── */}
         {step === 'success' && (
           <div className="text-center space-y-4 py-16">
             <div className="text-6xl">✅</div>
@@ -483,7 +647,6 @@ export default function SubmitFlow({ games, teams }: { games: Game[]; teams: Tea
         )}
       </div>
 
-      {/* Quality modal */}
       <ImageQualityModal
         isOpen={showModal}
         imagePreview={preview}
