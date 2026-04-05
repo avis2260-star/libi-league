@@ -75,8 +75,13 @@ export default function ScoreboardClient({
       const angle = (screen.orientation?.angle ?? (window as unknown as { orientation: number }).orientation ?? 0) as number;
       const landscape = Math.abs(angle) === 90 || angle === 270;
       setRotated(landscape);
-      if (landscape) so?.lock?.('portrait-primary')?.catch(() => {});
-      else so?.unlock?.();
+      if (landscape) {
+        document.documentElement.requestFullscreen().catch(() => {});
+        so?.lock?.('portrait-primary')?.catch(() => {});
+      } else {
+        so?.unlock?.();
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      }
     }
     window.addEventListener('orientationchange', onOrient);
     so?.addEventListener('change', onOrient);
@@ -483,9 +488,6 @@ export default function ScoreboardClient({
     );
   };
 
-  // Correct CSS rotation: center the landscape-sized div, then rotate 90°
-  // translate(-50%,-50%) centres the 100vh×100vw box on screen,
-  // rotate(90deg) then makes it fill portrait dimensions perfectly.
   const rotateStyle: React.CSSProperties = rotated ? {
     position: 'fixed',
     top: '50%',
@@ -493,8 +495,9 @@ export default function ScoreboardClient({
     width: '100vh',
     height: '100vw',
     transform: 'translate(-50%, -50%) rotate(90deg)',
-    zIndex: 40,
+    zIndex: 9999,   // above root layout header (z-50) and BottomNav
     overflow: 'hidden',
+    background: '#0d1117',
   } : {};
 
   return (
@@ -545,10 +548,17 @@ export default function ScoreboardClient({
           {nameModeLabel[nameMode]}
         </button>
         {/* Mobile rotate */}
-        <button onClick={() => {
+        <button onClick={async () => {
             const next = !rotated; setRotated(next);
             const so = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void>; unlock?: () => void };
-            if (next) so?.lock?.('portrait-primary')?.catch(() => {}); else so?.unlock?.();
+            if (next) {
+              // Enter fullscreen to hide browser chrome, then lock orientation
+              try { await document.documentElement.requestFullscreen(); } catch {}
+              so?.lock?.('portrait-primary')?.catch(() => {});
+            } else {
+              so?.unlock?.();
+              if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+            }
           }}
           className="sm:hidden rounded-md border border-white/10 bg-white/5 text-[#8aaac8] hover:text-white text-[10px] font-black px-2 py-1.5 shrink-0">
           ↺
