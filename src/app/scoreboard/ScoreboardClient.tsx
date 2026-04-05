@@ -54,8 +54,10 @@ export default function ScoreboardClient({
   const [toActive,setToActive]= useState(false);
   const [home,    setHome]    = useState<TS>({ name:'', logo:null, score:0, timeouts:MAX_TO, players:[] });
   const [away,    setAway]    = useState<TS>({ name:'', logo:null, score:0, timeouts:MAX_TO, players:[] });
-  const [log,     setLog]     = useState<LE[]>([]);
-  const [logOpen, setLogOpen] = useState(false);
+  const [log,      setLog]      = useState<LE[]>([]);
+  const [logOpen,  setLogOpen]  = useState(false);
+  const [nameMode, setNameMode] = useState<'full'|'first'|'last'|'num'>('full');
+  const [rotated,  setRotated]  = useState(false);
 
   const logId    = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval>|null>(null);
@@ -65,6 +67,29 @@ export default function ScoreboardClient({
     if (timerRef.current) clearInterval(timerRef.current);
     if (toRef.current)    clearInterval(toRef.current);
   }, []);
+
+  // Auto-rotate when device tilts to landscape
+  useEffect(() => {
+    const so = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void>; unlock?: () => void };
+    function onOrient() {
+      const angle = (screen.orientation?.angle ?? (window as unknown as { orientation: number }).orientation ?? 0) as number;
+      const landscape = Math.abs(angle) === 90 || angle === 270;
+      setRotated(landscape);
+      if (landscape) so?.lock?.('portrait-primary')?.catch(() => {});
+      else so?.unlock?.();
+    }
+    window.addEventListener('orientationchange', onOrient);
+    so?.addEventListener('change', onOrient);
+    return () => { window.removeEventListener('orientationchange', onOrient); so?.removeEventListener('change', onOrient); };
+  }, []);
+
+  // Player name display helper
+  function displayName(name: string): string {
+    if (nameMode === 'first') return name.split(' ')[0];
+    if (nameMode === 'last')  return name.split(' ').slice(-1)[0];
+    return name;
+  }
+  const nameModeLabel = { full: 'שם מלא', first: 'שם פרטי', last: 'שם משפחה', num: 'מספר בלבד' } as const;
 
   // ── Player helpers ─────────────────────────────────────────────────────────
   function allPlayersFor(teamId: string): ScoreboardPlayer[] {
@@ -438,7 +463,9 @@ export default function ScoreboardClient({
             : t.players.map((p, i) => (
                 <div key={i} className="flex items-center gap-1.5 px-2 py-1.5 border-b border-white/[0.03] hover:bg-white/[0.02]">
                   <span className="w-5 text-[9px] font-mono shrink-0" style={{ color: accent }}>#{p.jersey ?? '–'}</span>
-                  <span className="flex-1 text-[11px] text-[#c0d4e8] truncate min-w-0">{p.name}</span>
+                  {nameMode !== 'num' && (
+                    <span className="flex-1 text-[11px] text-[#c0d4e8] truncate min-w-0">{displayName(p.name)}</span>
+                  )}
                   <span className="text-[9px] text-[#4a6a8a] w-5 text-right shrink-0">{p.pts}</span>
                   {[1,2,3].map(pts => (
                     <button key={pts} onClick={() => addPts(side, i, pts)}
@@ -456,8 +483,15 @@ export default function ScoreboardClient({
     );
   };
 
+  const rotateStyle: React.CSSProperties = rotated ? {
+    position: 'fixed', top: 0, right: 0,
+    width: '100vh', height: '100vw',
+    transform: 'rotate(90deg)', transformOrigin: 'top right', zIndex: 40,
+  } : {};
+
   return (
-    <div dir="ltr" className="h-screen bg-[#0d1117] text-white flex flex-col overflow-hidden select-none">
+    <div dir="ltr" className="h-screen bg-[#0d1117] text-white flex flex-col overflow-hidden select-none"
+      style={rotateStyle}>
 
       {/* TOP BAR */}
       <div className="flex items-center gap-1.5 bg-[#111827] border-b border-white/[0.08] px-3 py-2 flex-wrap shrink-0">
@@ -495,6 +529,21 @@ export default function ScoreboardClient({
         <button onClick={() => setLogOpen(o=>!o)}
           className="rounded-md border border-white/10 bg-white/5 text-[#8aaac8] hover:text-white text-[10px] font-black uppercase px-2 py-1.5 shrink-0">
           LOG
+        </button>
+        {/* Name display mode */}
+        <button onClick={() => setNameMode(m => ({ full:'first', first:'last', last:'num', num:'full' } as const)[m])}
+          className="rounded-md border border-white/10 bg-white/5 text-[#8aaac8] hover:text-white text-[10px] font-black px-2 py-1.5 shrink-0 hidden sm:block"
+          title="שינוי תצוגת שם">
+          {nameModeLabel[nameMode]}
+        </button>
+        {/* Mobile rotate */}
+        <button onClick={() => {
+            const next = !rotated; setRotated(next);
+            const so = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void>; unlock?: () => void };
+            if (next) so?.lock?.('portrait-primary')?.catch(() => {}); else so?.unlock?.();
+          }}
+          className="sm:hidden rounded-md border border-white/10 bg-white/5 text-[#8aaac8] hover:text-white text-[10px] font-black px-2 py-1.5 shrink-0">
+          ↺
         </button>
         <button onClick={exportCSV}
           className="rounded-md border border-green-500/30 bg-green-500/10 text-green-400 text-[10px] font-black uppercase px-2 py-1.5 shrink-0">
@@ -534,10 +583,16 @@ export default function ScoreboardClient({
           <p className={`text-2xl sm:text-3xl font-black font-mono tabular-nums ${shot <= 5 ? 'text-red-500 animate-pulse' : 'text-red-400'}`}>
             {fmt(shot)}
           </p>
-          <button onClick={() => setShot(SHOT_SEC)}
-            className="text-[8px] font-black text-[#4a6a8a] border border-white/[0.07] rounded px-2 py-0.5 hover:text-white">
-            RESET
-          </button>
+          <div className="flex gap-1">
+            <button onClick={() => setShot(SHOT_SEC)}
+              className="text-[8px] font-black text-[#4a6a8a] border border-white/[0.07] rounded px-1.5 py-0.5 hover:text-white">
+              24s
+            </button>
+            <button onClick={() => setShot(14)}
+              className="text-[8px] font-black text-[#4a6a8a] border border-white/[0.07] rounded px-1.5 py-0.5 hover:text-white">
+              14s
+            </button>
+          </div>
         </div>
         {/* Timeout */}
         <div className="flex flex-col items-center justify-center py-3 gap-0.5">

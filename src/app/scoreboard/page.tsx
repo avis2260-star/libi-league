@@ -43,11 +43,16 @@ export default async function ScoreboardPage() {
     return teamsByName.get(normName(name)) ?? { id: '', logo: null };
   }
 
-  // 2. Find the next upcoming round from LIBI_SCHEDULE
-  const futureDates = LIBI_SCHEDULE.filter(g => g.date >= today);
-  const nextRound = futureDates.length > 0
-    ? Math.min(...futureDates.map(g => g.round))
-    : Math.max(...LIBI_SCHEDULE.map(g => g.round));
+  // 2. Find next round: last round with recorded results + 1
+  const { data: lastResultRow } = await supabaseAdmin
+    .from('game_results')
+    .select('round')
+    .order('round', { ascending: false })
+    .limit(1);
+
+  const lastResultRound = lastResultRow?.[0]?.round ?? 0;
+  const maxRound = Math.max(...LIBI_SCHEDULE.map(g => g.round));
+  const nextRound = Math.min(lastResultRound + 1, maxRound);
 
   // 3. Get all games for that round
   const roundGames = LIBI_SCHEDULE.filter(g => g.round === nextRound);
