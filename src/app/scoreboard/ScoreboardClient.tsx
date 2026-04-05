@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import type { LiveGame, LivePlayer } from '../live/page';
+import type { ScoreboardGame, ScoreboardPlayer } from './page';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type PS  = { name: string; jersey: number | null; pts: number; fouls: number };
@@ -36,11 +36,11 @@ function Logo({ logo, name, size = 48 }: { logo: string|null; name: string; size
 // ── Component ────────────────────────────────────────────────────────────────
 export default function ScoreboardClient({
   games, players, currentRound,
-}: { games: LiveGame[]; players: LivePlayer[]; currentRound: number | null }) {
+}: { games: ScoreboardGame[]; players: ScoreboardPlayer[]; currentRound: number }) {
 
   // ── Step tracking ──────────────────────────────────────────────────────────
   const [phase,   setPhase]   = useState<Phase>('pick');
-  const [selGame, setSelGame] = useState<LiveGame | null>(null);
+  const [selGame, setSelGame] = useState<ScoreboardGame | null>(null);
 
   // Setup step: which players are checked
   const [homeChecked, setHomeChecked] = useState<Set<string>>(new Set());
@@ -67,7 +67,7 @@ export default function ScoreboardClient({
   }, []);
 
   // ── Player helpers ─────────────────────────────────────────────────────────
-  function allPlayersFor(teamId: string): LivePlayer[] {
+  function allPlayersFor(teamId: string): ScoreboardPlayer[] {
     const seen = new Set<string>();
     return players.filter(p => {
       if (p.team_id !== teamId || seen.has(p.name)) return false;
@@ -76,7 +76,7 @@ export default function ScoreboardClient({
   }
 
   // ── STEP 1 → 2: select game ────────────────────────────────────────────────
-  function pickGame(g: LiveGame) {
+  function pickGame(g: ScoreboardGame) {
     setSelGame(g);
     const hp = allPlayersFor(g.home_team_id);
     const ap = allPlayersFor(g.away_team_id);
@@ -90,7 +90,7 @@ export default function ScoreboardClient({
     if (!selGame) return;
     const hAll = allPlayersFor(selGame.home_team_id);
     const aAll = allPlayersFor(selGame.away_team_id);
-    const toPS = (list: LivePlayer[], checked: Set<string>): PS[] =>
+    const toPS = (list: ScoreboardPlayer[], checked: Set<string>): PS[] =>
       list.filter(p => checked.has(p.name)).map(p => ({ name: p.name, jersey: p.jersey_number, pts: 0, fouls: 0 }));
 
     setHome({ name: selGame.home_name, logo: selGame.home_logo, score: 0, timeouts: MAX_TO, players: toPS(hAll, homeChecked) });
@@ -171,7 +171,7 @@ export default function ScoreboardClient({
   }
 
   // ── Group games by round ───────────────────────────────────────────────────
-  const byRound = games.reduce<Record<string, LiveGame[]>>((acc, g) => {
+  const byRound = games.reduce<Record<string, ScoreboardGame[]>>((acc, g) => {
     const k = g.round != null ? `מחזור ${g.round}` : g.game_date;
     (acc[k] ??= []).push(g); return acc;
   }, {});
@@ -270,12 +270,12 @@ export default function ScoreboardClient({
       });
     }
 
-    function toggleAll(side: 'home'|'away', all: LivePlayer[], checked: boolean) {
+    function toggleAll(side: 'home'|'away', all: ScoreboardPlayer[], checked: boolean) {
       const setter = side === 'home' ? setHomeChecked : setAwayChecked;
       setter(checked ? new Set(all.map(p => p.name)) : new Set());
     }
 
-    const PlayerList = ({ side, list, checked }: { side: 'home'|'away'; list: LivePlayer[]; checked: Set<string> }) => {
+    const PlayerList = ({ side, list, checked }: { side: 'home'|'away'; list: ScoreboardPlayer[]; checked: Set<string> }) => {
       const accent = side === 'home' ? '#d4982a' : '#4a9fd4';
       const allOn = list.every(p => checked.has(p.name));
       return (

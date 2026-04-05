@@ -1,101 +1,94 @@
 export const dynamic = 'force-dynamic';
 
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import type { LiveGame, LivePlayer } from '../live/page';
+import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import ScoreboardClient from './ScoreboardClient';
 
-export type { LiveGame, LivePlayer };
-
-function pick<T>(val: T | T[] | null): T | null {
-  if (!val) return null;
-  if (Array.isArray(val)) return val[0] ?? null;
-  return val;
-}
-
-type RawGame = {
+export type ScoreboardGame = {
   id: string;
+  round: number;
   game_date: string;
-  round: number | null;
+  home_name: string;
+  away_name: string;
+  home_logo: string | null;
+  away_logo: string | null;
   home_team_id: string;
   away_team_id: string;
-  home_team: { name: string; logo_url: string | null } | { name: string; logo_url: string | null }[] | null;
-  away_team: { name: string; logo_url: string | null } | { name: string; logo_url: string | null }[] | null;
 };
 
-function mapGame(r: RawGame): LiveGame {
-  const ht = pick(r.home_team);
-  const at = pick(r.away_team);
-  return {
-    id: r.id,
-    game_date: r.game_date,
+export type ScoreboardPlayer = {
+  name: string;
+  jersey_number: number | null;
+  team_id: string;
+};
 
-    round: r.round ?? null,
-    home_name: ht?.name ?? '',
-    away_name: at?.name ?? '',
-    home_logo: ht?.logo_url ?? null,
-    away_logo: at?.logo_url ?? null,
-    home_team_id: r.home_team_id,
-    away_team_id: r.away_team_id,
-  };
+function normName(n: string) {
+  return n.replace(/["""״'']/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 }
-
-const GAME_SELECT = `
-  id, game_date, round, home_team_id, away_team_id,
-  home_team:teams!games_home_team_id_fkey(name, logo_url),
-  away_team:teams!games_away_team_id_fkey(name, logo_url)
-`;
 
 export default async function ScoreboardPage() {
   const today = new Date().toISOString().split('T')[0];
-  let games: LiveGame[] = [];
-  let currentRound: number | null = null;
 
-  // 1. Try: next upcoming round (with non-null round)
-  const { data: upcomingRows } = await supabaseAdmin
-    .from('games').select('round').gte('game_date', today)
-    .not('round', 'is', null).order('game_date', { ascending: true }).limit(1);
-  currentRound = (upcomingRows ?? [])[0]?.round ?? null;
+  // 1. Get all teams with id + logo from DB
+  const { data: teamsData } = await supabaseAdmin
+    .from('teams')
+    .select('id, name, logo_url');
 
-  // 2. Fallback: most recent past round (with non-null round)
-  if (currentRound === null) {
-    const { data: pastRows } = await supabaseAdmin
-      .from('games').select('round').not('round', 'is', null)
-      .order('game_date', { ascending: false }).limit(1);
-    currentRound = (pastRows ?? [])[0]?.round ?? null;
+  const teamsByName = new Map<string, { id: string; logo: string | null }>();
+  for (const t of teamsData ?? []) {
+    teamsByName.set(normName(t.name), { id: t.id, logo: t.logo_url ?? null });
   }
 
-  // 3. If we have a round, fetch its games
-  if (currentRound !== null) {
-    const { data } = await supabaseAdmin
-      .from('games').select(GAME_SELECT)
-      .eq('round', currentRound).order('game_date', { ascending: true });
-    games = ((data ?? []) as unknown as RawGame[]).map(mapGame);
+  function findTeam(name: string) {
+    return teamsByName.get(normName(name)) ?? { id: '', logo: null };
   }
 
-  // 4. Final fallback: round column is null for all games — just return all games
-  if (games.length === 0) {
-    const { data } = await supabaseAdmin
-      .from('games').select(GAME_SELECT)
-      .order('game_date', { ascending: false }).limit(30);
-    games = ((data ?? []) as unknown as RawGame[]).map(mapGame);
-    // Group by a pseudo-round using the most recent unique date cluster
-    if (games.length > 0) {
-      // Show only games from the nearest date cluster (within 7 days of the first)
-      const firstDate = games[0].game_date;
-      const cutoff = new Date(firstDate);
-      cutoff.setDate(cutoff.getDate() + 7);
-      const cutoffStr = cutoff.toISOString().split('T')[0];
-      const cluster = games.filter(g => g.game_date >= firstDate && g.game_date <= cutoffStr);
-      games = cluster.length > 0 ? cluster : games.slice(0, 8);
-    }
-  }
+  // 2. Find the next upcoming round from LIBI_SCHEDULE
+  const futureDates = LIBI_SCHEDULE.filter(g => g.date >= today);
+  const nextRound = futureDates.length > 0
+    ? Math.min(...futureDates.map(g => g.round))
+    : Math.max(...LIBI_SCHEDULE.map(g => g.round));
 
-  // 5. Fetch all active players
-  const { data: rawPlayers } = await supabaseAdmin
-    .from('players').select('name, jersey_number, team_id')
-    .eq('is_active', true).order('jersey_number', { nullsFirst: false });
+  // 3. Get all games for that round
+  const roundGames = LIBI_SCHEDULE.filter(g => g.round === nextRound);
 
-  const players: LivePlayer[] = (rawPlayers ?? []) as LivePlayer[];
+  const games: ScoreboardGame[] = roundGames.map(g => {
+    const ht = findTeam(g.homeTeam);
+    const at = findTeam(g.awayTeam);
+    return {
+      id: `${g.round}-${g.homeTeam}-${g.awayTeam}`,
+      round: g.round,
+      game_date: g.date,
+      home_name: g.homeTeam,
+      away_name: g.awayTeam,
+      home_logo: ht.logo,
+      away_logo: at.logo,
+      home_team_id: ht.id,
+      away_team_id: at.id,
+    };
+  });
 
-  return <ScoreboardClient games={games} players={players} currentRound={currentRound} />;
+  // 4. Fetch players only for teams in this round
+  const teamIds = [...new Set(
+    games.flatMap(g => [g.home_team_id, g.away_team_id]).filter(Boolean)
+  )];
+
+  const { data: rawPlayers } = teamIds.length > 0
+    ? await supabaseAdmin
+        .from('players')
+        .select('name, jersey_number, team_id')
+        .in('team_id', teamIds)
+        .eq('is_active', true)
+        .order('jersey_number', { nullsFirst: false })
+    : { data: [] };
+
+  const players: ScoreboardPlayer[] = (rawPlayers ?? []) as ScoreboardPlayer[];
+
+  return (
+    <ScoreboardClient
+      games={games}
+      players={players}
+      currentRound={nextRound}
+    />
+  );
 }
