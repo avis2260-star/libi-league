@@ -162,13 +162,13 @@ export default function LiveClient({
   /* Rotation styles — portrait → landscape on mobile */
   const rotateStyle: React.CSSProperties = rotated ? {
     position: 'fixed',
-    top: 0,
-    right: 0,
+    top: '50%',
+    left: '50%',
     width: '100vh',
     height: '100vw',
-    transform: 'rotate(90deg)',
-    transformOrigin: 'top right',
+    transform: 'translate(-50%, -50%) rotate(90deg)',
     zIndex: 40,
+    overflow: 'hidden',
   } : {};
 
   return (

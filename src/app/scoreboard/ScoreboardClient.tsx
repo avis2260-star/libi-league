@@ -483,10 +483,18 @@ export default function ScoreboardClient({
     );
   };
 
+  // Correct CSS rotation: center the landscape-sized div, then rotate 90°
+  // translate(-50%,-50%) centres the 100vh×100vw box on screen,
+  // rotate(90deg) then makes it fill portrait dimensions perfectly.
   const rotateStyle: React.CSSProperties = rotated ? {
-    position: 'fixed', top: 0, right: 0,
-    width: '100vh', height: '100vw',
-    transform: 'rotate(90deg)', transformOrigin: 'top right', zIndex: 40,
+    position: 'fixed',
+    top: '50%',
+    left: '50%',
+    width: '100vh',
+    height: '100vw',
+    transform: 'translate(-50%, -50%) rotate(90deg)',
+    zIndex: 40,
+    overflow: 'hidden',
   } : {};
 
   return (
