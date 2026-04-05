@@ -113,14 +113,16 @@ function TickerSpeedControl({ initial }: { initial: number }) {
       {/* Live preview */}
       <div className="overflow-hidden rounded-lg bg-[#0d1a28] border border-white/[0.06] py-2">
         <div
-          className="flex whitespace-nowrap gap-16"
+          className="flex w-max"
           style={{ animation: `marquee ${speed}s linear infinite` }}
         >
-          {[demoText, demoText].map((t, i) => (
-            <span key={i} className="inline-flex items-center gap-2 text-sm font-medium text-[#e8edf5]">
-              <span className="inline-block h-2 w-2 rounded-full bg-orange-500" />
-              {t}
-            </span>
+          {[0, 1].map(copy => (
+            <div key={copy} className="flex items-center gap-16 pr-16">
+              <span className="inline-flex items-center gap-2 text-sm font-medium text-[#e8edf5] whitespace-nowrap">
+                <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-orange-500" />
+                {demoText}
+              </span>
+            </div>
           ))}
         </div>
       </div>
