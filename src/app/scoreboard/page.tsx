@@ -15,7 +15,6 @@ function pick<T>(val: T | T[] | null): T | null {
 type RawGame = {
   id: string;
   game_date: string;
-  game_time: string | null;
   round: number | null;
   home_team_id: string;
   away_team_id: string;
@@ -41,7 +40,7 @@ function mapGame(r: RawGame): LiveGame {
 }
 
 const GAME_SELECT = `
-  id, game_date, game_time, round, home_team_id, away_team_id,
+  id, game_date, round, home_team_id, away_team_id,
   home_team:teams!games_home_team_id_fkey(name, logo_url),
   away_team:teams!games_away_team_id_fkey(name, logo_url)
 `;
