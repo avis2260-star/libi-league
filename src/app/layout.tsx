@@ -13,6 +13,7 @@ import CourtBackground from '@/components/CourtBackground';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import AppRotationProvider from '@/components/AppRotationProvider';
 import RotationShell from '@/components/RotationShell';
+import Footer from '@/components/Footer';
 
 const heebo = Heebo({ subsets: ['hebrew', 'latin'], weight: ['300','400','500','600','700','800','900'] });
 
@@ -85,9 +86,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <main className="mx-auto max-w-7xl px-4 py-8 pb-24 sm:pb-8">{children}</main>
 
           {/* ── Footer (desktop only) ─────────────────────────────────────── */}
-          <footer className="hidden sm:block mt-16 border-t border-white/5 py-6 text-center text-xs text-[#3a5a7a]">
-            © {new Date().getFullYear()} ליגת ליבי · כל הזכויות שמורות
-          </footer>
+          <Footer />
 
           {/* ── Mobile bottom nav ─────────────────────────────────────────── */}
           <BottomNav />
