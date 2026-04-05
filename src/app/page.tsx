@@ -39,6 +39,19 @@ async function getActiveAnnouncements(): Promise<ActiveAnnouncement[]> {
   }
 }
 
+async function getTickerSpeed(): Promise<number> {
+  try {
+    const { data } = await supabaseAdmin
+      .from('league_settings')
+      .select('value')
+      .eq('key', 'ticker_speed')
+      .maybeSingle();
+    return data?.value ? parseInt(data.value, 10) : 25;
+  } catch {
+    return 25;
+  }
+}
+
 async function getLiveData() {
   try {
     const [{ data: standings }, { data: results }] = await Promise.all([
@@ -118,10 +131,11 @@ function RecordCard({ icon, label, value, sub, detail, color }: { icon: string; 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function HomePage() {
-  const [liveData, activeAnnouncements, teams] = await Promise.all([
+  const [liveData, activeAnnouncements, teams, tickerSpeed] = await Promise.all([
     getLiveData(),
     getActiveAnnouncements(),
     getTeams(),
+    getTickerSpeed(),
   ]);
 
   // Build logo lookup (normalize quotes/spaces like teams page does)
@@ -172,7 +186,10 @@ export default async function HomePage() {
       {/* Tickers */}
       {tickers.length > 0 && (
         <div className="overflow-hidden rounded-lg bg-[#0d1a28] border border-white/[0.07] py-2">
-          <div className="flex animate-marquee whitespace-nowrap gap-16">
+          <div
+            className="flex whitespace-nowrap gap-16"
+            style={{ animation: `marquee ${tickerSpeed}s linear infinite` }}
+          >
             {[...tickers, ...tickers].map((ann, i) => (
               <span key={`${ann.id}-${i}`} className={`inline-flex items-center gap-2 text-sm font-medium text-[#e8edf5]`}>
                 <span className={`inline-block h-2 w-2 rounded-full ${BG_COLOR_CLASSES[ann.bg_color] ?? 'bg-orange-500'}`} />

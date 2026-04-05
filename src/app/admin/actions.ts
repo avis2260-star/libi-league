@@ -364,6 +364,19 @@ export async function clearSubmission(submissionId: string): Promise<ActionResul
   return {};
 }
 
+// ── Ticker speed ─────────────────────────────────────────────────────────────
+
+export async function saveTickerSpeed(seconds: number): Promise<ActionResult> {
+  const clamped = Math.max(5, Math.min(120, Math.round(seconds)));
+  const { error } = await supabaseAdmin
+    .from('league_settings')
+    .upsert({ key: 'ticker_speed', value: String(clamped) }, { onConflict: 'key' });
+
+  if (error) return { error: error.message };
+  revalidatePath('/');
+  return {};
+}
+
 // ── Terms & Privacy text ──────────────────────────────────────────────────────
 
 export async function saveTermsSetting(

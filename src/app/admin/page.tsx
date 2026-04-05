@@ -109,9 +109,14 @@ export default async function AdminPage({
 
   // Announcements tab
   let announcements: { id: string; message: string; type: string; active: boolean; bg_color: string; created_at: string; expires_at: string | null }[] = [];
+  let tickerSpeed = 25;
   if (tab === 'announcements') {
-    const { data } = await supabaseAdmin.from('announcements').select('*').order('created_at', { ascending: false });
+    const [{ data }, { data: speedRow }] = await Promise.all([
+      supabaseAdmin.from('announcements').select('*').order('created_at', { ascending: false }),
+      supabaseAdmin.from('league_settings').select('value').eq('key', 'ticker_speed').maybeSingle(),
+    ]);
     announcements = (data ?? []) as typeof announcements;
+    tickerSpeed = speedRow?.value ? parseInt(speedRow.value, 10) : 25;
   }
 
   // Submissions tab
@@ -204,7 +209,7 @@ export default async function AdminPage({
       {tab === 'officials'     && <OfficialsTab officials={officials} />}
       {tab === 'disciplinary'  && <DisciplinaryTab records={disciplinaryRecords} players={playerOptions} />}
       {tab === 'settings'      && <LeagueSettingsTab settings={leagueSettings} />}
-      {tab === 'announcements' && <AnnouncementsTab announcements={announcements} />}
+      {tab === 'announcements' && <AnnouncementsTab announcements={announcements} tickerSpeed={tickerSpeed} />}
       {tab === 'synclog'       && <SyncLogTab logs={syncLogs} />}
       {tab === 'takanon'       && <TakanonTab />}
       {tab === 'playoff'       && <PlayoffTab />}
