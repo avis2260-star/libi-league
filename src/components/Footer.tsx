@@ -52,10 +52,59 @@ function YoutubeIcon() {
   );
 }
 
+const MOBILE_LINKS = [
+  { href: '/about',    label: 'אודות'       },
+  { href: '/about',    label: 'צור קשר'     },
+  { href: '/terms',    label: 'תנאי שימוש'  },
+  { href: '/takanon',  label: 'תקנון'       },
+];
+
 export default function Footer() {
   const year = new Date().getFullYear();
 
   return (
+    <>
+    {/* ── Mobile footer (sm:hidden) ── */}
+    <footer
+      dir="rtl"
+      className="sm:hidden mt-8 pb-20 border-t border-white/[0.06] bg-[#080f1a]"
+    >
+      {/* Orange top accent */}
+      <div className="h-px bg-gradient-to-r from-transparent via-orange-500/50 to-transparent" />
+
+      {/* Disclaimer */}
+      <div className="px-4 pt-4 pb-3 flex items-start gap-2 text-[11px] text-[#4a6a8a] leading-relaxed">
+        <span className="text-[#3a5a7a] mt-0.5 shrink-0">ⓘ</span>
+        <p>
+          הנתונים באתר הינם לידיעה בלבד. התמונות מועלות באישור השחקנים.{' '}
+          נמצאה טעות?{' '}
+          <Link href="/about" className="text-orange-400/70 hover:text-orange-400 underline underline-offset-2">
+            פנו אלינו
+          </Link>
+          .
+        </p>
+      </div>
+
+      {/* Links row */}
+      <div className="px-4 pb-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+        {MOBILE_LINKS.map(({ href, label }) => (
+          <Link
+            key={label}
+            href={href}
+            className="text-xs text-[#5a7a9a] hover:text-orange-400 transition-colors"
+          >
+            {label}
+          </Link>
+        ))}
+      </div>
+
+      {/* Copyright */}
+      <p className="pb-2 text-center text-[10px] text-[#2a4a6a]">
+        © {year} ליגת ליבי · כל הזכויות שמורות
+      </p>
+    </footer>
+
+    {/* ── Desktop footer (hidden on mobile) ── */}
     <footer
       dir="rtl"
       className="hidden sm:block mt-16 border-t border-white/[0.06] bg-[#080f1a]"
@@ -185,5 +234,6 @@ export default function Footer() {
         </div>
       </div>
     </footer>
+    </>
   );
 }
