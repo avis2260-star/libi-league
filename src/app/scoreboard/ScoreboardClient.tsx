@@ -1,809 +1,625 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import type { LiveGame, LivePlayer } from '../live/page';
 
-// ── Types ───────────────────────────────────────────────────────────────────
-
-type PS = { name: string; jersey: number | null; pts: number; fouls: number };
-type TS = { name: string; logo: string | null; score: number; timeouts: number; players: PS[] };
-type LE = { id: number; q: number; clk: string; side: 'H' | 'A'; who: string; val: string };
-type Phase = 'idle' | 'ready' | 'live' | 'paused' | 'done';
-
-// ── Constants ───────────────────────────────────────────────────────────────
+// ── Types ────────────────────────────────────────────────────────────────────
+type PS  = { name: string; jersey: number | null; pts: number; fouls: number };
+type TS  = { name: string; logo: string | null; score: number; timeouts: number; players: PS[] };
+type LE  = { id: number; q: number; clk: string; side: 'H'|'A'; who: string; val: string };
+type Phase = 'pick' | 'setup' | 'ready' | 'live' | 'paused' | 'done';
 
 const QUARTER_SEC = 10 * 60;
-const SHOT_SEC = 24;
+const SHOT_SEC    = 24;
 const TIMEOUT_SEC = 60;
-const MAX_TO = 5;
+const MAX_TO      = 5;
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
-
-function fmtTime(s: number): string {
-  const m = Math.floor(Math.max(0, s) / 60);
-  const sec = Math.max(0, s) % 60;
-  return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function fmt(s: number) {
+  return `${String(Math.floor(Math.max(0,s)/60)).padStart(2,'0')}:${String(Math.max(0,s)%60).padStart(2,'0')}`;
 }
 
-function Logo({ logo, name, size }: { logo: string | null; name: string; size: number }) {
+function Logo({ logo, name, size = 48 }: { logo: string|null; name: string; size?: number }) {
   return (
-    <div
-      className="shrink-0 rounded-full border border-white/10 bg-white/5 overflow-hidden flex items-center justify-center"
-      style={{ width: size, height: size }}
-    >
-      {logo ? (
-        <img src={logo} alt={name} className="w-full h-full object-cover" />
-      ) : (
-        <span className="font-black text-[#4a6a8a]" style={{ fontSize: Math.max(10, size * 0.4) }}>
-          {[...name].find(c => c.trim()) ?? '?'}
-        </span>
-      )}
+    <div className="shrink-0 rounded-full border-2 border-white/10 bg-[#1a2a3a] overflow-hidden flex items-center justify-center"
+      style={{ width: size, height: size }}>
+      {logo
+        ? <img src={logo} alt={name} className="w-full h-full object-cover" />
+        : <span className="font-black text-[#4a6a8a]" style={{ fontSize: Math.max(10, size * 0.38) }}>
+            {[...name].find(c => c.trim()) ?? '?'}
+          </span>}
     </div>
   );
 }
 
-// ── Main Component ───────────────────────────────────────────────────────────
-
+// ── Component ────────────────────────────────────────────────────────────────
 export default function ScoreboardClient({
-  games,
-  players,
-  currentRound,
-}: {
-  games: LiveGame[];
-  players: LivePlayer[];
-  currentRound: number | null;
-}) {
-  const [selectedGame, setSelectedGame] = useState<LiveGame | null>(null);
-  const [panelOpen, setPanelOpen] = useState(true);
-  const [phase, setPhase] = useState<Phase>('idle');
+  games, players, currentRound,
+}: { games: LiveGame[]; players: LivePlayer[]; currentRound: number | null }) {
+
+  // ── Step tracking ──────────────────────────────────────────────────────────
+  const [phase,   setPhase]   = useState<Phase>('pick');
+  const [selGame, setSelGame] = useState<LiveGame | null>(null);
+
+  // Setup step: which players are checked
+  const [homeChecked, setHomeChecked] = useState<Set<string>>(new Set());
+  const [awayChecked, setAwayChecked] = useState<Set<string>>(new Set());
+
+  // Scoreboard state
   const [quarter, setQuarter] = useState(1);
-  const [clock, setClock] = useState(QUARTER_SEC);
-  const [shot, setShot] = useState(SHOT_SEC);
+  const [clock,   setClock]   = useState(QUARTER_SEC);
+  const [shot,    setShot]    = useState(SHOT_SEC);
   const [toClock, setToClock] = useState(TIMEOUT_SEC);
-  const [toActive, setToActive] = useState(false);
-  const [home, setHome] = useState<TS>({ name: '', logo: null, score: 0, timeouts: MAX_TO, players: [] });
-  const [away, setAway] = useState<TS>({ name: '', logo: null, score: 0, timeouts: MAX_TO, players: [] });
-  const [log, setLog] = useState<LE[]>([]);
+  const [toActive,setToActive]= useState(false);
+  const [home,    setHome]    = useState<TS>({ name:'', logo:null, score:0, timeouts:MAX_TO, players:[] });
+  const [away,    setAway]    = useState<TS>({ name:'', logo:null, score:0, timeouts:MAX_TO, players:[] });
+  const [log,     setLog]     = useState<LE[]>([]);
   const [logOpen, setLogOpen] = useState(false);
 
-  const logId = useRef(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const toRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const logId    = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setInterval>|null>(null);
+  const toRef    = useRef<ReturnType<typeof setInterval>|null>(null);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (toRef.current) clearInterval(toRef.current);
-    };
+  useEffect(() => () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (toRef.current)    clearInterval(toRef.current);
   }, []);
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
-
-  function teamPlayers(teamId: string): PS[] {
+  // ── Player helpers ─────────────────────────────────────────────────────────
+  function allPlayersFor(teamId: string): LivePlayer[] {
     const seen = new Set<string>();
-    const result: PS[] = [];
-    for (const p of players) {
-      if (p.team_id !== teamId) continue;
-      if (seen.has(p.name)) continue;
-      seen.add(p.name);
-      result.push({ name: p.name, jersey: p.jersey_number, pts: 0, fouls: 0 });
-    }
-    return result;
+    return players.filter(p => {
+      if (p.team_id !== teamId || seen.has(p.name)) return false;
+      seen.add(p.name); return true;
+    });
   }
 
-  function stopTimer() {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
+  // ── STEP 1 → 2: select game ────────────────────────────────────────────────
+  function pickGame(g: LiveGame) {
+    setSelGame(g);
+    const hp = allPlayersFor(g.home_team_id);
+    const ap = allPlayersFor(g.away_team_id);
+    setHomeChecked(new Set(hp.map(p => p.name)));
+    setAwayChecked(new Set(ap.map(p => p.name)));
+    setPhase('setup');
   }
 
-  const pushLog = useCallback(
-    (side: 'H' | 'A', who: string, val: string, currentQ: number, currentClock: number) => {
-      const entry: LE = {
-        id: ++logId.current,
-        q: currentQ,
-        clk: fmtTime(currentClock),
-        side,
-        who,
-        val,
-      };
-      setLog(prev => [entry, ...prev]);
-    },
-    []
-  );
+  // ── STEP 2 → 3: confirm rosters ───────────────────────────────────────────
+  function confirmRosters() {
+    if (!selGame) return;
+    const hAll = allPlayersFor(selGame.home_team_id);
+    const aAll = allPlayersFor(selGame.away_team_id);
+    const toPS = (list: LivePlayer[], checked: Set<string>): PS[] =>
+      list.filter(p => checked.has(p.name)).map(p => ({ name: p.name, jersey: p.jersey_number, pts: 0, fouls: 0 }));
 
-  function startGame(g: LiveGame) {
-    stopTimer();
-    if (toRef.current) {
-      clearInterval(toRef.current);
-      toRef.current = null;
-    }
-    setSelectedGame(g);
-    setPanelOpen(false);
+    setHome({ name: selGame.home_name, logo: selGame.home_logo, score: 0, timeouts: MAX_TO, players: toPS(hAll, homeChecked) });
+    setAway({ name: selGame.away_name, logo: selGame.away_logo, score: 0, timeouts: MAX_TO, players: toPS(aAll, awayChecked) });
+    setQuarter(1); setClock(QUARTER_SEC); setShot(SHOT_SEC); setToClock(TIMEOUT_SEC); setToActive(false); setLog([]);
     setPhase('ready');
-    setQuarter(1);
-    setClock(QUARTER_SEC);
-    setShot(SHOT_SEC);
-    setToClock(TIMEOUT_SEC);
-    setToActive(false);
-    setLog([]);
-    logId.current = 0;
-    setHome({
-      name: g.home_name,
-      logo: g.home_logo,
-      score: 0,
-      timeouts: MAX_TO,
-      players: teamPlayers(g.home_team_id),
-    });
-    setAway({
-      name: g.away_name,
-      logo: g.away_logo,
-      score: 0,
-      timeouts: MAX_TO,
-      players: teamPlayers(g.away_team_id),
-    });
   }
+
+  // ── Clock control ──────────────────────────────────────────────────────────
+  function stopTimer() { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } }
 
   function startTimer() {
-    stopTimer();
+    if (timerRef.current) return;
     setPhase('live');
     timerRef.current = setInterval(() => {
-      setClock(prev => {
-        if (prev <= 1) {
-          stopTimer();
-          setPhase('paused');
-          return 0;
-        }
-        return prev - 1;
-      });
-      setShot(prev => (prev <= 1 ? 0 : prev - 1));
+      setClock(c => { if (c <= 1) { stopTimer(); setPhase('paused'); return 0; } return c - 1; });
+      setShot(s => Math.max(0, s - 1));
     }, 1000);
   }
 
-  function pauseTimer() {
-    stopTimer();
-    setPhase('paused');
-  }
+  function pauseTimer() { stopTimer(); setPhase('paused'); }
 
   function nextQ() {
     stopTimer();
-    setQuarter(prev => {
-      const nq = prev + 1;
-      if (prev >= 4) {
-        setPhase('done');
-        return prev;
-      }
-      setPhase('ready');
-      setClock(QUARTER_SEC);
-      setShot(SHOT_SEC);
-      return nq;
-    });
+    if (quarter >= 4) { setPhase('done'); return; }
+    setQuarter(q => q + 1);
+    setClock(QUARTER_SEC); setShot(SHOT_SEC);
+    setPhase('ready');
   }
 
-  function callTO(side: 'H' | 'A') {
-    const ts = side === 'H' ? home : away;
-    if (ts.timeouts <= 0) return;
+  function callTO(side: 'home'|'away') {
+    const t = side === 'home' ? home : away;
+    if (t.timeouts <= 0) return;
     pauseTimer();
-    const setter = side === 'H' ? setHome : setAway;
-    setter(t => ({ ...t, timeouts: t.timeouts - 1 }));
-    setToActive(true);
-    setToClock(TIMEOUT_SEC);
+    (side === 'home' ? setHome : setAway)(ts => ({ ...ts, timeouts: ts.timeouts - 1 }));
+    setToClock(TIMEOUT_SEC); setToActive(true);
     if (toRef.current) clearInterval(toRef.current);
     toRef.current = setInterval(() => {
-      setToClock(prev => {
-        if (prev <= 1) {
-          if (toRef.current) clearInterval(toRef.current);
-          toRef.current = null;
-          setToActive(false);
-          return 0;
-        }
-        return prev - 1;
-      });
+      setToClock(c => { if (c <= 1) { clearInterval(toRef.current!); toRef.current = null; setToActive(false); return 0; } return c - 1; });
     }, 1000);
   }
 
-  function addScore(side: 'H' | 'A', pts: number) {
-    const setter = side === 'H' ? setHome : setAway;
-    let capturedScore = 0;
-    let capturedQ = 1;
-    let capturedClock = 0;
-    setter(ts => {
-      capturedScore = ts.score + pts;
-      return { ...ts, score: ts.score + pts };
+  // ── Scoring ────────────────────────────────────────────────────────────────
+  function addTeamScore(side: 'home'|'away', pts: number) {
+    (side === 'home' ? setHome : setAway)(ts => ({ ...ts, score: ts.score + pts }));
+    pushLog(side, 'TEAM', `+${pts}`);
+  }
+  function addPts(side: 'home'|'away', pi: number, pts: number) {
+    const t = side === 'home' ? home : away;
+    (side === 'home' ? setHome : setAway)(ts => {
+      const ps = [...ts.players]; ps[pi] = { ...ps[pi], pts: ps[pi].pts + pts };
+      return { ...ts, score: ts.score + pts, players: ps };
     });
-    setQuarter(q => { capturedQ = q; return q; });
-    setClock(c => { capturedClock = c; return c; });
-    const teamName = side === 'H' ? home.name : away.name;
-    // use setTimeout to read captured values after state setters flush
-    setTimeout(() => {
-      pushLog(side, teamName, `+${pts}`, capturedQ, capturedClock);
-    }, 0);
+    pushLog(side, t.players[pi]?.name ?? '?', `+${pts}`);
+  }
+  function addFoul(side: 'home'|'away', pi: number) {
+    const t = side === 'home' ? home : away;
+    (side === 'home' ? setHome : setAway)(ts => {
+      const ps = [...ts.players]; ps[pi] = { ...ps[pi], fouls: ps[pi].fouls + 1 };
+      return { ...ts, players: ps };
+    });
+    pushLog(side, t.players[pi]?.name ?? '?', 'FOUL');
+  }
+  function pushLog(side: 'home'|'away', who: string, val: string) {
+    setLog(l => [{ id: logId.current++, q: quarter, clk: fmt(clock), side: side === 'home' ? 'H' : 'A', who, val }, ...l]);
   }
 
-  function addPts(side: 'H' | 'A', pi: number, pts: number) {
-    const setter = side === 'H' ? setHome : setAway;
-    let playerName = '';
-    let capturedQ = 1;
-    let capturedClock = 0;
-    setter(ts => {
-      const updated = ts.players.map((p, i) =>
-        i === pi ? { ...p, pts: p.pts + pts } : p
-      );
-      playerName = ts.players[pi]?.name ?? '';
-      return { ...ts, score: ts.score + pts, players: updated };
-    });
-    setQuarter(q => { capturedQ = q; return q; });
-    setClock(c => { capturedClock = c; return c; });
-    setTimeout(() => {
-      pushLog(side, playerName, `+${pts}pt`, capturedQ, capturedClock);
-    }, 0);
-  }
-
-  function addFoul(side: 'H' | 'A', pi: number) {
-    const setter = side === 'H' ? setHome : setAway;
-    let playerName = '';
-    let capturedQ = 1;
-    let capturedClock = 0;
-    setter(ts => {
-      const updated = ts.players.map((p, i) =>
-        i === pi ? { ...p, fouls: p.fouls + 1 } : p
-      );
-      playerName = ts.players[pi]?.name ?? '';
-      return { ...ts, players: updated };
-    });
-    setQuarter(q => { capturedQ = q; return q; });
-    setClock(c => { capturedClock = c; return c; });
-    setTimeout(() => {
-      pushLog(side, playerName, 'FOUL', capturedQ, capturedClock);
-    }, 0);
-  }
-
+  // ── Export ─────────────────────────────────────────────────────────────────
   function exportCSV() {
-    const rows: string[] = ['Team,Jersey,Name,Points,Fouls'];
-    for (const p of home.players) {
-      rows.push(`"${home.name}",${p.jersey ?? ''},${p.name},${p.pts},${p.fouls}`);
-    }
-    for (const p of away.players) {
-      rows.push(`"${away.name}",${p.jersey ?? ''},${p.name},${p.pts},${p.fouls}`);
-    }
-    const csv = rows.join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
+    const rows = ['Team,#,Player,Points,Fouls'];
+    [...home.players.map(p => [home.name, p.jersey ?? '', p.name, p.pts, p.fouls]),
+     ...away.players.map(p => [away.name, p.jersey ?? '', p.name, p.pts, p.fouls])]
+      .forEach(r => rows.push(r.join(',')));
     const a = document.createElement('a');
-    a.href = url;
+    a.href = URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv' }));
     a.download = `scoreboard-${home.name}-vs-${away.name}.csv`;
     a.click();
-    URL.revokeObjectURL(url);
   }
 
-  // ── Derived ────────────────────────────────────────────────────────────────
-
-  const byRound = games.reduce<Record<number, LiveGame[]>>((acc, g) => {
-    const r = g.round ?? 0;
-    if (!acc[r]) acc[r] = [];
-    acc[r].push(g);
-    return acc;
+  // ── Group games by round ───────────────────────────────────────────────────
+  const byRound = games.reduce<Record<string, LiveGame[]>>((acc, g) => {
+    const k = g.round != null ? `מחזור ${g.round}` : g.game_date;
+    (acc[k] ??= []).push(g); return acc;
   }, {});
-  const rounds = Object.keys(byRound).map(Number).sort((a, b) => a - b);
+  const roundKeys = Object.keys(byRound);
 
-  const homeAccent = '#d4982a';
-  const awayAccent = '#4a9fd4';
+  const isRunning = phase === 'live';
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-
-  return (
-    <div dir="ltr" className="min-h-screen bg-[#0d1117] text-white flex flex-col select-none">
-
-      {/* TOP BAR */}
-      <div className="sticky top-0 z-30 flex items-center gap-2 px-3 py-2 bg-[#111827] border-b border-white/[0.07]">
-        <Link
-          href="/"
-          className="flex items-center gap-1 text-sm text-[#5a7a9a] hover:text-white transition-colors shrink-0"
-        >
-          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-            <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
-          </svg>
-          Back
-        </Link>
-
-        <div className="h-5 w-px bg-white/10 shrink-0" />
-
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-lg">🏀</span>
-          <div>
-            <p className="text-xs font-black uppercase tracking-widest text-white leading-none">LIBIGAME</p>
-            <p className="text-[9px] font-bold uppercase tracking-widest text-[#5a7a9a] leading-none">Digital Scoresheet</p>
+  // ══════════════════════════════════════════════════════════════════════════
+  // STEP 1 — PICK GAME
+  // ══════════════════════════════════════════════════════════════════════════
+  if (phase === 'pick') {
+    return (
+      <div dir="ltr" className="min-h-screen bg-[#0d1117] text-white flex flex-col">
+        {/* Header */}
+        <div className="flex items-center gap-3 bg-[#111827] border-b border-white/[0.08] px-4 py-3">
+          <Link href="/" className="text-[#5a7a9a] hover:text-white flex items-center gap-1 text-sm">
+            <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+              <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd"/>
+            </svg>
+            Back
+          </Link>
+          <div className="w-px h-5 bg-white/10" />
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center text-base">🏀</div>
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-widest leading-none">LIBIGAME</p>
+              <p className="text-[9px] text-[#4a6a8a] tracking-wider leading-none">DIGITAL SCORESHEET</p>
+            </div>
           </div>
+          <div className="flex-1" />
+          <span className="text-[10px] font-black uppercase tracking-wider text-[#3a5a7a]">
+            STEP 1 OF 3 — SELECT GAME
+          </span>
         </div>
 
-        <div className="flex-1" />
-
-        <button
-          onClick={() => setPanelOpen(o => !o)}
-          className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-all ${
-            panelOpen
-              ? 'border-orange-500/50 bg-orange-500/15 text-orange-400'
-              : 'border-white/[0.08] bg-white/[0.04] text-[#8aaac8] hover:text-white hover:bg-white/[0.08]'
-          }`}
-        >
-          ··· SELECT GAME
-        </button>
-
-        {phase !== 'idle' && (
-          <>
-            {(phase === 'ready' || phase === 'paused') && (
-              <button
-                onClick={startTimer}
-                className="rounded-lg bg-orange-500 hover:bg-orange-400 px-2.5 py-1.5 text-xs font-black text-white transition-all"
-              >
-                PLAY
-              </button>
-            )}
-
-            {phase === 'live' && (
-              <button
-                onClick={pauseTimer}
-                className="rounded-lg border border-orange-500/60 bg-orange-500/10 hover:bg-orange-500/20 px-2.5 py-1.5 text-xs font-black text-orange-400 transition-all"
-              >
-                PAUSE
-              </button>
-            )}
-
-            <button
-              onClick={nextQ}
-              className="rounded-lg border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] px-2.5 py-1.5 text-xs font-bold text-[#8aaac8] hover:text-white transition-all"
-            >
-              {quarter >= 4 ? 'END GAME' : `NEXT Q${quarter + 1}`}
-            </button>
-
-            <button
-              onClick={() => setLogOpen(o => !o)}
-              className={`rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-all ${
-                logOpen
-                  ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
-                  : 'border-white/10 bg-white/[0.04] text-[#8aaac8] hover:text-white hover:bg-white/[0.08]'
-              }`}
-            >
-              GAME LOG
-            </button>
-
-            <button
-              onClick={exportCSV}
-              className="rounded-lg border border-green-500/30 bg-green-500/10 hover:bg-green-500/20 px-2.5 py-1.5 text-xs font-bold text-green-400 transition-all"
-            >
-              EXPORT
-            </button>
-
-            <button
-              onClick={() => selectedGame && startGame(selectedGame)}
-              className="rounded-lg border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 px-2.5 py-1.5 text-xs font-bold text-red-400 transition-all"
-            >
-              RESET
-            </button>
-          </>
-        )}
-      </div>
-
-      {/* GAME PICKER PANEL */}
-      {panelOpen && (
-        <div className="border-b border-white/[0.07] bg-[#0b1824] overflow-y-auto max-h-[50vh]">
-          <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06]">
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#3a5a7a]">
-              {currentRound ? `ROUND ${currentRound}` : 'GAMES'}
-            </span>
-            <span className="text-[10px] text-[#2a4a6a]">{games.length} games</span>
-          </div>
-
+        {/* Game list */}
+        <div className="flex-1 overflow-y-auto p-4 max-w-2xl mx-auto w-full">
           {games.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-[#5a7a9a]">No games found</p>
+            <div className="flex flex-col items-center justify-center h-64 gap-4">
+              <span className="text-4xl">📅</span>
+              <p className="text-[#5a7a9a] font-bold">No games found in the schedule</p>
+            </div>
           ) : (
-            <div className="p-3 space-y-4">
-              {rounds.map(round => (
-                <div key={round}>
-                  <p className="px-1 pb-1.5 text-[10px] font-black uppercase tracking-widest text-[#2a4a6a]">
-                    Round {round} · {byRound[round].length} games
-                  </p>
-                  <div className="space-y-1.5">
-                    {byRound[round].map(game => {
-                      const isSelected = selectedGame?.id === game.id;
-                      return (
-                        <button
-                          key={game.id}
-                          onClick={() => startGame(game)}
-                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all text-left ${
-                            isSelected
-                              ? 'border-orange-500/40 bg-orange-500/[0.08]'
-                              : 'border-white/[0.06] bg-white/[0.02] hover:border-white/10'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 flex-1">
-                            <Logo logo={game.home_logo} name={game.home_name} size={32} />
-                            <span className={`text-sm font-black truncate ${isSelected ? 'text-orange-300' : 'text-white'}`}>
-                              {game.home_name}
-                            </span>
-                          </div>
-
-                          <div className="shrink-0 text-center px-2">
-                            <span className="text-[10px] font-black text-[#3a5a7a]">VS</span>
-                            <p className="text-[9px] text-[#2a4a6a] mt-0.5">{game.game_date}</p>
-                          </div>
-
-                          <div className="flex items-center gap-2 flex-1 justify-end">
-                            <span className={`text-sm font-black truncate ${isSelected ? 'text-orange-300' : 'text-white'}`}>
-                              {game.away_name}
-                            </span>
-                            <Logo logo={game.away_logo} name={game.away_name} size={32} />
-                          </div>
-
-                          {isSelected && (
-                            <span className="shrink-0 text-[10px] font-black text-green-400">✓</span>
-                          )}
-                        </button>
-                      );
-                    })}
+            <div className="space-y-6">
+              {roundKeys.map(rk => (
+                <div key={rk}>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#3a5a7a] mb-2 px-1">{rk}</p>
+                  <div className="space-y-2">
+                    {byRound[rk].map(g => (
+                      <button key={g.id} onClick={() => pickGame(g)}
+                        className="w-full flex items-center gap-3 bg-[#0f1923] hover:bg-[#162030] border border-white/[0.07] hover:border-orange-500/30 rounded-2xl px-5 py-4 transition-all group">
+                        {/* Home */}
+                        <div className="flex items-center gap-3 flex-1 justify-end">
+                          <span className="text-base font-black text-white group-hover:text-orange-300 transition-colors">{g.home_name}</span>
+                          <Logo logo={g.home_logo} name={g.home_name} size={44} />
+                        </div>
+                        {/* VS */}
+                        <div className="shrink-0 flex flex-col items-center px-2">
+                          <span className="text-xs font-black text-[#3a5a7a]">VS</span>
+                          <span className="text-[9px] text-[#2a4a6a] mt-0.5">{g.game_date}</span>
+                        </div>
+                        {/* Away */}
+                        <div className="flex items-center gap-3 flex-1">
+                          <Logo logo={g.away_logo} name={g.away_name} size={44} />
+                          <span className="text-base font-black text-white group-hover:text-orange-300 transition-colors">{g.away_name}</span>
+                        </div>
+                        {/* Arrow */}
+                        <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-[#2a4a6a] group-hover:text-orange-400 transition-colors shrink-0">
+                          <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd"/>
+                        </svg>
+                      </button>
+                    ))}
                   </div>
                 </div>
               ))}
             </div>
           )}
         </div>
-      )}
+      </div>
+    );
+  }
 
-      {/* IDLE STATE */}
-      {phase === 'idle' && !panelOpen && (
-        <div className="flex-1 flex flex-col items-center justify-center gap-4">
-          <p className="text-4xl">🏀</p>
-          <p className="text-lg font-bold text-[#5a7a9a]">Select a game to begin</p>
-          <button
-            onClick={() => setPanelOpen(true)}
-            className="rounded-xl bg-orange-500 hover:bg-orange-400 px-6 py-3 text-sm font-black text-white transition-all"
-          >
-            SELECT GAME
+  // ══════════════════════════════════════════════════════════════════════════
+  // STEP 2 — ROSTER SETUP
+  // ══════════════════════════════════════════════════════════════════════════
+  if (phase === 'setup' && selGame) {
+    const hAll = allPlayersFor(selGame.home_team_id);
+    const aAll = allPlayersFor(selGame.away_team_id);
+
+    function togglePlayer(side: 'home'|'away', name: string) {
+      const setter = side === 'home' ? setHomeChecked : setAwayChecked;
+      setter(prev => {
+        const next = new Set(prev);
+        next.has(name) ? next.delete(name) : next.add(name);
+        return next;
+      });
+    }
+
+    function toggleAll(side: 'home'|'away', all: LivePlayer[], checked: boolean) {
+      const setter = side === 'home' ? setHomeChecked : setAwayChecked;
+      setter(checked ? new Set(all.map(p => p.name)) : new Set());
+    }
+
+    const PlayerList = ({ side, list, checked }: { side: 'home'|'away'; list: LivePlayer[]; checked: Set<string> }) => {
+      const accent = side === 'home' ? '#d4982a' : '#4a9fd4';
+      const allOn = list.every(p => checked.has(p.name));
+      return (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: '#5a7a9a' }}>
+              PLAYERS ({checked.size}/{list.length})
+            </p>
+            <button onClick={() => toggleAll(side, list, !allOn)}
+              className="text-[9px] font-bold px-2 py-0.5 rounded border border-white/10 text-[#8aaac8] hover:text-white">
+              {allOn ? 'Clear all' : 'Select all'}
+            </button>
+          </div>
+          <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
+            {list.length === 0
+              ? <p className="text-[10px] text-[#3a5a7a] py-2">No players on roster</p>
+              : list.map(p => {
+                  const on = checked.has(p.name);
+                  return (
+                    <button key={p.name} onClick={() => togglePlayer(side, p.name)}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl border transition-all text-left ${
+                        on ? 'border-white/10 bg-white/[0.04]' : 'border-transparent bg-transparent opacity-40'
+                      }`}>
+                      {/* Checkbox */}
+                      <div className="w-4 h-4 rounded border flex items-center justify-center shrink-0"
+                        style={{ borderColor: on ? accent : '#3a5a7a', background: on ? accent : 'transparent' }}>
+                        {on && <svg viewBox="0 0 12 12" fill="none" className="w-3 h-3">
+                          <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>}
+                      </div>
+                      <span className="text-[11px] font-mono w-6 shrink-0" style={{ color: accent }}>
+                        #{p.jersey_number ?? '–'}
+                      </span>
+                      <span className="flex-1 text-[13px] font-semibold text-white truncate">{p.name}</span>
+                    </button>
+                  );
+                })
+            }
+          </div>
+        </div>
+      );
+    };
+
+    return (
+      <div dir="ltr" className="min-h-screen bg-[#0d1117] text-white flex flex-col">
+        {/* Header */}
+        <div className="flex items-center gap-3 bg-[#111827] border-b border-white/[0.08] px-4 py-3">
+          <button onClick={() => setPhase('pick')} className="text-[#5a7a9a] hover:text-white flex items-center gap-1 text-sm">
+            <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+              <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd"/>
+            </svg>
+            Back
+          </button>
+          <div className="w-px h-5 bg-white/10" />
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center text-base shrink-0">🏀</div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-black uppercase tracking-widest leading-none">LIBIGAME</p>
+              <p className="text-[9px] text-orange-400 leading-none truncate font-bold">
+                {selGame.home_name} vs {selGame.away_name}
+              </p>
+            </div>
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-wider text-[#3a5a7a] shrink-0">
+            STEP 2 OF 3 — ROSTERS
+          </span>
+        </div>
+
+        {/* Teams + rosters */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="grid grid-cols-2 divide-x divide-white/[0.06] max-w-3xl mx-auto">
+            {/* HOME */}
+            <div className="p-4 space-y-4">
+              <div className="flex flex-col items-center gap-2 pb-3 border-b border-white/[0.06]">
+                <Logo logo={selGame.home_logo} name={selGame.home_name} size={64} />
+                <p className="text-base font-black text-[#d4982a] uppercase tracking-wider text-center">{selGame.home_name}</p>
+                <span className="text-[10px] font-bold text-[#5a7a9a] bg-white/5 rounded px-2 py-0.5">HOME</span>
+              </div>
+              <PlayerList side="home" list={hAll} checked={homeChecked} />
+            </div>
+
+            {/* AWAY */}
+            <div className="p-4 space-y-4">
+              <div className="flex flex-col items-center gap-2 pb-3 border-b border-white/[0.06]">
+                <Logo logo={selGame.away_logo} name={selGame.away_name} size={64} />
+                <p className="text-base font-black text-[#4a9fd4] uppercase tracking-wider text-center">{selGame.away_name}</p>
+                <span className="text-[10px] font-bold text-[#5a7a9a] bg-white/5 rounded px-2 py-0.5">AWAY</span>
+              </div>
+              <PlayerList side="away" list={aAll} checked={awayChecked} />
+            </div>
+          </div>
+        </div>
+
+        {/* Confirm bar */}
+        <div className="border-t border-white/[0.08] bg-[#111827] px-4 py-3 flex items-center justify-between gap-4">
+          <p className="text-[11px] text-[#5a7a9a]">
+            {homeChecked.size} + {awayChecked.size} players selected
+          </p>
+          <button onClick={confirmRosters}
+            disabled={homeChecked.size === 0 && awayChecked.size === 0}
+            className="flex items-center gap-2 bg-orange-500 hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black rounded-xl px-6 py-2.5 text-sm transition-all">
+            START GAME
+            <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+              <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd"/>
+            </svg>
           </button>
         </div>
-      )}
+      </div>
+    );
+  }
 
-      {/* SCOREBOARD — shown when phase !== idle */}
-      {phase !== 'idle' && (
-        <div className="flex flex-col flex-1 min-h-0">
+  // ══════════════════════════════════════════════════════════════════════════
+  // STEP 3 — SCOREBOARD
+  // ══════════════════════════════════════════════════════════════════════════
+  const TeamPanel = ({ side }: { side: 'home'|'away' }) => {
+    const t       = side === 'home' ? home : away;
+    const setter  = side === 'home' ? setHome : setAway;
+    const accent  = side === 'home' ? '#d4982a' : '#4a9fd4';
+    const btnCls  = side === 'home'
+      ? 'border-[#d4982a]/40 bg-[#d4982a]/10 text-[#d4982a] hover:bg-[#d4982a]/20'
+      : 'border-[#4a9fd4]/40 bg-[#4a9fd4]/10 text-[#4a9fd4] hover:bg-[#4a9fd4]/20';
 
-          {/* CLOCK STRIP */}
-          <div className="grid grid-cols-4 border-b border-white/[0.08] bg-[#0f1923] shrink-0">
-
-            {/* Game Clock */}
-            <div className="flex flex-col items-center justify-center gap-1 px-2 py-3 border-r border-white/[0.06]">
-              <p className="text-[9px] font-black uppercase tracking-widest text-[#3a5a7a]">GAME CLOCK</p>
-              <p
-                className={`text-3xl font-mono tabular-nums font-black ${
-                  clock <= 30 && phase === 'live' ? 'text-red-400' : 'text-white'
-                }`}
-              >
-                {fmtTime(clock)}
-              </p>
-              <button
-                onClick={() => setClock(QUARTER_SEC)}
-                className="mt-0.5 rounded border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[9px] font-bold text-[#5a7a9a] hover:text-white hover:bg-white/[0.08] transition-all"
-              >
-                RESET
-              </button>
-            </div>
-
-            {/* Quarter */}
-            <div className="flex flex-col items-center justify-center gap-1 px-2 py-3 border-r border-white/[0.06]">
-              <p className="text-[9px] font-black uppercase tracking-widest text-[#3a5a7a]">QUARTER</p>
-              <p className="text-3xl font-black text-white">Q{quarter}</p>
-              <button
-                onClick={nextQ}
-                className="mt-0.5 rounded border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[9px] font-bold text-[#5a7a9a] hover:text-white hover:bg-white/[0.08] transition-all"
-              >
-                {quarter >= 4 ? 'END' : `NEXT Q${quarter + 1}`}
-              </button>
-            </div>
-
-            {/* Shot Clock */}
-            <div className="flex flex-col items-center justify-center gap-1 px-2 py-3 border-r border-white/[0.06]">
-              <p className="text-[9px] font-black uppercase tracking-widest text-[#3a5a7a]">SHOT CLOCK</p>
-              <p
-                className={`text-3xl font-mono tabular-nums font-black ${
-                  shot <= 5 ? 'text-red-400' : 'text-red-300'
-                }`}
-              >
-                {String(Math.max(0, shot)).padStart(2, '0')}
-              </p>
-              <button
-                onClick={() => setShot(SHOT_SEC)}
-                className="mt-0.5 rounded border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[9px] font-bold text-[#5a7a9a] hover:text-white hover:bg-white/[0.08] transition-all"
-              >
-                RESET
-              </button>
-            </div>
-
-            {/* Timeout */}
-            <div className="flex flex-col items-center justify-center gap-1 px-2 py-3">
-              <p className="text-[9px] font-black uppercase tracking-widest text-[#3a5a7a]">TIMEOUT</p>
-              <p className={`text-3xl font-mono tabular-nums font-black ${toActive ? 'text-yellow-400' : 'text-white'}`}>
-                {fmtTime(toClock)}
-              </p>
-              <button
-                onClick={() => {
-                  if (toRef.current) { clearInterval(toRef.current); toRef.current = null; }
-                  setToActive(false);
-                  setToClock(TIMEOUT_SEC);
-                }}
-                className="mt-0.5 rounded border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[9px] font-bold text-[#5a7a9a] hover:text-white hover:bg-white/[0.08] transition-all"
-              >
-                RESET
-              </button>
+    return (
+      <div className="flex flex-col overflow-hidden border-x border-white/[0.05] first:border-l-0 last:border-r-0">
+        {/* Team header */}
+        <div className="px-3 pt-3 pb-2 border-b border-white/[0.07] bg-[#0f1923]">
+          <div className="flex items-center gap-3 mb-2">
+            <Logo logo={t.logo} name={t.name} size={40} />
+            <div className="min-w-0">
+              <p className="text-[11px] font-black uppercase tracking-wider truncate" style={{ color: accent }}>{t.name}</p>
+              <p className="text-4xl font-black text-white leading-none">{t.score}</p>
             </div>
           </div>
-
-          {/* TEAMS */}
-          <div className="flex flex-1 min-h-0 overflow-hidden">
-
-            {/* HOME TEAM */}
-            <TeamPanel
-              ts={home}
-              side="H"
-              accent={homeAccent}
-              onAddScore={(pts) => addScore('H', pts)}
-              onCallTO={() => callTO('H')}
-              onAddPts={(pi, pts) => addPts('H', pi, pts)}
-              onAddFoul={(pi) => addFoul('H', pi)}
-            />
-
-            <div className="w-px bg-white/[0.06] shrink-0" />
-
-            {/* AWAY TEAM */}
-            <TeamPanel
-              ts={away}
-              side="A"
-              accent={awayAccent}
-              onAddScore={(pts) => addScore('A', pts)}
-              onCallTO={() => callTO('A')}
-              onAddPts={(pi, pts) => addPts('A', pi, pts)}
-              onAddFoul={(pi) => addFoul('A', pi)}
-            />
+          {/* Score buttons */}
+          <div className="flex gap-1.5">
+            {[1,2,3].map(pts => (
+              <button key={pts} onClick={() => addTeamScore(side, pts)}
+                className={`flex-1 rounded-lg border py-2 font-black text-sm ${btnCls}`}>+{pts}</button>
+            ))}
+          </div>
+          {/* Timeout + fouls */}
+          <div className="flex gap-2 mt-1.5 text-[10px]">
+            <button onClick={() => callTO(side)}
+              className={`flex-1 rounded border py-1 font-bold transition-colors ${
+                t.timeouts > 0 ? 'border-white/10 text-[#8aaac8] hover:text-white' : 'border-white/5 text-[#3a5a7a] cursor-not-allowed'
+              }`}>
+              {t.timeouts} T/O
+            </button>
+            <div className="flex-1 flex items-center justify-center rounded border border-white/10 text-[#8aaac8]">
+              {t.players.reduce((a,p) => a+p.fouls, 0)} FOULS
+            </div>
           </div>
         </div>
-      )}
+
+        {/* Players */}
+        <div className="flex-1 overflow-y-auto">
+          <p className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-[#3a5a7a] border-b border-white/[0.04]">PLAYERS</p>
+          {t.players.length === 0
+            ? <p className="px-3 py-4 text-[10px] text-[#3a5a7a]">No players</p>
+            : t.players.map((p, i) => (
+                <div key={i} className="flex items-center gap-1.5 px-2 py-1.5 border-b border-white/[0.03] hover:bg-white/[0.02]">
+                  <span className="w-5 text-[9px] font-mono shrink-0" style={{ color: accent }}>#{p.jersey ?? '–'}</span>
+                  <span className="flex-1 text-[11px] text-[#c0d4e8] truncate min-w-0">{p.name}</span>
+                  <span className="text-[9px] text-[#4a6a8a] w-5 text-right shrink-0">{p.pts}</span>
+                  {[1,2,3].map(pts => (
+                    <button key={pts} onClick={() => addPts(side, i, pts)}
+                      className={`w-6 h-6 rounded text-[9px] font-black border shrink-0 ${btnCls}`}>{pts}</button>
+                  ))}
+                  <button onClick={() => addFoul(side, i)}
+                    className={`w-6 h-6 rounded text-[9px] font-black border shrink-0 ${
+                      p.fouls >= 5 ? 'border-red-500/50 bg-red-500/10 text-red-400' : 'border-white/10 text-[#5a7a9a] hover:text-white'
+                    }`}>F{p.fouls}</button>
+                </div>
+              ))
+          }
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div dir="ltr" className="h-screen bg-[#0d1117] text-white flex flex-col overflow-hidden select-none">
+
+      {/* TOP BAR */}
+      <div className="flex items-center gap-1.5 bg-[#111827] border-b border-white/[0.08] px-3 py-2 flex-wrap shrink-0">
+        <button onClick={() => { stopTimer(); setPhase('pick'); }}
+          className="text-[#5a7a9a] hover:text-white flex items-center gap-1 text-xs shrink-0">
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd"/>
+          </svg>
+        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="w-6 h-6 rounded bg-orange-500 flex items-center justify-center text-xs">🏀</div>
+          <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">LIBIGAME</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] text-orange-400 font-bold truncate">{home.name} vs {away.name}</p>
+        </div>
+
+        {/* Control buttons */}
+        {(phase === 'ready' || phase === 'paused') && (
+          <button onClick={startTimer}
+            className="rounded-md bg-orange-500 hover:bg-orange-400 text-white text-[10px] font-black uppercase px-3 py-1.5 shrink-0">
+            {phase === 'ready' ? 'START GAME' : 'RESUME'}
+          </button>
+        )}
+        {phase === 'live' && (
+          <button onClick={pauseTimer}
+            className="rounded-md border border-orange-500/40 bg-orange-500/10 text-orange-400 text-[10px] font-black uppercase px-3 py-1.5 shrink-0">
+            PAUSE
+          </button>
+        )}
+        <button onClick={nextQ}
+          className="rounded-md border border-white/10 bg-white/5 text-[#8aaac8] hover:text-white text-[10px] font-black uppercase px-2 py-1.5 shrink-0">
+          {quarter < 4 ? `Q${quarter+1}` : 'END'}
+        </button>
+        <button onClick={() => setLogOpen(o=>!o)}
+          className="rounded-md border border-white/10 bg-white/5 text-[#8aaac8] hover:text-white text-[10px] font-black uppercase px-2 py-1.5 shrink-0">
+          LOG
+        </button>
+        <button onClick={exportCSV}
+          className="rounded-md border border-green-500/30 bg-green-500/10 text-green-400 text-[10px] font-black uppercase px-2 py-1.5 shrink-0">
+          CSV
+        </button>
+        <button onClick={() => { stopTimer(); setPhase('setup'); }}
+          className="rounded-md border border-red-500/30 bg-red-500/10 text-red-400 text-[10px] font-black uppercase px-2 py-1.5 shrink-0">
+          RESET
+        </button>
+      </div>
+
+      {/* CLOCK STRIP */}
+      <div className="grid grid-cols-4 divide-x divide-white/[0.06] bg-[#0f1923] border-b border-white/[0.07] shrink-0">
+        {/* Game Clock */}
+        <div className="flex flex-col items-center justify-center py-3 gap-0.5">
+          <p className="text-[8px] font-black uppercase tracking-widest text-[#3a5a7a]">GAME CLOCK</p>
+          <p className={`text-2xl sm:text-3xl font-black font-mono tabular-nums ${clock <= 30 && isRunning ? 'text-red-400 animate-pulse' : 'text-white'}`}>
+            {fmt(clock)}
+          </p>
+          <button onClick={() => setClock(QUARTER_SEC)}
+            className="text-[8px] font-black text-[#4a6a8a] border border-white/[0.07] rounded px-2 py-0.5 hover:text-white">
+            RESET
+          </button>
+        </div>
+        {/* Quarter */}
+        <div className="flex flex-col items-center justify-center py-3 gap-0.5">
+          <p className="text-[8px] font-black uppercase tracking-widest text-[#3a5a7a]">QUARTER</p>
+          <p className="text-2xl sm:text-3xl font-black text-white">Q{quarter}</p>
+          <button onClick={nextQ}
+            className="text-[8px] font-black text-orange-400 border border-orange-500/30 rounded px-2 py-0.5 hover:bg-orange-500/10">
+            {quarter < 4 ? `→Q${quarter+1}` : 'END'}
+          </button>
+        </div>
+        {/* Shot Clock */}
+        <div className="flex flex-col items-center justify-center py-3 gap-0.5">
+          <p className="text-[8px] font-black uppercase tracking-widest text-[#3a5a7a]">SHOT CLOCK</p>
+          <p className={`text-2xl sm:text-3xl font-black font-mono tabular-nums ${shot <= 5 ? 'text-red-500 animate-pulse' : 'text-red-400'}`}>
+            {fmt(shot)}
+          </p>
+          <button onClick={() => setShot(SHOT_SEC)}
+            className="text-[8px] font-black text-[#4a6a8a] border border-white/[0.07] rounded px-2 py-0.5 hover:text-white">
+            RESET
+          </button>
+        </div>
+        {/* Timeout */}
+        <div className="flex flex-col items-center justify-center py-3 gap-0.5">
+          <p className="text-[8px] font-black uppercase tracking-widest text-[#3a5a7a]">TIMEOUT</p>
+          <p className={`text-2xl sm:text-3xl font-black font-mono tabular-nums ${toActive ? 'text-yellow-400' : 'text-white'}`}>
+            {toActive ? fmt(toClock) : fmt(TIMEOUT_SEC)}
+          </p>
+          <button onClick={() => { setToClock(TIMEOUT_SEC); setToActive(false); if(toRef.current){clearInterval(toRef.current);toRef.current=null;} }}
+            className="text-[8px] font-black text-[#4a6a8a] border border-white/[0.07] rounded px-2 py-0.5 hover:text-white">
+            RESET
+          </button>
+        </div>
+      </div>
+
+      {/* TEAMS */}
+      <div className="flex-1 grid grid-cols-2 divide-x divide-white/[0.06] overflow-hidden">
+        <TeamPanel side="home" />
+        <TeamPanel side="away" />
+      </div>
 
       {/* DONE OVERLAY */}
       {phase === 'done' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-md mx-4 rounded-2xl border border-white/[0.12] bg-[#0f1923] p-6 shadow-2xl">
-            <p className="text-center text-[10px] font-black uppercase tracking-widest text-[#5a7a9a] mb-4">FINAL SCORE</p>
-
-            <div className="flex items-center justify-center gap-4 mb-6">
-              <div className="flex-1 text-right">
-                <p className="text-sm font-black truncate" style={{ color: homeAccent }}>{home.name}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-5xl font-black text-white">{home.score}</span>
-                <span className="text-2xl text-[#3a5a7a]">—</span>
-                <span className="text-5xl font-black text-white">{away.score}</span>
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-sm font-black truncate" style={{ color: awayAccent }}>{away.name}</p>
-              </div>
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center gap-6 p-6">
+          <p className="text-4xl">🏆</p>
+          <p className="text-xl font-black uppercase tracking-wider text-white">FINAL SCORE</p>
+          <div className="flex items-center gap-6">
+            <div className="text-center">
+              <Logo logo={home.logo} name={home.name} size={56} />
+              <p className="text-[#d4982a] font-black text-sm mt-2">{home.name}</p>
+              <p className="text-5xl font-black text-white mt-1">{home.score}</p>
             </div>
-
-            {home.score !== away.score && (
-              <p className="text-center text-sm font-black text-green-400 mb-6">
-                {home.score > away.score ? home.name : away.name} WINS!
-              </p>
-            )}
-            {home.score === away.score && (
-              <p className="text-center text-sm font-black text-yellow-400 mb-6">TIE GAME</p>
-            )}
-
-            {/* Top scorers */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              {([['H', home, homeAccent], ['A', away, awayAccent]] as const).map(([, ts, accent]) => {
-                const top = [...ts.players].sort((a, b) => b.pts - a.pts).slice(0, 3);
-                return (
-                  <div key={ts.name}>
-                    <p className="text-[9px] font-black uppercase tracking-widest mb-2" style={{ color: accent }}>
-                      {ts.name} — Top Scorers
-                    </p>
-                    {top.filter(p => p.pts > 0).length === 0 ? (
-                      <p className="text-[10px] text-[#3a5a7a]">No recorded points</p>
-                    ) : (
-                      <ul className="space-y-1">
-                        {top.filter(p => p.pts > 0).map((p, i) => (
-                          <li key={i} className="flex items-center justify-between text-xs">
-                            <span className="text-[#8aaac8] truncate">{p.name}</span>
-                            <span className="font-black text-white ml-2">{p.pts}pt</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                );
-              })}
+            <p className="text-3xl font-black text-[#3a5a7a]">—</p>
+            <div className="text-center">
+              <Logo logo={away.logo} name={away.name} size={56} />
+              <p className="text-[#4a9fd4] font-black text-sm mt-2">{away.name}</p>
+              <p className="text-5xl font-black text-white mt-1">{away.score}</p>
             </div>
-
-            <button
-              onClick={() => { setPanelOpen(true); setPhase('idle'); }}
-              className="w-full rounded-xl bg-orange-500 hover:bg-orange-400 py-3 text-sm font-black text-white transition-all"
-            >
+          </div>
+          <p className="text-lg font-black text-orange-400">
+            {home.score > away.score ? `${home.name} WIN!` : home.score < away.score ? `${away.name} WIN!` : 'TIE!'}
+          </p>
+          <div className="flex gap-3">
+            <button onClick={exportCSV}
+              className="rounded-xl border border-green-500/30 bg-green-500/10 text-green-400 font-black px-5 py-2.5 text-sm">
+              EXPORT CSV
+            </button>
+            <button onClick={() => { stopTimer(); setPhase('pick'); }}
+              className="rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-black px-6 py-2.5 text-sm">
               NEW GAME
             </button>
           </div>
         </div>
       )}
 
-      {/* GAME LOG DRAWER */}
+      {/* GAME LOG */}
       {logOpen && (
-        <div className="fixed inset-x-0 bottom-0 z-50 flex flex-col max-h-[60vh] rounded-t-2xl border-t border-white/[0.10] bg-[#0f1923] shadow-2xl">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.07] shrink-0">
-            <p className="text-xs font-black uppercase tracking-widest text-white">GAME LOG</p>
-            <button
-              onClick={() => setLogOpen(false)}
-              className="text-[#5a7a9a] hover:text-white text-xl leading-none transition-colors"
-            >
-              ×
-            </button>
-          </div>
-          <div className="overflow-y-auto flex-1 px-3 py-2 space-y-1">
-            {log.length === 0 ? (
-              <p className="text-center text-sm text-[#3a5a7a] py-4">No events yet</p>
-            ) : (
-              log.map(entry => (
-                <div key={entry.id} className="flex items-center gap-3 py-1.5 border-b border-white/[0.04]">
-                  <span className="text-[9px] font-mono text-[#3a5a7a] shrink-0 w-14">Q{entry.q} {entry.clk}</span>
-                  <span
-                    className="text-[10px] font-black shrink-0"
-                    style={{ color: entry.side === 'H' ? homeAccent : awayAccent }}
-                  >
-                    {entry.side === 'H' ? home.name : away.name}
-                  </span>
-                  <span className="text-xs text-[#8aaac8] truncate flex-1">{entry.who}</span>
-                  <span
-                    className="text-xs font-black shrink-0"
-                    style={{ color: entry.side === 'H' ? homeAccent : awayAccent }}
-                  >
-                    {entry.val}
-                  </span>
-                </div>
-              ))
-            )}
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col" onClick={() => setLogOpen(false)}>
+          <div className="mt-auto bg-[#0d1117] border-t border-white/10 max-h-[60vh] flex flex-col"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06] shrink-0">
+              <p className="font-black text-sm uppercase tracking-wider">GAME LOG</p>
+              <button onClick={() => setLogOpen(false)} className="text-[#5a7a9a] hover:text-white text-xl leading-none">×</button>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {log.length === 0
+                ? <p className="px-4 py-6 text-sm text-[#5a7a9a] text-center">No events yet</p>
+                : log.map(e => (
+                    <div key={e.id} className="flex items-center gap-3 px-4 py-2 border-b border-white/[0.03] text-xs">
+                      <span className="font-mono text-[#3a5a7a] shrink-0 w-10">Q{e.q}</span>
+                      <span className="font-mono text-[#3a5a7a] shrink-0 w-12">{e.clk}</span>
+                      <span className="font-black shrink-0" style={{ color: e.side==='H' ? '#d4982a' : '#4a9fd4' }}>
+                        {e.side==='H' ? home.name : away.name}
+                      </span>
+                      <span className="flex-1 text-[#8aaac8] truncate">{e.who}</span>
+                      <span className="font-black text-white shrink-0">{e.val}</span>
+                    </div>
+                  ))
+              }
+            </div>
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-// ── Team Panel Sub-Component ─────────────────────────────────────────────────
-
-function TeamPanel({
-  ts,
-  side,
-  accent,
-  onAddScore,
-  onCallTO,
-  onAddPts,
-  onAddFoul,
-}: {
-  ts: TS;
-  side: 'H' | 'A';
-  accent: string;
-  onAddScore: (pts: number) => void;
-  onCallTO: () => void;
-  onAddPts: (pi: number, pts: number) => void;
-  onAddFoul: (pi: number) => void;
-}) {
-  const accentBg = `${accent}1a`;   // ~10% opacity
-  const accentBorder = `${accent}66`; // ~40% opacity
-
-  const totalFouls = ts.players.reduce((sum, p) => sum + p.fouls, 0);
-
-  return (
-    <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
-
-      {/* Team Header */}
-      <div className="px-3 pt-3 pb-2 border-b border-white/[0.06] shrink-0">
-        <div className="flex items-center gap-2 mb-2">
-          <Logo logo={ts.logo} name={ts.name} size={40} />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-black uppercase tracking-wide truncate" style={{ color: accent }}>
-              {ts.name}
-            </p>
-            <p className="text-[10px] text-[#3a5a7a] font-bold">{side === 'H' ? 'HOME' : 'AWAY'}</p>
-          </div>
-          <span className="text-5xl font-black tabular-nums text-white leading-none">{ts.score}</span>
-        </div>
-
-        {/* +1 +2 +3 quick score */}
-        <div className="flex gap-1.5 mb-2">
-          {[1, 2, 3].map(pts => (
-            <button
-              key={pts}
-              onClick={() => onAddScore(pts)}
-              className="flex-1 rounded-lg border py-1.5 text-xs font-black transition-all hover:opacity-80"
-              style={{ borderColor: accentBorder, backgroundColor: accentBg, color: accent }}
-            >
-              +{pts}
-            </button>
-          ))}
-        </div>
-
-        {/* Timeouts + Fouls */}
-        <div className="flex gap-1.5">
-          <button
-            onClick={onCallTO}
-            disabled={ts.timeouts <= 0}
-            className="flex-1 rounded-lg border py-1 text-[10px] font-black transition-all disabled:opacity-40 hover:opacity-80"
-            style={{ borderColor: accentBorder, backgroundColor: accentBg, color: accent }}
-          >
-            T/O: {ts.timeouts}/{5}
-          </button>
-          <div
-            className="flex-1 rounded-lg border py-1 text-[10px] font-black text-center"
-            style={{ borderColor: accentBorder, backgroundColor: accentBg, color: accent }}
-          >
-            FOULS: {totalFouls}
-          </div>
-        </div>
-      </div>
-
-      {/* Players */}
-      <div className="flex-1 overflow-y-auto px-2 py-1">
-        <p className="px-1 py-1 text-[8px] font-black uppercase tracking-widest text-[#2a4a6a]">PLAYERS</p>
-        {ts.players.length === 0 ? (
-          <p className="text-center text-[10px] text-[#3a5a7a] py-4">No players loaded</p>
-        ) : (
-          <div className="space-y-0.5">
-            {ts.players.map((p, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-1 rounded-lg px-1.5 py-1 border border-white/[0.04] bg-white/[0.02] hover:bg-white/[0.04] transition-all"
-              >
-                {/* Jersey */}
-                <span className="w-5 text-center text-[10px] font-mono text-[#3a5a7a] shrink-0">
-                  {p.jersey != null ? `#${p.jersey}` : '—'}
-                </span>
-
-                {/* Name */}
-                <span className="flex-1 min-w-0 text-[10px] font-bold text-[#8aaac8] truncate">
-                  {p.name}
-                </span>
-
-                {/* Points display */}
-                <span className="text-[10px] font-black w-8 text-right shrink-0" style={{ color: accent }}>
-                  {p.pts}pt
-                </span>
-
-                {/* +1 +2 +3 */}
-                {[1, 2, 3].map(pts => (
-                  <button
-                    key={pts}
-                    onClick={() => onAddPts(i, pts)}
-                    className="w-6 h-6 rounded text-[9px] font-black transition-all hover:opacity-80 shrink-0"
-                    style={{ borderWidth: 1, borderStyle: 'solid', borderColor: accentBorder, backgroundColor: accentBg, color: accent }}
-                  >
-                    +{pts}
-                  </button>
-                ))}
-
-                {/* Foul button */}
-                <button
-                  onClick={() => onAddFoul(i)}
-                  className={`w-7 h-6 rounded text-[9px] font-black transition-all hover:opacity-80 shrink-0 ${
-                    p.fouls >= 5 ? 'bg-red-500/20 border-red-500/60 text-red-400' : ''
-                  }`}
-                  style={p.fouls < 5 ? { borderWidth: 1, borderStyle: 'solid', borderColor: accentBorder, backgroundColor: accentBg, color: accent } : undefined}
-                >
-                  F{p.fouls}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }

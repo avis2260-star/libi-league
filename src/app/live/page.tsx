@@ -7,7 +7,7 @@ import LiveClient from './LiveClient';
 export type LiveGame = {
   id: string;
   game_date: string;
-  round: number;
+  round: number | null;
   home_name: string;
   away_name: string;
   home_logo: string | null;
