@@ -12,9 +12,10 @@ const QUICK_LINKS = [
 ];
 
 const LEGAL_LINKS = [
-  { href: '/takanon', label: 'תקנון הליגה'       },
-  { href: '/about',   label: 'אודות'             },
-  { href: '/about',   label: 'צור קשר'           },
+  { href: '/takanon', label: 'תקנון הליגה'              },
+  { href: '/terms',   label: 'תנאי שימוש ומדיניות פרטיות' },
+  { href: '/about',   label: 'אודות'                    },
+  { href: '/about',   label: 'צור קשר'                  },
 ];
 
 // Social icon SVGs
@@ -152,14 +153,35 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* ── Bottom bar ── */}
-      <div className="border-t border-white/[0.04] mx-6">
-        <div className="mx-auto max-w-7xl flex flex-col sm:flex-row items-center justify-between gap-2 py-4 text-[11px] text-[#3a5a7a]">
-          <p>© {year} ליגת ליבי · כל הזכויות שמורות</p>
-          <p className="flex items-center gap-1">
-            נבנה באהבה לקהילה
-            <span className="text-orange-500">🧡</span>
+      {/* ── Disclaimer strip ── */}
+      <div className="border-t border-white/[0.04] bg-white/[0.015]">
+        <div className="mx-auto max-w-7xl px-6 py-3 flex items-start gap-2 text-[11px] text-[#4a6a8a] leading-relaxed">
+          <span className="text-[#3a5a7a] mt-0.5 shrink-0">ⓘ</span>
+          <p>
+            הנתונים באתר הינם לידיעה בלבד. התמונות מועלות באישור השחקנים.{' '}
+            נמצאה טעות?{' '}
+            <Link href="/about" className="text-orange-400/70 hover:text-orange-400 underline underline-offset-2 transition-colors">
+              פנו אלינו
+            </Link>
+            .
           </p>
+        </div>
+      </div>
+
+      {/* ── Bottom bar ── */}
+      <div className="border-t border-white/[0.04]">
+        <div className="mx-auto max-w-7xl px-6 flex flex-col sm:flex-row items-center justify-between gap-2 py-4 text-[11px] text-[#3a5a7a]">
+          <p>© {year} ליגת ליבי · כל הזכויות שמורות</p>
+          <div className="flex items-center gap-3">
+            <Link href="/terms" className="hover:text-orange-400 transition-colors">
+              תנאי שימוש
+            </Link>
+            <span className="opacity-30">·</span>
+            <p className="flex items-center gap-1">
+              נבנה באהבה לקהילה
+              <span className="text-orange-500">🧡</span>
+            </p>
+          </div>
         </div>
       </div>
     </footer>

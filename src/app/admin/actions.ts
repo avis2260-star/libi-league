@@ -364,6 +364,21 @@ export async function clearSubmission(submissionId: string): Promise<ActionResul
   return {};
 }
 
+// ── Terms & Privacy text ──────────────────────────────────────────────────────
+
+export async function saveTermsSetting(
+  key: 'terms_of_use' | 'privacy_policy',
+  value: string,
+): Promise<ActionResult> {
+  const { error } = await supabaseAdmin
+    .from('league_settings')
+    .upsert({ key, value }, { onConflict: 'key' });
+
+  if (error) return { error: error.message };
+  revalidatePath('/terms');
+  return {};
+}
+
 // ── Contact messages ─────────────────────────────────────────────────────────
 
 export async function markMessageRead(id: string): Promise<ActionResult> {

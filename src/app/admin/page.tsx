@@ -17,6 +17,7 @@ import TakanonTab from '@/components/admin/TakanonTab';
 import PlayoffTab from '@/components/admin/PlayoffTab';
 import SubmissionsTab, { type SubmissionRow } from '@/components/admin/SubmissionsTab';
 import MessagesTab, { type ContactMessage } from '@/components/admin/MessagesTab';
+import TermsTab from '@/components/admin/TermsTab';
 import type { GameWithTeams, Team } from '@/types';
 
 async function getAllGames(): Promise<GameWithTeams[]> {
@@ -158,6 +159,18 @@ export default async function AdminPage({
     }));
   }
 
+  // Terms & privacy tab
+  let termsOfUse = '';
+  let privacyPolicy = '';
+  if (tab === 'terms') {
+    const [{ data: t }, { data: p }] = await Promise.all([
+      supabaseAdmin.from('league_settings').select('value').eq('key', 'terms_of_use').maybeSingle(),
+      supabaseAdmin.from('league_settings').select('value').eq('key', 'privacy_policy').maybeSingle(),
+    ]);
+    termsOfUse = t?.value ?? '';
+    privacyPolicy = p?.value ?? '';
+  }
+
   // Contact messages tab
   let contactMessages: ContactMessage[] = [];
   if (tab === 'messages') {
@@ -197,6 +210,7 @@ export default async function AdminPage({
       {tab === 'playoff'       && <PlayoffTab />}
       {tab === 'submissions'   && <SubmissionsTab submissions={submissions} />}
       {tab === 'messages'      && <MessagesTab messages={contactMessages} />}
+      {tab === 'terms'         && <TermsTab termsOfUse={termsOfUse} privacyPolicy={privacyPolicy} />}
     </>
   );
 }
