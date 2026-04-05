@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import type { ScoreboardGame, ScoreboardPlayer } from './page';
 
@@ -58,6 +59,8 @@ export default function ScoreboardClient({
   const [logOpen,  setLogOpen]  = useState(false);
   const [nameMode, setNameMode] = useState<'full'|'first'|'last'|'num'>('full');
   const [rotated,  setRotated]  = useState(false);
+  const [mounted,  setMounted]  = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const logId    = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval>|null>(null);
@@ -488,21 +491,28 @@ export default function ScoreboardClient({
     );
   };
 
-  const rotateStyle: React.CSSProperties = rotated ? {
+  // When rotated, we portal the scoreboard directly into <body> so it
+  // sits above the root layout's sticky header and BottomNav (both z-50).
+  const portalStyle: React.CSSProperties = {
     position: 'fixed',
     top: '50%',
     left: '50%',
     width: '100vh',
     height: '100vw',
     transform: 'translate(-50%, -50%) rotate(90deg)',
-    zIndex: 9999,   // above root layout header (z-50) and BottomNav
+    zIndex: 9999,
     overflow: 'hidden',
     background: '#0d1117',
-  } : {};
+    display: 'flex',
+    flexDirection: 'column',
+    color: 'white',
+    userSelect: 'none',
+  };
 
-  return (
-    <div dir="ltr" className="h-screen bg-[#0d1117] text-white flex flex-col overflow-hidden select-none"
-      style={rotateStyle}>
+  const scoreboardEl = (
+    <div dir="ltr"
+      className={rotated ? '' : 'h-screen bg-[#0d1117] text-white flex flex-col overflow-hidden select-none'}
+      style={rotated ? portalStyle : {}}>
 
       {/* TOP BAR */}
       <div className="flex items-center gap-1.5 bg-[#111827] border-b border-white/[0.08] px-3 py-2 flex-wrap shrink-0">
@@ -695,4 +705,9 @@ export default function ScoreboardClient({
       )}
     </div>
   );
+
+  // Portal into <body> when rotated so it sits above root layout nav (z-50)
+  return (rotated && mounted)
+    ? createPortal(scoreboardEl, document.body)
+    : scoreboardEl;
 }
