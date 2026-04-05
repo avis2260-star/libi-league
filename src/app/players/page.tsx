@@ -10,6 +10,7 @@ export type EnrichedPlayer = {
   position: string | null;
   photo_url: string | null;
   team_id: string | null;
+  is_active: boolean;
   points: number | null;
   three_pointers: number | null;
   fouls: number | null;
@@ -23,7 +24,6 @@ export default async function PlayersPage() {
     supabaseAdmin
       .from('players')
       .select('id,name,jersey_number,position,photo_url,is_active,team_id,points,three_pointers,fouls')
-      .eq('is_active', true)
       .order('name'),
     supabaseAdmin
       .from('teams')

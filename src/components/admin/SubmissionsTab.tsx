@@ -33,6 +33,7 @@ export type SubmissionRow = {
   home_name: string;
   away_name: string;
   game_date: string;
+  scoresheet_image_url: string | null;
 };
 
 const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
@@ -145,13 +146,38 @@ function SubmissionCard({ sub }: { sub: SubmissionRow }) {
             </p>
           )}
 
-          {/* Players */}
-          {sub.extracted_stats && (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <PlayerTable players={sub.extracted_stats.home_players ?? []} teamName={sub.home_name} />
-              <PlayerTable players={sub.extracted_stats.away_players ?? []} teamName={sub.away_name} />
-            </div>
-          )}
+          {/* Side-by-side: original scoresheet image + extracted data */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+            {/* Original photo */}
+            {sub.scoresheet_image_url ? (
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-[#8aaac8] uppercase tracking-wide">🖼️ טופס מקורי</p>
+                <a href={sub.scoresheet_image_url} target="_blank" rel="noopener noreferrer" title="פתח תמונה מלאה">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={sub.scoresheet_image_url}
+                    alt="טופס משחק מקורי"
+                    className="w-full rounded-xl border border-white/10 object-contain max-h-72 hover:border-orange-500/40 transition-colors cursor-zoom-in"
+                  />
+                </a>
+                <p className="text-[10px] text-[#3a5a7a] text-center">לחץ לפתיחה מלאה</p>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/[0.02] min-h-[120px]">
+                <p className="text-xs text-[#3a5a7a]">אין תמונה מקורית</p>
+              </div>
+            )}
+
+            {/* Extracted data */}
+            {sub.extracted_stats && (
+              <div className="space-y-3">
+                <p className="text-xs font-bold text-[#8aaac8] uppercase tracking-wide">📊 נתונים שחולצו</p>
+                <PlayerTable players={sub.extracted_stats.home_players ?? []} teamName={sub.home_name} />
+                <PlayerTable players={sub.extracted_stats.away_players ?? []} teamName={sub.away_name} />
+              </div>
+            )}
+          </div>
 
           {sub.review_notes && (
             <p className="text-xs text-[#8aaac8] bg-white/5 rounded-lg p-2">

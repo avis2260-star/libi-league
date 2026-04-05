@@ -128,6 +128,7 @@ export default async function AdminPage({
       home_score: number; away_score: number;
       status: 'pending' | 'needs_review' | 'approved' | 'rejected';
       review_notes: string | null; created_at: string;
+      scoresheet_image_url: string | null;
       game: {
         game_date: string;
         home_team: { name: string } | null;
@@ -161,6 +162,7 @@ export default async function AdminPage({
       home_name: s.game?.home_team?.name ?? 'בית',
       away_name: s.game?.away_team?.name ?? 'חוץ',
       game_date: s.game?.game_date ?? '',
+      scoresheet_image_url: s.scoresheet_image_url ?? null,
     }));
   }
 

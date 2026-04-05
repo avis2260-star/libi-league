@@ -269,6 +269,7 @@ export type SubmitGameResultInput = {
   confidenceScore: number;
   qualityStatus: 'pass' | 'fail';
   status: 'pending' | 'needs_review';
+  scoresheetImageUrl?: string;
 };
 
 export async function submitGameResult(input: SubmitGameResultInput): Promise<ActionResult> {
@@ -293,6 +294,7 @@ export async function submitGameResult(input: SubmitGameResultInput): Promise<Ac
     confidence_score: input.confidenceScore,
     quality_status: input.qualityStatus,
     status: input.status,
+    scoresheet_image_url: input.scoresheetImageUrl ?? null,
   });
 
   if (error) return { error: error.message };

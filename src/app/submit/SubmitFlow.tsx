@@ -162,9 +162,30 @@ export default function SubmitFlow({ games, teams }: { games: Game[]; teams: Tea
   async function handleSubmit() {
     if (!editedData || !selectedGame) return;
     setLoading(true);
-    setLoadingMsg('שולח נתונים...');
     setSubmitError('');
 
+    // Upload scoresheet image to storage so admin can compare against extracted data
+    let scoresheetImageUrl: string | undefined;
+    if (base64 && mediaType) {
+      setLoadingMsg('מעלה תמונה...');
+      try {
+        const byteChars = atob(base64);
+        const byteArr = new Uint8Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+        const ext = mediaType.split('/')[1]?.replace('jpeg', 'jpg') ?? 'jpg';
+        const blob = new Blob([byteArr], { type: mediaType });
+        const file = new File([blob], `scoresheet.${ext}`, { type: mediaType });
+        const fd = new FormData();
+        fd.append('file', file);
+        const uploadRes = await fetch('/api/upload-scoresheet', { method: 'POST', body: fd });
+        const uploadData = await uploadRes.json();
+        if (uploadData.url) scoresheetImageUrl = uploadData.url;
+      } catch {
+        // Non-fatal: continue submission without image
+      }
+    }
+
+    setLoadingMsg('שולח נתונים...');
     const result = await submitGameResult({
       gameId: selectedGame.id,
       submittedBy: selectedTeamName ? `${submitterName.trim()} · ${selectedTeamName}` : submitterName.trim(),
@@ -174,6 +195,7 @@ export default function SubmitFlow({ games, teams }: { games: Game[]; teams: Tea
       confidenceScore: analysisResult?.confidence_score ?? 0,
       qualityStatus: isNeedsReview ? 'fail' : 'pass',
       status: isNeedsReview ? 'needs_review' : 'pending',
+      scoresheetImageUrl,
     });
 
     setLoading(false);

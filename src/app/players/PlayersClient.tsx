@@ -38,8 +38,24 @@ function Avatar({ name, photoUrl, size = 80 }: { name: string; photoUrl: string 
 }
 
 function PlayerCard({ player }: { player: EnrichedPlayer }) {
+  const inactive = !player.is_active;
+
   return (
-    <div className="group relative rounded-2xl border border-white/[0.07] bg-[#0c1825] overflow-hidden transition-all hover:border-orange-500/30 hover:shadow-[0_0_30px_rgba(249,115,22,0.08)] hover:-translate-y-0.5">
+    <div className={`group relative rounded-2xl border overflow-hidden transition-all hover:-translate-y-0.5 ${
+      inactive
+        ? 'border-white/[0.04] bg-[#0a1520] opacity-60 hover:opacity-80'
+        : 'border-white/[0.07] bg-[#0c1825] hover:border-orange-500/30 hover:shadow-[0_0_30px_rgba(249,115,22,0.08)]'
+    }`}>
+
+      {/* Active / Inactive badge */}
+      <div className={`absolute top-2 left-2 z-10 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border ${
+        inactive
+          ? 'bg-white/[0.04] border-white/[0.08] text-[#4a6a8a]'
+          : 'bg-green-500/10 border-green-500/20 text-green-400'
+      }`}>
+        <span className={`inline-block h-1.5 w-1.5 rounded-full ${inactive ? 'bg-[#4a6a8a]' : 'bg-green-400'}`} />
+        {inactive ? 'לא פעיל' : 'פעיל'}
+      </div>
 
       {/* Jersey number badge */}
       {player.jersey_number !== null && (
@@ -48,18 +64,8 @@ function PlayerCard({ player }: { player: EnrichedPlayer }) {
         </div>
       )}
 
-      {/* Team logo top-left */}
-      {player.team?.logo_url && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={player.team.logo_url}
-          alt={player.team.name}
-          className="absolute top-3 left-3 z-10 h-7 w-7 rounded-full object-contain opacity-70"
-        />
-      )}
-
       {/* Photo / avatar */}
-      <div className="flex justify-center pt-8 pb-4 bg-gradient-to-b from-[#0f1e30] to-[#0c1825]">
+      <div className={`flex justify-center pt-8 pb-4 bg-gradient-to-b ${inactive ? 'from-[#0c1520] to-[#0a1520]' : 'from-[#0f1e30] to-[#0c1825]'}`}>
         <Avatar name={player.name} photoUrl={player.photo_url} size={88} />
       </div>
 
@@ -95,6 +101,8 @@ function PlayerCard({ player }: { player: EnrichedPlayer }) {
   );
 }
 
+type ActiveFilter = 'all' | 'active' | 'inactive';
+
 export default function PlayersClient({
   players,
   teams,
@@ -102,12 +110,20 @@ export default function PlayersClient({
   players: EnrichedPlayer[];
   teams: TeamOption[];
 }) {
-  const [search, setSearch]     = useState('');
-  const [teamFilter, setTeamFilter] = useState('');
-  const [sortBy, setSortBy]     = useState<'name' | 'points' | 'jersey'>('name');
+  const [search, setSearch]           = useState('');
+  const [teamFilter, setTeamFilter]   = useState('');
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>('active');
+  const [sortBy, setSortBy]           = useState<'name' | 'points' | 'jersey'>('name');
+
+  const activeCount   = players.filter(p => p.is_active).length;
+  const inactiveCount = players.filter(p => !p.is_active).length;
 
   const filtered = useMemo(() => {
     let list = [...players];
+
+    // Active/inactive filter
+    if (activeFilter === 'active')   list = list.filter(p => p.is_active);
+    if (activeFilter === 'inactive') list = list.filter(p => !p.is_active);
 
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -125,7 +141,7 @@ export default function PlayersClient({
     });
 
     return list;
-  }, [players, search, teamFilter, sortBy]);
+  }, [players, search, teamFilter, activeFilter, sortBy]);
 
   return (
     <div dir="rtl" className="space-y-6">
@@ -134,8 +150,35 @@ export default function PlayersClient({
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-black text-white">כרטיסי שחקן</h1>
-          <p className="text-sm text-[#5a7a9a] mt-0.5">{filtered.length} שחקנים פעילים</p>
+          <p className="text-sm text-[#5a7a9a] mt-0.5">
+            {filtered.length} שחקנים
+            {activeFilter === 'all' && ` · ${activeCount} פעילים, ${inactiveCount} לא פעילים`}
+          </p>
         </div>
+      </div>
+
+      {/* Active status toggle pills */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {([
+          { key: 'active',   label: '🟢 פעילים',    count: activeCount   },
+          { key: 'inactive', label: '⚫ לא פעילים', count: inactiveCount },
+          { key: 'all',      label: 'הכל',           count: players.length },
+        ] as { key: ActiveFilter; label: string; count: number }[]).map(({ key, label, count }) => (
+          <button
+            key={key}
+            onClick={() => setActiveFilter(key)}
+            className={`rounded-xl px-4 py-2 text-sm font-bold transition-all flex items-center gap-2 ${
+              activeFilter === key
+                ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20'
+                : 'border border-white/10 bg-white/5 text-[#8aaac8] hover:border-white/20 hover:text-white'
+            }`}
+          >
+            {label}
+            <span className={`rounded-full px-1.5 py-0.5 text-xs ${activeFilter === key ? 'bg-white/20' : 'bg-white/10'}`}>
+              {count}
+            </span>
+          </button>
+        ))}
       </div>
 
       {/* Filters */}
