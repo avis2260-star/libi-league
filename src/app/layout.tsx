@@ -11,6 +11,7 @@ import ThemeProvider from '@/components/ThemeProvider';
 import ThemeToggle from '@/components/ThemeToggle';
 import CourtBackground from '@/components/CourtBackground';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import AppRotationProvider from '@/components/AppRotationProvider';
 
 const heebo = Heebo({ subsets: ['hebrew', 'latin'], weight: ['300','400','500','600','700','800','900'] });
 
@@ -47,6 +48,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className={`${heebo.className} min-h-screen bg-[#060810] text-[#e8edf5]`}>
         <CourtBackground />
+        <AppRotationProvider>
         <ThemeProvider>
 
           {/* ── Top navigation ───────────────────────────────────────────── */}
@@ -89,6 +91,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <BottomNav />
 
         </ThemeProvider>
+        </AppRotationProvider>
         <SpeedInsights />
       </body>
     </html>

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { useAppRotation } from './AppRotationProvider';
 
 const NAV = [
   {
@@ -79,6 +80,7 @@ const MORE_LINKS = [
 export default function BottomNav() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { rotated, toggle: toggleRotation } = useAppRotation();
 
   return (
     <>
@@ -119,6 +121,16 @@ export default function BottomNav() {
                 </Link>
               );
             })}
+            {/* Rotate screen button */}
+            <button
+              onClick={() => { toggleRotation(); setMenuOpen(false); }}
+              className={`flex items-center gap-3 bg-[#0f1e30] px-4 py-4 text-sm font-bold transition-colors hover:bg-white/[0.05] col-span-2 border-t border-white/[0.06] ${
+                rotated ? 'text-orange-400' : 'text-[#6b8aaa]'
+              }`}
+            >
+              <span className="text-xl">{rotated ? '📱' : '🔄'}</span>
+              {rotated ? 'בטל סיבוב מסך' : 'סובב מסך לרוחב'}
+            </button>
           </div>
         </div>
       </div>

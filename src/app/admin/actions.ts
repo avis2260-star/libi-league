@@ -376,6 +376,16 @@ export async function markMessageRead(id: string): Promise<ActionResult> {
   return {};
 }
 
+export async function deleteMessage(id: string): Promise<ActionResult> {
+  const { error } = await supabaseAdmin
+    .from('contact_submissions')
+    .delete()
+    .eq('id', id);
+
+  if (error) return { error: error.message };
+  return {};
+}
+
 // ── Box score (per-game player stats) ────────────────────────────────────────
 
 export type PlayerStatInput = {
