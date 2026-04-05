@@ -53,7 +53,8 @@ Return ONLY valid JSON:
     if (!match) throw new Error('No JSON in response');
     return NextResponse.json(JSON.parse(match[0]));
   } catch (err) {
-    console.error('[extract-stats]', err);
-    return NextResponse.json({ error: 'Extraction failed' }, { status: 500 });
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[extract-stats]', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

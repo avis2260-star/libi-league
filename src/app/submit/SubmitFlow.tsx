@@ -169,6 +169,7 @@ export default function SubmitFlow({
     home: NameMatch[];
     away: NameMatch[];
   } | null>(null);
+  const [extractError, setExtractError] = useState('');
   const [submitError, setSubmitError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -250,7 +251,8 @@ export default function SubmitFlow({
 
   async function extractStats(b64: string, type: string, needsReview: boolean) {
     setLoading(true);
-    setLoadingMsg('מחלץ נתונים מהטופס...');
+    setExtractError('');
+    setLoadingMsg('מחלץ נתונים מהטופס... (עד 30 שניות)');
     setIsNeedsReview(needsReview);
     try {
       const res = await fetch('/api/extract-stats', {
@@ -263,26 +265,33 @@ export default function SubmitFlow({
           awayName: selectedGame!.away_name,
         }),
       });
-      const data: ExtractedData = await res.json();
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        setExtractError(`שגיאה: ${data.error ?? 'תגובה לא תקינה מהשרת'}`);
+        setLoading(false);
+        return;
+      }
+
+      const extracted = data as ExtractedData;
 
       // ── Fuzzy-match extracted names against official rosters ──────────────
       setLoadingMsg('מתאים שמות לרשימת שחקנים...');
-      const homeMatches = data.home_players.map(p => matchName(p.name, homeFuse));
-      const awayMatches = data.away_players.map(p => matchName(p.name, awayFuse));
+      const homeMatches = extracted.home_players.map(p => matchName(p.name, homeFuse));
+      const awayMatches = extracted.away_players.map(p => matchName(p.name, awayFuse));
       setNameMatches({ home: homeMatches, away: awayMatches });
 
-      // Apply matched names to editedData
       const patched: ExtractedData = {
-        ...data,
-        home_players: data.home_players.map((p, i) => ({ ...p, name: homeMatches[i].matched })),
-        away_players: data.away_players.map((p, i) => ({ ...p, name: awayMatches[i].matched })),
+        ...extracted,
+        home_players: extracted.home_players.map((p, i) => ({ ...p, name: homeMatches[i].matched })),
+        away_players: extracted.away_players.map((p, i) => ({ ...p, name: awayMatches[i].matched })),
       };
 
-      setExtractedData(data);
+      setExtractedData(extracted);
       setEditedData(JSON.parse(JSON.stringify(patched)));
       setStep('confirm');
-    } catch {
-      alert('שגיאה בחילוץ הנתונים. ייתכן שהשרת לקח יותר מדי זמן — נסה שוב, התהליך עשוי לקחת עד 30 שניות.');
+    } catch (err) {
+      setExtractError(`שגיאת רשת: ${err instanceof Error ? err.message : 'נסה שוב'}`);
     } finally {
       setLoading(false);
     }
@@ -485,6 +494,23 @@ export default function SubmitFlow({
                   </span>
                 </div>
               </label>
+            )}
+
+            {/* Extraction error — shown inline with retry */}
+            {extractError && (
+              <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-4 space-y-3">
+                <p className="text-sm text-red-300 font-medium">⚠️ {extractError}</p>
+                <p className="text-xs text-[#5a7a9a]">הניתוח עשוי לקחת עד 30 שניות. לחץ על ״נסה שוב״ כדי לנסות מחדש.</p>
+                <button
+                  onClick={() => {
+                    setExtractError('');
+                    extractStats(base64!, mediaType, isNeedsReview);
+                  }}
+                  className="w-full bg-orange-500 hover:bg-orange-400 text-white font-bold py-2.5 rounded-xl transition-all text-sm"
+                >
+                  🔄 נסה שוב
+                </button>
+              </div>
             )}
 
             <button
