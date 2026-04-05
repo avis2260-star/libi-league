@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Ticker marquee (used via inline style so must live here, not tailwind.config) ── */
+@keyframes marquee {
+  0%   { transform: translateX(-50%); }
+  100% { transform: translateX(0%); }
+}
+
 /* ── Basketball flyer animations ─────────────────────────────────────────── */
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(24px); }
