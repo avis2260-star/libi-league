@@ -282,7 +282,7 @@ export default function SubmitFlow({
       setEditedData(JSON.parse(JSON.stringify(patched)));
       setStep('confirm');
     } catch {
-      alert('שגיאה בחילוץ הנתונים. נסה שוב.');
+      alert('שגיאה בחילוץ הנתונים. ייתכן שהשרת לקח יותר מדי זמן — נסה שוב, התהליך עשוי לקחת עד 30 שניות.');
     } finally {
       setLoading(false);
     }
