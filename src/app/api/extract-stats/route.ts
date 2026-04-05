@@ -1,31 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-export const maxDuration = 60; // Claude vision can take 15–25s — raise Vercel limit from default 10s
+export const maxDuration = 60;
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function POST(req: NextRequest) {
   try {
     const { imageBase64, mediaType = 'image/jpeg', homeName, awayName } = await req.json();
 
-    const response = await anthropic.messages.create({
-      model: 'claude-opus-4-5',
-      max_tokens: 2000,
-      messages: [{
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: {
-              type: 'base64',
-              media_type: mediaType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
-              data: imageBase64,
-            },
-          },
-          {
-            type: 'text',
-            text: `You are a strict data transcription assistant for a basketball scoresheet.
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+    const result = await model.generateContent([
+      {
+        inlineData: {
+          data: imageBase64,
+          mimeType: mediaType,
+        },
+      },
+      `You are a strict data transcription assistant for a basketball scoresheet.
 Home team: "${homeName}"
 Away team: "${awayName}"
 
@@ -43,12 +36,9 @@ Return ONLY valid JSON:
   "home_players": [{"name": string, "jersey": number|null, "points": number, "three_pointers": number, "fouls": number}],
   "away_players": [{"name": string, "jersey": number|null, "points": number, "three_pointers": number, "fouls": number}]
 }`,
-          },
-        ],
-      }],
-    });
+    ]);
 
-    const text = response.content[0].type === 'text' ? response.content[0].text : '';
+    const text = result.response.text();
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) throw new Error('No JSON in response');
     return NextResponse.json(JSON.parse(match[0]));
