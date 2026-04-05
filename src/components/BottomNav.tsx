@@ -69,6 +69,7 @@ const NAV = [
 ];
 
 const MORE_LINKS = [
+  { href: '/players',  label: 'כרטיסי שחקן', emoji: '🃏' },
   { href: '/scoreboard', label: 'משחק חי',    emoji: '🔴' },
   { href: '/submit',   label: 'הגשת תוצאות', emoji: '📥' },
   { href: '/results',  label: 'תוצאות',      emoji: '📊' },
