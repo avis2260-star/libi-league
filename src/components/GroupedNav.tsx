@@ -16,7 +16,7 @@ const GROUPS = [
       { href: '/results',   label: 'תוצאות' },
       { href: '/standings', label: 'טבלאות' },
       { href: '/teams',     label: 'קבוצות' },
-      { href: '/live',      label: '🔴 משחק חי'       },
+      { href: '/scoreboard', label: '🔴 משחק חי'       },
       { href: '/submit',    label: '📥 הגשת תוצאות' },
     ],
   },
