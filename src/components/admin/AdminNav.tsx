@@ -38,6 +38,7 @@ const GROUPS = [
       { href: '/admin?tab=seasons',      label: '📅 עונות'   },
       { href: '/admin?tab=announcements',label: '📢 הודעות'  },
       { href: '/admin?tab=takanon',      label: '📋 תקנון'   },
+      { href: '/admin?tab=messages',     label: '📬 פניות'   },
     ],
   },
 ];

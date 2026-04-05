@@ -364,6 +364,18 @@ export async function clearSubmission(submissionId: string): Promise<ActionResul
   return {};
 }
 
+// ── Contact messages ─────────────────────────────────────────────────────────
+
+export async function markMessageRead(id: string): Promise<ActionResult> {
+  const { error } = await supabaseAdmin
+    .from('contact_submissions')
+    .update({ is_read: true })
+    .eq('id', id);
+
+  if (error) return { error: error.message };
+  return {};
+}
+
 // ── Box score (per-game player stats) ────────────────────────────────────────
 
 export type PlayerStatInput = {

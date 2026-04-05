@@ -16,6 +16,7 @@ import TeamsTab from '@/components/admin/TeamsTab';
 import TakanonTab from '@/components/admin/TakanonTab';
 import PlayoffTab from '@/components/admin/PlayoffTab';
 import SubmissionsTab, { type SubmissionRow } from '@/components/admin/SubmissionsTab';
+import MessagesTab, { type ContactMessage } from '@/components/admin/MessagesTab';
 import type { GameWithTeams, Team } from '@/types';
 
 async function getAllGames(): Promise<GameWithTeams[]> {
@@ -157,6 +158,16 @@ export default async function AdminPage({
     }));
   }
 
+  // Contact messages tab
+  let contactMessages: ContactMessage[] = [];
+  if (tab === 'messages') {
+    const { data } = await supabaseAdmin
+      .from('contact_submissions')
+      .select('id,name,email,message,is_read,created_at')
+      .order('created_at', { ascending: false });
+    contactMessages = (data ?? []) as ContactMessage[];
+  }
+
   // Sync log tab
   let syncLogs: { id: string; uploaded_at: string; filename: string | null; north_count: number; south_count: number; results_count: number; is_rolled_back: boolean }[] = [];
   if (tab === 'synclog') {
@@ -185,6 +196,7 @@ export default async function AdminPage({
       {tab === 'takanon'       && <TakanonTab />}
       {tab === 'playoff'       && <PlayoffTab />}
       {tab === 'submissions'   && <SubmissionsTab submissions={submissions} />}
+      {tab === 'messages'      && <MessagesTab messages={contactMessages} />}
     </>
   );
 }

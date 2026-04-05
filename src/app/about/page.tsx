@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import ContactForm from '@/components/ContactForm';
 
 async function getLogoUrl() {
   try {
@@ -82,18 +83,8 @@ export default async function AboutPage() {
         </div>
       </div>
 
-      {/* Contact / Social */}
-      <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5 px-5 py-6 text-center space-y-3">
-        <div className="text-3xl">📬</div>
-        <h2 className="text-lg font-bold text-white">צור קשר</h2>
-        <p className="text-sm text-[#8aaac8]">לשאלות, עדכונים ומידע נוסף על הליגה</p>
-        <a
-          href="mailto:info@ligat-libi.co.il"
-          className="inline-flex items-center gap-2 mt-2 rounded-lg bg-orange-500 hover:bg-orange-400 transition px-5 py-2.5 text-sm font-bold text-white"
-        >
-          שלח מייל
-        </a>
-      </div>
+      {/* Contact form */}
+      <ContactForm />
 
     </div>
   );
