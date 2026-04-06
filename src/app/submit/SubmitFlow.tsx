@@ -263,6 +263,8 @@ export default function SubmitFlow({
           mediaType: type,
           homeName: selectedGame!.home_name,
           awayName: selectedGame!.away_name,
+          homePlayers: homeRoster,
+          awayPlayers: awayRoster,
         }),
       });
       const data = await res.json();
