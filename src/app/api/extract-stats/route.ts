@@ -31,14 +31,13 @@ export async function POST(req: NextRequest) {
 Home team: "${homeName}"
 Away team: "${awayName}"
 ${rosterHint ? `\n${rosterHint}\n` : ''}
-CRITICAL RULES:
-- Look at each name written on the sheet character by character.
-- If a roster is provided above, match what you see to the closest roster name ONLY if it is clearly the same person (same jersey number or very similar spelling). Otherwise write exactly what you see.
-- Do NOT invent names. Do NOT guess. Do NOT fill in names that are not visible on the sheet.
-- If a name is partially legible, write exactly what you can see (e.g. "מיכ..." or "J. S.").
-- If a name is completely unreadable, use "?" for that player.
-- For numeric stats: use the exact number visible, or 0 if unreadable. Never invent numbers.
-- Include ONLY rows that are actually visible and filled in on the sheet.
+CRITICAL RULES — READ CAREFULLY:
+1. For each player row visible on the sheet, look at the handwritten name.
+2. If that name clearly matches a name from the roster provided above (same person, similar spelling or matching jersey number) → use the EXACT official roster name.
+3. If the name does NOT match anyone on the roster, or you are not sure → write "?" for that player. Do NOT guess. Do NOT invent a name. Do NOT write what you think you see.
+4. NEVER write a name that is not on the roster. The only valid names are the ones listed above. Anything else must be "?".
+5. For numeric stats: write the exact number visible on the sheet, or 0 if unreadable. Never invent numbers.
+6. Include ONLY rows that are actually visible and filled in on the sheet.
 
 Return ONLY valid JSON, no explanation:
 {
