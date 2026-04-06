@@ -29,13 +29,18 @@ export async function POST(req: NextRequest) {
 Check for: blur, bad angle, poor lighting, illegible handwriting, incomplete data, wrong document type.` },
           ],
         }],
+        generationConfig: {
+          thinkingConfig: { thinkingBudget: 0 },
+        },
       }),
     });
 
     const data = await res.json();
     if (!res.ok) throw new Error(data.error?.message ?? JSON.stringify(data));
 
-    const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    const parts: { thought?: boolean; text?: string }[] = data.candidates?.[0]?.content?.parts ?? [];
+    const textPart = parts.find(p => !p.thought && p.text) ?? parts[0];
+    const text: string = textPart?.text ?? '';
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) throw new Error('No JSON in response');
     return NextResponse.json(JSON.parse(match[0]));
