@@ -326,7 +326,7 @@ export async function approveSubmission(submissionId: string): Promise<ActionRes
 
   if (gameErr) return { error: gameErr.message };
 
-  // ── Update player stats from extracted_stats ──────────────────────────────
+  // ── Upsert per-game player stats into game_stats ──────────────────────────
   const stats = sub.extracted_stats as {
     home_players?: { name: string; points?: number; three_pointers?: number; fouls?: number }[];
     away_players?: { name: string; points?: number; three_pointers?: number; fouls?: number }[];
@@ -338,28 +338,37 @@ export async function approveSubmission(submissionId: string): Promise<ActionRes
       ...(stats.away_players ?? []),
     ];
 
+    const affectedPlayerIds: string[] = [];
+
     for (const ep of allPlayers) {
       if (!ep.name || ep.name === '?') continue;
 
       // Find player by name (case-insensitive)
       const { data: found } = await supabaseAdmin
         .from('players')
-        .select('id, points, three_pointers, fouls')
+        .select('id, team_id')
         .ilike('name', ep.name.trim())
         .maybeSingle();
 
       if (found) {
+        // Write per-game row so the player profile page shows this game
         await supabaseAdmin
-          .from('players')
-          .update({
-            points:         (found.points        ?? 0) + (ep.points         ?? 0),
-            three_pointers: (found.three_pointers ?? 0) + (ep.three_pointers ?? 0),
-            fouls:          (found.fouls          ?? 0) + (ep.fouls          ?? 0),
-            updated_at:     new Date().toISOString(),
-          })
-          .eq('id', found.id);
+          .from('game_stats')
+          .upsert({
+            game_id:        sub.game_id,
+            player_id:      found.id,
+            team_id:        found.team_id,
+            points:         ep.points         ?? 0,
+            three_pointers: ep.three_pointers ?? 0,
+            fouls:          ep.fouls          ?? 0,
+          }, { onConflict: 'game_id,player_id' });
+
+        affectedPlayerIds.push(found.id);
       }
     }
+
+    // Recalculate each player's season totals from game_stats (source of truth)
+    await recalcPlayerTotals(affectedPlayerIds);
   }
 
   // Mark submission approved
@@ -376,6 +385,29 @@ export async function approveSubmission(submissionId: string): Promise<ActionRes
   revalidatePath('/standings');
   revalidatePath('/players');
   return {};
+}
+
+// ── Helper: recalculate players.points/three_pointers/fouls from game_stats ──
+
+async function recalcPlayerTotals(playerIds: string[]): Promise<void> {
+  for (const playerId of playerIds) {
+    const { data: rows } = await supabaseAdmin
+      .from('game_stats')
+      .select('points, three_pointers, fouls')
+      .eq('player_id', playerId);
+
+    if (!rows) continue;
+
+    await supabaseAdmin
+      .from('players')
+      .update({
+        points:         rows.reduce((n, r) => n + (r.points         ?? 0), 0),
+        three_pointers: rows.reduce((n, r) => n + (r.three_pointers ?? 0), 0),
+        fouls:          rows.reduce((n, r) => n + (r.fouls          ?? 0), 0),
+        updated_at:     new Date().toISOString(),
+      })
+      .eq('id', playerId);
+  }
 }
 
 export async function rejectSubmission(submissionId: string, notes?: string): Promise<ActionResult> {
@@ -500,6 +532,9 @@ export async function saveBoxScore(
     .upsert(rows, { onConflict: 'game_id,player_id' });
 
   if (error) return { error: error.message };
+
+  // Recalculate season totals so player cards stay in sync
+  await recalcPlayerTotals(stats.map((s) => s.playerId));
 
   revalidatePath('/admin');
   revalidatePath('/players');
