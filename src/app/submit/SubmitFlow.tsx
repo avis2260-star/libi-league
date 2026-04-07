@@ -277,16 +277,44 @@ export default function SubmitFlow({
 
       const extracted = data as ExtractedData;
 
-      // ── Fuzzy-match extracted names against official rosters ──────────────
+      // ── Merge full roster with extracted stats ────────────────────────────
       setLoadingMsg('מתאים שמות לרשימת שחקנים...');
-      const homeMatches = extracted.home_players.map(p => matchName(p.name, homeFuse));
-      const awayMatches = extracted.away_players.map(p => matchName(p.name, awayFuse));
+
+      function mergeRosterWithExtracted(
+        roster: RosterPlayer[],
+        extractedPlayers: ExtractedPlayer[],
+        fuse: import('fuse.js').default<RosterPlayer> | null
+      ): ExtractedPlayer[] {
+        if (!roster.length) return extractedPlayers;
+        return roster.map(rp => {
+          // find the best match from extracted players for this roster player
+          const results = fuse ? fuse.search(rp.name) : [];
+          const best = results[0];
+          const ep = best && best.score !== undefined && best.score < 0.5
+            ? extractedPlayers.find(e => e.name === best.item.name) ?? null
+            : null;
+          return {
+            name: rp.name,
+            jersey: rp.jersey_number ?? null,
+            points: ep?.points ?? 0,
+            three_pointers: ep?.three_pointers ?? 0,
+            fouls: ep?.fouls ?? 0,
+          };
+        });
+      }
+
+      const mergedHome = mergeRosterWithExtracted(homeRoster, extracted.home_players, homeFuse);
+      const mergedAway = mergeRosterWithExtracted(awayRoster, extracted.away_players, awayFuse);
+
+      // name matches are now just identity (names come from roster already)
+      const homeMatches = mergedHome.map(p => ({ ocr: p.name, matched: p.name, score: 1, candidates: [] }));
+      const awayMatches = mergedAway.map(p => ({ ocr: p.name, matched: p.name, score: 1, candidates: [] }));
       setNameMatches({ home: homeMatches, away: awayMatches });
 
       const patched: ExtractedData = {
         ...extracted,
-        home_players: extracted.home_players.map((p, i) => ({ ...p, name: homeMatches[i].matched })),
-        away_players: extracted.away_players.map((p, i) => ({ ...p, name: awayMatches[i].matched })),
+        home_players: mergedHome,
+        away_players: mergedAway,
       };
 
       setExtractedData(extracted);
@@ -321,7 +349,15 @@ export default function SubmitFlow({
     if (!editedData) return;
     const key = `${team}_players` as 'home_players' | 'away_players';
     const ps = [...editedData[key]];
-    ps[idx] = { ...ps[idx], [field]: field === 'name' ? val : (parseInt(val) || 0) };
+    let parsed: string | number | null;
+    if (field === 'name') {
+      parsed = val;
+    } else if (field === 'jersey') {
+      parsed = val === '' ? null : (parseInt(val) || null);
+    } else {
+      parsed = parseInt(val) || 0;
+    }
+    ps[idx] = { ...ps[idx], [field]: parsed };
     setEditedData({ ...editedData, [key]: ps });
   }
 
@@ -576,7 +612,7 @@ export default function SubmitFlow({
 
               return (
                 <div key={team} className="bg-white/5 rounded-xl p-4 space-y-3">
-                  <p className="text-xs font-bold text-[#8aaac8] uppercase tracking-wide">{teamName}</p>
+                  <p className="text-sm font-bold text-white">{teamName}</p>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
                       <thead>
@@ -601,7 +637,8 @@ export default function SubmitFlow({
                             </td>
                             <td className="py-1.5">
                               <input
-                                type="number"
+                                type="text"
+                                inputMode="numeric"
                                 value={p.jersey ?? ''}
                                 onChange={e => updatePlayer(team, i, 'jersey', e.target.value)}
                                 className="w-10 text-center bg-transparent text-[#8aaac8] focus:outline-none focus:text-white"

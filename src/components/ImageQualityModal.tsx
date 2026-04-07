@@ -2,6 +2,33 @@
 
 // icons inlined — no external dependency needed
 
+const ISSUE_TRANSLATIONS: Record<string, string> = {
+  'Blur': 'תמונה מטושטשת',
+  'blur': 'תמונה מטושטשת',
+  'Poor lighting': 'תאורה לקויה',
+  'poor lighting': 'תאורה לקויה',
+  'Illegible handwriting': 'כתב יד לא קריא',
+  'illegible handwriting': 'כתב יד לא קריא',
+  'Incomplete data': 'נתונים חסרים',
+  'incomplete data': 'נתונים חסרים',
+  'Bad angle': 'זווית צילום לקויה',
+  'bad angle': 'זווית צילום לקויה',
+  'Wrong document type': 'סוג מסמך שגוי',
+  'wrong document type': 'סוג מסמך שגוי',
+  'Partial content': 'תוכן חלקי',
+  'partial content': 'תוכן חלקי',
+  'Low resolution': 'רזולוציה נמוכה',
+  'low resolution': 'רזולוציה נמוכה',
+  'Glare': 'השתקפות אור',
+  'glare': 'השתקפות אור',
+  'Obstructed content': 'תוכן חסום',
+  'obstructed content': 'תוכן חסום',
+};
+
+function translateIssue(issue: string): string {
+  return ISSUE_TRANSLATIONS[issue] ?? issue;
+}
+
 interface Props {
   isOpen: boolean;
   imagePreview: string | null;
@@ -18,8 +45,8 @@ export default function ImageQualityModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" dir="rtl">
-      <div className="bg-[#0f1e30] rounded-2xl max-w-md w-full overflow-hidden shadow-2xl border border-red-500/20">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto" dir="rtl">
+      <div className="bg-[#0f1e30] rounded-2xl max-w-md w-full overflow-hidden shadow-2xl border border-red-500/20 my-4 sm:my-0">
 
         {/* Header */}
         <div className="bg-red-500/10 p-5 flex items-center gap-4 border-b border-red-500/20">
@@ -41,7 +68,7 @@ export default function ImageQualityModal({
             <ul className="space-y-1">
               {issues.map((issue, i) => (
                 <li key={i} className="text-sm text-red-300 flex items-start gap-2">
-                  <span className="mt-0.5 shrink-0">•</span>{issue}
+                  <span className="mt-0.5 shrink-0">•</span>{translateIssue(issue)}
                 </li>
               ))}
             </ul>
