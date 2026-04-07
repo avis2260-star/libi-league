@@ -366,6 +366,23 @@ export async function clearSubmission(submissionId: string): Promise<ActionResul
   return {};
 }
 
+export async function changeSubmissionStatus(
+  submissionId: string,
+  status: 'pending' | 'needs_review' | 'approved' | 'rejected',
+  notes?: string
+): Promise<ActionResult> {
+  const { error } = await supabaseAdmin
+    .from('game_submissions')
+    .update({ status, review_notes: notes ?? null })
+    .eq('id', submissionId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath('/admin');
+  revalidatePath('/submit');
+  return {};
+}
+
 // ── Ticker speed ─────────────────────────────────────────────────────────────
 
 export async function saveTickerSpeed(seconds: number): Promise<ActionResult> {

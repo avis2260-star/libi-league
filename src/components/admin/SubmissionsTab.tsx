@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { approveSubmission, rejectSubmission, clearSubmission } from '@/app/admin/actions';
+import { approveSubmission, rejectSubmission, clearSubmission, changeSubmissionStatus } from '@/app/admin/actions';
 
 type ExtractedPlayer = {
   name: string;
@@ -82,6 +82,9 @@ function SubmissionCard({ sub }: { sub: SubmissionRow }) {
   const [expanded, setExpanded] = useState(false);
   const [rejectNotes, setRejectNotes] = useState('');
   const [showRejectInput, setShowRejectInput] = useState(false);
+  const [showStatusChange, setShowStatusChange] = useState(false);
+  const [newStatus, setNewStatus] = useState<'pending' | 'needs_review' | 'approved' | 'rejected'>(sub.status);
+  const [statusNotes, setStatusNotes] = useState('');
   const [error, setError] = useState('');
   const [isPending, startTransition] = useTransition();
 
@@ -233,6 +236,54 @@ function SubmissionCard({ sub }: { sub: SubmissionRow }) {
                   </button>
                 )}
               </>
+            )}
+
+            {/* Change status — always available */}
+            {showStatusChange ? (
+              <div className="w-full space-y-2 border border-white/10 rounded-xl p-3 bg-white/[0.02]">
+                <p className="text-xs font-bold text-[#8aaac8]">שינוי סטטוס ידני</p>
+                <select
+                  value={newStatus}
+                  onChange={e => setNewStatus(e.target.value as typeof newStatus)}
+                  className="w-full rounded-lg border border-white/10 px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500/50"
+                  style={{ backgroundColor: '#0f1e30' }}
+                >
+                  <option value="pending" style={{ backgroundColor: '#0f1e30' }}>ממתין</option>
+                  <option value="needs_review" style={{ backgroundColor: '#0f1e30' }}>לבדיקה</option>
+                  <option value="approved" style={{ backgroundColor: '#0f1e30' }}>אושר</option>
+                  <option value="rejected" style={{ backgroundColor: '#0f1e30' }}>נדחה</option>
+                </select>
+                <input
+                  type="text"
+                  placeholder="הערה (אופציונלי)"
+                  value={statusNotes}
+                  onChange={e => setStatusNotes(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-[#4a6a8a] focus:outline-none focus:border-orange-500/50"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => act(() => changeSubmissionStatus(sub.id, newStatus, statusNotes))}
+                    disabled={isPending || newStatus === sub.status}
+                    className="flex-1 bg-orange-500 hover:bg-orange-400 disabled:opacity-40 text-white text-xs font-bold py-2 px-3 rounded-xl transition-all"
+                  >
+                    שמור שינוי
+                  </button>
+                  <button
+                    onClick={() => { setShowStatusChange(false); setNewStatus(sub.status); setStatusNotes(''); }}
+                    className="text-[#5a7a9a] hover:text-white text-xs px-3 transition-colors"
+                  >
+                    ✕ ביטול
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowStatusChange(true)}
+                disabled={isPending}
+                className="border border-white/10 text-[#8aaac8] hover:text-white hover:border-white/20 text-xs font-medium py-2 px-4 rounded-xl transition-all disabled:opacity-40"
+              >
+                🔄 שנה סטטוס
+              </button>
             )}
 
             {/* Clear always available */}
