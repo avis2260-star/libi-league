@@ -39,6 +39,46 @@ async function getActiveAnnouncements(): Promise<ActiveAnnouncement[]> {
   }
 }
 
+type TopPlayer = {
+  id: string;
+  name: string;
+  photo_url: string | null;
+  jersey_number: number | null;
+  team_name: string | null;
+  points: number;
+  three_pointers: number;
+  fouls: number;
+};
+
+async function getTopScorers(): Promise<TopPlayer[]> {
+  try {
+    const { data } = await supabaseAdmin
+      .from('players')
+      .select('id, name, photo_url, jersey_number, points, three_pointers, fouls, team:teams(name)')
+      .eq('is_active', true)
+      .gt('points', 0)
+      .order('points', { ascending: false })
+      .limit(5);
+
+    return ((data ?? []) as unknown as {
+      id: string; name: string; photo_url: string | null; jersey_number: number | null;
+      points: number; three_pointers: number; fouls: number;
+      team: { name: string } | null;
+    }[]).map(p => ({
+      id: p.id,
+      name: p.name,
+      photo_url: p.photo_url,
+      jersey_number: p.jersey_number,
+      team_name: p.team?.name ?? null,
+      points: p.points,
+      three_pointers: p.three_pointers,
+      fouls: p.fouls,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 async function getTickerSpeed(): Promise<number> {
   try {
     const { data } = await supabaseAdmin
@@ -131,11 +171,12 @@ function RecordCard({ icon, label, value, sub, detail, color }: { icon: string; 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function HomePage() {
-  const [liveData, activeAnnouncements, teams, tickerSpeed] = await Promise.all([
+  const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers] = await Promise.all([
     getLiveData(),
     getActiveAnnouncements(),
     getTeams(),
     getTickerSpeed(),
+    getTopScorers(),
   ]);
 
   // Build logo lookup (normalize quotes/spaces like teams page does)
@@ -268,6 +309,87 @@ export default async function HomePage() {
             sub="הפרש קטן" detail="כל עונה עד כה" color="#e05a5a" />
         </div>
       </section>
+
+      {/* ── Top Scorers ────────────────────────────────────────────────── */}
+      {topScorers.length > 0 && (
+        <section>
+          <h2 className="mb-4 flex items-center gap-2 text-lg font-black text-white">
+            <span className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-700 px-2 py-1 text-sm">🏅</span>
+            קלעי הליגה
+          </h2>
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] overflow-hidden">
+            {/* Header */}
+            <div className="grid grid-cols-[2rem_1fr_4rem_4rem_4rem] sm:grid-cols-[2.5rem_1fr_5rem_5rem_5rem] gap-2 px-4 py-2 border-b border-white/[0.06] text-[10px] font-bold uppercase tracking-widest text-[#3a5a7a]">
+              <span>#</span>
+              <span>שחקן</span>
+              <span className="text-center">נק׳</span>
+              <span className="text-center">3נק׳</span>
+              <span className="text-center">פאולים</span>
+            </div>
+            {topScorers.map((p, i) => {
+              const MEDAL = ['🥇', '🥈', '🥉'];
+              const medal = MEDAL[i] ?? null;
+              const rankColors = ['text-yellow-400', 'text-slate-300', 'text-amber-600'];
+              const maxPts = topScorers[0].points || 1;
+              return (
+                <a
+                  key={p.id}
+                  href={`/players/${p.id}`}
+                  className="grid grid-cols-[2rem_1fr_4rem_4rem_4rem] sm:grid-cols-[2.5rem_1fr_5rem_5rem_5rem] gap-2 px-4 py-3 items-center border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] transition-colors group"
+                >
+                  {/* Rank */}
+                  <span className={`text-sm font-black text-center ${rankColors[i] ?? 'text-[#5a7a9a]'}`}>
+                    {medal ?? <span className="text-xs text-[#3a5a7a]">{i + 1}</span>}
+                  </span>
+
+                  {/* Player info */}
+                  <div className="flex items-center gap-3 min-w-0">
+                    {/* Avatar */}
+                    <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border border-white/[0.08] bg-white/[0.04]">
+                      {p.photo_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.photo_url} alt={p.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center text-xs font-black text-[#4a6a8a]">
+                          {p.name.charAt(0)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-white group-hover:text-orange-300 transition-colors">{p.name}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {p.jersey_number !== null && (
+                          <span className="text-[10px] font-bold text-orange-400/70">#{p.jersey_number}</span>
+                        )}
+                        {p.team_name && (
+                          <span className="truncate text-[10px] text-[#3a5a7a]">{p.team_name}</span>
+                        )}
+                      </div>
+                      {/* Points bar */}
+                      <div className="mt-1 h-0.5 w-full rounded-full bg-white/[0.06]">
+                        <div
+                          className="h-0.5 rounded-full bg-gradient-to-l from-orange-500 to-orange-700 transition-all"
+                          style={{ width: `${Math.round((p.points / maxPts) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Stats */}
+                  <span className="text-center text-base font-black text-orange-400">{p.points}</span>
+                  <span className="text-center text-sm font-semibold text-sky-400">{p.three_pointers}</span>
+                  <span className="text-center text-sm text-rose-400">{p.fouls}</span>
+                </a>
+              );
+            })}
+          </div>
+          <div className="mt-2 text-right">
+            <a href="/players" className="text-xs text-[#5a7a9a] hover:text-orange-400 transition-colors">
+              כל השחקנים ←
+            </a>
+          </div>
+        </section>
+      )}
 
       <section className="rounded-2xl border border-white/[0.07] bg-white/[0.04]">
         <div className="border-b border-white/[0.06] px-5 py-4">

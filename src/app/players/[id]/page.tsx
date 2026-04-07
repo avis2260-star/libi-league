@@ -60,9 +60,12 @@ export default async function PlayerProfilePage({
   if (!player) notFound();
 
   const gamesPlayed = gameStats.filter((s) => s.game.status === 'Finished').length;
-  const totalPts   = gameStats.reduce((n, s) => n + s.points, 0);
-  const total3pt   = gameStats.reduce((n, s) => n + s.three_pointers, 0);
-  const totalFouls = gameStats.reduce((n, s) => n + s.fouls, 0);
+
+  // Use accumulated totals from the players table as the source of truth
+  // (game_stats may be missing rows for submissions approved before this feature)
+  const totalPts   = player.points        ?? gameStats.reduce((n, s) => n + s.points, 0);
+  const total3pt   = player.three_pointers ?? gameStats.reduce((n, s) => n + s.three_pointers, 0);
+  const totalFouls = player.fouls          ?? gameStats.reduce((n, s) => n + s.fouls, 0);
 
   const posMeta = player.position ? POSITION_META[player.position] : null;
 
