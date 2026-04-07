@@ -92,13 +92,13 @@ export default async function PlayerProfilePage({
   const hasTotals = totalPts > 0 || total3pt > 0 || totalFouls > 0;
   const hasGames  = gamesPlayed > 0;
 
-  // Always show averages when game count is known; totals otherwise
-  const ptsVal     = hasGames ? avg(totalPts,   gamesPlayed) : String(totalPts);
-  const threePtVal = hasGames ? avg(total3pt,   gamesPlayed) : String(total3pt);
-  const foulsVal   = hasGames ? avg(totalFouls, gamesPlayed) : String(totalFouls);
-  const ptsSub     = hasGames ? 'נקודות בממוצע'   : 'נקודות סה״כ';
-  const threePtSub = hasGames ? '3נק׳ בממוצע'     : '3נק׳ סה״כ';
-  const foulsSub   = hasGames ? 'עבירות בממוצע'   : 'עבירות סה״כ';
+  // Always show averages — fall back to 0 when no games played
+  const ptsVal     = hasGames ? avg(totalPts,   gamesPlayed) : '0';
+  const threePtVal = hasGames ? avg(total3pt,   gamesPlayed) : '0';
+  const foulsVal   = hasGames ? avg(totalFouls, gamesPlayed) : '0';
+  const ptsSub     = 'נקודות בממוצע';
+  const threePtSub = '3נק׳ בממוצע';
+  const foulsSub   = 'עבירות בממוצע';
 
   const posMeta = player.position ? POSITION_META[player.position] : null;
 
