@@ -22,11 +22,19 @@ export async function POST(req: NextRequest) {
             { text: `Analyze this basketball scoresheet image for readability. Return ONLY valid JSON:
 {
   "confidence_score": <0-10, where 10 = perfectly clear>,
-  "status": <"pass" if >= 6, "fail" if < 6>,
+  "status": <"pass" if >= 7, "fail" if < 7>,
   "issues": <array of problem strings in HEBREW, empty if none>,
   "recommendation": <advice string in HEBREW if fail, empty string if pass>
 }
-Check for: blur, bad angle, poor lighting, illegible handwriting, incomplete data, wrong document type.
+Check for ALL of the following and write findings in Hebrew:
+- תמונה מטושטשת (blur)
+- זווית צילום לקויה (bad angle)
+- תאורה לקויה (poor lighting)
+- כתב יד לא קריא (illegible handwriting)
+- נתונים חסרים (incomplete data)
+- סוג מסמך שגוי (wrong document type)
+- עצם חוסם חלקים מהטופס כגון: יד, טלפון, עט, עכבר, כוס, או כל עצם זר המכסה שדות נתונים (foreign object obstructing the form)
+If any fields or rows are hidden or obscured by a physical object, that is a critical issue — mark status as "fail".
 Write all issues and recommendation text in Hebrew only.` },
           ],
         }],

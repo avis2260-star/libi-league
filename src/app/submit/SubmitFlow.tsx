@@ -25,6 +25,7 @@ type RosterPlayer = {
 
 type ExtractedPlayer = {
   name: string;
+  ocr_name?: string;   // raw text Gemini read from the form before roster matching
   jersey: number | null;
   points: number;
   three_pointers: number;
@@ -85,17 +86,21 @@ function NameCell({
   value,
   onChange,
   roster,
+  ocrName,
 }: {
   match: NameMatch | null;
   value: string;
   onChange: (v: string) => void;
   roster: RosterPlayer[];
+  ocrName?: string;
 }) {
   const showSuggestion = match && match.score > 0 && match.ocr !== match.matched;
   const isLowConfidence = match && match.score < (1 - DROPDOWN_THRESHOLD) && match.score > 0;
 
+  // Show raw OCR hint if it differs from the official name
+  const ocrHint = ocrName && ocrName !== value ? ocrName : null;
+
   if (isLowConfidence && roster.length > 0) {
-    // Show a dropdown with roster options
     return (
       <div className="space-y-0.5">
         <select
@@ -125,7 +130,12 @@ function NameCell({
         onChange={e => onChange(e.target.value)}
         className="w-full bg-transparent text-white text-xs focus:outline-none focus:text-orange-300"
       />
-      {showSuggestion && (
+      {ocrHint && (
+        <p className="text-[9px] text-[#4a6a8a]">
+          OCR: <span className="text-[#5a7a9a]">{ocrHint}</span>
+        </p>
+      )}
+      {!ocrHint && showSuggestion && (
         <p className="text-[9px] text-[#4a6a8a]">
           OCR: <span className="text-[#5a7a9a]">{match.ocr}</span>
         </p>
@@ -215,6 +225,14 @@ export default function SubmitFlow({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Reset all previous extraction state before processing new image
+    setExtractedData(null);
+    setEditedData(null);
+    setNameMatches(null);
+    setExtractError('');
+    setSubmitError('');
+    setAnalysisResult(null);
+
     const objectUrl = URL.createObjectURL(file);
     setPreview(objectUrl);
     setMediaType(file.type || 'image/jpeg');
@@ -295,6 +313,7 @@ export default function SubmitFlow({
             : null;
           return {
             name: rp.name,
+            ocr_name: ep ? best?.item.name : undefined, // store what Gemini originally read
             jersey: rp.jersey_number ?? null,
             points: ep?.points ?? 0,
             three_pointers: ep?.three_pointers ?? 0,
@@ -561,11 +580,21 @@ export default function SubmitFlow({
         )}
 
         {/* ── Step 3: Confirm ── */}
-        {step === 'confirm' && editedData && selectedGame && (
+        {step === 'confirm' && editedData && selectedGame && (() => {
+          const allPlayers = [...editedData.home_players, ...editedData.away_players];
+          const allZeros = allPlayers.length > 0 && allPlayers.every(
+            p => p.points === 0 && p.three_pointers === 0 && p.fouls === 0
+          );
+          return (
           <div className="space-y-5">
             {isNeedsReview && (
               <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 text-sm text-yellow-300">
                 ⚠️ איכות תמונה נמוכה — אנא בדוק את הנתונים שחולצו ותקן שגיאות לפני שליחה
+              </div>
+            )}
+            {allZeros && (
+              <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-3 text-sm text-orange-300">
+                ⚠️ הנתונים נראים ריקים — כל הנקודות, הפאולים והשלשות הם אפס. האם הטופס היה קריא? אנא בדוק ותקן לפני שליחה.
               </div>
             )}
 
@@ -633,6 +662,7 @@ export default function SubmitFlow({
                                 value={p.name}
                                 onChange={v => updatePlayer(team, i, 'name', v)}
                                 roster={roster}
+                                ocrName={p.ocr_name}
                               />
                             </td>
                             <td className="py-1.5">
@@ -695,7 +725,8 @@ export default function SubmitFlow({
               ← חזור
             </button>
           </div>
-        )}
+          );
+        })()}
 
         {/* ── Step 4: Success ── */}
         {step === 'success' && (
