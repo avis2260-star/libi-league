@@ -23,10 +23,11 @@ export async function POST(req: NextRequest) {
 {
   "confidence_score": <0-10, where 10 = perfectly clear>,
   "status": <"pass" if >= 6, "fail" if < 6>,
-  "issues": <array of problem strings, empty if none>,
-  "recommendation": <advice string if fail, empty string if pass>
+  "issues": <array of problem strings in HEBREW, empty if none>,
+  "recommendation": <advice string in HEBREW if fail, empty string if pass>
 }
-Check for: blur, bad angle, poor lighting, illegible handwriting, incomplete data, wrong document type.` },
+Check for: blur, bad angle, poor lighting, illegible handwriting, incomplete data, wrong document type.
+Write all issues and recommendation text in Hebrew only.` },
           ],
         }],
         generationConfig: {
