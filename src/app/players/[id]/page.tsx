@@ -61,11 +61,21 @@ export default async function PlayerProfilePage({
 
   const gamesPlayed = gameStats.filter((s) => s.game.status === 'Finished').length;
 
-  // Use accumulated totals from the players table as the source of truth
-  // (game_stats may be missing rows for submissions approved before this feature)
-  const totalPts   = player.points        ?? gameStats.reduce((n, s) => n + s.points, 0);
-  const total3pt   = player.three_pointers ?? gameStats.reduce((n, s) => n + s.three_pointers, 0);
-  const totalFouls = player.fouls          ?? gameStats.reduce((n, s) => n + s.fouls, 0);
+  // Use accumulated totals from the players table as source of truth.
+  // game_stats rows may be absent for submissions approved before this feature was added.
+  const totalPts   = (player.points        > 0) ? player.points        : gameStats.reduce((n, s) => n + s.points, 0);
+  const total3pt   = (player.three_pointers > 0) ? player.three_pointers : gameStats.reduce((n, s) => n + s.three_pointers, 0);
+  const totalFouls = (player.fouls          > 0) ? player.fouls          : gameStats.reduce((n, s) => n + s.fouls, 0);
+
+  // When there are no per-game rows yet, show totals instead of per-game averages
+  const hasGameRows  = gamesPlayed > 0;
+  const hasTotals    = totalPts > 0 || total3pt > 0 || totalFouls > 0;
+  const ptsVal       = hasGameRows ? avg(totalPts, gamesPlayed)   : String(totalPts);
+  const threePtVal   = hasGameRows ? avg(total3pt, gamesPlayed)   : String(total3pt);
+  const foulsVal     = hasGameRows ? avg(totalFouls, gamesPlayed) : String(totalFouls);
+  const ptsSub       = hasGameRows ? 'נקודות למשחק'    : 'נקודות סה״כ';
+  const threePtSub   = hasGameRows ? '3 נקודות למשחק' : '3 נקודות סה״כ';
+  const foulsSub     = hasGameRows ? 'עבירות למשחק'   : 'עבירות סה״כ';
 
   const posMeta = player.position ? POSITION_META[player.position] : null;
 
@@ -170,19 +180,19 @@ export default async function PlayerProfilePage({
         <section>
           <SectionTitle>ממוצעי עונה</SectionTitle>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatCard label="נק׳"     value={avg(totalPts,   gamesPlayed)} sublabel="נקודות למשחק"      accent="orange" />
-            <StatCard label="3נק׳"    value={avg(total3pt,   gamesPlayed)} sublabel="3 נקודות למשחק"    accent="sky" />
-            <StatCard label="עבירות"  value={avg(totalFouls, gamesPlayed)} sublabel="עבירות למשחק"       accent="rose" />
-            <StatCard label="משחקים"  value={String(gamesPlayed)}          sublabel="משחקים שהשתתף"      accent="emerald" />
+            <StatCard label="נק׳"     value={ptsVal}          sublabel={ptsSub}       accent="orange" />
+            <StatCard label="3נק׳"    value={threePtVal}      sublabel={threePtSub}   accent="sky" />
+            <StatCard label="עבירות"  value={foulsVal}        sublabel={foulsSub}     accent="rose" />
+            <StatCard label="משחקים"  value={String(gamesPlayed)} sublabel="משחקים שהשתתף" accent="emerald" />
           </div>
 
-          {/* Season totals strip */}
-          {gamesPlayed > 0 && (
+          {/* Season totals strip — always shown when player has any stats */}
+          {hasTotals && hasGameRows && (
             <div className="mt-3 flex divide-x divide-x-reverse divide-white/[0.06] overflow-hidden rounded-xl border border-white/[0.07] bg-white/[0.03] text-center">
               {[
-                { label: 'סה״כ נק׳',     value: totalPts },
-                { label: 'סה״כ 3נק׳',    value: total3pt },
-                { label: 'סה״כ עבירות',  value: totalFouls },
+                { label: 'סה״כ נק׳',    value: totalPts },
+                { label: 'סה״כ 3נק׳',   value: total3pt },
+                { label: 'סה״כ עבירות', value: totalFouls },
               ].map(({ label, value }) => (
                 <div key={label} className="flex-1 py-3">
                   <p className="text-lg font-bold text-[#e8edf5]">{value}</p>

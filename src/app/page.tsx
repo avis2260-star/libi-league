@@ -318,74 +318,87 @@ export default async function HomePage() {
             קלעי הליגה
           </h2>
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] overflow-hidden">
-            {/* Header */}
-            <div className="grid grid-cols-[2rem_1fr_4rem_4rem_4rem] sm:grid-cols-[2.5rem_1fr_5rem_5rem_5rem] gap-2 px-4 py-2 border-b border-white/[0.06] text-[10px] font-bold uppercase tracking-widest text-[#3a5a7a]">
-              <span>#</span>
-              <span>שחקן</span>
-              <span className="text-center">נק׳</span>
-              <span className="text-center">3נק׳</span>
-              <span className="text-center">פאולים</span>
+            {/* Column header — desktop only */}
+            <div className="hidden sm:flex items-center gap-3 px-4 py-2 border-b border-white/[0.06] text-[10px] font-bold uppercase tracking-widest text-[#3a5a7a]">
+              <span className="w-6 shrink-0 text-center">#</span>
+              <span className="w-9 shrink-0" />
+              <span className="flex-1">שחקן</span>
+              <span className="w-12 text-center">נק׳</span>
+              <span className="w-12 text-center">3נק׳</span>
+              <span className="w-12 text-center">פאולים</span>
             </div>
+
             {topScorers.map((p, i) => {
-              const MEDAL = ['🥇', '🥈', '🥉'];
-              const medal = MEDAL[i] ?? null;
+              const MEDAL  = ['🥇', '🥈', '🥉'];
+              const medal  = MEDAL[i] ?? null;
               const rankColors = ['text-yellow-400', 'text-slate-300', 'text-amber-600'];
               const maxPts = topScorers[0].points || 1;
               return (
                 <a
                   key={p.id}
                   href={`/players/${p.id}`}
-                  className="grid grid-cols-[2rem_1fr_4rem_4rem_4rem] sm:grid-cols-[2.5rem_1fr_5rem_5rem_5rem] gap-2 px-4 py-3 items-center border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] transition-colors group"
+                  className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] transition-colors group"
                 >
                   {/* Rank */}
-                  <span className={`text-sm font-black text-center ${rankColors[i] ?? 'text-[#5a7a9a]'}`}>
+                  <span className={`w-6 shrink-0 text-center text-sm font-black ${rankColors[i] ?? 'text-[#5a7a9a]'}`}>
                     {medal ?? <span className="text-xs text-[#3a5a7a]">{i + 1}</span>}
                   </span>
 
-                  {/* Player info */}
-                  <div className="flex items-center gap-3 min-w-0">
-                    {/* Avatar */}
-                    <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border border-white/[0.08] bg-white/[0.04]">
-                      {p.photo_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={p.photo_url} alt={p.name} className="h-full w-full object-cover" />
-                      ) : (
-                        <span className="flex h-full w-full items-center justify-center text-xs font-black text-[#4a6a8a]">
-                          {p.name.charAt(0)}
-                        </span>
+                  {/* Avatar */}
+                  <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full border border-white/[0.08] bg-white/[0.04]">
+                    {p.photo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={p.photo_url} alt={p.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center text-xs font-black text-[#4a6a8a]">
+                        {p.name.charAt(0)}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Name + team + bar */}
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate text-sm font-bold text-white group-hover:text-orange-300 transition-colors leading-tight">
+                      {p.name}
+                    </p>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      {p.jersey_number !== null && (
+                        <span className="text-[10px] font-bold text-orange-400/70 shrink-0">#{p.jersey_number}</span>
+                      )}
+                      {p.team_name && (
+                        <span className="truncate text-[10px] text-[#3a5a7a]">{p.team_name}</span>
                       )}
                     </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-white group-hover:text-orange-300 transition-colors">{p.name}</p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        {p.jersey_number !== null && (
-                          <span className="text-[10px] font-bold text-orange-400/70">#{p.jersey_number}</span>
-                        )}
-                        {p.team_name && (
-                          <span className="truncate text-[10px] text-[#3a5a7a]">{p.team_name}</span>
-                        )}
-                      </div>
-                      {/* Points bar */}
-                      <div className="mt-1 h-0.5 w-full rounded-full bg-white/[0.06]">
-                        <div
-                          className="h-0.5 rounded-full bg-gradient-to-l from-orange-500 to-orange-700 transition-all"
-                          style={{ width: `${Math.round((p.points / maxPts) * 100)}%` }}
-                        />
-                      </div>
+                    <div className="mt-1 h-0.5 w-full rounded-full bg-white/[0.06]">
+                      <div
+                        className="h-0.5 rounded-full bg-gradient-to-l from-orange-500 to-orange-700"
+                        style={{ width: `${Math.round((p.points / maxPts) * 100)}%` }}
+                      />
                     </div>
                   </div>
 
-                  {/* Stats */}
-                  <span className="text-center text-base font-black text-orange-400">{p.points}</span>
-                  <span className="text-center text-sm font-semibold text-sky-400">{p.three_pointers}</span>
-                  <span className="text-center text-sm text-rose-400">{p.fouls}</span>
+                  {/* Points — always visible */}
+                  <div className="w-12 shrink-0 text-center">
+                    <p className="text-base font-black text-orange-400">{p.points}</p>
+                    <p className="text-[9px] text-[#3a5a7a]">נק׳</p>
+                  </div>
+
+                  {/* 3PT + Fouls — hidden on small screens */}
+                  <div className="hidden sm:block w-12 shrink-0 text-center">
+                    <p className="text-sm font-semibold text-sky-400">{p.three_pointers}</p>
+                    <p className="text-[9px] text-[#3a5a7a]">3נק׳</p>
+                  </div>
+                  <div className="hidden sm:block w-12 shrink-0 text-center">
+                    <p className="text-sm text-rose-400">{p.fouls}</p>
+                    <p className="text-[9px] text-[#3a5a7a]">פאולים</p>
+                  </div>
                 </a>
               );
             })}
           </div>
           <div className="mt-2 text-right">
-            <a href="/players" className="text-xs text-[#5a7a9a] hover:text-orange-400 transition-colors">
-              כל השחקנים ←
+            <a href="/scorers" className="text-xs text-[#5a7a9a] hover:text-orange-400 transition-colors">
+              רשימת קלעי הליגה ←
             </a>
           </div>
         </section>
