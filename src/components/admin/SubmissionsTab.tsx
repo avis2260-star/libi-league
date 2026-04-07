@@ -194,48 +194,49 @@ function SubmissionCard({ sub }: { sub: SubmissionRow }) {
 
           {/* Action buttons */}
           <div className="flex flex-wrap gap-2 pt-1">
-            {(sub.status === 'pending' || sub.status === 'needs_review') && (
-              <>
-                <button
-                  onClick={() => act(() => approveSubmission(sub.id))}
-                  disabled={isPending}
-                  className="flex-1 bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white text-xs font-bold py-2 px-4 rounded-xl transition-all"
-                >
-                  ✅ אשר ועדכן תוצאה
-                </button>
+            {sub.status !== 'approved' && (
+              <button
+                onClick={() => act(() => approveSubmission(sub.id))}
+                disabled={isPending}
+                className="flex-1 bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white text-xs font-bold py-2 px-4 rounded-xl transition-all"
+              >
+                ✅ אשר ועדכן תוצאה
+              </button>
+            )}
 
-                {showRejectInput ? (
-                  <div className="flex-1 flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="סיבת דחייה (אופציונלי)"
-                      value={rejectNotes}
-                      onChange={e => setRejectNotes(e.target.value)}
-                      className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-[#4a6a8a] focus:outline-none focus:border-red-500/50"
-                    />
-                    <button
-                      onClick={() => act(() => rejectSubmission(sub.id, rejectNotes))}
-                      disabled={isPending}
-                      className="bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white text-xs font-bold py-2 px-3 rounded-xl transition-all"
-                    >
-                      דחה
-                    </button>
-                    <button
-                      onClick={() => setShowRejectInput(false)}
-                      className="text-[#5a7a9a] hover:text-white text-xs px-2 transition-colors"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ) : (
+            {sub.status !== 'rejected' && (
+              showRejectInput ? (
+                <div className="flex-1 flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="סיבת דחייה (אופציונלי)"
+                    value={rejectNotes}
+                    onChange={e => setRejectNotes(e.target.value)}
+                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-[#4a6a8a] focus:outline-none focus:border-red-500/50"
+                  />
                   <button
-                    onClick={() => setShowRejectInput(true)}
-                    className="flex-1 border border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs font-bold py-2 px-4 rounded-xl transition-all"
+                    onClick={() => act(() => rejectSubmission(sub.id, rejectNotes))}
+                    disabled={isPending}
+                    className="bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white text-xs font-bold py-2 px-3 rounded-xl transition-all"
                   >
-                    ✗ דחה
+                    דחה
                   </button>
-                )}
-              </>
+                  <button
+                    onClick={() => setShowRejectInput(false)}
+                    className="text-[#5a7a9a] hover:text-white text-xs px-2 transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowRejectInput(true)}
+                  disabled={isPending}
+                  className="flex-1 border border-red-500/30 text-red-400 hover:bg-red-500/10 disabled:opacity-40 text-xs font-bold py-2 px-4 rounded-xl transition-all"
+                >
+                  ✗ דחה{sub.status === 'approved' && ' ובטל סטטיסטיקה'}
+                </button>
+              )
             )}
 
             {/* Change status — always available */}

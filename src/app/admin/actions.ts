@@ -391,23 +391,32 @@ export async function approveSubmission(submissionId: string): Promise<ActionRes
 
 async function recalcPlayerTotals(playerIds: string[]): Promise<void> {
   for (const playerId of playerIds) {
-    const { data: rows } = await supabaseAdmin
+    const { data: rows, error: selErr } = await supabaseAdmin
       .from('game_stats')
       .select('points, three_pointers, fouls')
       .eq('player_id', playerId);
 
-    if (!rows) continue;
+    if (selErr) {
+      console.error('[recalcPlayerTotals] select game_stats failed:', selErr);
+      continue;
+    }
 
-    await supabaseAdmin
+    const totals = {
+      points:         (rows ?? []).reduce((n, r) => n + (r.points         ?? 0), 0),
+      three_pointers: (rows ?? []).reduce((n, r) => n + (r.three_pointers ?? 0), 0),
+      fouls:          (rows ?? []).reduce((n, r) => n + (r.fouls          ?? 0), 0),
+    };
+
+    // Only update the three core columns — no games_played / updated_at
+    // (those may not exist in the DB if the ALTER TABLE SQL wasn't run)
+    const { error: updErr } = await supabaseAdmin
       .from('players')
-      .update({
-        points:         rows.reduce((n, r) => n + (r.points         ?? 0), 0),
-        three_pointers: rows.reduce((n, r) => n + (r.three_pointers ?? 0), 0),
-        fouls:          rows.reduce((n, r) => n + (r.fouls          ?? 0), 0),
-        games_played:   rows.length,
-        updated_at:     new Date().toISOString(),
-      })
+      .update(totals)
       .eq('id', playerId);
+
+    if (updErr) {
+      console.error('[recalcPlayerTotals] update player failed:', playerId, updErr);
+    }
   }
 }
 
@@ -432,10 +441,11 @@ async function revokeApprovalEffects(submissionId: string): Promise<void> {
   const idsFromGameStats = new Set<string>((gsRows ?? []).map((r) => r.player_id));
 
   // ── Step 2: delete game_stats rows for this game ──────────────────────────
-  await supabaseAdmin
+  const { error: delErr } = await supabaseAdmin
     .from('game_stats')
     .delete()
     .eq('game_id', sub.game_id);
+  if (delErr) console.error('[revokeApprovalEffects] delete game_stats failed:', delErr);
 
   // ── Step 3: find players from extracted_stats ─────────────────────────────
   // Needed for old submissions that were approved before game_stats was written.
@@ -478,19 +488,21 @@ async function revokeApprovalEffects(submissionId: string): Promise<void> {
         .eq('player_id', playerId);
 
       if ((count ?? 0) === 0) {
-        await supabaseAdmin
+        const { error: zeroErr } = await supabaseAdmin
           .from('players')
-          .update({ points: 0, three_pointers: 0, fouls: 0, games_played: 0, updated_at: new Date().toISOString() })
+          .update({ points: 0, three_pointers: 0, fouls: 0 })
           .eq('id', playerId);
+        if (zeroErr) console.error('[revokeApprovalEffects] zero player failed:', playerId, zeroErr);
       }
     }
   }
 
   // ── Step 6: reset game back to Scheduled ─────────────────────────────────
-  await supabaseAdmin
+  const { error: gameErr } = await supabaseAdmin
     .from('games')
     .update({ home_score: 0, away_score: 0, status: 'Scheduled' })
     .eq('id', sub.game_id);
+  if (gameErr) console.error('[revokeApprovalEffects] reset game failed:', gameErr);
 }
 
 export async function rejectSubmission(submissionId: string, notes?: string): Promise<ActionResult> {
