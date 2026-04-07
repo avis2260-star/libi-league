@@ -416,19 +416,36 @@ async function recalcPlayerTotals(playerIds: string[]): Promise<void> {
 async function revokeApprovalEffects(submissionId: string): Promise<void> {
   const { data: sub } = await supabaseAdmin
     .from('game_submissions')
-    .select('game_id, extracted_stats, status')
+    .select('game_id, extracted_stats')
     .eq('id', submissionId)
     .maybeSingle();
 
   if (!sub) return;
 
-  // Find player IDs referenced by this submission
+  // ── Step 1: grab player IDs from game_stats BEFORE deleting ──────────────
+  // (reliable for submissions approved with the new code)
+  const { data: gsRows } = await supabaseAdmin
+    .from('game_stats')
+    .select('player_id')
+    .eq('game_id', sub.game_id);
+
+  const idsFromGameStats = new Set<string>((gsRows ?? []).map((r) => r.player_id));
+
+  // ── Step 2: delete game_stats rows for this game ──────────────────────────
+  await supabaseAdmin
+    .from('game_stats')
+    .delete()
+    .eq('game_id', sub.game_id);
+
+  // ── Step 3: find players from extracted_stats ─────────────────────────────
+  // Needed for old submissions that were approved before game_stats was written.
+  // Also catches any players whose IDs weren't in game_stats.
+  const idsFromExtracted = new Set<string>();
   const stats = sub.extracted_stats as {
     home_players?: { name?: string }[];
     away_players?: { name?: string }[];
   } | null;
 
-  const affectedPlayerIds: string[] = [];
   if (stats) {
     const allPlayers = [...(stats.home_players ?? []), ...(stats.away_players ?? [])];
     for (const ep of allPlayers) {
@@ -438,20 +455,38 @@ async function revokeApprovalEffects(submissionId: string): Promise<void> {
         .select('id')
         .ilike('name', ep.name.trim())
         .maybeSingle();
-      if (found) affectedPlayerIds.push(found.id);
+      if (found) idsFromExtracted.add(found.id);
     }
   }
 
-  // Delete all game_stats rows for this game
-  await supabaseAdmin
-    .from('game_stats')
-    .delete()
-    .eq('game_id', sub.game_id);
+  const allAffected = [...new Set([...idsFromGameStats, ...idsFromExtracted])];
 
-  // Recalculate player totals — now excludes this game
-  await recalcPlayerTotals(affectedPlayerIds);
+  // ── Step 4: recalculate totals from remaining game_stats ──────────────────
+  // This sets each player's stats to sum of their OTHER approved games.
+  // If they had no other games, this correctly sets everything to 0.
+  await recalcPlayerTotals(allAffected);
 
-  // Reset the game back to Scheduled
+  // ── Step 5: safety net — for players found via extracted_stats whose       ──
+  // stats were written directly to players table (old-style approval),        ──
+  // force-zero them if game_stats is still empty after recalc.               ──
+  for (const playerId of idsFromExtracted) {
+    if (!idsFromGameStats.has(playerId)) {
+      // Check if they have any remaining game_stats
+      const { count } = await supabaseAdmin
+        .from('game_stats')
+        .select('*', { count: 'exact', head: true })
+        .eq('player_id', playerId);
+
+      if ((count ?? 0) === 0) {
+        await supabaseAdmin
+          .from('players')
+          .update({ points: 0, three_pointers: 0, fouls: 0, games_played: 0, updated_at: new Date().toISOString() })
+          .eq('id', playerId);
+      }
+    }
+  }
+
+  // ── Step 6: reset game back to Scheduled ─────────────────────────────────
   await supabaseAdmin
     .from('games')
     .update({ home_score: 0, away_score: 0, status: 'Scheduled' })
