@@ -326,6 +326,42 @@ export async function approveSubmission(submissionId: string): Promise<ActionRes
 
   if (gameErr) return { error: gameErr.message };
 
+  // ── Update player stats from extracted_stats ──────────────────────────────
+  const stats = sub.extracted_stats as {
+    home_players?: { name: string; points?: number; three_pointers?: number; fouls?: number }[];
+    away_players?: { name: string; points?: number; three_pointers?: number; fouls?: number }[];
+  } | null;
+
+  if (stats) {
+    const allPlayers = [
+      ...(stats.home_players ?? []),
+      ...(stats.away_players ?? []),
+    ];
+
+    for (const ep of allPlayers) {
+      if (!ep.name || ep.name === '?') continue;
+
+      // Find player by name (case-insensitive)
+      const { data: found } = await supabaseAdmin
+        .from('players')
+        .select('id, points, three_pointers, fouls')
+        .ilike('name', ep.name.trim())
+        .maybeSingle();
+
+      if (found) {
+        await supabaseAdmin
+          .from('players')
+          .update({
+            points:         (found.points        ?? 0) + (ep.points         ?? 0),
+            three_pointers: (found.three_pointers ?? 0) + (ep.three_pointers ?? 0),
+            fouls:          (found.fouls          ?? 0) + (ep.fouls          ?? 0),
+            updated_at:     new Date().toISOString(),
+          })
+          .eq('id', found.id);
+      }
+    }
+  }
+
   // Mark submission approved
   const { error } = await supabaseAdmin
     .from('game_submissions')
@@ -338,6 +374,7 @@ export async function approveSubmission(submissionId: string): Promise<ActionRes
   revalidatePath('/');
   revalidatePath('/results');
   revalidatePath('/standings');
+  revalidatePath('/players');
   return {};
 }
 
