@@ -411,7 +411,57 @@ async function recalcPlayerTotals(playerIds: string[]): Promise<void> {
   }
 }
 
+// ── Helper: undo approval effects (game_stats + player totals + game score) ───
+
+async function revokeApprovalEffects(submissionId: string): Promise<void> {
+  const { data: sub } = await supabaseAdmin
+    .from('game_submissions')
+    .select('game_id, extracted_stats, status')
+    .eq('id', submissionId)
+    .maybeSingle();
+
+  if (!sub) return;
+
+  // Find player IDs referenced by this submission
+  const stats = sub.extracted_stats as {
+    home_players?: { name?: string }[];
+    away_players?: { name?: string }[];
+  } | null;
+
+  const affectedPlayerIds: string[] = [];
+  if (stats) {
+    const allPlayers = [...(stats.home_players ?? []), ...(stats.away_players ?? [])];
+    for (const ep of allPlayers) {
+      if (!ep.name || ep.name === '?') continue;
+      const { data: found } = await supabaseAdmin
+        .from('players')
+        .select('id')
+        .ilike('name', ep.name.trim())
+        .maybeSingle();
+      if (found) affectedPlayerIds.push(found.id);
+    }
+  }
+
+  // Delete all game_stats rows for this game
+  await supabaseAdmin
+    .from('game_stats')
+    .delete()
+    .eq('game_id', sub.game_id);
+
+  // Recalculate player totals — now excludes this game
+  await recalcPlayerTotals(affectedPlayerIds);
+
+  // Reset the game back to Scheduled
+  await supabaseAdmin
+    .from('games')
+    .update({ home_score: 0, away_score: 0, status: 'Scheduled' })
+    .eq('id', sub.game_id);
+}
+
 export async function rejectSubmission(submissionId: string, notes?: string): Promise<ActionResult> {
+  // Undo any stats/score written when this submission was previously approved
+  await revokeApprovalEffects(submissionId);
+
   const { error } = await supabaseAdmin
     .from('game_submissions')
     .update({ status: 'rejected', review_notes: notes ?? null })
@@ -420,6 +470,8 @@ export async function rejectSubmission(submissionId: string, notes?: string): Pr
   if (error) return { error: error.message };
 
   revalidatePath('/admin');
+  revalidatePath('/players');
+  revalidatePath('/');
   return {};
 }
 
@@ -441,11 +493,13 @@ export async function changeSubmissionStatus(
   status: 'pending' | 'needs_review' | 'approved' | 'rejected',
   notes?: string,
 ): Promise<ActionResult> {
-  // If admin is manually approving, run the full approval pipeline
-  // (writes game score, game_stats rows, recalculates player totals)
+  // Approving → run full pipeline (game score + game_stats + player totals)
   if (status === 'approved') {
     return approveSubmission(submissionId);
   }
+
+  // Moving away from approved (or rejecting) → undo all effects first
+  await revokeApprovalEffects(submissionId);
 
   const { error } = await supabaseAdmin
     .from('game_submissions')
@@ -457,6 +511,7 @@ export async function changeSubmissionStatus(
   revalidatePath('/admin');
   revalidatePath('/submit');
   revalidatePath('/players');
+  revalidatePath('/');
   return {};
 }
 
