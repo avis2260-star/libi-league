@@ -404,6 +404,7 @@ async function recalcPlayerTotals(playerIds: string[]): Promise<void> {
         points:         rows.reduce((n, r) => n + (r.points         ?? 0), 0),
         three_pointers: rows.reduce((n, r) => n + (r.three_pointers ?? 0), 0),
         fouls:          rows.reduce((n, r) => n + (r.fouls          ?? 0), 0),
+        games_played:   rows.length,
         updated_at:     new Date().toISOString(),
       })
       .eq('id', playerId);
@@ -438,8 +439,14 @@ export async function clearSubmission(submissionId: string): Promise<ActionResul
 export async function changeSubmissionStatus(
   submissionId: string,
   status: 'pending' | 'needs_review' | 'approved' | 'rejected',
-  notes?: string
+  notes?: string,
 ): Promise<ActionResult> {
+  // If admin is manually approving, run the full approval pipeline
+  // (writes game score, game_stats rows, recalculates player totals)
+  if (status === 'approved') {
+    return approveSubmission(submissionId);
+  }
+
   const { error } = await supabaseAdmin
     .from('game_submissions')
     .update({ status, review_notes: notes ?? null })
@@ -449,6 +456,7 @@ export async function changeSubmissionStatus(
 
   revalidatePath('/admin');
   revalidatePath('/submit');
+  revalidatePath('/players');
   return {};
 }
 

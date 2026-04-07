@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getPlayerById, getPlayerGameStats } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import type { GameStatWithGame, Position } from '@/types';
 import VideoGallery from '@/components/player/VideoGallery';
 import PlayerStatsChart from '@/components/player/PlayerStatsChart';
@@ -59,23 +60,45 @@ export default async function PlayerProfilePage({
 
   if (!player) notFound();
 
-  const gamesPlayed = gameStats.filter((s) => s.game.status === 'Finished').length;
+  // ── Game count ────────────────────────────────────────────────────────────
+  // Primary: count finished game_stats rows (new submissions)
+  let gamesPlayed = gameStats.filter((s) => s.game.status === 'Finished').length;
 
-  // Use accumulated totals from the players table as source of truth.
-  // game_stats rows may be absent for submissions approved before this feature was added.
-  const totalPts   = (player.points        > 0) ? player.points        : gameStats.reduce((n, s) => n + s.points, 0);
-  const total3pt   = (player.three_pointers > 0) ? player.three_pointers : gameStats.reduce((n, s) => n + s.three_pointers, 0);
-  const totalFouls = (player.fouls          > 0) ? player.fouls          : gameStats.reduce((n, s) => n + s.fouls, 0);
+  // Fallback for old submissions approved before game_stats rows were written:
+  // count approved submissions where this player appears in extracted_stats
+  if (gamesPlayed === 0) {
+    const { data: subs } = await supabaseAdmin
+      .from('game_submissions')
+      .select('extracted_stats')
+      .eq('status', 'approved');
 
-  // When there are no per-game rows yet, show totals instead of per-game averages
-  const hasGameRows  = gamesPlayed > 0;
-  const hasTotals    = totalPts > 0 || total3pt > 0 || totalFouls > 0;
-  const ptsVal       = hasGameRows ? avg(totalPts, gamesPlayed)   : String(totalPts);
-  const threePtVal   = hasGameRows ? avg(total3pt, gamesPlayed)   : String(total3pt);
-  const foulsVal     = hasGameRows ? avg(totalFouls, gamesPlayed) : String(totalFouls);
-  const ptsSub       = hasGameRows ? 'נקודות למשחק'    : 'נקודות סה״כ';
-  const threePtSub   = hasGameRows ? '3 נקודות למשחק' : '3 נקודות סה״כ';
-  const foulsSub     = hasGameRows ? 'עבירות למשחק'   : 'עבירות סה״כ';
+    gamesPlayed = (subs ?? []).filter((sub) => {
+      const s = sub.extracted_stats as {
+        home_players?: { name?: string }[];
+        away_players?: { name?: string }[];
+      } | null;
+      const all = [...(s?.home_players ?? []), ...(s?.away_players ?? [])];
+      return all.some(
+        (p) => p.name && p.name.trim().toLowerCase() === player.name.trim().toLowerCase(),
+      );
+    }).length;
+  }
+
+  // ── Season totals (players table is source of truth) ─────────────────────
+  const totalPts   = (player.points         > 0) ? player.points         : gameStats.reduce((n, s) => n + s.points, 0);
+  const total3pt   = (player.three_pointers  > 0) ? player.three_pointers  : gameStats.reduce((n, s) => n + s.three_pointers, 0);
+  const totalFouls = (player.fouls           > 0) ? player.fouls           : gameStats.reduce((n, s) => n + s.fouls, 0);
+
+  const hasTotals = totalPts > 0 || total3pt > 0 || totalFouls > 0;
+  const hasGames  = gamesPlayed > 0;
+
+  // Always show averages when game count is known; totals otherwise
+  const ptsVal     = hasGames ? avg(totalPts,   gamesPlayed) : String(totalPts);
+  const threePtVal = hasGames ? avg(total3pt,   gamesPlayed) : String(total3pt);
+  const foulsVal   = hasGames ? avg(totalFouls, gamesPlayed) : String(totalFouls);
+  const ptsSub     = hasGames ? 'נקודות בממוצע'   : 'נקודות סה״כ';
+  const threePtSub = hasGames ? '3נק׳ בממוצע'     : '3נק׳ סה״כ';
+  const foulsSub   = hasGames ? 'עבירות בממוצע'   : 'עבירות סה״כ';
 
   const posMeta = player.position ? POSITION_META[player.position] : null;
 
@@ -180,14 +203,14 @@ export default async function PlayerProfilePage({
         <section>
           <SectionTitle>ממוצעי עונה</SectionTitle>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatCard label="נק׳"     value={ptsVal}          sublabel={ptsSub}       accent="orange" />
-            <StatCard label="3נק׳"    value={threePtVal}      sublabel={threePtSub}   accent="sky" />
-            <StatCard label="עבירות"  value={foulsVal}        sublabel={foulsSub}     accent="rose" />
+            <StatCard label="נק׳"     value={ptsVal}              sublabel={ptsSub}     accent="orange" />
+            <StatCard label="3נק׳"    value={threePtVal}          sublabel={threePtSub} accent="sky" />
+            <StatCard label="עבירות"  value={foulsVal}            sublabel={foulsSub}   accent="rose" />
             <StatCard label="משחקים"  value={String(gamesPlayed)} sublabel="משחקים שהשתתף" accent="emerald" />
           </div>
 
-          {/* Season totals strip — always shown when player has any stats */}
-          {hasTotals && hasGameRows && (
+          {/* Season totals strip — shown when player has stats AND game count is known */}
+          {hasTotals && hasGames && (
             <div className="mt-3 flex divide-x divide-x-reverse divide-white/[0.06] overflow-hidden rounded-xl border border-white/[0.07] bg-white/[0.03] text-center">
               {[
                 { label: 'סה״כ נק׳',    value: totalPts },
