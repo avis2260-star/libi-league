@@ -328,8 +328,8 @@ export async function approveSubmission(submissionId: string): Promise<ActionRes
 
   // ── Upsert per-game player stats into game_stats ──────────────────────────
   const stats = sub.extracted_stats as {
-    home_players?: { name: string; points?: number; three_pointers?: number; fouls?: number }[];
-    away_players?: { name: string; points?: number; three_pointers?: number; fouls?: number }[];
+    home_players?: { name: string; points?: number; three_pointers?: number; fouls?: number; played?: boolean }[];
+    away_players?: { name: string; points?: number; three_pointers?: number; fouls?: number; played?: boolean }[];
   } | null;
 
   if (stats) {
@@ -342,6 +342,9 @@ export async function approveSubmission(submissionId: string): Promise<ActionRes
 
     for (const ep of allPlayers) {
       if (!ep.name || ep.name === '?') continue;
+      // New behavior: if `played` is explicitly false, skip this player.
+      // Backward compat: undefined `played` (older submissions) → treat as played.
+      if (ep.played === false) continue;
 
       // Find player by name (case-insensitive)
       const { data: found } = await supabaseAdmin

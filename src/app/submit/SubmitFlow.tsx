@@ -3,6 +3,7 @@
 import { useState, useRef, useMemo } from 'react';
 import Fuse from 'fuse.js';
 import ImageQualityModal from '@/components/ImageQualityModal';
+import ImageCropper from '@/components/ImageCropper';
 import { submitGameResult } from '@/app/admin/actions';
 
 type Game = {
@@ -30,6 +31,7 @@ type ExtractedPlayer = {
   points: number;
   three_pointers: number;
   fouls: number;
+  played?: boolean;    // whether this player actually participated in the game
 };
 
 type ExtractedData = {
@@ -167,6 +169,7 @@ export default function SubmitFlow({
   const [preview, setPreview] = useState<string | null>(null);
   const [base64, setBase64] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<string>('image/jpeg');
+  const [cropMode, setCropMode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -236,35 +239,52 @@ export default function SubmitFlow({
     const objectUrl = URL.createObjectURL(file);
     setPreview(objectUrl);
     setMediaType(file.type || 'image/jpeg');
-    setLoading(true);
-    setLoadingMsg('בודק איכות תמונה...');
 
     const reader = new FileReader();
     reader.readAsDataURL(file);
-    reader.onload = async () => {
+    reader.onload = () => {
       const b64 = (reader.result as string).split(',')[1];
       setBase64(b64);
-
-      try {
-        const res = await fetch('/api/analyze-scoresheet', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64: b64, mediaType: file.type }),
-        });
-        const analysis = await res.json();
-        setAnalysisResult(analysis);
-
-        if (analysis.status === 'fail') {
-          setLoading(false);
-          setShowModal(true);
-        } else {
-          await extractStats(b64, file.type, false);
-        }
-      } catch {
-        setLoading(false);
-        alert('שגיאה בניתוח התמונה. נסה שוב.');
-      }
+      // Open the cropper instead of analyzing immediately
+      setCropMode(true);
     };
+  }
+
+  async function analyzeImage(b64: string, type: string) {
+    setLoading(true);
+    setLoadingMsg('בודק איכות תמונה...');
+    try {
+      const res = await fetch('/api/analyze-scoresheet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: b64, mediaType: type }),
+      });
+      const analysis = await res.json();
+      setAnalysisResult(analysis);
+
+      if (analysis.status === 'fail') {
+        setLoading(false);
+        setShowModal(true);
+      } else {
+        await extractStats(b64, type, false);
+      }
+    } catch {
+      setLoading(false);
+      alert('שגיאה בניתוח התמונה. נסה שוב.');
+    }
+  }
+
+  function handleCropConfirm(croppedB64: string) {
+    setBase64(croppedB64);
+    const dataUrl = `data:${mediaType};base64,${croppedB64}`;
+    setPreview(dataUrl);
+    setCropMode(false);
+    analyzeImage(croppedB64, mediaType);
+  }
+
+  function handleCropSkip() {
+    setCropMode(false);
+    if (base64) analyzeImage(base64, mediaType);
   }
 
   async function extractStats(b64: string, type: string, needsReview: boolean) {
@@ -318,6 +338,8 @@ export default function SubmitFlow({
             points: ep?.points ?? 0,
             three_pointers: ep?.three_pointers ?? 0,
             fouls: ep?.fouls ?? 0,
+            // Default: a player is "played" if OCR matched them (any stats present)
+            played: !!ep,
           };
         });
       }
@@ -382,6 +404,14 @@ export default function SubmitFlow({
       parsed = parseInt(val) || 0;
     }
     ps[idx] = { ...ps[idx], [field]: parsed };
+    setEditedData({ ...editedData, [key]: ps });
+  }
+
+  function togglePlayed(team: 'home' | 'away', idx: number) {
+    if (!editedData) return;
+    const key = `${team}_players` as 'home_players' | 'away_players';
+    const ps = [...editedData[key]];
+    ps[idx] = { ...ps[idx], played: !ps[idx].played };
     setEditedData({ ...editedData, [key]: ps });
   }
 
@@ -529,7 +559,14 @@ export default function SubmitFlow({
               disabled={loading}
             />
 
-            {loading ? (
+            {cropMode && preview ? (
+              <ImageCropper
+                imageSrc={preview}
+                mimeType={mediaType}
+                onConfirm={handleCropConfirm}
+                onSkip={handleCropSkip}
+              />
+            ) : loading ? (
               <div className="rounded-2xl border border-white/10 bg-white/5 p-16 text-center space-y-3">
                 <div className="animate-spin text-3xl">⚙️</div>
                 <p className="text-[#8aaac8] font-medium">{loadingMsg}</p>
@@ -644,13 +681,20 @@ export default function SubmitFlow({
               const roster  = team === 'home' ? homeRoster : awayRoster;
               const teamName = team === 'home' ? selectedGame.home_name : selectedGame.away_name;
 
+              const playedCount = ps.filter(p => p.played).length;
               return (
                 <div key={team} className="bg-white/5 rounded-xl p-4 space-y-3">
-                  <p className="text-sm font-bold text-white">{teamName}</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold text-white">{teamName}</p>
+                    <p className="text-[10px] text-[#5a7a9a]">
+                      ✓ סמן את השחקנים ששיחקו ({playedCount}/{ps.length})
+                    </p>
+                  </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="text-[#4a6a8a] border-b border-white/5">
+                          <th className="text-center pb-2 font-medium w-8">שיחק</th>
                           <th className="text-right pb-2 font-medium">שם</th>
                           <th className="text-center pb-2 font-medium w-10">#</th>
                           <th className="text-center pb-2 font-medium w-12">נק׳</th>
@@ -660,7 +704,15 @@ export default function SubmitFlow({
                       </thead>
                       <tbody className="divide-y divide-white/[0.04]">
                         {ps.map((p, i) => (
-                          <tr key={i}>
+                          <tr key={i} className={p.played ? '' : 'opacity-40'}>
+                            <td className="py-1.5 text-center">
+                              <input
+                                type="checkbox"
+                                checked={!!p.played}
+                                onChange={() => togglePlayed(team, i)}
+                                className="w-4 h-4 accent-orange-500 cursor-pointer"
+                              />
+                            </td>
                             <td className="py-1.5 pr-1">
                               <NameCell
                                 match={matches[i] ?? null}
