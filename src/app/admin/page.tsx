@@ -16,6 +16,7 @@ import TeamsTab from '@/components/admin/TeamsTab';
 import TakanonTab from '@/components/admin/TakanonTab';
 import PlayoffTab from '@/components/admin/PlayoffTab';
 import SubmissionsTab, { type SubmissionRow } from '@/components/admin/SubmissionsTab';
+import PlayerStatsTab, { type PlayerStatRow } from '@/components/admin/PlayerStatsTab';
 import MessagesTab, { type ContactMessage } from '@/components/admin/MessagesTab';
 import TermsTab from '@/components/admin/TermsTab';
 import type { GameWithTeams, Team } from '@/types';
@@ -188,6 +189,26 @@ export default async function AdminPage({
     contactMessages = (data ?? []) as ContactMessage[];
   }
 
+  // Player stats tab
+  let playerStats: PlayerStatRow[] = [];
+  if (tab === 'playerstats') {
+    const { data } = await supabaseAdmin
+      .from('players')
+      .select('id,name,jersey_number,points,three_pointers,fouls,team:teams(name)')
+      .eq('is_active', true)
+      .order('name');
+    type Raw = { id: string; name: string; jersey_number: number | null; points: number | null; three_pointers: number | null; fouls: number | null; team: { name: string } | { name: string }[] | null };
+    playerStats = ((data ?? []) as Raw[]).map((p) => ({
+      id: p.id,
+      name: p.name,
+      jersey_number: p.jersey_number,
+      team_name: Array.isArray(p.team) ? (p.team[0]?.name ?? null) : (p.team?.name ?? null),
+      points: p.points ?? 0,
+      three_pointers: p.three_pointers ?? 0,
+      fouls: p.fouls ?? 0,
+    }));
+  }
+
   // Sync log tab
   let syncLogs: { id: string; uploaded_at: string; filename: string | null; north_count: number; south_count: number; results_count: number; is_rolled_back: boolean }[] = [];
   if (tab === 'synclog') {
@@ -216,6 +237,7 @@ export default async function AdminPage({
       {tab === 'takanon'       && <TakanonTab />}
       {tab === 'playoff'       && <PlayoffTab />}
       {tab === 'submissions'   && <SubmissionsTab submissions={submissions} />}
+      {tab === 'playerstats'   && <PlayerStatsTab players={playerStats} />}
       {tab === 'messages'      && <MessagesTab messages={contactMessages} />}
       {tab === 'terms'         && <TermsTab termsOfUse={termsOfUse} privacyPolicy={privacyPolicy} />}
     </>

@@ -17,7 +17,8 @@ const GROUPS = [
   {
     label: '👥 אנשים',
     tabs: [
-      { href: '/admin?tab=players',   label: '👤 שחקנים' },
+      { href: '/admin?tab=players',     label: '👤 שחקנים' },
+      { href: '/admin?tab=playerstats', label: '📊 סטטיסטיקה' },
       { href: '/admin?tab=officials', label: '🦺 שופטים' },
       { href: '/admin?tab=teams',     label: '🛡️ קבוצות' },
     ],

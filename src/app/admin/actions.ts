@@ -562,6 +562,39 @@ export async function changeSubmissionStatus(
   return {};
 }
 
+// ── Admin: directly edit a player's season stats ─────────────────────────────
+
+export async function updatePlayerStats(
+  playerId: string,
+  points: number,
+  threePointers: number,
+  fouls: number,
+): Promise<ActionResult> {
+  if (!playerId) return { error: 'Player ID required' };
+
+  const clean = {
+    points:         Math.max(0, Math.floor(points)),
+    three_pointers: Math.max(0, Math.floor(threePointers)),
+    fouls:          Math.max(0, Math.floor(fouls)),
+  };
+
+  const { error } = await supabaseAdmin
+    .from('players')
+    .update(clean)
+    .eq('id', playerId);
+
+  if (error) {
+    console.error('[updatePlayerStats] failed:', error);
+    return { error: error.message };
+  }
+
+  revalidatePath('/admin');
+  revalidatePath('/players');
+  revalidatePath('/scorers');
+  revalidatePath('/');
+  return {};
+}
+
 // ── Ticker speed ─────────────────────────────────────────────────────────────
 
 export async function saveTickerSpeed(seconds: number): Promise<ActionResult> {
