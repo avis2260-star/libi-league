@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useTransition, Fragment } from 'react';
+import { useState, useMemo, useTransition } from 'react';
 import { updatePlayerStats } from '@/app/admin/actions';
 
 export type PlayerStatRow = {
@@ -118,6 +118,11 @@ export default function PlayerStatsTab({ players }: { players: PlayerStatRow[] }
   const [search,    setSearch]    = useState('');
   const [teamFilter, setTeamFilter] = useState('');
   const [sort,      setSort]      = useState<'name' | 'points' | 'team'>('points');
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  function toggleTeam(name: string) {
+    setCollapsed(c => ({ ...c, [name]: !c[name] }));
+  }
 
   const teams = useMemo(
     () => [...new Set(players.map(p => p.team_name).filter(Boolean))] as string[],
@@ -192,39 +197,64 @@ export default function PlayerStatsTab({ players }: { players: PlayerStatRow[] }
         </select>
       </div>
 
-      {/* Table */}
-      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-white/[0.03] text-[11px] font-bold uppercase tracking-wide text-[#5a7a9a]">
-            <tr>
-              <th className="px-3 py-2 text-right">שחקן</th>
-              <th className="px-2 py-2 text-center">נק׳</th>
-              <th className="px-2 py-2 text-center">3נק׳</th>
-              <th className="px-2 py-2 text-center">פאולים</th>
-              <th className="px-2 py-2 text-right">פעולות</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visible.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="text-center py-12 text-[#5a7a9a]">
-                  לא נמצאו שחקנים
-                </td>
-              </tr>
-            ) : (
-              grouped.map(([teamName, rows]) => (
-                <Fragment key={teamName}>
-                  <tr className="bg-orange-500/10 border-y border-orange-500/20">
-                    <td colSpan={5} className="px-3 py-2 text-right text-[11px] font-black text-orange-400 uppercase tracking-wide">
-                      🛡️ {teamName} <span className="text-[#5a7a9a] font-bold">({rows.length})</span>
-                    </td>
-                  </tr>
-                  {rows.map(p => <Row key={p.id} p={p} />)}
-                </Fragment>
-              ))
-            )}
-          </tbody>
-        </table>
+      {/* Collapsible team sections */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setCollapsed(Object.fromEntries(grouped.map(([n]) => [n, true])))}
+          className="text-[11px] text-[#8aaac8] hover:text-white border border-white/10 rounded-lg px-3 py-1"
+        >
+          סגור הכל
+        </button>
+        <button
+          onClick={() => setCollapsed({})}
+          className="text-[11px] text-[#8aaac8] hover:text-white border border-white/10 rounded-lg px-3 py-1"
+        >
+          פתח הכל
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        {grouped.length === 0 && (
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] py-12 text-center text-[#5a7a9a]">
+            לא נמצאו שחקנים
+          </div>
+        )}
+        {grouped.map(([teamName, rows]) => {
+          const isClosed = !!collapsed[teamName];
+          const totalPts = rows.reduce((n, r) => n + r.points, 0);
+          return (
+            <div key={teamName} className="rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden">
+              <button
+                onClick={() => toggleTeam(teamName)}
+                className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-gradient-to-l from-orange-500/10 to-transparent hover:from-orange-500/15 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <span className={`text-orange-400 text-sm transition-transform ${isClosed ? '' : 'rotate-90'}`}>▶</span>
+                  <span className="text-sm font-black text-white">🛡️ {teamName}</span>
+                  <span className="text-[10px] font-bold text-[#5a7a9a]">{rows.length} שחקנים</span>
+                </div>
+                <span className="text-[10px] font-bold text-orange-400/70">{totalPts} נק׳ סה״כ</span>
+              </button>
+
+              {!isClosed && (
+                <table className="w-full text-sm">
+                  <thead className="bg-white/[0.03] text-[11px] font-bold uppercase tracking-wide text-[#5a7a9a]">
+                    <tr>
+                      <th className="px-3 py-2 text-right">שחקן</th>
+                      <th className="px-2 py-2 text-center">נק׳</th>
+                      <th className="px-2 py-2 text-center">3נק׳</th>
+                      <th className="px-2 py-2 text-center">פאולים</th>
+                      <th className="px-2 py-2 text-right">פעולות</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(p => <Row key={p.id} p={p} />)}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <p className="text-[11px] text-[#5a7a9a]">
