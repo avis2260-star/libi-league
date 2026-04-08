@@ -372,7 +372,12 @@ export default function SubmitFlow({
     if (field === 'name') {
       parsed = val;
     } else if (field === 'jersey') {
-      parsed = val === '' ? null : (parseInt(val) || null);
+      if (val === '') {
+        parsed = null;
+      } else {
+        const n = parseInt(val, 10);
+        parsed = Number.isNaN(n) ? null : n;
+      }
     } else {
       parsed = parseInt(val) || 0;
     }

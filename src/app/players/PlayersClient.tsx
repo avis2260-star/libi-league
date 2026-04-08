@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import Link from 'next/link';
 import type { EnrichedPlayer, TeamOption } from './page';
 
 const POSITIONS: Record<string, string> = {
@@ -41,7 +42,9 @@ function PlayerCard({ player }: { player: EnrichedPlayer }) {
   const inactive = !player.is_active;
 
   return (
-    <div className={`group relative rounded-2xl border overflow-hidden transition-all hover:-translate-y-0.5 ${
+    <Link
+      href={`/players/${player.id}`}
+      className={`group relative block rounded-2xl border overflow-hidden transition-all hover:-translate-y-0.5 cursor-pointer ${
       inactive
         ? 'border-white/[0.04] bg-[#0a1520] opacity-60 hover:opacity-80'
         : 'border-white/[0.07] bg-[#0c1825] hover:border-orange-500/30 hover:shadow-[0_0_30px_rgba(249,115,22,0.08)]'
@@ -97,7 +100,7 @@ function PlayerCard({ player }: { player: EnrichedPlayer }) {
           ))}
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 
