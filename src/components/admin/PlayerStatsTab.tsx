@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useTransition } from 'react';
+import { useState, useMemo, useTransition, Fragment } from 'react';
 import { updatePlayerStats } from '@/app/admin/actions';
 
 export type PlayerStatRow = {
@@ -132,12 +132,25 @@ export default function PlayerStatsTab({ players }: { players: PlayerStatRow[] }
     }
     if (teamFilter) list = list.filter(p => p.team_name === teamFilter);
     list.sort((a, b) => {
+      const t = (a.team_name ?? 'זזז').localeCompare(b.team_name ?? 'זזז', 'he');
+      if (t !== 0) return t;
       if (sort === 'points') return b.points - a.points;
-      if (sort === 'team')   return (a.team_name ?? '').localeCompare(b.team_name ?? '', 'he');
+      if (sort === 'team')   return a.name.localeCompare(b.name, 'he');
       return a.name.localeCompare(b.name, 'he');
     });
     return list;
   }, [players, search, teamFilter, sort]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, PlayerStatRow[]>();
+    for (const p of visible) {
+      const key = p.team_name ?? 'ללא קבוצה';
+      const arr = map.get(key) ?? [];
+      arr.push(p);
+      map.set(key, arr);
+    }
+    return Array.from(map.entries());
+  }, [visible]);
 
   return (
     <div dir="rtl" className="space-y-4 p-4">
@@ -199,7 +212,16 @@ export default function PlayerStatsTab({ players }: { players: PlayerStatRow[] }
                 </td>
               </tr>
             ) : (
-              visible.map(p => <Row key={p.id} p={p} />)
+              grouped.map(([teamName, rows]) => (
+                <Fragment key={teamName}>
+                  <tr className="bg-orange-500/10 border-y border-orange-500/20">
+                    <td colSpan={5} className="px-3 py-2 text-right text-[11px] font-black text-orange-400 uppercase tracking-wide">
+                      🛡️ {teamName} <span className="text-[#5a7a9a] font-bold">({rows.length})</span>
+                    </td>
+                  </tr>
+                  {rows.map(p => <Row key={p.id} p={p} />)}
+                </Fragment>
+              ))
             )}
           </tbody>
         </table>
