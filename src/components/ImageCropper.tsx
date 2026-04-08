@@ -81,6 +81,7 @@ export default function ImageCropper({
           onCropComplete={onCropComplete}
           objectFit="contain"
           showGrid={true}
+          initialCroppedAreaPercentages={{ x: 0, y: 0, width: 100, height: 100 }}
         />
       </div>
 
