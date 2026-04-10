@@ -9,6 +9,8 @@ import BottomNav from '@/components/BottomNav';
 import CollapsibleHeader from '@/components/CollapsibleHeader';
 import ThemeProvider from '@/components/ThemeProvider';
 import ThemeToggle from '@/components/ThemeToggle';
+import TranslationProvider from '@/components/TranslationProvider';
+import LangToggle from '@/components/LangToggle';
 import CourtBackground from '@/components/CourtBackground';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import AppRotationProvider from '@/components/AppRotationProvider';
@@ -52,6 +54,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <CourtBackground />
         <AppRotationProvider>
         <RotationShell>
+        <TranslationProvider>
         <ThemeProvider>
 
           {/* ── Top navigation ───────────────────────────────────────────── */}
@@ -63,6 +66,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   {/* Left: Grouped nav pills + theme toggle */}
                   <div className="flex items-center gap-2">
                     <GroupedNav />
+                    <LangToggle />
                     <ThemeToggle />
                   </div>
 
@@ -92,6 +96,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <BottomNav />
 
         </ThemeProvider>
+        </TranslationProvider>
         </RotationShell>
         </AppRotationProvider>
         <SpeedInsights />

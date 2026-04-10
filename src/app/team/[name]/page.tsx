@@ -64,7 +64,7 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
   ] = await Promise.all([
     supabaseAdmin.from('standings').select('*').order('rank'),
     supabaseAdmin.from('game_results').select('*').order('round'),
-    supabaseAdmin.from('teams').select('name, logo_url, captain_name, contact_info'),
+    supabaseAdmin.from('teams').select('id, name, logo_url, captain_name, contact_info'),
     supabaseAdmin.from('cup_games').select('*').order('round_order'),
   ]);
 
@@ -273,8 +273,13 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
       )}
 
       {/* ── Back link ───────────────────────────────────────────────────── */}
-      <div className="text-center">
-        <a href="/teams" className="text-sm text-[#4a6a8a] hover:text-[#7aaac8] transition">← חזרה לרשימת הקבוצות</a>
+      <div className="text-center space-y-2">
+        <a href="/teams" className="text-sm text-[#4a6a8a] hover:text-[#7aaac8] transition block">← חזרה לרשימת הקבוצות</a>
+        {teamInfo?.id && (
+          <a href={`/teams/${teamInfo.id}/players`} className="text-sm text-orange-400/70 hover:text-orange-400 transition block">
+            🃏 כרטיסי שחקנים של {teamName}
+          </a>
+        )}
       </div>
     </div>
   );

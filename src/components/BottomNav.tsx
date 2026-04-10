@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAppRotation } from './AppRotationProvider';
+import { useLang } from './TranslationProvider';
 
 const NAV = [
   {
@@ -82,6 +83,10 @@ export default function BottomNav() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const { rotated, toggle: toggleRotation } = useAppRotation();
+  const { t } = useLang();
+
+  // Hide public bottom nav on admin pages — admin has its own mobile nav
+  if (pathname.startsWith('/admin')) return null;
 
   return (
     <>
@@ -103,7 +108,7 @@ export default function BottomNav() {
       >
         <div className="mx-3 mb-2 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0f1e30]/98 backdrop-blur-md shadow-2xl">
           <p className="border-b border-white/[0.06] px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-[#3a5a7a]">
-            עוד דפים
+            {t('עוד דפים')}
           </p>
           <div className="grid grid-cols-2 gap-px bg-white/[0.04]">
             {MORE_LINKS.map(({ href, label, emoji }) => {
@@ -118,7 +123,7 @@ export default function BottomNav() {
                   }`}
                 >
                   <span className="text-xl">{emoji}</span>
-                  {label}
+                  {t(label)}
                 </Link>
               );
             })}
@@ -130,7 +135,7 @@ export default function BottomNav() {
               }`}
             >
               <span className="text-xl">{rotated ? '📱' : '🔄'}</span>
-              {rotated ? 'בטל סיבוב מסך' : 'סובב מסך לרוחב'}
+              {t(rotated ? 'בטל סיבוב מסך' : 'סובב מסך לרוחב')}
             </button>
           </div>
         </div>
@@ -160,7 +165,7 @@ export default function BottomNav() {
                   {icon}
                 </span>
                 <span className={`text-[10px] font-bold transition-all ${isActive ? 'text-orange-400' : 'text-[#3a5a7a]'}`}>
-                  {label}
+                  {t(label)}
                 </span>
               </Link>
             );
@@ -181,7 +186,7 @@ export default function BottomNav() {
               <span className={`block h-0.5 w-5 rounded-full bg-current transition-transform duration-200 ${menuOpen ? '-translate-y-1.5 -rotate-45' : ''}`} />
             </span>
             <span className={`text-[10px] font-bold transition-all ${menuOpen ? 'text-orange-400' : 'text-[#3a5a7a]'}`}>
-              עוד
+              {t('עוד')}
             </span>
           </button>
         </div>
