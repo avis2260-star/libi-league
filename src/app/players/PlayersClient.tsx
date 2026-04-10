@@ -38,6 +38,16 @@ function Avatar({ name, photoUrl, size = 80 }: { name: string; photoUrl: string 
   );
 }
 
+function calcAge(dob: string | null): number | null {
+  if (!dob) return null;
+  const birth = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age;
+}
+
 function PlayerCard({ player }: { player: EnrichedPlayer }) {
   const inactive = !player.is_active;
 
@@ -79,6 +89,13 @@ function PlayerCard({ player }: { player: EnrichedPlayer }) {
         {player.team && (
           <p className="text-xs text-[#5a7a9a] font-medium">{player.team.name}</p>
         )}
+
+        {(() => {
+          const age = calcAge(player.date_of_birth);
+          return age !== null ? (
+            <p className="text-[11px] text-[#5a7a9a] font-medium">גיל: {age}</p>
+          ) : null;
+        })()}
 
         {player.position && (
           <span className="inline-block rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[10px] text-[#5a7a9a]">
