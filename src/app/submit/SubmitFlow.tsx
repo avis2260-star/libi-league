@@ -80,7 +80,7 @@ function matchName(ocr: string, fuse: Fuse<RosterPlayer> | null): NameMatch {
   };
 }
 
-type Step = 'select' | 'upload' | 'confirm' | 'success';
+type Step = 'select' | 'instructions' | 'upload' | 'confirm' | 'success';
 
 // ── Player name cell with OCR hint + optional dropdown ────────────────────────
 function NameCell({
@@ -220,7 +220,7 @@ export default function SubmitFlow({
   // ── Step 1 ─────────────────────────────────────────────────────────────────
   function handleGameSelect() {
     if (!selectedGame || !submitterName.trim() || !selectedTeamId) return;
-    setStep('upload');
+    setStep('instructions');
   }
 
   // ── Step 2 ─────────────────────────────────────────────────────────────────
@@ -536,6 +536,56 @@ export default function SubmitFlow({
             >
               המשך להעלאת טופס ←
             </button>
+          </div>
+        )}
+
+        {/* ── Step 1.5: Instructions ── */}
+        {step === 'instructions' && (
+          <div className="space-y-5">
+            <div className="text-center space-y-2">
+              <div className="text-5xl mb-2">📋</div>
+              <h2 className="text-xl font-black text-white">הוראות הגשה</h2>
+              <p className="text-sm text-[#5a7a9a]">{selectedGame?.home_name} נגד {selectedGame?.away_name}</p>
+            </div>
+
+            <div className="rounded-2xl border border-orange-500/25 bg-orange-500/[0.06] p-5 space-y-4 text-right">
+              <p className="text-sm font-black text-orange-300 flex items-center gap-2">
+                <span>⚠️</span> חשוב לפני ההעלאה
+              </p>
+              <ul className="space-y-3 text-sm text-[#c8d8e8]">
+                <li className="flex items-start gap-2">
+                  <span className="shrink-0 text-orange-400 mt-0.5">•</span>
+                  <span>יש לצלם את <strong className="text-white">דף הסטטיסטיקות הרשמי</strong> של המשחק — לא גיליון אחר.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="shrink-0 text-orange-400 mt-0.5">•</span>
+                  <span>ודא שהטופס <strong className="text-white">קריא לחלוטין</strong> — כל השמות, המספרים והנקודות גלויים.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="shrink-0 text-orange-400 mt-0.5">•</span>
+                  <span>המערכת תנסה לחלץ את הנתונים <strong className="text-white">אוטומטית מהתמונה</strong> — תוכל לאמת ולתקן לפני השליחה.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="shrink-0 text-orange-400 mt-0.5">•</span>
+                  <span>לאחר הגשה, הנתונים ממתינים <strong className="text-white">לאישור מנהל הליגה</strong> לפני שיופיעו בטבלאות.</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setStep('select')}
+                className="flex-1 border border-white/10 bg-white/5 text-[#8aaac8] hover:border-white/20 hover:text-white font-bold py-3 rounded-xl transition-all text-sm"
+              >
+                ← חזור
+              </button>
+              <button
+                onClick={() => setStep('upload')}
+                className="flex-1 bg-orange-500 hover:bg-orange-400 text-white font-bold py-3 rounded-xl transition-all text-sm"
+              >
+                העלה טופס משחק ←
+              </button>
+            </div>
           </div>
         )}
 

@@ -76,11 +76,13 @@ function TabBtn({ label, active, onClick }: { label: string; active: boolean; on
 export default function GamesContent({
   currentRound,
   logos,
+  initialFilter = 'all',
 }: {
   currentRound: number;
   logos: Record<string, string>;
+  initialFilter?: Filter;
 }) {
-  const [filter, setFilter] = useState<Filter>('all');
+  const [filter, setFilter] = useState<Filter>(initialFilter);
   const nextRound = currentRound + 1;
 
   // descending for all/finished, ascending for upcoming

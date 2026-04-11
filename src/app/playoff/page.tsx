@@ -180,20 +180,20 @@ function ScoreboardCard({
             <ChampionReveal champion={champion ?? null} season="2025–2026" />
           </div>
         )}
-        <div className="px-4 sm:px-6 py-5 flex items-center gap-2 sm:gap-4">
-          <div className="flex-1 flex flex-col items-center gap-2">
+        <div className="px-3 sm:px-6 py-4 sm:py-5 flex items-center gap-2 sm:gap-4">
+          <div className="flex-1 min-w-0 flex flex-col items-center gap-2">
             <div className="h-11 w-11 rounded-full bg-[#1a2e45] border-2 border-white/[0.07] flex items-center justify-center text-[#2a4a6a] text-lg font-black">?</div>
             {lA && <p className="text-[10px] text-[#1e3a5f] text-center">{lA.full}</p>}
           </div>
-          <div className="flex flex-col items-center gap-1 shrink-0">
-            <div className="flex items-center gap-3">
-              <span className="text-4xl sm:text-5xl font-black text-[#1a2e45] tabular-nums leading-none">–</span>
-              <span className="text-lg text-[#1a2e45] font-black leading-none">:</span>
-              <span className="text-4xl sm:text-5xl font-black text-[#1a2e45] tabular-nums leading-none">–</span>
+          <div className="flex flex-col items-center gap-1 shrink-0 px-1">
+            <div className="flex items-center gap-1.5 sm:gap-3">
+              <span className="text-3xl sm:text-5xl font-black text-[#1a2e45] tabular-nums leading-none">–</span>
+              <span className="text-base sm:text-lg text-[#1a2e45] font-black leading-none">:</span>
+              <span className="text-3xl sm:text-5xl font-black text-[#1a2e45] tabular-nums leading-none">–</span>
             </div>
-            {!isFinal && <p className="text-[9px] text-[#1e3a5f] tracking-widest uppercase font-bold mt-0.5">הטוב מ-3</p>}
+            {!isFinal && <p className="text-[8px] sm:text-[9px] text-[#1e3a5f] tracking-widest uppercase font-bold mt-0.5">הטוב מ-3</p>}
           </div>
-          <div className="flex-1 flex flex-col items-center gap-2">
+          <div className="flex-1 min-w-0 flex flex-col items-center gap-2">
             <div className="h-11 w-11 rounded-full bg-[#1a2e45] border-2 border-white/[0.07] flex items-center justify-center text-[#2a4a6a] text-lg font-black">?</div>
             {lB && <p className="text-[10px] text-[#1e3a5f] text-center">{lB.full}</p>}
           </div>
@@ -240,33 +240,33 @@ function ScoreboardCard({
       )}
 
       {/* Scoreboard */}
-      <div className="px-4 sm:px-6 py-5 flex items-center gap-2 sm:gap-4">
+      <div className="px-3 sm:px-6 py-4 sm:py-5 flex items-center gap-2 sm:gap-4">
         {/* Team A */}
-        <div className={`flex-1 flex flex-col items-center gap-2 transition-opacity ${bWon ? 'opacity-35' : ''}`}>
+        <div className={`flex-1 min-w-0 flex flex-col items-center gap-1.5 transition-opacity ${bWon ? 'opacity-35' : ''}`}>
           <TeamLogo name={series.team_a} logos={teamLogos} size="md" />
-          <div className="text-center">
-            <p className={`text-sm font-black leading-tight ${aWon ? 'text-orange-400' : 'text-white'}`}>
+          <div className="text-center w-full px-1">
+            <p className={`text-xs sm:text-sm font-black leading-tight break-words ${aWon ? 'text-orange-400' : 'text-white'}`}>
               {series.team_a}
             </p>
-            <p className="text-[10px] text-[#4a6a8a] mt-0.5 font-semibold">{lA.full}</p>
+            <p className="text-[9px] text-[#4a6a8a] mt-0.5 font-semibold">{lA.full}</p>
           </div>
         </div>
 
         {/* Score */}
-        <div className="flex flex-col items-center gap-1 shrink-0">
-          <div className="flex items-center gap-3">
-            <span className={`text-4xl sm:text-5xl font-black tabular-nums leading-none
+        <div className="flex flex-col items-center gap-1 shrink-0 px-1">
+          <div className="flex items-center gap-1.5 sm:gap-3">
+            <span className={`text-3xl sm:text-5xl font-black tabular-nums leading-none
               ${aWon ? 'text-orange-400' : started ? 'text-white' : 'text-[#1e3a5f]'}`}>
               {started ? winsA : '–'}
             </span>
-            <span className="text-lg text-[#1e3a5f] font-black leading-none">:</span>
-            <span className={`text-4xl sm:text-5xl font-black tabular-nums leading-none
+            <span className="text-base sm:text-lg text-[#1e3a5f] font-black leading-none">:</span>
+            <span className={`text-3xl sm:text-5xl font-black tabular-nums leading-none
               ${bWon ? 'text-orange-400' : started ? 'text-white' : 'text-[#1e3a5f]'}`}>
               {started ? winsB : '–'}
             </span>
           </div>
           {!isFinal && (
-            <p className="text-[9px] text-[#2a4a6a] tracking-widest uppercase font-bold mt-0.5">
+            <p className="text-[8px] sm:text-[9px] text-[#2a4a6a] tracking-widest uppercase font-bold mt-0.5">
               {started ? 'ניצחונות' : 'הטוב מ-3'}
             </p>
           )}
@@ -274,13 +274,13 @@ function ScoreboardCard({
         </div>
 
         {/* Team B */}
-        <div className={`flex-1 flex flex-col items-center gap-2 transition-opacity ${aWon ? 'opacity-35' : ''}`}>
+        <div className={`flex-1 min-w-0 flex flex-col items-center gap-1.5 transition-opacity ${aWon ? 'opacity-35' : ''}`}>
           <TeamLogo name={series.team_b} logos={teamLogos} size="md" />
-          <div className="text-center">
-            <p className={`text-sm font-black leading-tight ${bWon ? 'text-orange-400' : 'text-white'}`}>
+          <div className="text-center w-full px-1">
+            <p className={`text-xs sm:text-sm font-black leading-tight break-words ${bWon ? 'text-orange-400' : 'text-white'}`}>
               {series.team_b}
             </p>
-            <p className="text-[10px] text-[#4a6a8a] mt-0.5 font-semibold">{lB.full}</p>
+            <p className="text-[9px] text-[#4a6a8a] mt-0.5 font-semibold">{lB.full}</p>
           </div>
         </div>
       </div>

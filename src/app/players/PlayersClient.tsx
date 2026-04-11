@@ -122,26 +122,111 @@ function PlayerCard({ player }: { player: EnrichedPlayer }) {
 }
 
 type ActiveFilter = 'all' | 'active' | 'inactive';
+type ViewMode = 'teams' | 'players';
 
-export default function PlayersClient({
+/* ── Team List View ─────────────────────────────────────────────────────────── */
+function TeamListView({
   players,
   teams,
+  onSelectTeam,
 }: {
   players: EnrichedPlayer[];
   teams: TeamOption[];
+  onSelectTeam: (teamId: string) => void;
+}) {
+  const [sortBy, setSortBy] = useState<'name' | 'count'>('name');
+
+  const teamStats = useMemo(() => {
+    return teams.map(team => {
+      const teamPlayers = players.filter(p => p.team_id === team.id);
+      const active = teamPlayers.filter(p => p.is_active).length;
+      const totalPts = teamPlayers.reduce((sum, p) => sum + (p.points ?? 0), 0);
+      return { team, total: teamPlayers.length, active, totalPts };
+    }).filter(ts => ts.total > 0);
+  }, [players, teams]);
+
+  const sorted = useMemo(() => {
+    return [...teamStats].sort((a, b) => {
+      if (sortBy === 'count') return b.total - a.total;
+      return a.team.name.localeCompare(b.team.name, 'he');
+    });
+  }, [teamStats, sortBy]);
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-end justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-black text-white">כרטיסי שחקן</h1>
+          <p className="text-sm text-[#5a7a9a] mt-0.5">{sorted.length} קבוצות · {players.filter(p => p.is_active).length} שחקנים פעילים</p>
+        </div>
+        <select
+          value={sortBy}
+          onChange={e => setSortBy(e.target.value as typeof sortBy)}
+          className="rounded-xl border border-white/[0.08] bg-[#0c1825] px-3 py-2 text-sm text-[#8aaac8] focus:border-orange-500/40 focus:outline-none"
+        >
+          <option value="name">מיין: שם</option>
+          <option value="count">מיין: מספר שחקנים</option>
+        </select>
+      </div>
+
+      {/* Team grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {sorted.map(({ team, total, active, totalPts }) => (
+          <button
+            key={team.id}
+            onClick={() => onSelectTeam(team.id)}
+            className="group text-right rounded-2xl border border-white/[0.07] bg-[#0c1825] hover:border-orange-500/30 hover:shadow-[0_0_24px_rgba(249,115,22,0.08)] transition-all p-4 flex items-center gap-4"
+          >
+            {/* Team logo placeholder */}
+            <div className="h-12 w-12 shrink-0 rounded-full bg-[#0f1e30] border-2 border-white/10 flex items-center justify-center text-lg font-black text-[#3a5a7a]">
+              {[...team.name].find(c => /\S/.test(c)) ?? '?'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-black text-white text-sm truncate group-hover:text-orange-400 transition-colors">{team.name}</p>
+              <div className="flex items-center gap-3 mt-1">
+                <span className="text-[11px] text-green-400">{active} פעילים</span>
+                {total > active && (
+                  <span className="text-[11px] text-[#4a6a8a]">{total - active} לא פעילים</span>
+                )}
+                {totalPts > 0 && (
+                  <span className="text-[11px] text-orange-400">{totalPts} נק׳</span>
+                )}
+              </div>
+            </div>
+            <span className="shrink-0 text-[#3a5a7a] group-hover:text-orange-400 transition-colors text-lg">←</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Player Grid View ───────────────────────────────────────────────────────── */
+function PlayerGridView({
+  players,
+  teams,
+  initialTeamId,
+  onBack,
+}: {
+  players: EnrichedPlayer[];
+  teams: TeamOption[];
+  initialTeamId: string;
+  onBack: () => void;
 }) {
   const [search, setSearch]           = useState('');
-  const [teamFilter, setTeamFilter]   = useState('');
+  const [teamFilter, setTeamFilter]   = useState(initialTeamId);
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>('active');
   const [sortBy, setSortBy]           = useState<'name' | 'points' | 'jersey'>('name');
 
   const activeCount   = players.filter(p => p.is_active).length;
   const inactiveCount = players.filter(p => !p.is_active).length;
 
+  const selectedTeamName = teams.find(t => t.id === teamFilter)?.name ?? '';
+
   const filtered = useMemo(() => {
     let list = [...players];
 
-    // Active/inactive filter
     if (activeFilter === 'active')   list = list.filter(p => p.is_active);
     if (activeFilter === 'inactive') list = list.filter(p => !p.is_active);
 
@@ -166,10 +251,18 @@ export default function PlayersClient({
   return (
     <div dir="rtl" className="space-y-6">
 
-      {/* Header */}
-      <div className="flex items-end justify-between gap-4 flex-wrap">
+      {/* Header with back button */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-black text-white">כרטיסי שחקן</h1>
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1.5 text-sm text-[#5a7a9a] hover:text-orange-400 transition-colors mb-2"
+          >
+            → חזרה לרשימת קבוצות
+          </button>
+          <h1 className="text-2xl font-black text-white">
+            {selectedTeamName || 'כרטיסי שחקן'}
+          </h1>
           <p className="text-sm text-[#5a7a9a] mt-0.5">
             {filtered.length} שחקנים
             {activeFilter === 'all' && ` · ${activeCount} פעילים, ${inactiveCount} לא פעילים`}
@@ -180,9 +273,9 @@ export default function PlayersClient({
       {/* Active status toggle pills */}
       <div className="flex items-center gap-2 flex-wrap">
         {([
-          { key: 'active',   label: '🟢 פעילים',    count: activeCount   },
-          { key: 'inactive', label: '⚫ לא פעילים', count: inactiveCount },
-          { key: 'all',      label: 'הכל',           count: players.length },
+          { key: 'active',   label: '🟢 פעילים',    count: players.filter(p => p.is_active && (!teamFilter || p.team_id === teamFilter)).length   },
+          { key: 'inactive', label: '⚫ לא פעילים', count: players.filter(p => !p.is_active && (!teamFilter || p.team_id === teamFilter)).length },
+          { key: 'all',      label: 'הכל',           count: players.filter(p => !teamFilter || p.team_id === teamFilter).length },
         ] as { key: ActiveFilter; label: string; count: number }[]).map(({ key, label, count }) => (
           <button
             key={key}
@@ -252,6 +345,49 @@ export default function PlayersClient({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── Main export ────────────────────────────────────────────────────────────── */
+export default function PlayersClient({
+  players,
+  teams,
+}: {
+  players: EnrichedPlayer[];
+  teams: TeamOption[];
+}) {
+  const [view, setView] = useState<ViewMode>('teams');
+  const [selectedTeamId, setSelectedTeamId] = useState('');
+
+  function handleSelectTeam(teamId: string) {
+    setSelectedTeamId(teamId);
+    setView('players');
+  }
+
+  function handleBack() {
+    setView('teams');
+    setSelectedTeamId('');
+  }
+
+  if (view === 'players') {
+    return (
+      <PlayerGridView
+        players={players}
+        teams={teams}
+        initialTeamId={selectedTeamId}
+        onBack={handleBack}
+      />
+    );
+  }
+
+  return (
+    <div dir="rtl">
+      <TeamListView
+        players={players}
+        teams={teams}
+        onSelectTeam={handleSelectTeam}
+      />
     </div>
   );
 }

@@ -50,6 +50,51 @@ type TopPlayer = {
   fouls: number;
 };
 
+type RosterEntry = { name: string; jersey_number: number | null };
+
+async function getTeamRosters(teamNames: string[]): Promise<Record<string, RosterEntry[]>> {
+  if (!teamNames.length) return {};
+  try {
+    const { data: teamsData } = await supabaseAdmin
+      .from('teams')
+      .select('id, name');
+    if (!teamsData) return {};
+
+    // Normalize and build id → name map for requested teams
+    function norm(s: string) { return s.replace(/["""''`״׳]/g, '').replace(/\s+/g, ' ').trim().toLowerCase(); }
+    const idToName: Record<string, string> = {};
+    const ids: string[] = [];
+    for (const t of teamsData) {
+      if (teamNames.some(tn => norm(tn) === norm(t.name))) {
+        idToName[t.id] = t.name;
+        ids.push(t.id);
+      }
+    }
+    if (!ids.length) return {};
+
+    const { data: playersData } = await supabaseAdmin
+      .from('players')
+      .select('name, jersey_number, team_id')
+      .eq('is_active', true)
+      .in('team_id', ids)
+      .order('jersey_number', { ascending: true });
+
+    const rosters: Record<string, RosterEntry[]> = {};
+    for (const p of playersData ?? []) {
+      const teamName = idToName[p.team_id];
+      if (teamName) {
+        // Map back to the original team name from teamNames (handles alias differences)
+        const original = teamNames.find(tn => norm(tn) === norm(teamName)) ?? teamName;
+        if (!rosters[original]) rosters[original] = [];
+        rosters[original].push({ name: p.name, jersey_number: p.jersey_number });
+      }
+    }
+    return rosters;
+  } catch {
+    return {};
+  }
+}
+
 async function getTopScorers(): Promise<TopPlayer[]> {
   try {
     const { data } = await supabaseAdmin
@@ -209,6 +254,10 @@ export default async function HomePage() {
     ? ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'][new Date(nextDateRaw).getDay()]
     : '';
 
+  // Fetch rosters for teams playing next round
+  const nextRoundTeamNames = allNextGames.flatMap(g => [g.home, g.away]);
+  const teamRosters = await getTeamRosters(nextRoundTeamNames);
+
   const banners   = activeAnnouncements.filter((a) => a.type === 'banner');
   const tickers   = activeAnnouncements.filter((a) => a.type === 'ticker');
 
@@ -253,6 +302,7 @@ export default async function HomePage() {
           nextRound={nextRound}
           nextDate={nextDate}
           heDay={heDay}
+          teamRosters={teamRosters}
         />
       )}
 
@@ -265,7 +315,7 @@ export default async function HomePage() {
         <a href="/teams" className="block hover:opacity-80 transition-opacity">
           <StatCard value="15"                    label="קבוצות"        icon="🏀" colorClass="bg-gradient-to-l from-transparent to-orange-500" />
         </a>
-        <a href="/games" className="block hover:opacity-80 transition-opacity">
+        <a href="/games?filter=finished" className="block hover:opacity-80 transition-opacity">
           <StatCard value={String(gamesPlayed)}   label="משחקי ליגה"    icon="📊" colorClass="bg-gradient-to-l from-transparent to-green-500"  />
         </a>
         <StatCard value={String(currentRound)}  label="מחזורים עד כה" icon="📆" colorClass="bg-gradient-to-l from-transparent to-yellow-400" />

@@ -29,11 +29,18 @@ async function getTeamLogos(): Promise<Record<string, string>> {
   }
 }
 
-export default async function GamesPage() {
-  const [currentRound, logos] = await Promise.all([
+export default async function GamesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ filter?: string }>;
+}) {
+  const [currentRound, logos, sp] = await Promise.all([
     getCurrentRound(),
     getTeamLogos(),
+    searchParams,
   ]);
 
-  return <GamesContent currentRound={currentRound} logos={logos} />;
+  const initialFilter = sp.filter === 'finished' ? 'finished' : sp.filter === 'upcoming' ? 'upcoming' : 'all';
+
+  return <GamesContent currentRound={currentRound} logos={logos} initialFilter={initialFilter} />;
 }
