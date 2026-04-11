@@ -190,6 +190,23 @@ async function getLiveData() {
   }
 }
 
+async function getRoundDates(): Promise<Record<number, string>> {
+  try {
+    const { data } = await supabaseAdmin
+      .from('league_settings')
+      .select('value')
+      .eq('key', 'round_dates')
+      .maybeSingle();
+    if (!data?.value) return {};
+    const parsed = JSON.parse(data.value) as Record<string, string>;
+    const result: Record<number, string> = {};
+    for (const [k, v] of Object.entries(parsed)) {
+      result[parseInt(k)] = String(v);
+    }
+    return result;
+  } catch { return {}; }
+}
+
 // ── Primitives ─────────────────────────────────────────────────────────────────
 
 function StatCard({ value, label, icon, colorClass }: { value: string; label: string; icon: string; colorClass: string }) {
@@ -217,15 +234,19 @@ function RecordCard({ icon, label, value, sub, detail, color }: { icon: string; 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function HomePage() {
-  const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers, lang] = await Promise.all([
+  const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers, lang, dbRoundDates] = await Promise.all([
     getLiveData(),
     getActiveAnnouncements(),
     getTeams(),
     getTickerSpeed(),
     getTopScorers(),
     getLang(),
+    getRoundDates(),
   ]);
   const T = (he: string) => st(he, lang);
+
+  // Merge static ROUND_DATES with DB values (DB takes priority)
+  const ROUND_DATES_MERGED: Record<number, string> = { ...ROUND_DATES, ...dbRoundDates };
 
   // Build logo lookup
   function norm(s: string) { return s.replace(/["""''`״׳]/g, '').replace(/\s+/g, ' ').trim(); }
@@ -243,7 +264,7 @@ export default async function HomePage() {
   const biggestLoser  = biggestWin.sh > biggestWin.sa ? biggestWin.away : biggestWin.home;
 
   const nextRound = currentRound + 1;
-  const nextDate  = ROUND_DATES[nextRound] ?? '';
+  const nextDate  = ROUND_DATES_MERGED[nextRound] ?? '';
   const northUpcoming = LIBI_SCHEDULE.filter((g) => g.round === nextRound && g.division === 'North').map(g => ({ home: g.homeTeam, away: g.awayTeam }));
   const southUpcoming = LIBI_SCHEDULE.filter((g) => g.round === nextRound && g.division === 'South').map(g => ({ home: g.homeTeam, away: g.awayTeam }));
 
@@ -358,8 +379,10 @@ export default async function HomePage() {
           <RecordCard icon="💥" label={T('הפרש גדול ביותר')} value={`+${biggestMargin}`}
             sub={`${biggestWinner} ${lang === 'en' ? 'vs' : 'נגד'} ${biggestLoser}`}
             detail={`${T('מחזור')} ${biggestWin.round} · ${biggestWin.date}`} color="#4ec97a" />
-          <RecordCard icon="📉" label={T('משחקים שהוכרעו ב-3 נקודות או פחות')} value={String(closestCount)}
-            sub={lang === 'en' ? 'Small margin' : 'הפרש קטן'} detail={lang === 'en' ? 'All season so far' : 'כל עונה עד כה'} color="#e05a5a" />
+          <a href="/games?filter=close" className="block hover:opacity-80 transition-opacity">
+            <RecordCard icon="📉" label={T('משחקים שהוכרעו ב-3 נקודות או פחות')} value={String(closestCount)}
+              sub={lang === 'en' ? 'Small margin' : 'הפרש קטן'} detail={lang === 'en' ? 'All season so far' : 'כל עונה עד כה'} color="#e05a5a" />
+          </a>
         </div>
       </section>
 

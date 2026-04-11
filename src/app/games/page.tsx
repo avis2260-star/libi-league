@@ -31,14 +31,44 @@ async function getTeamLogos(): Promise<Record<string, string>> {
 }
 
 export default async function GamesPage() {
-  const [currentRound, logos] = await Promise.all([
+  const [currentRound, logos, closeGamesData, roundDatesData] = await Promise.all([
     getCurrentRound(),
     getTeamLogos(),
+    supabaseAdmin
+      .from('game_results')
+      .select('round,date,home_team,away_team,home_score,away_score')
+      .filter('techni', 'eq', false)
+      .then(({ data }) =>
+        (data ?? []).filter(
+          (g) => Math.abs((g.home_score ?? 0) - (g.away_score ?? 0)) <= 3,
+        )
+      ),
+    supabaseAdmin
+      .from('league_settings')
+      .select('value')
+      .eq('key', 'round_dates')
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data?.value) return {} as Record<number, string>;
+        try {
+          const parsed = JSON.parse(data.value) as Record<string, string>;
+          const r: Record<number, string> = {};
+          for (const [k, v] of Object.entries(parsed)) r[parseInt(k)] = String(v);
+          return r;
+        } catch { return {} as Record<number, string>; }
+      }),
   ]);
+
+  type CloseGame = { round: number; date: string; home_team: string; away_team: string; home_score: number; away_score: number };
 
   return (
     <Suspense fallback={<div className="py-16 text-center text-[#5a7a9a]">טוען...</div>}>
-      <GamesContent currentRound={currentRound} logos={logos} />
+      <GamesContent
+        currentRound={currentRound}
+        logos={logos}
+        closeGames={closeGamesData as CloseGame[]}
+        roundDates={roundDatesData}
+      />
     </Suspense>
   );
 }

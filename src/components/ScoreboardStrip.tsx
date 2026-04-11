@@ -47,14 +47,14 @@ function GameModal({
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
+        className="fixed inset-0 z-[199] bg-black/70 backdrop-blur-sm"
         style={{ animation: 'fadeIn 0.15s ease' }}
         onClick={onClose}
       />
       {/* Modal */}
       <div
-        className="animate-modal-in fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 max-w-lg mx-auto rounded-2xl border border-white/[0.1] bg-[#0d1a28] shadow-2xl overflow-hidden"
-        style={{ maxHeight: '85vh', overflowY: 'auto' }}
+        className="animate-modal-in fixed inset-x-4 top-1/2 -translate-y-1/2 z-[200] max-w-lg mx-auto rounded-2xl border border-white/[0.1] bg-[#0d1a28] shadow-2xl overflow-y-auto"
+        style={{ maxHeight: '85vh' }}
         dir="rtl"
       >
         {/* Header */}
@@ -63,7 +63,8 @@ function GameModal({
             <span className={`text-[10px] font-bold ${game.div === 'North' ? 'text-blue-400' : 'text-orange-400'}`}>
               {game.div === 'North' ? '🔵 מחוז צפון' : '🟠 מחוז דרום'}
             </span>
-            <p className="text-xs text-[#5a7a9a] mt-0.5">מחזור {nextRound} · {heDay} {nextDate}</p>
+            <p className="text-sm font-black text-white mt-0.5">{heDay} · {nextDate}</p>
+            <p className="text-[10px] text-[#5a7a9a]">מחזור {nextRound}</p>
           </div>
           <button
             onClick={onClose}
@@ -113,7 +114,7 @@ function GameModal({
             <div className="grid grid-cols-2 divide-x divide-x-reverse divide-white/[0.05]">
               {/* Home roster */}
               <div className="p-4">
-                <p className="text-[10px] font-black uppercase tracking-widest text-[#4a6a8a] mb-3">הרכב {game.home}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#4a6a8a] mb-3">סגל {game.home}</p>
                 {homeRoster.length === 0 ? (
                   <p className="text-xs text-[#3a5a7a]">לא נמצאו שחקנים</p>
                 ) : (
@@ -132,7 +133,7 @@ function GameModal({
 
               {/* Away roster */}
               <div className="p-4">
-                <p className="text-[10px] font-black uppercase tracking-widest text-[#4a6a8a] mb-3">הרכב {game.away}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#4a6a8a] mb-3">סגל {game.away}</p>
                 {awayRoster.length === 0 ? (
                   <p className="text-xs text-[#3a5a7a]">לא נמצאו שחקנים</p>
                 ) : (

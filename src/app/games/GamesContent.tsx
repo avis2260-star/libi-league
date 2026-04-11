@@ -13,7 +13,7 @@ const ALL_ROUND_DATES: Record<number, string> = {
   12: '10.04.26', 13: '17.04.26', 14: '24.04.26',
 };
 
-type Filter = 'all' | 'upcoming' | 'finished';
+type Filter = 'all' | 'upcoming' | 'finished' | 'close';
 
 function normName(n: string) {
   return n.replace(/["""״'']/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -74,25 +74,32 @@ function TabBtn({ label, active, onClick }: { label: string; active: boolean; on
   );
 }
 
+type CloseGame = { round: number; date: string; home_team: string; away_team: string; home_score: number; away_score: number };
+
 // ── Main content ──────────────────────────────────────────────────────────────
 export default function GamesContent({
   currentRound,
   logos,
+  closeGames = [],
+  roundDates = {},
 }: {
   currentRound: number;
   logos: Record<string, string>;
+  closeGames?: CloseGame[];
+  roundDates?: Record<number, string>;
 }) {
   const { t, lang } = useLang();
+  const DATES = { ...ALL_ROUND_DATES, ...roundDates };
   const searchParams = useSearchParams();
   const urlFilter = searchParams.get('filter') as Filter | null;
   const [filter, setFilter] = useState<Filter>(
-    urlFilter === 'finished' || urlFilter === 'upcoming' ? urlFilter : 'all',
+    urlFilter === 'finished' || urlFilter === 'upcoming' || urlFilter === 'close' ? urlFilter : 'all',
   );
 
   // Sync if URL changes (e.g. back/forward navigation)
   useEffect(() => {
     const f = new URLSearchParams(window.location.search).get('filter') as Filter | null;
-    if (f === 'finished' || f === 'upcoming') setFilter(f);
+    if (f === 'finished' || f === 'upcoming' || f === 'close') setFilter(f);
     else setFilter('all');
   }, [urlFilter]);
   const nextRound = currentRound + 1;
@@ -125,58 +132,94 @@ export default function GamesContent({
         <TabBtn label={t('הסתיים')}  active={filter === 'finished'} onClick={() => setFilter('finished')} />
         <TabBtn label={t('קרובים')}  active={filter === 'upcoming'} onClick={() => setFilter('upcoming')} />
         <TabBtn label={t('הכל')}     active={filter === 'all'}      onClick={() => setFilter('all')} />
+        <TabBtn label={lang === 'en' ? '≤3 pts' : 'הכרעה בקטנה'} active={filter === 'close'} onClick={() => setFilter('close')} />
       </div>
 
-      {/* Empty state */}
-      {visibleRounds.length === 0 && (
-        <p className="rounded-xl border border-white/[0.07] py-12 text-center text-sm text-[#5a7a9a]">
-          {'אין מחזורים להצגה'}
-        </p>
+      {filter !== 'close' && (
+        <>
+          {/* Empty state */}
+          {visibleRounds.length === 0 && (
+            <p className="rounded-xl border border-white/[0.07] py-12 text-center text-sm text-[#5a7a9a]">
+              {'אין מחזורים להצגה'}
+            </p>
+          )}
+
+          {/* Rounds */}
+          {visibleRounds.map((round) => {
+            const isPlayed = round <= currentRound;
+            const isNext   = round === nextRound;
+            const date     = DATES[round] ?? '';
+            const northGames = LIBI_SCHEDULE.filter((g) => g.round === round && g.division === 'North');
+            const southGames = LIBI_SCHEDULE.filter((g) => g.round === round && g.division === 'South');
+
+            return (
+              <section key={round} id={`round-${round}`}>
+                <div className="mb-4 flex items-center gap-3">
+                  <div className={`rounded-2xl border px-4 py-1.5 text-sm font-bold ${
+                    isNext   ? 'border-orange-500/50 bg-orange-500/15 text-orange-400' :
+                    isPlayed ? 'border-green-500/20 bg-green-500/10 text-green-400' :
+                               'border-white/10 bg-white/5 text-[#8aaac8]'
+                  }`}>
+                    {t('מחזור')} {round}{isNext ? (lang === 'en' ? ' ← Next' : ' ← הבא') : ''}{isPlayed ? ' ✓' : ''}
+                  </div>
+                  <span className="text-sm font-bold text-[#4a6a8a]">{date}</span>
+                  <div className="h-px flex-1 bg-white/[0.05]" />
+                </div>
+
+                <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                  <div className="space-y-2">
+                    <h3 className="flex items-center gap-2 text-sm font-bold text-orange-400">
+                      <span className="h-2 w-2 rounded-full bg-orange-400" /> {t('מחוז דרום')}
+                    </h3>
+                    {southGames.map((g, i) => (
+                      <UpcomingRow key={i} home={g.homeTeam} away={g.awayTeam} logos={logos} />
+                    ))}
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="flex items-center gap-2 text-sm font-bold text-blue-400">
+                      <span className="h-2 w-2 rounded-full bg-blue-400" /> {t('מחוז צפון')}
+                    </h3>
+                    {northGames.map((g, i) => (
+                      <UpcomingRow key={i} home={g.homeTeam} away={g.awayTeam} logos={logos} />
+                    ))}
+                  </div>
+                </div>
+              </section>
+            );
+          })}
+        </>
       )}
 
-      {/* Rounds */}
-      {visibleRounds.map((round) => {
-        const isPlayed = round <= currentRound;
-        const isNext   = round === nextRound;
-        const date     = ALL_ROUND_DATES[round] ?? '';
-        const northGames = LIBI_SCHEDULE.filter((g) => g.round === round && g.division === 'North');
-        const southGames = LIBI_SCHEDULE.filter((g) => g.round === round && g.division === 'South');
-
-        return (
-          <section key={round} id={`round-${round}`}>
-            <div className="mb-4 flex items-center gap-3">
-              <div className={`rounded-2xl border px-4 py-1.5 text-sm font-bold ${
-                isNext   ? 'border-orange-500/50 bg-orange-500/15 text-orange-400' :
-                isPlayed ? 'border-green-500/20 bg-green-500/10 text-green-400' :
-                           'border-white/10 bg-white/5 text-[#8aaac8]'
-              }`}>
-                {t('מחזור')} {round}{isNext ? (lang === 'en' ? ' ← Next' : ' ← הבא') : ''}{isPlayed ? ' ✓' : ''}
+      {/* Close games list */}
+      {filter === 'close' && (
+        <div className="space-y-2">
+          {closeGames.length === 0 ? (
+            <p className="rounded-xl border border-white/[0.07] py-12 text-center text-sm text-[#5a7a9a]">
+              {lang === 'en' ? 'No close games yet' : 'אין משחקים שהוכרעו בהפרש קטן עדיין'}
+            </p>
+          ) : (
+            closeGames.map((g, i) => (
+              <div key={i} className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.04] px-4 py-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-bold text-white truncate">{g.home_team}</span>
+                    <span className="text-base font-black text-orange-400 tabular-nums shrink-0">{g.home_score}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-1">
+                    <span className="text-sm font-bold text-white truncate">{g.away_team}</span>
+                    <span className="text-base font-black text-orange-400 tabular-nums shrink-0">{g.away_score}</span>
+                  </div>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-[10px] text-[#5a7a9a]">{lang === 'en' ? 'Round' : 'מחזור'} {g.round}</p>
+                  <p className="text-[10px] text-[#3a5a7a]">{g.date}</p>
+                  <p className="text-[9px] font-black text-rose-400 mt-0.5">Δ{Math.abs(g.home_score - g.away_score)}</p>
+                </div>
               </div>
-              <span className="text-sm font-bold text-[#4a6a8a]">{date}</span>
-              <div className="h-px flex-1 bg-white/[0.05]" />
-            </div>
-
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-              <div className="space-y-2">
-                <h3 className="flex items-center gap-2 text-sm font-bold text-orange-400">
-                  <span className="h-2 w-2 rounded-full bg-orange-400" /> {t('מחוז דרום')}
-                </h3>
-                {southGames.map((g, i) => (
-                  <UpcomingRow key={i} home={g.homeTeam} away={g.awayTeam} logos={logos} />
-                ))}
-              </div>
-              <div className="space-y-2">
-                <h3 className="flex items-center gap-2 text-sm font-bold text-blue-400">
-                  <span className="h-2 w-2 rounded-full bg-blue-400" /> {t('מחוז צפון')}
-                </h3>
-                {northGames.map((g, i) => (
-                  <UpcomingRow key={i} home={g.homeTeam} away={g.awayTeam} logos={logos} />
-                ))}
-              </div>
-            </div>
-          </section>
-        );
-      })}
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }

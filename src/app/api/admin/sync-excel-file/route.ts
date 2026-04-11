@@ -340,6 +340,20 @@ export async function POST(req: NextRequest) {
       results = parseResults(resultsRows);
     }
 
+    // Extract round dates and store in league_settings
+    const roundDatesMap: Record<number, string> = {};
+    for (const r of results) {
+      if (r.date && r.date.trim() && !roundDatesMap[r.round]) {
+        roundDatesMap[r.round] = r.date.trim();
+      }
+    }
+    try {
+      await supabaseAdmin.from('league_settings').upsert(
+        { key: 'round_dates', value: JSON.stringify(roundDatesMap) },
+        { onConflict: 'key' },
+      );
+    } catch { /* silently skip if table differs */ }
+
     // Parse cup games (safely — never break main sync)
     let cupGames: CupGameRow[] = [];
     try {

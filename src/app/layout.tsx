@@ -16,6 +16,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 import AppRotationProvider from '@/components/AppRotationProvider';
 import RotationShell from '@/components/RotationShell';
 import Footer from '@/components/Footer';
+import BackButton from '@/components/BackButton';
 
 const heebo = Heebo({ subsets: ['hebrew', 'latin'], weight: ['300','400','500','600','700','800','900'] });
 
@@ -69,6 +70,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                     <LangToggle />
                     <ThemeToggle />
                   </div>
+
+                  <BackButton />
 
                   {/* Right: Logo + title */}
                   <a href="/" className="flex items-center gap-2">
