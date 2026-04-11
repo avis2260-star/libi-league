@@ -224,7 +224,7 @@ export default async function HomePage() {
     getTopScorers(),
   ]);
 
-  // Build logo lookup (normalize quotes/spaces like teams page does)
+  // Build logo lookup
   function norm(s: string) { return s.replace(/["""''`״׳]/g, '').replace(/\s+/g, ' ').trim(); }
   const logoMap: Record<string, string | null> = {};
   for (const t of teams) logoMap[norm(t.name)] = t.logo_url;
