@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
+import { useLang } from '@/components/TranslationProvider';
 
 const ALL_ROUND_DATES: Record<number, string> = {
   1: '01.11.25', 2: '08.11.25', 3: '29.11.25', 4: '20.12.25',
@@ -76,13 +78,23 @@ function TabBtn({ label, active, onClick }: { label: string; active: boolean; on
 export default function GamesContent({
   currentRound,
   logos,
-  initialFilter = 'all',
 }: {
   currentRound: number;
   logos: Record<string, string>;
-  initialFilter?: Filter;
 }) {
-  const [filter, setFilter] = useState<Filter>(initialFilter);
+  const { t, lang } = useLang();
+  const searchParams = useSearchParams();
+  const urlFilter = searchParams.get('filter') as Filter | null;
+  const [filter, setFilter] = useState<Filter>(
+    urlFilter === 'finished' || urlFilter === 'upcoming' ? urlFilter : 'all',
+  );
+
+  // Sync if URL changes (e.g. back/forward navigation)
+  useEffect(() => {
+    const f = new URLSearchParams(window.location.search).get('filter') as Filter | null;
+    if (f === 'finished' || f === 'upcoming') setFilter(f);
+    else setFilter('all');
+  }, [urlFilter]);
   const nextRound = currentRound + 1;
 
   // descending for all/finished, ascending for upcoming
@@ -100,17 +112,19 @@ export default function GamesContent({
       {/* Title */}
       <div>
         <h1 className="text-3xl font-black">
-          <span className="text-white">לוח </span>
-          <span className="text-orange-500">המשחקים</span>
+          {lang === 'en'
+            ? <><span className="text-white">Game </span><span className="text-orange-500">Schedule</span></>
+            : <><span className="text-white">לוח </span><span className="text-orange-500">המשחקים</span></>
+          }
         </h1>
-        <p className="mt-1 text-sm text-[#5a7a9a]">מחזורים 1–14 · עונת 2025–2026</p>
+        <p className="mt-1 text-sm text-[#5a7a9a]">{lang === 'en' ? 'Rounds 1–14 · Season 2025–2026' : 'מחזורים 1–14 · עונת 2025–2026'}</p>
       </div>
 
       {/* Filter tabs */}
       <div className="flex flex-wrap gap-2">
-        <TabBtn label="הסתיים"  active={filter === 'finished'} onClick={() => setFilter('finished')} />
-        <TabBtn label="קרובים"  active={filter === 'upcoming'} onClick={() => setFilter('upcoming')} />
-        <TabBtn label="הכל"     active={filter === 'all'}      onClick={() => setFilter('all')} />
+        <TabBtn label={t('הסתיים')}  active={filter === 'finished'} onClick={() => setFilter('finished')} />
+        <TabBtn label={t('קרובים')}  active={filter === 'upcoming'} onClick={() => setFilter('upcoming')} />
+        <TabBtn label={t('הכל')}     active={filter === 'all'}      onClick={() => setFilter('all')} />
       </div>
 
       {/* Empty state */}
@@ -136,7 +150,7 @@ export default function GamesContent({
                 isPlayed ? 'border-green-500/20 bg-green-500/10 text-green-400' :
                            'border-white/10 bg-white/5 text-[#8aaac8]'
               }`}>
-                מחזור {round}{isNext ? ' ← הבא' : ''}{isPlayed ? ' ✓' : ''}
+                {t('מחזור')} {round}{isNext ? (lang === 'en' ? ' ← Next' : ' ← הבא') : ''}{isPlayed ? ' ✓' : ''}
               </div>
               <span className="text-sm font-bold text-[#4a6a8a]">{date}</span>
               <div className="h-px flex-1 bg-white/[0.05]" />
@@ -145,7 +159,7 @@ export default function GamesContent({
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               <div className="space-y-2">
                 <h3 className="flex items-center gap-2 text-sm font-bold text-orange-400">
-                  <span className="h-2 w-2 rounded-full bg-orange-400" /> מחוז דרום
+                  <span className="h-2 w-2 rounded-full bg-orange-400" /> {t('מחוז דרום')}
                 </h3>
                 {southGames.map((g, i) => (
                   <UpcomingRow key={i} home={g.homeTeam} away={g.awayTeam} logos={logos} />
@@ -153,7 +167,7 @@ export default function GamesContent({
               </div>
               <div className="space-y-2">
                 <h3 className="flex items-center gap-2 text-sm font-bold text-blue-400">
-                  <span className="h-2 w-2 rounded-full bg-blue-400" /> מחוז צפון
+                  <span className="h-2 w-2 rounded-full bg-blue-400" /> {t('מחוז צפון')}
                 </h3>
                 {northGames.map((g, i) => (
                   <UpcomingRow key={i} home={g.homeTeam} away={g.awayTeam} logos={logos} />

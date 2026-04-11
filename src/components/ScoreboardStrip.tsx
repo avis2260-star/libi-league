@@ -48,11 +48,12 @@ function GameModal({
       {/* Backdrop */}
       <div
         className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
+        style={{ animation: 'fadeIn 0.15s ease' }}
         onClick={onClose}
       />
       {/* Modal */}
       <div
-        className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 max-w-lg mx-auto rounded-2xl border border-white/[0.1] bg-[#0d1a28] shadow-2xl overflow-hidden"
+        className="animate-modal-in fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 max-w-lg mx-auto rounded-2xl border border-white/[0.1] bg-[#0d1a28] shadow-2xl overflow-hidden"
         style={{ maxHeight: '85vh', overflowY: 'auto' }}
         dir="rtl"
       >

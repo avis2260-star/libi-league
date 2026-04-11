@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 
+import { Suspense } from 'react';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import GamesContent from './GamesContent';
 
@@ -29,18 +30,15 @@ async function getTeamLogos(): Promise<Record<string, string>> {
   }
 }
 
-export default async function GamesPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ filter?: string }>;
-}) {
-  const [currentRound, logos, sp] = await Promise.all([
+export default async function GamesPage() {
+  const [currentRound, logos] = await Promise.all([
     getCurrentRound(),
     getTeamLogos(),
-    searchParams,
   ]);
 
-  const initialFilter = sp.filter === 'finished' ? 'finished' : sp.filter === 'upcoming' ? 'upcoming' : 'all';
-
-  return <GamesContent currentRound={currentRound} logos={logos} initialFilter={initialFilter} />;
+  return (
+    <Suspense fallback={<div className="py-16 text-center text-[#5a7a9a]">טוען...</div>}>
+      <GamesContent currentRound={currentRound} logos={logos} />
+    </Suspense>
+  );
 }

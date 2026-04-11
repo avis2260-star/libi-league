@@ -6,6 +6,7 @@ import { NORTH_TABLE, SOUTH_TABLE, CURRENT_ROUND, TOTAL_ROUNDS } from '@/lib/lea
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import { getTeams } from '@/lib/supabase';
 import ScoreboardStrip from '@/components/ScoreboardStrip';
+import { getLang, st } from '@/lib/get-lang';
 
 const ROUND_DATES: Record<number, string> = {
   1: '01.11.25', 2: '08.11.25', 3: '29.11.25', 4:  '20.12.25',
@@ -216,13 +217,15 @@ function RecordCard({ icon, label, value, sub, detail, color }: { icon: string; 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function HomePage() {
-  const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers] = await Promise.all([
+  const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers, lang] = await Promise.all([
     getLiveData(),
     getActiveAnnouncements(),
     getTeams(),
     getTickerSpeed(),
     getTopScorers(),
+    getLang(),
   ]);
+  const T = (he: string) => st(he, lang);
 
   // Build logo lookup
   function norm(s: string) { return s.replace(/["""''`״׳]/g, '').replace(/\s+/g, ' ').trim(); }
@@ -307,33 +310,33 @@ export default async function HomePage() {
       )}
 
       <div>
-        <h1 className="text-3xl font-black text-white">סקירה כללית</h1>
-        <p className="mt-1 text-sm text-[#5a7a9a]">עונת 2025–2026 · עד מחזור {currentRound}</p>
+        <h1 className="text-3xl font-black text-white">{T('סקירה כללית')}</h1>
+        <p className="mt-1 text-sm text-[#5a7a9a]">{lang === 'en' ? `Season 2025–2026 · Through Round ${currentRound}` : `עונת 2025–2026 · עד מחזור ${currentRound}`}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <a href="/teams" className="block hover:opacity-80 transition-opacity">
-          <StatCard value="15"                    label="קבוצות"        icon="🏀" colorClass="bg-gradient-to-l from-transparent to-orange-500" />
+          <StatCard value="15"                    label={T('קבוצות')}        icon="🏀" colorClass="bg-gradient-to-l from-transparent to-orange-500" />
         </a>
         <a href="/games?filter=finished" className="block hover:opacity-80 transition-opacity">
-          <StatCard value={String(gamesPlayed)}   label="משחקי ליגה"    icon="📊" colorClass="bg-gradient-to-l from-transparent to-green-500"  />
+          <StatCard value={String(gamesPlayed)}   label={T('משחקי ליגה')}    icon="📊" colorClass="bg-gradient-to-l from-transparent to-green-500"  />
         </a>
-        <StatCard value={String(currentRound)}  label="מחזורים עד כה" icon="📆" colorClass="bg-gradient-to-l from-transparent to-yellow-400" />
-        <StatCard value={String(TOTAL_ROUNDS)}  label="מחזורי עונה"   icon="🗓" colorClass="bg-gradient-to-l from-transparent to-blue-500"   />
+        <StatCard value={String(currentRound)}  label={T('מחזורים עד כה')} icon="📆" colorClass="bg-gradient-to-l from-transparent to-yellow-400" />
+        <StatCard value={String(TOTAL_ROUNDS)}  label={T('מחזורי עונה')}   icon="🗓" colorClass="bg-gradient-to-l from-transparent to-blue-500"   />
       </div>
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         {[
-          { label: '🥇 מוביל צפון', team: northLeader },
-          { label: '🥇 מוביל דרום', team: southLeader },
+          { label: T('🥇 מוביל צפון'), team: northLeader },
+          { label: T('🥇 מוביל דרום'), team: southLeader },
         ].map(({ label, team }) => (
           <div key={label} className="rounded-2xl border border-white/[0.07] bg-white/[0.04]" style={{ borderTop: '3px solid #e0c97a' }}>
             <div className="p-5">
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-[#5a7a9a]">{label}</p>
               <Link href={`/team/${encodeURIComponent(team.name)}`} className="text-xl font-black text-[#e0c97a] hover:underline underline-offset-2 transition-colors">{team.name}</Link>
               <p className="mt-1 text-sm text-[#8aaac8]">
-                {team.wins}נ / {team.losses}ה ·{' '}
-                <span className="font-bold text-orange-400">{team.pts} נקודות</span>
+                {lang === 'en' ? `${team.wins}W / ${team.losses}L · ` : `${team.wins}נ / ${team.losses}ה · `}
+                <span className="font-bold text-orange-400">{team.pts} {lang === 'en' ? 'pts' : 'נקודות'}</span>
               </p>
             </div>
           </div>
@@ -343,20 +346,20 @@ export default async function HomePage() {
       <section>
         <h2 className="mb-4 flex items-center gap-2 text-lg font-black text-white">
           <span className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-700 px-2 py-1 text-sm">🏆</span>
-          ביצועי שיא עונה
+          {T('ביצועי שיא עונה')}
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <RecordCard icon="🏀" label="שיא סלים במשחק" value={String(highScore.score)}
-            sub={`${highScore.team} נגד ${highScore.opp}`}
-            detail={`מחזור ${highScore.round} · ${highScore.date}`} color="#FF6B1A" />
-          <RecordCard icon="🔢" label="שיא סלים משני הצדדים" value={String(highCombined.sh + highCombined.sa)}
+          <RecordCard icon="🏀" label={T('שיא סלים במשחק')} value={String(highScore.score)}
+            sub={`${highScore.team} ${lang === 'en' ? 'vs' : 'נגד'} ${highScore.opp}`}
+            detail={`${T('מחזור')} ${highScore.round} · ${highScore.date}`} color="#FF6B1A" />
+          <RecordCard icon="🔢" label={T('שיא סלים משני הצדדים')} value={String(highCombined.sh + highCombined.sa)}
             sub={`${highCombined.home} ${highCombined.sh} – ${highCombined.sa} ${highCombined.away}`}
-            detail={`מחזור ${highCombined.round} · ${highCombined.date}`} color="#e0c97a" />
-          <RecordCard icon="💥" label="הפרש גדול ביותר" value={`+${biggestMargin}`}
-            sub={`${biggestWinner} נגד ${biggestLoser}`}
-            detail={`מחזור ${biggestWin.round} · ${biggestWin.date}`} color="#4ec97a" />
-          <RecordCard icon="📉" label="משחקים שהוכרעו ב-3 נקודות או פחות" value={String(closestCount)}
-            sub="הפרש קטן" detail="כל עונה עד כה" color="#e05a5a" />
+            detail={`${T('מחזור')} ${highCombined.round} · ${highCombined.date}`} color="#e0c97a" />
+          <RecordCard icon="💥" label={T('הפרש גדול ביותר')} value={`+${biggestMargin}`}
+            sub={`${biggestWinner} ${lang === 'en' ? 'vs' : 'נגד'} ${biggestLoser}`}
+            detail={`${T('מחזור')} ${biggestWin.round} · ${biggestWin.date}`} color="#4ec97a" />
+          <RecordCard icon="📉" label={T('משחקים שהוכרעו ב-3 נקודות או פחות')} value={String(closestCount)}
+            sub={lang === 'en' ? 'Small margin' : 'הפרש קטן'} detail={lang === 'en' ? 'All season so far' : 'כל עונה עד כה'} color="#e05a5a" />
         </div>
       </section>
 
@@ -365,17 +368,17 @@ export default async function HomePage() {
         <section>
           <h2 className="mb-4 flex items-center gap-2 text-lg font-black text-white">
             <span className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-700 px-2 py-1 text-sm">🏅</span>
-            קלעי הליגה
+            {T('קלעי הליגה')}
           </h2>
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] overflow-hidden">
             {/* Column header — desktop only */}
             <div className="hidden sm:flex items-center gap-3 px-4 py-2 border-b border-white/[0.06] text-[10px] font-bold uppercase tracking-widest text-[#3a5a7a]">
               <span className="w-6 shrink-0 text-center">#</span>
               <span className="w-9 shrink-0" />
-              <span className="flex-1">שחקן</span>
-              <span className="w-12 text-center">נק׳</span>
-              <span className="w-12 text-center">3נק׳</span>
-              <span className="w-12 text-center">פאולים</span>
+              <span className="flex-1">{lang === 'en' ? 'Player' : 'שחקן'}</span>
+              <span className="w-12 text-center">{T('נק׳')}</span>
+              <span className="w-12 text-center">{T('3נק׳')}</span>
+              <span className="w-12 text-center">{T('פאולים')}</span>
             </div>
 
             {topScorers.map((p, i) => {
@@ -430,17 +433,17 @@ export default async function HomePage() {
                   {/* Points — always visible */}
                   <div className="w-12 shrink-0 text-center">
                     <p className="text-base font-black text-orange-400">{p.points}</p>
-                    <p className="text-[9px] text-[#3a5a7a]">נק׳</p>
+                    <p className="text-[9px] text-[#3a5a7a]">{T('נק׳')}</p>
                   </div>
 
                   {/* 3PT + Fouls — hidden on small screens */}
                   <div className="hidden sm:block w-12 shrink-0 text-center">
                     <p className="text-sm font-semibold text-sky-400">{p.three_pointers}</p>
-                    <p className="text-[9px] text-[#3a5a7a]">3נק׳</p>
+                    <p className="text-[9px] text-[#3a5a7a]">{T('3נק׳')}</p>
                   </div>
                   <div className="hidden sm:block w-12 shrink-0 text-center">
                     <p className="text-sm text-rose-400">{p.fouls}</p>
-                    <p className="text-[9px] text-[#3a5a7a]">פאולים</p>
+                    <p className="text-[9px] text-[#3a5a7a]">{T('פאולים')}</p>
                   </div>
                 </a>
               );
@@ -448,7 +451,7 @@ export default async function HomePage() {
           </div>
           <div className="mt-2 text-right">
             <a href="/scorers" className="text-xs text-[#5a7a9a] hover:text-orange-400 transition-colors">
-              רשימת קלעי הליגה ←
+              {lang === 'en' ? 'League Scorers →' : 'רשימת קלעי הליגה ←'}
             </a>
           </div>
         </section>
@@ -456,23 +459,23 @@ export default async function HomePage() {
 
       <section className="rounded-2xl border border-white/[0.07] bg-white/[0.04]">
         <div className="border-b border-white/[0.06] px-5 py-4">
-          <h2 className="text-base font-bold text-[#e0c97a]">📋 עובדות עונה</h2>
+          <h2 className="text-base font-bold text-[#e0c97a]">📋 {T('עובדות עונה')}</h2>
         </div>
         <div className="grid grid-cols-1 divide-y divide-white/[0.05] sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:divide-x-reverse">
           <div className="p-5">
-            <p className="mb-1 text-xs text-[#5a7a9a]">מוביל סלים בדרום</p>
+            <p className="mb-1 text-xs text-[#5a7a9a]">{T('מוביל סלים בדרום')}</p>
             <p className="text-base font-black text-green-400">{southLeader.name}</p>
-            <p className="text-xs text-[#5a7a9a]">{southLeader.pts} נקודות</p>
+            <p className="text-xs text-[#5a7a9a]">{southLeader.pts} {T('נקודות')}</p>
           </div>
           <div className="p-5">
-            <p className="mb-1 text-xs text-[#5a7a9a]">גמר הגביע</p>
+            <p className="mb-1 text-xs text-[#5a7a9a]">{T('גמר הגביע')}</p>
             <p className="text-base font-black text-[#e0c97a]">21.03.26</p>
             <p className="text-xs text-[#5a7a9a]">ראשון &quot;גפן&quot; vs גוטלמן</p>
           </div>
           <div className="p-5">
-            <p className="mb-1 text-xs text-[#5a7a9a]">מחזורים שנותרו</p>
+            <p className="mb-1 text-xs text-[#5a7a9a]">{T('מחזורים שנותרו')}</p>
             <p className="text-3xl font-black text-blue-400">{TOTAL_ROUNDS - currentRound}</p>
-            <p className="text-xs text-[#5a7a9a]">מתוך {TOTAL_ROUNDS} מחזורים</p>
+            <p className="text-xs text-[#5a7a9a]">{lang === 'en' ? `out of ${TOTAL_ROUNDS} rounds` : `מתוך ${TOTAL_ROUNDS} מחזורים`}</p>
           </div>
         </div>
       </section>

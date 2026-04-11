@@ -5,6 +5,8 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { NORTH_TABLE, SOUTH_TABLE } from '@/lib/league-data';
 import ChampionshipPlate from '@/components/ChampionshipPlate';
 import ChampionReveal from '@/components/ChampionReveal';
+import PlayoffSeriesCard, { type RosterPlayer } from '@/components/PlayoffSeriesCard';
+import { getLang, st } from '@/lib/get-lang';
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
 interface Series {
@@ -310,14 +312,19 @@ export default async function PlayoffPage() {
     { data: gamesData },
     { data: teamsData },
     { data: standingsData },
+    { data: playersData },
     logoUrl,
+    lang,
   ] = await Promise.all([
     supabaseAdmin.from('playoff_series').select('*').order('series_number'),
     supabaseAdmin.from('playoff_games').select('*').order('series_number').order('game_number'),
     supabaseAdmin.from('teams').select('name, logo_url'),
     supabaseAdmin.from('standings').select('name, rank, division').order('rank', { ascending: true }),
+    supabaseAdmin.from('players').select('name, jersey_number, team:teams(name)').eq('is_active', true).order('jersey_number'),
     getLogoUrl(),
+    getLang(),
   ]);
+  const T = (he: string) => st(he, lang);
 
   const allGames: Game[] = (gamesData ?? []) as Game[];
 
@@ -325,6 +332,24 @@ export default async function PlayoffPage() {
   const teamLogos: Record<string, string> = {};
   for (const t of teamsData ?? []) {
     if (t.name && t.logo_url) teamLogos[t.name] = t.logo_url;
+  }
+
+  /* ── Build rosters map: teamName → players ── */
+  function normN(n: string) { return n.replace(/["""״'']/g, '').replace(/\s+/g, ' ').trim().toLowerCase(); }
+  const rosterMap: Record<string, RosterPlayer[]> = {};
+  for (const p of (playersData ?? []) as unknown as { name: string; jersey_number: number | null; team: { name: string } | null }[]) {
+    const tn = p.team?.name;
+    if (tn) {
+      if (!rosterMap[tn]) rosterMap[tn] = [];
+      rosterMap[tn].push({ name: p.name, jersey_number: p.jersey_number });
+    }
+  }
+  function getRoster(teamName: string): RosterPlayer[] {
+    if (!teamName) return [];
+    if (rosterMap[teamName]) return rosterMap[teamName];
+    // Fuzzy match
+    const match = Object.keys(rosterMap).find(k => normN(k) === normN(teamName));
+    return match ? rosterMap[match] : [];
   }
 
   /* ── Build standings lookup: division → rank → name ── */
@@ -400,9 +425,9 @@ export default async function PlayoffPage() {
   const champion = s7?.team_a && s7?.team_b ? seriesScore(s7, allGames).winner : null;
 
   const rounds = [
-    { label: 'רבע גמר', series: [s1, s2, s3, s4], cols: 'sm:grid-cols-2', isFinal: false },
-    { label: 'חצי גמר', series: [s5, s6],          cols: 'sm:grid-cols-2', isFinal: false },
-    { label: 'גמר',      series: [s7],              cols: 'sm:grid-cols-1 max-w-3xl mx-auto', isFinal: true },
+    { label: T('רבע גמר'), series: [s1, s2, s3, s4], cols: 'sm:grid-cols-2', isFinal: false },
+    { label: T('חצי גמר'), series: [s5, s6],          cols: 'sm:grid-cols-2', isFinal: false },
+    { label: T('גמר'),      series: [s7],              cols: 'sm:grid-cols-1 max-w-3xl mx-auto', isFinal: true },
   ];
 
   return (
@@ -412,11 +437,11 @@ export default async function PlayoffPage() {
         <div className="flex items-center justify-center gap-3 mb-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={logoUrl} alt="ליגת ליבי" className="h-12 w-12 object-contain rounded-full" />
-          <h1 className="text-3xl font-black text-white">🏆 פלייאוף ליגת ליבי</h1>
+          <h1 className="text-3xl font-black text-white">🏆 {lang === 'en' ? 'Libi League Playoffs' : 'פלייאוף ליגת ליבי'}</h1>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={logoUrl} alt="ליגת ליבי" className="h-12 w-12 object-contain rounded-full" />
         </div>
-        <p className="text-sm text-[#5a7a9a]">2025–2026 · רבע גמר וחצי גמר: הטוב מ-3 · גמר: משחק אחד</p>
+        <p className="text-sm text-[#5a7a9a]">{lang === 'en' ? '2025–2026 · Quarters & Semis: Best of 3 · Final: Single Game' : '2025–2026 · רבע גמר וחצי גמר: הטוב מ-3 · גמר: משחק אחד'}</p>
       </div>
 
       <div className="space-y-10">
@@ -441,16 +466,17 @@ export default async function PlayoffPage() {
 
             <div className={`grid grid-cols-1 gap-4 ${round.cols}`}>
               {round.series.map((sr, i) => (
-                <Link key={i} href={sr ? `/playoff/series/${sr.series_number}` : '#'} className="block transition hover:scale-[1.01]">
-                  <ScoreboardCard
-                    series={sr}
-                    allGames={allGames}
-                    teamLogos={teamLogos}
-                    roundLabel={round.label}
-                    isFinal={round.isFinal}
-                    champion={round.isFinal ? champion : undefined}
-                  />
-                </Link>
+                <PlayoffSeriesCard
+                  key={i}
+                  series={sr}
+                  allGames={allGames}
+                  teamLogos={teamLogos}
+                  roundLabel={round.label}
+                  isFinal={round.isFinal}
+                  champion={round.isFinal ? champion : undefined}
+                  rosterA={sr ? getRoster(sr.team_a) : []}
+                  rosterB={sr ? getRoster(sr.team_b) : []}
+                />
               ))}
             </div>
           </section>
@@ -464,7 +490,7 @@ export default async function PlayoffPage() {
             <ChampionshipPlate year="2025–2026" />
             <TeamLogo name={champion} logos={teamLogos} size="lg" />
             <p className="text-[11px] font-black uppercase tracking-[3px] text-[#a08020]">
-              אלוף הפלייאוף 2025–2026
+              {lang === 'en' ? 'Playoff Champion 2025–2026' : 'אלוף הפלייאוף 2025–2026'}
             </p>
             <p className="text-3xl font-black text-yellow-400 text-center">{champion}</p>
           </div>
