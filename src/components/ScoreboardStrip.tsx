@@ -9,6 +9,8 @@ type Game = {
   div: 'North' | 'South';
   homeLogo: string | null;
   awayLogo: string | null;
+  location?: string;
+  time?: string;
 };
 
 type RosterEntry = { name: string; jersey_number: number | null };
@@ -73,6 +75,24 @@ function GameModal({
             ×
           </button>
         </div>
+
+        {/* Location / Time info */}
+        {(game.location || game.time) && (
+          <div className="flex items-center gap-4 px-4 py-2 border-b border-white/[0.05] bg-white/[0.02]">
+            {game.location && (
+              <div className="flex items-center gap-1.5 text-[11px] text-[#8aaac8]">
+                <span>📍</span>
+                <span>{game.location}</span>
+              </div>
+            )}
+            {game.time && (
+              <div className="flex items-center gap-1.5 text-[11px] text-[#8aaac8]">
+                <span>🕐</span>
+                <span dir="ltr">{game.time}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Teams matchup */}
         <div className="px-6 py-5 flex items-center gap-4">
@@ -156,7 +176,7 @@ function GameModal({
         {/* Footer */}
         <div className="px-4 py-3 border-t border-white/[0.06] flex items-center justify-between">
           <Link
-            href={`/games#round-${nextRound}`}
+            href={`/games?filter=all#round-${nextRound}`}
             onClick={onClose}
             className="text-xs text-orange-400 hover:text-orange-300 transition-colors"
           >

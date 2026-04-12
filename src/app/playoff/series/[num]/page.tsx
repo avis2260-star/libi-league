@@ -106,8 +106,8 @@ export default async function SeriesFlyerPage({
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center px-4 py-10"
-      style={{ background: 'radial-gradient(ellipse at 50% 0%, #1a3a5c 0%, #0b1520 60%)' }}
+      className="flex flex-col items-center px-4 py-6"
+      style={{ background: 'radial-gradient(ellipse at 50% 0%, #1a3a5c 0%, #0b1520 60%)', minHeight: '100dvh' }}
       dir="rtl"
     >
       <Link

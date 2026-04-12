@@ -81,89 +81,93 @@ export default function SeriesFlyerCard({
       </div>
 
       {/* Teams matchup */}
-      <div className="relative px-6 py-6 flex items-center justify-between gap-4 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+      <div className="relative px-4 py-5 flex items-center justify-between gap-2 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
         {/* Team A */}
-        <div className="flex-1 flex flex-col items-center gap-3">
+        <div className="flex-1 flex flex-col items-center gap-2 min-w-0">
           {logoA ? (
             <img src={logoA} alt={teamA}
-              className="h-20 w-20 rounded-full object-cover border-2 border-white/20 shadow-2xl" />
+              className="h-14 w-14 sm:h-20 sm:w-20 rounded-full object-cover border-2 border-white/20 shadow-2xl shrink-0" />
           ) : (
-            <div className="h-20 w-20 rounded-full bg-[#1a3050] border-2 border-white/10 flex items-center justify-center text-3xl font-black text-[#3a5a7a]">
+            <div className="h-14 w-14 sm:h-20 sm:w-20 rounded-full bg-[#1a3050] border-2 border-white/10 flex items-center justify-center text-2xl sm:text-3xl font-black text-[#3a5a7a] shrink-0">
               {[...teamA].find(c => /\S/.test(c)) ?? '?'}
             </div>
           )}
-          <p className={`text-sm font-black text-center leading-tight ${winner === teamA ? 'text-orange-400' : 'text-white'}`}>
+          <p className={`text-xs sm:text-sm font-black text-center leading-tight w-full px-1 ${winner === teamA ? 'text-orange-400' : 'text-white'}`}>
             {hasTeams ? teamA : 'ממתין'}
           </p>
         </div>
 
         {/* Score */}
-        <div className="flex flex-col items-center gap-2 shrink-0">
+        <div className="flex flex-col items-center gap-1.5 shrink-0">
           <div
-            className="flex items-center gap-3 px-5 py-3 rounded-2xl"
+            className="flex items-center gap-2 px-3 sm:px-5 py-2 sm:py-3 rounded-2xl"
             style={{
               background: 'rgba(0,0,0,0.5)',
               border: '1px solid rgba(255,255,255,0.08)',
               boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.5)',
             }}
           >
-            <span className={`text-5xl font-black tabular-nums leading-none ${winsA > 0 ? 'text-white' : 'text-[#1e3a5f]'}`}>
+            <span className={`text-4xl sm:text-5xl font-black tabular-nums leading-none ${winsA > 0 ? 'text-white' : 'text-[#1e3a5f]'}`}>
               {winsA}
             </span>
-            <span className="text-2xl text-[#1e3a5f] font-black">:</span>
-            <span className={`text-5xl font-black tabular-nums leading-none ${winsB > 0 ? 'text-white' : 'text-[#1e3a5f]'}`}>
+            <span className="text-xl sm:text-2xl text-[#1e3a5f] font-black">:</span>
+            <span className={`text-4xl sm:text-5xl font-black tabular-nums leading-none ${winsB > 0 ? 'text-white' : 'text-[#1e3a5f]'}`}>
               {winsB}
             </span>
           </div>
-          <p className="text-[9px] font-black uppercase tracking-widest text-[#3a5a7a]">
+          <p className="text-[9px] font-black uppercase tracking-wide text-[#3a5a7a] text-center">
             ניצחונות · הטוב מ-3
           </p>
         </div>
 
         {/* Team B */}
-        <div className="flex-1 flex flex-col items-center gap-3">
+        <div className="flex-1 flex flex-col items-center gap-2 min-w-0">
           {logoB ? (
             <img src={logoB} alt={teamB}
-              className="h-20 w-20 rounded-full object-cover border-2 border-white/20 shadow-2xl" />
+              className="h-14 w-14 sm:h-20 sm:w-20 rounded-full object-cover border-2 border-white/20 shadow-2xl shrink-0" />
           ) : (
-            <div className="h-20 w-20 rounded-full bg-[#1a3050] border-2 border-white/10 flex items-center justify-center text-3xl font-black text-[#3a5a7a]">
+            <div className="h-14 w-14 sm:h-20 sm:w-20 rounded-full bg-[#1a3050] border-2 border-white/10 flex items-center justify-center text-2xl sm:text-3xl font-black text-[#3a5a7a] shrink-0">
               {[...teamB].find(c => /\S/.test(c)) ?? '?'}
             </div>
           )}
-          <p className={`text-sm font-black text-center leading-tight ${winner === teamB ? 'text-orange-400' : 'text-white'}`}>
+          <p className={`text-xs sm:text-sm font-black text-center leading-tight w-full px-1 ${winner === teamB ? 'text-orange-400' : 'text-white'}`}>
             {hasTeams ? teamB : 'ממתין'}
           </p>
         </div>
       </div>
 
       {/* Games breakdown */}
-      <div className="px-6 pb-6 grid grid-cols-3 gap-3">
+      <div className="px-4 pb-5 grid grid-cols-3 gap-2">
         {games.map((g, idx) => (
           <div
             key={g.gameNumber}
-            className="rounded-2xl flex flex-col items-center gap-2 py-4 px-2 animate-fade-in-up"
-            style={{ animationDelay: `${0.3 + idx * 0.1}s` }}
+            className="rounded-xl flex flex-col items-center gap-1.5 py-3 px-1 animate-fade-in-up"
+            style={{
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.05)',
+              animationDelay: `${0.3 + idx * 0.1}s`,
+            }}
           >
-            <p className="text-[9px] font-black uppercase tracking-widest text-[#3a5a7a]">
+            <p className="text-[9px] font-black uppercase tracking-wide text-[#3a5a7a]">
               משחק {g.gameNumber}
             </p>
 
             {g.played ? (
               <>
-                <div className="flex items-center gap-2">
-                  <span className={`text-2xl font-black tabular-nums ${g.aWon ? 'text-orange-400' : 'text-white'}`}>
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-xl font-black tabular-nums ${g.aWon ? 'text-orange-400' : 'text-white'}`}>
                     {g.aScore}
                   </span>
-                  <span className="text-sm text-[#2a4a6a] font-black">-</span>
-                  <span className={`text-2xl font-black tabular-nums ${!g.aWon ? 'text-orange-400' : 'text-white'}`}>
+                  <span className="text-xs text-[#2a4a6a] font-black">-</span>
+                  <span className={`text-xl font-black tabular-nums ${!g.aWon ? 'text-orange-400' : 'text-white'}`}>
                     {g.bScore}
                   </span>
                 </div>
                 <div
-                  className="h-4 w-4 rounded-full"
+                  className="h-3 w-3 rounded-full"
                   style={{
                     background: g.aWon ? '#f97316' : '#4a6a8a',
-                    boxShadow: g.aWon ? '0 0 10px rgba(249,115,22,0.7)' : 'none',
+                    boxShadow: g.aWon ? '0 0 8px rgba(249,115,22,0.7)' : 'none',
                   }}
                 />
                 <p className={`text-[9px] font-bold text-center leading-tight ${g.aWon ? 'text-orange-400' : 'text-[#5a7a9a]'}`}>
@@ -172,12 +176,12 @@ export default function SeriesFlyerCard({
               </>
             ) : (
               <>
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl font-black text-[#1a2e45]">–</span>
-                  <span className="text-sm text-[#1a2e45] font-black">-</span>
-                  <span className="text-2xl font-black text-[#1a2e45]">–</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xl font-black text-[#1a2e45]">–</span>
+                  <span className="text-xs text-[#1a2e45] font-black">-</span>
+                  <span className="text-xl font-black text-[#1a2e45]">–</span>
                 </div>
-                <div className="h-4 w-4 rounded-full border border-white/[0.08] bg-transparent" />
+                <div className="h-3 w-3 rounded-full border border-white/[0.08] bg-transparent" />
                 <p className="text-[9px] font-bold text-[#2a4a6a]">טרם שוחק</p>
               </>
             )}

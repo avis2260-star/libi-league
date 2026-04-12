@@ -190,6 +190,19 @@ async function getLiveData() {
   }
 }
 
+type CupFinal = { date: string; home_team: string; away_team: string; home_score: number | null; away_score: number | null; played: boolean } | null;
+
+async function getCupFinal(): Promise<CupFinal> {
+  try {
+    const { data } = await supabaseAdmin
+      .from('cup_games')
+      .select('date, home_team, away_team, home_score, away_score, played')
+      .eq('round', 'גמר')
+      .maybeSingle();
+    return data as CupFinal;
+  } catch { return null; }
+}
+
 async function getRoundDates(): Promise<Record<number, string>> {
   try {
     const { data } = await supabaseAdmin
@@ -234,7 +247,7 @@ function RecordCard({ icon, label, value, sub, detail, color }: { icon: string; 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function HomePage() {
-  const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers, lang, dbRoundDates] = await Promise.all([
+  const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers, lang, dbRoundDates, cupFinal] = await Promise.all([
     getLiveData(),
     getActiveAnnouncements(),
     getTeams(),
@@ -242,6 +255,7 @@ export default async function HomePage() {
     getTopScorers(),
     getLang(),
     getRoundDates(),
+    getCupFinal(),
   ]);
   const T = (he: string) => st(he, lang);
 
@@ -265,13 +279,19 @@ export default async function HomePage() {
 
   const nextRound = currentRound + 1;
   const nextDate  = ROUND_DATES_MERGED[nextRound] ?? '';
-  const northUpcoming = LIBI_SCHEDULE.filter((g) => g.round === nextRound && g.division === 'North').map(g => ({ home: g.homeTeam, away: g.awayTeam }));
-  const southUpcoming = LIBI_SCHEDULE.filter((g) => g.round === nextRound && g.division === 'South').map(g => ({ home: g.homeTeam, away: g.awayTeam }));
 
   // Scoreboard strip — all games for next round combined
-  const allNextGames: { home: string; away: string; div: 'North' | 'South'; homeLogo: string | null; awayLogo: string | null }[] = [
-    ...southUpcoming.map(g => ({ ...g, div: 'South' as const, homeLogo: logoMap[norm(g.home)] ?? null, awayLogo: logoMap[norm(g.away)] ?? null })),
-    ...northUpcoming.map(g => ({ ...g, div: 'North' as const, homeLogo: logoMap[norm(g.home)] ?? null, awayLogo: logoMap[norm(g.away)] ?? null })),
+  const allNextGames: { home: string; away: string; div: 'North' | 'South'; homeLogo: string | null; awayLogo: string | null; location?: string; time?: string }[] = [
+    ...LIBI_SCHEDULE.filter((g) => g.round === nextRound && g.division === 'South').map(g => ({
+      home: g.homeTeam, away: g.awayTeam, div: 'South' as const,
+      homeLogo: logoMap[norm(g.homeTeam)] ?? null, awayLogo: logoMap[norm(g.awayTeam)] ?? null,
+      location: g.location, time: g.time,
+    })),
+    ...LIBI_SCHEDULE.filter((g) => g.round === nextRound && g.division === 'North').map(g => ({
+      home: g.homeTeam, away: g.awayTeam, div: 'North' as const,
+      homeLogo: logoMap[norm(g.homeTeam)] ?? null, awayLogo: logoMap[norm(g.awayTeam)] ?? null,
+      location: g.location, time: g.time,
+    })),
   ];
   const nextDateRaw = LIBI_SCHEDULE.find(g => g.round === nextRound)?.date ?? '';
   const heDay = nextDateRaw
@@ -492,8 +512,25 @@ export default async function HomePage() {
           </div>
           <div className="p-5">
             <p className="mb-1 text-xs text-[#5a7a9a]">{T('גמר הגביע')}</p>
-            <p className="text-base font-black text-[#e0c97a]">21.03.26</p>
-            <p className="text-xs text-[#5a7a9a]">ראשון &quot;גפן&quot; vs גוטלמן</p>
+            {cupFinal ? (
+              <>
+                <p className="text-base font-black text-[#e0c97a]">
+                  {cupFinal.played && cupFinal.home_score !== null
+                    ? `${cupFinal.home_team} ${cupFinal.home_score}–${cupFinal.away_score} ${cupFinal.away_team}`
+                    : cupFinal.date || '—'}
+                </p>
+                <p className="text-xs text-[#5a7a9a]">
+                  {cupFinal.played
+                    ? (lang === 'en' ? 'Final result' : `${cupFinal.date}`)
+                    : `${cupFinal.home_team} vs ${cupFinal.away_team}`}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-base font-black text-[#e0c97a]">—</p>
+                <p className="text-xs text-[#5a7a9a]">{lang === 'en' ? 'TBD' : 'טרם נקבע'}</p>
+              </>
+            )}
           </div>
           <div className="p-5">
             <p className="mb-1 text-xs text-[#5a7a9a]">{T('מחזורים שנותרו')}</p>

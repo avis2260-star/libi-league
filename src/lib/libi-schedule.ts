@@ -7,6 +7,8 @@ export type ScheduleEntry = {
   homeTeam: string;
   awayTeam: string;
   division: 'South' | 'North';
+  location?: string; // venue name
+  time?: string;     // HH:MM (24h)
 };
 
 export const LIBI_SCHEDULE: ScheduleEntry[] = [
