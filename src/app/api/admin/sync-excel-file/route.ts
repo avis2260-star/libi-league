@@ -180,30 +180,33 @@ function parseCupGames(rows: unknown[][]): CupGameRow[] {
         );
         if (dupe) continue;
 
-        // Look for a date in: (1) same row, (2) row above, (3) embedded in header cell
+        // Look for a date in: (1) header cell text, (2) same row near header col, (3) row above near header col
         const DATE_RE = /\d{1,2}[./]\d{1,2}[./]\d{2,4}/;
         const DATE_EXACT = /^\d{1,2}[./]\d{1,2}[./]\d{2,4}$/;
         let date = '';
 
-        // Check same row first
-        for (let dc = 0; dc < row.length && !date; dc++) {
-          const v = String(row[dc] ?? '').trim();
-          if (DATE_EXACT.test(v)) date = v;
+        // Priority 1: date embedded in the header cell itself (e.g. "שלב ד - גמר גביע 29.5.26")
+        const cellDateMatch = DATE_RE.exec(cell);
+        if (cellDateMatch) date = cellDateMatch[0];
+
+        // Priority 2: standalone date cell in the SAME ROW, within ±8 cols of header
+        if (!date) {
+          const s = Math.max(0, col - 4), e = Math.min(row.length, col + 10);
+          for (let dc = s; dc < e && !date; dc++) {
+            const v = String(row[dc] ?? '').trim();
+            if (DATE_EXACT.test(v)) date = v;
+          }
         }
-        // Then check row above (dates often live there in this Excel format)
+        // Priority 3: row ABOVE, within ±8 cols of header (dates often live there)
         if (!date && ri > 0) {
           const above = rows[ri - 1];
           if (above && Array.isArray(above)) {
-            for (let dc = 0; dc < above.length && !date; dc++) {
+            const s = Math.max(0, col - 4), e = Math.min(above.length, col + 10);
+            for (let dc = s; dc < e && !date; dc++) {
               const v = String(above[dc] ?? '').trim();
               if (DATE_EXACT.test(v)) date = v;
             }
           }
-        }
-        // Finally extract date embedded in the header cell text itself
-        if (!date) {
-          const m = DATE_RE.exec(cell);
-          if (m) date = m[0];
         }
 
         roundHeaders.push({ row: ri, col, name: p.name, order: p.order, date });
