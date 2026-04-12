@@ -78,15 +78,15 @@ function GameModal({
 
         {/* Location / Time info */}
         {(game.location || game.time) && (
-          <div className="flex items-center gap-4 px-4 py-2 border-b border-white/[0.05] bg-white/[0.02]">
+          <div className="flex items-center gap-5 px-4 py-3 border-b border-white/[0.05] bg-white/[0.02]">
             {game.location && (
-              <div className="flex items-center gap-1.5 text-[11px] text-[#8aaac8]">
+              <div className="flex items-center gap-2 text-sm font-bold text-white">
                 <span>📍</span>
                 <span>{game.location}</span>
               </div>
             )}
             {game.time && (
-              <div className="flex items-center gap-1.5 text-[11px] text-[#8aaac8]">
+              <div className="flex items-center gap-2 text-sm font-bold text-white">
                 <span>🕐</span>
                 <span dir="ltr">{game.time}</span>
               </div>
