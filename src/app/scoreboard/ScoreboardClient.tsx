@@ -263,8 +263,10 @@ export default function ScoreboardClient({
                         </div>
                         {/* VS */}
                         <div className="shrink-0 flex flex-col items-center px-2">
-                          <span className="text-xs font-black text-[#3a5a7a]">VS</span>
-                          <span className="text-[9px] text-[#2a4a6a] mt-0.5">{g.game_date}</span>
+                          <span className="text-sm font-black text-white">VS</span>
+                          <span className="text-[11px] font-bold text-[#8aaac8] mt-0.5">
+                            {(() => { const m = g.game_date?.match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[3]}.${m[2]}.${m[1].slice(2)}` : (g.game_date ?? ''); })()}
+                          </span>
                         </div>
                         {/* Away */}
                         <div className="flex items-center gap-3 flex-1">
