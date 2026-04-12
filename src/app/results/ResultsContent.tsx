@@ -71,6 +71,21 @@ function GameCard({ game, logos }: { game: GameResult; logos: Record<string, str
   );
 }
 
+const FALLBACK_DATES: Record<number, string> = {
+  1:'01.11.25',2:'08.11.25',3:'29.11.25',4:'20.12.25',
+  5:'10.01.26',6:'17.01.26',7:'07.02.26',8:'21.02.26',
+  9:'28.02.26',10:'14.03.26',11:'21.03.26',
+  12:'10.04.26',13:'17.04.26',14:'24.04.26',
+};
+
+function formatDate(d: string | undefined): string {
+  if (!d) return '';
+  if (/^\d{1,2}\.\d{1,2}\.\d{2,4}$/.test(d)) return d;
+  const m = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return `${m[3]}.${m[2]}.${m[1].slice(2)}`;
+  return d;
+}
+
 export default function ResultsContent({ games, logos }: { games: GameResult[]; logos: Record<string, string> }) {
   const ROUNDS = [...new Set(games.map((g) => g.round))].sort((a, b) => b - a);
 
@@ -155,7 +170,7 @@ export default function ResultsContent({ games, logos }: { games: GameResult[]; 
           <div key={r}>
             <div className="mb-3 flex items-center gap-3">
               <div className="rounded-2xl border border-orange-500/30 bg-orange-500/15 px-4 py-1 text-xs font-bold text-orange-400">
-                מחזור {r} · {grouped[r][0]?.date}
+                מחזור {r} · {formatDate(grouped[r][0]?.date) || FALLBACK_DATES[r] || ''}
               </div>
               <div className="h-px flex-1 bg-white/[0.05]" />
               <span className="text-xs text-[#4a6a8a]">{grouped[r].length} משחקים</span>
