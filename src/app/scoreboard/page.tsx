@@ -16,6 +16,13 @@ export type ScoreboardGame = {
   away_team_id: string;
 };
 
+const FALLBACK_DATES: Record<number, string> = {
+  1:'01.11.25',2:'08.11.25',3:'29.11.25',4:'20.12.25',
+  5:'10.01.26',6:'17.01.26',7:'07.02.26',8:'21.02.26',
+  9:'28.02.26',10:'14.03.26',11:'21.03.26',
+  12:'10.04.26',13:'17.04.26',14:'24.04.26',
+};
+
 export type ScoreboardPlayer = {
   name: string;
   jersey_number: number | null;
@@ -73,6 +80,17 @@ export default async function ScoreboardPage() {
     };
   });
 
+  // 3b. Get round date from DB, fall back to static
+  let roundDate = FALLBACK_DATES[nextRound] ?? '';
+  try {
+    const { data: rdData } = await supabaseAdmin
+      .from('league_settings').select('value').eq('key', 'round_dates').maybeSingle();
+    if (rdData?.value) {
+      const parsed = JSON.parse(rdData.value) as Record<string, string>;
+      roundDate = parsed[String(nextRound)] ?? roundDate;
+    }
+  } catch { /* use fallback */ }
+
   // 4. Fetch players only for teams in this round
   const teamIds = [...new Set(
     games.flatMap(g => [g.home_team_id, g.away_team_id]).filter(Boolean)
@@ -94,6 +112,7 @@ export default async function ScoreboardPage() {
       games={games}
       players={players}
       currentRound={nextRound}
+      roundDate={roundDate}
     />
   );
 }

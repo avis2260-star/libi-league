@@ -36,8 +36,8 @@ function Logo({ logo, name, size = 48 }: { logo: string|null; name: string; size
 
 // ── Component ────────────────────────────────────────────────────────────────
 export default function ScoreboardClient({
-  games, players, currentRound,
-}: { games: ScoreboardGame[]; players: ScoreboardPlayer[]; currentRound: number }) {
+  games, players, currentRound, roundDate = '',
+}: { games: ScoreboardGame[]; players: ScoreboardPlayer[]; currentRound: number; roundDate?: string }) {
 
   // ── Step tracking ──────────────────────────────────────────────────────────
   const [phase,   setPhase]   = useState<Phase>('pick');
@@ -251,7 +251,10 @@ export default function ScoreboardClient({
             <div className="space-y-6">
               {roundKeys.map(rk => (
                 <div key={rk}>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[#3a5a7a] mb-2 px-1">{rk}</p>
+                  <div className="flex items-center justify-end gap-3 mb-3 px-1">
+                    {roundDate && <span className="text-sm font-bold text-[#8aaac8]">{roundDate}</span>}
+                    <p className="text-lg font-black text-white">{rk}</p>
+                  </div>
                   <div className="space-y-2">
                     {byRound[rk].map(g => (
                       <button key={g.id} onClick={() => pickGame(g)}
@@ -264,9 +267,6 @@ export default function ScoreboardClient({
                         {/* VS */}
                         <div className="shrink-0 flex flex-col items-center px-2">
                           <span className="text-sm font-black text-white">VS</span>
-                          <span className="text-[11px] font-bold text-[#8aaac8] mt-0.5">
-                            {(() => { const m = g.game_date?.match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[3]}.${m[2]}.${m[1].slice(2)}` : (g.game_date ?? ''); })()}
-                          </span>
                         </div>
                         {/* Away */}
                         <div className="flex items-center gap-3 flex-1">
