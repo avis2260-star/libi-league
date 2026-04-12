@@ -75,6 +75,23 @@ function parseStandings(rows: unknown[][]): { north: StandingRow[]; south: Stand
   return { north, south };
 }
 
+function parseRoundDates(rows: unknown[][]): Record<number, string> {
+  const map: Record<number, string> = {};
+  let currentDate = '';
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row) continue;
+    const col0 = String(row[0] ?? '').trim();
+    const col1 = row[1];
+    if (col0.includes('פגרה') || col0.includes('גביע')) continue;
+    if (col0 && /\d{1,2}[./]\d{1,2}[./]\d{2,4}/.test(col0)) currentDate = col0;
+    if (typeof col1 === 'number' && col1 > 0 && currentDate && !map[col1]) {
+      map[col1] = currentDate;
+    }
+  }
+  return map;
+}
+
 function parseResults(rows: unknown[][]): GameResultRow[] {
   const results: GameResultRow[] = [];
   let currentDate = '';
@@ -335,23 +352,20 @@ export async function POST(req: NextRequest) {
     // Parse results
     const resultsSheet = wb.SheetNames.find((n) => n.includes('תוצאות'));
     let results: GameResultRow[] = [];
+    let roundDatesMap: Record<number, string> = {};
     if (resultsSheet) {
       const resultsRows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[resultsSheet], { header: 1 });
       results = parseResults(resultsRows);
-    }
-
-    // Extract round dates and store in league_settings
-    const roundDatesMap: Record<number, string> = {};
-    for (const r of results) {
-      if (r.date && r.date.trim() && !roundDatesMap[r.round]) {
-        roundDatesMap[r.round] = r.date.trim();
-      }
+      // Extract ALL round dates (including future rounds with no scores yet)
+      roundDatesMap = parseRoundDates(resultsRows);
     }
     try {
-      await supabaseAdmin.from('league_settings').upsert(
-        { key: 'round_dates', value: JSON.stringify(roundDatesMap) },
-        { onConflict: 'key' },
-      );
+      if (Object.keys(roundDatesMap).length > 0) {
+        await supabaseAdmin.from('league_settings').upsert(
+          { key: 'round_dates', value: JSON.stringify(roundDatesMap) },
+          { onConflict: 'key' },
+        );
+      }
     } catch { /* silently skip if table differs */ }
 
     // Parse cup games (safely — never break main sync)
