@@ -180,11 +180,30 @@ function parseCupGames(rows: unknown[][]): CupGameRow[] {
         );
         if (dupe) continue;
 
-        // Look for a date anywhere in the same row
+        // Look for a date in: (1) same row, (2) row above, (3) embedded in header cell
+        const DATE_RE = /\d{1,2}[./]\d{1,2}[./]\d{2,4}/;
+        const DATE_EXACT = /^\d{1,2}[./]\d{1,2}[./]\d{2,4}$/;
         let date = '';
-        for (let dc = 0; dc < row.length; dc++) {
+
+        // Check same row first
+        for (let dc = 0; dc < row.length && !date; dc++) {
           const v = String(row[dc] ?? '').trim();
-          if (/^\d{1,2}\.\d{1,2}\.(\d{2}|\d{4})$/.test(v)) { date = v; break; }
+          if (DATE_EXACT.test(v)) date = v;
+        }
+        // Then check row above (dates often live there in this Excel format)
+        if (!date && ri > 0) {
+          const above = rows[ri - 1];
+          if (above && Array.isArray(above)) {
+            for (let dc = 0; dc < above.length && !date; dc++) {
+              const v = String(above[dc] ?? '').trim();
+              if (DATE_EXACT.test(v)) date = v;
+            }
+          }
+        }
+        // Finally extract date embedded in the header cell text itself
+        if (!date) {
+          const m = DATE_RE.exec(cell);
+          if (m) date = m[0];
         }
 
         roundHeaders.push({ row: ri, col, name: p.name, order: p.order, date });
