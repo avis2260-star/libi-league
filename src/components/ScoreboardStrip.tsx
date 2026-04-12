@@ -53,8 +53,8 @@ function GameModal({
       />
       {/* Modal */}
       <div
-        className="animate-modal-in fixed inset-x-4 top-1/2 -translate-y-1/2 z-[200] max-w-lg mx-auto rounded-2xl border border-white/[0.1] bg-[#0d1a28] shadow-2xl overflow-y-auto"
-        style={{ maxHeight: '85vh' }}
+        className="animate-modal-in fixed inset-x-4 z-[200] max-w-lg mx-auto rounded-2xl border border-white/[0.1] bg-[#0d1a28] shadow-2xl overflow-y-auto"
+        style={{ top: '8vh', maxHeight: '84vh' }}
         dir="rtl"
       >
         {/* Header */}

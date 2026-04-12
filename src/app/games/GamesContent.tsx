@@ -127,13 +127,14 @@ export default function GamesContent({
         <p className="mt-1 text-sm text-[#5a7a9a]">{lang === 'en' ? 'Rounds 1–14 · Season 2025–2026' : 'מחזורים 1–14 · עונת 2025–2026'}</p>
       </div>
 
-      {/* Filter tabs */}
-      <div className="flex flex-wrap gap-2">
-        <TabBtn label={t('הסתיים')}  active={filter === 'finished'} onClick={() => setFilter('finished')} />
-        <TabBtn label={t('קרובים')}  active={filter === 'upcoming'} onClick={() => setFilter('upcoming')} />
-        <TabBtn label={t('הכל')}     active={filter === 'all'}      onClick={() => setFilter('all')} />
-        <TabBtn label={lang === 'en' ? '≤3 pts' : 'הכרעה בקטנה'} active={filter === 'close'} onClick={() => setFilter('close')} />
-      </div>
+      {/* Filter tabs — hidden when showing close games view */}
+      {filter !== 'close' && (
+        <div className="flex flex-wrap gap-2">
+          <TabBtn label={t('הסתיים')}  active={filter === 'finished'} onClick={() => setFilter('finished')} />
+          <TabBtn label={t('קרובים')}  active={filter === 'upcoming'} onClick={() => setFilter('upcoming')} />
+          <TabBtn label={t('הכל')}     active={filter === 'all'}      onClick={() => setFilter('all')} />
+        </div>
+      )}
 
       {filter !== 'close' && (
         <>
@@ -190,9 +191,14 @@ export default function GamesContent({
         </>
       )}
 
-      {/* Close games list */}
+      {/* Close games — hidden view (no tab, reached via stat card link) */}
       {filter === 'close' && (
-        <div className="space-y-2">
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-xl font-black text-white">📉 {lang === 'en' ? 'Close Games' : 'משחקים שהוכרעו בהפרש קטן'}</h2>
+            <p className="mt-1 text-sm text-[#5a7a9a]">{lang === 'en' ? 'Games decided by 3 points or less' : 'הפרש של 3 נקודות או פחות'}</p>
+          </div>
+          <div className="space-y-2">
           {closeGames.length === 0 ? (
             <p className="rounded-xl border border-white/[0.07] py-12 text-center text-sm text-[#5a7a9a]">
               {lang === 'en' ? 'No close games yet' : 'אין משחקים שהוכרעו בהפרש קטן עדיין'}
@@ -218,6 +224,14 @@ export default function GamesContent({
               </div>
             ))
           )}
+          </div>
+          {/* Back button */}
+          <button
+            onClick={() => window.history.back()}
+            className="flex items-center gap-1.5 mt-2 text-sm font-bold text-[#5a7a9a] hover:text-orange-400 transition-colors"
+          >
+            ‹ {lang === 'en' ? 'Back' : 'חזרה'}
+          </button>
         </div>
       )}
     </div>
