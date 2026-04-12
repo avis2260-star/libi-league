@@ -15,6 +15,16 @@ const ALL_ROUND_DATES: Record<number, string> = {
 
 type Filter = 'all' | 'upcoming' | 'finished' | 'close';
 
+function formatDate(d: string): string {
+  if (!d) return '';
+  // Already DD.MM.YY or DD.MM.YYYY
+  if (/^\d{1,2}\.\d{1,2}\.\d{2,4}$/.test(d)) return d;
+  // ISO YYYY-MM-DD → DD.MM.YY
+  const m = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return `${m[3]}.${m[2]}.${m[1].slice(2)}`;
+  return d;
+}
+
 function normName(n: string) {
   return n.replace(/["""״'']/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 }
@@ -38,7 +48,7 @@ function TeamLogo({ name, logos }: { name: string; logos: Record<string, string>
 }
 
 // ── Upcoming game row ─────────────────────────────────────────────────────────
-function UpcomingRow({ home, away, logos }: { home: string; away: string; logos: Record<string, string> }) {
+function UpcomingRow({ home, away, logos, date }: { home: string; away: string; logos: Record<string, string>; date?: string }) {
   return (
     <div className="flex items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5">
       {/* Home — logo left, name right */}
@@ -47,7 +57,10 @@ function UpcomingRow({ home, away, logos }: { home: string; away: string; logos:
         <span className="truncate text-sm font-semibold text-white group-hover:text-orange-400 transition-colors">{home}</span>
       </Link>
 
-      <span className="shrink-0 rounded-lg bg-black/30 px-2.5 py-1 text-xs font-bold text-[#4a6a8a]">VS</span>
+      <div className="shrink-0 flex flex-col items-center gap-0.5">
+        <span className="rounded-lg bg-black/30 px-3 py-1 text-sm font-black text-white">VS</span>
+        {date && <span className="text-[11px] font-bold text-[#8aaac8]">{date}</span>}
+      </div>
 
       {/* Away — name inner (near VS), logo outer-right */}
       <Link href={`/team/${encodeURIComponent(away)}`} className="flex flex-1 items-center justify-start gap-2 min-w-0 group">
@@ -149,7 +162,7 @@ export default function GamesContent({
           {visibleRounds.map((round) => {
             const isPlayed = round <= currentRound;
             const isNext   = round === nextRound;
-            const date     = DATES[round] ?? '';
+            const date     = formatDate(DATES[round] ?? '');
             const northGames = LIBI_SCHEDULE.filter((g) => g.round === round && g.division === 'North');
             const southGames = LIBI_SCHEDULE.filter((g) => g.round === round && g.division === 'South');
 
@@ -173,7 +186,7 @@ export default function GamesContent({
                       <span className="h-2 w-2 rounded-full bg-orange-400" /> {t('מחוז דרום')}
                     </h3>
                     {southGames.map((g, i) => (
-                      <UpcomingRow key={i} home={g.homeTeam} away={g.awayTeam} logos={logos} />
+                      <UpcomingRow key={i} home={g.homeTeam} away={g.awayTeam} logos={logos} date={date} />
                     ))}
                   </div>
                   <div className="space-y-2">
@@ -181,7 +194,7 @@ export default function GamesContent({
                       <span className="h-2 w-2 rounded-full bg-blue-400" /> {t('מחוז צפון')}
                     </h3>
                     {northGames.map((g, i) => (
-                      <UpcomingRow key={i} home={g.homeTeam} away={g.awayTeam} logos={logos} />
+                      <UpcomingRow key={i} home={g.homeTeam} away={g.awayTeam} logos={logos} date={date} />
                     ))}
                   </div>
                 </div>
