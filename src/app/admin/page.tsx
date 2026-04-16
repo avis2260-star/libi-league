@@ -19,6 +19,7 @@ import SubmissionsTab, { type SubmissionRow } from '@/components/admin/Submissio
 import PlayerStatsTab, { type PlayerStatRow } from '@/components/admin/PlayerStatsTab';
 import MessagesTab, { type ContactMessage } from '@/components/admin/MessagesTab';
 import TermsTab from '@/components/admin/TermsTab';
+import HallOfFameTab from '@/components/admin/HallOfFameTab';
 import type { GameWithTeams, Team } from '@/types';
 
 async function getAllGames(): Promise<GameWithTeams[]> {
@@ -209,6 +210,18 @@ export default async function AdminPage({
     }));
   }
 
+  // Hall of Fame tab
+  let hofSeasons: { id: string; year: string; champion_name: string | null; champion_captain: string | null; mvp_name: string | null; mvp_stats: string | null }[] = [];
+  let hofRecords: { id: string; title: string; holder: string | null; value: string | null }[] = [];
+  if (tab === 'halloffame') {
+    const [{ data: s }, { data: r }] = await Promise.all([
+      supabaseAdmin.from('league_history_seasons').select('id,year,champion_name,champion_captain,mvp_name,mvp_stats').order('sort_order'),
+      supabaseAdmin.from('league_history_records').select('id,title,holder,value').order('sort_order'),
+    ]);
+    hofSeasons = (s ?? []) as typeof hofSeasons;
+    hofRecords = (r ?? []) as typeof hofRecords;
+  }
+
   // Sync log tab
   let syncLogs: { id: string; uploaded_at: string; filename: string | null; north_count: number; south_count: number; results_count: number; is_rolled_back: boolean }[] = [];
   if (tab === 'synclog') {
@@ -240,6 +253,7 @@ export default async function AdminPage({
       {tab === 'playerstats'   && <PlayerStatsTab players={playerStats} />}
       {tab === 'messages'      && <MessagesTab messages={contactMessages} />}
       {tab === 'terms'         && <TermsTab termsOfUse={termsOfUse} privacyPolicy={privacyPolicy} />}
+      {tab === 'halloffame'    && <HallOfFameTab seasons={hofSeasons} records={hofRecords} />}
     </>
   );
 }

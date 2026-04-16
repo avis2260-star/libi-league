@@ -49,6 +49,7 @@ const GROUPS = [
       { href: '/admin?tab=takanon',      label: '📋 תקנון'   },
       { href: '/admin?tab=messages',     label: '📬 פניות'        },
       { href: '/admin?tab=terms',        label: '📋 תנאי שימוש'  },
+      { href: '/admin?tab=halloffame',   label: '🏆 היכל התהילה' },
     ],
   },
 ];
