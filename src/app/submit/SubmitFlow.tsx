@@ -470,6 +470,15 @@ export default function SubmitFlow({
         {/* ── Step 1 ── */}
         {step === 'select' && (
           <div className="space-y-5">
+
+            {/* One-time upload notice */}
+            <div className="flex items-start gap-3 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3" dir="rtl">
+              <span className="text-yellow-400 text-lg shrink-0">⚠️</span>
+              <p className="text-sm font-bold text-yellow-300">
+                העלאת טופס המשחק היא חד פעמית — נא לשים לב
+              </p>
+            </div>
+
             <div className="space-y-2">
               <label className="text-sm font-bold text-[#8aaac8]">הקבוצה שלך *</label>
               <select
