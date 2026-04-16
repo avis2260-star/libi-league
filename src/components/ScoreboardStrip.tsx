@@ -65,8 +65,8 @@ function GameModal({
             <span className={`text-[10px] font-bold ${game.div === 'North' ? 'text-blue-400' : 'text-orange-400'}`}>
               {game.div === 'North' ? '🔵 מחוז צפון' : '🟠 מחוז דרום'}
             </span>
-            <p className="text-sm font-black text-white mt-0.5">{heDay} · {nextDate}</p>
-            <p className="text-[10px] text-[#5a7a9a]">מחזור {nextRound}</p>
+            <p className="text-sm font-black text-white mt-0.5 font-body">{heDay} · {nextDate}</p>
+            <p className="text-[10px] text-[#5a7a9a] font-body">מחזור <span className="font-stats">{nextRound}</span></p>
           </div>
           <button
             onClick={onClose}
@@ -102,11 +102,11 @@ function GameModal({
             <Link
               href={`/team/${encodeURIComponent(game.home)}`}
               onClick={onClose}
-              className="text-sm font-black text-white text-center leading-tight hover:text-orange-400 transition-colors"
+              className="text-sm font-black text-white text-center leading-tight hover:text-orange-400 transition-colors font-heading"
             >
               {game.home}
             </Link>
-            <span className="text-[10px] text-[#4a6a8a] font-semibold">בית</span>
+            <span className="text-[10px] text-[#4a6a8a] font-semibold font-body">בית</span>
           </div>
 
           {/* VS */}
@@ -120,11 +120,11 @@ function GameModal({
             <Link
               href={`/team/${encodeURIComponent(game.away)}`}
               onClick={onClose}
-              className="text-sm font-black text-white text-center leading-tight hover:text-orange-400 transition-colors"
+              className="text-sm font-black text-white text-center leading-tight hover:text-orange-400 transition-colors font-heading"
             >
               {game.away}
             </Link>
-            <span className="text-[10px] text-[#4a6a8a] font-semibold">חוץ</span>
+            <span className="text-[10px] text-[#4a6a8a] font-semibold font-body">חוץ</span>
           </div>
         </div>
 
@@ -242,7 +242,7 @@ export default function ScoreboardStrip({
               <div className="h-6 w-px bg-white/[0.06] shrink-0" />
             </>
           )}
-          <p className="flex-1 text-[11px] font-bold text-[#5a7a9a]">מחזור {nextRound} · משחקים קרובים</p>
+          <p className="flex-1 text-[11px] font-bold text-[#5a7a9a] font-body">מחזור <span className="font-stats">{nextRound}</span> · משחקים קרובים</p>
 
           {/* Scroll arrows */}
           <button
@@ -293,7 +293,7 @@ export default function ScoreboardStrip({
               {/* Home team */}
               <div className="flex items-center gap-2 mb-1">
                 <TeamLogo logo={g.homeLogo} name={g.home} />
-                <p className="truncate text-xs font-black text-[#e8edf5] group-hover:text-orange-400 transition-colors leading-snug flex-1">
+                <p className="truncate text-xs font-black text-[#e8edf5] group-hover:text-orange-400 transition-colors leading-snug flex-1 font-heading">
                   {g.home}
                 </p>
               </div>
@@ -308,12 +308,12 @@ export default function ScoreboardStrip({
               {/* Away team */}
               <div className="flex items-center gap-2">
                 <TeamLogo logo={g.awayLogo} name={g.away} />
-                <p className="truncate text-xs font-black text-[#e8edf5] group-hover:text-orange-400 transition-colors leading-snug flex-1">
+                <p className="truncate text-xs font-black text-[#e8edf5] group-hover:text-orange-400 transition-colors leading-snug flex-1 font-heading">
                   {g.away}
                 </p>
               </div>
 
-              <p className="mt-2 text-[9px] text-[#3a5a7a]">{nextDate} · לחץ לפרטים</p>
+              <p className="mt-2 text-[9px] text-[#3a5a7a] font-body">{nextDate} · לחץ לפרטים</p>
             </button>
           ))}
         </div>

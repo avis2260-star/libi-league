@@ -53,7 +53,7 @@ export default function ChampionshipPlate({ year = '2025–2026' }: { year?: str
               {/* Content */}
               <div className="relative z-10 flex flex-col items-center gap-1 px-4 text-center">
                 <p
-                  className="font-black uppercase tracking-[3px] leading-tight"
+                  className="font-black uppercase tracking-[3px] leading-tight font-heading"
                   style={{
                     fontSize: 'clamp(9px, 2.2vw, 13px)',
                     color: '#3a2a00',
@@ -64,7 +64,7 @@ export default function ChampionshipPlate({ year = '2025–2026' }: { year?: str
                   LEAGUE
                 </p>
                 <p
-                  className="font-black uppercase leading-tight"
+                  className="font-black uppercase leading-tight font-heading"
                   style={{
                     fontSize: 'clamp(14px, 4vw, 22px)',
                     color: '#2a1a00',
@@ -95,7 +95,7 @@ export default function ChampionshipPlate({ year = '2025–2026' }: { year?: str
                 </div>
 
                 <p
-                  className="font-black"
+                  className="font-black font-stats"
                   style={{
                     fontSize: 'clamp(11px, 2.8vw, 16px)',
                     color: '#3a2a00',
@@ -107,7 +107,7 @@ export default function ChampionshipPlate({ year = '2025–2026' }: { year?: str
                 </p>
 
                 <p
-                  className="font-bold uppercase tracking-widest"
+                  className="font-bold uppercase tracking-widest font-body"
                   style={{
                     fontSize: 'clamp(7px, 1.6vw, 10px)',
                     color: '#5a4500',

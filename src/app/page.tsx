@@ -267,8 +267,8 @@ function StatCard({ value, label, icon, colorClass }: { value: string; label: st
   return (
     <div className="relative overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.04] p-5">
       <div className={`absolute top-0 right-0 left-0 h-0.5 ${colorClass}`} />
-      <p className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-[#5a7a9a]">{icon} {label}</p>
-      <p className="text-3xl font-black text-white">{value}</p>
+      <p className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-[#5a7a9a] font-body">{icon} {label}</p>
+      <p className="text-3xl font-black text-white font-stats">{value}</p>
     </div>
   );
 }
@@ -277,10 +277,10 @@ function RecordCard({ icon, label, value, sub, detail, color }: { icon: string; 
   return (
     <div className="relative rounded-2xl border border-white/[0.07] bg-white/[0.04] p-5" style={{ borderRightWidth: 4, borderRightColor: color }}>
       <div className="mb-2 text-2xl">{icon}</div>
-      <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#5a7a9a]">{label}</p>
-      <p dir="ltr" className="text-3xl font-black leading-none text-right" style={{ color }}>{value}</p>
-      <p className="mt-2 text-sm font-semibold text-[#c8d8e8]">{sub}</p>
-      <p className="mt-1 text-xs text-[#5a7a9a]">{detail}</p>
+      <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#5a7a9a] font-body">{label}</p>
+      <p dir="ltr" className="text-3xl font-black leading-none text-right font-stats" style={{ color }}>{value}</p>
+      <p className="mt-2 text-sm font-semibold text-[#c8d8e8] font-heading">{sub}</p>
+      <p className="mt-1 text-xs text-[#5a7a9a] font-body">{detail}</p>
     </div>
   );
 }
@@ -401,8 +401,8 @@ export default async function HomePage() {
       )}
 
       <div>
-        <h1 className="text-3xl font-black text-white">{T('סקירה כללית')}</h1>
-        <p className="mt-1 text-sm text-[#5a7a9a]">{lang === 'en' ? `Season 2025–2026 · Through Round ${currentRound}` : `עונת 2025–2026 · עד מחזור ${currentRound}`}</p>
+        <h1 className="text-3xl font-black text-white font-heading">{T('סקירה כללית')}</h1>
+        <p className="mt-1 text-sm text-[#5a7a9a] font-body">{lang === 'en' ? `Season 2025–2026 · Through Round ${currentRound}` : `עונת 2025–2026 · עד מחזור ${currentRound}`}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -423,11 +423,11 @@ export default async function HomePage() {
         ].map(({ label, team }) => (
           <div key={label} className="rounded-2xl border border-white/[0.07] bg-white/[0.04]" style={{ borderTop: '3px solid #e0c97a' }}>
             <div className="p-5">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-[#5a7a9a]">{label}</p>
-              <Link href={`/team/${encodeURIComponent(team.name)}`} className="text-xl font-black text-[#e0c97a] hover:underline underline-offset-2 transition-colors">{team.name}</Link>
-              <p className="mt-1 text-sm text-[#8aaac8]">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-[#5a7a9a] font-body">{label}</p>
+              <Link href={`/team/${encodeURIComponent(team.name)}`} className="text-xl font-black text-[#e0c97a] hover:underline underline-offset-2 transition-colors font-heading">{team.name}</Link>
+              <p className="mt-1 text-sm text-[#8aaac8] font-body">
                 {lang === 'en' ? `${team.wins}W / ${team.losses}L · ` : `${team.wins}נ / ${team.losses}ה · `}
-                <span className="font-bold text-orange-400">{team.pts} {lang === 'en' ? 'pts' : 'נקודות'}</span>
+                <span className="font-bold text-orange-400 font-stats">{team.pts} {lang === 'en' ? 'pts' : 'נקודות'}</span>
               </p>
             </div>
           </div>
@@ -435,7 +435,7 @@ export default async function HomePage() {
       </div>
 
       <section>
-        <h2 className="mb-4 flex items-center gap-2 text-lg font-black text-white">
+        <h2 className="mb-4 flex items-center gap-2 text-lg font-black text-white font-heading">
           <span className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-700 px-2 py-1 text-sm">🏆</span>
           {T('ביצועי שיא עונה')}
         </h2>
@@ -459,7 +459,7 @@ export default async function HomePage() {
       {/* ── Top Scorers ────────────────────────────────────────────────── */}
       {topScorers.length > 0 && (
         <section>
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-black text-white">
+          <h2 className="mb-4 flex items-center gap-2 text-lg font-black text-white font-heading">
             <span className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-700 px-2 py-1 text-sm">🏅</span>
             {T('קלעי הליגה')}
           </h2>
@@ -504,15 +504,15 @@ export default async function HomePage() {
 
                   {/* Name + team + bar */}
                   <div className="flex-1 min-w-0">
-                    <p className="truncate text-sm font-bold text-white group-hover:text-orange-300 transition-colors leading-tight">
+                    <p className="truncate text-sm font-bold text-white group-hover:text-orange-300 transition-colors leading-tight font-heading">
                       {p.name}
                     </p>
                     <div className="flex items-center gap-1 mt-0.5">
                       {p.jersey_number !== null && (
-                        <span className="text-[10px] font-bold text-orange-400/70 shrink-0">#{p.jersey_number}</span>
+                        <span className="text-[10px] font-bold text-orange-400/70 shrink-0 font-stats">#{p.jersey_number}</span>
                       )}
                       {p.team_name && (
-                        <span className="truncate text-[10px] text-[#3a5a7a]">{p.team_name}</span>
+                        <span className="truncate text-[10px] text-[#3a5a7a] font-body">{p.team_name}</span>
                       )}
                     </div>
                     <div className="mt-1 h-0.5 w-full rounded-full bg-white/[0.06]">
@@ -525,18 +525,18 @@ export default async function HomePage() {
 
                   {/* Points — always visible */}
                   <div className="w-12 shrink-0 text-center">
-                    <p className="text-base font-black text-orange-400">{p.points}</p>
-                    <p className="text-[9px] text-[#3a5a7a]">{T('נק׳')}</p>
+                    <p className="text-base font-black text-orange-400 font-stats">{p.points}</p>
+                    <p className="text-[9px] text-[#3a5a7a] font-body">{T('נק׳')}</p>
                   </div>
 
                   {/* 3PT + Fouls — hidden on small screens */}
                   <div className="hidden sm:block w-12 shrink-0 text-center">
-                    <p className="text-sm font-semibold text-sky-400">{p.three_pointers}</p>
-                    <p className="text-[9px] text-[#3a5a7a]">{T('3נק׳')}</p>
+                    <p className="text-sm font-semibold text-sky-400 font-stats">{p.three_pointers}</p>
+                    <p className="text-[9px] text-[#3a5a7a] font-body">{T('3נק׳')}</p>
                   </div>
                   <div className="hidden sm:block w-12 shrink-0 text-center">
-                    <p className="text-sm text-rose-400">{p.fouls}</p>
-                    <p className="text-[9px] text-[#3a5a7a]">{T('פאולים')}</p>
+                    <p className="text-sm text-rose-400 font-stats">{p.fouls}</p>
+                    <p className="text-[9px] text-[#3a5a7a] font-body">{T('פאולים')}</p>
                   </div>
                 </a>
               );
@@ -552,24 +552,24 @@ export default async function HomePage() {
 
       <section className="rounded-2xl border border-white/[0.07] bg-white/[0.04]">
         <div className="border-b border-white/[0.06] px-5 py-4">
-          <h2 className="text-base font-bold text-[#e0c97a]">📋 {T('עובדות עונה')}</h2>
+          <h2 className="text-base font-bold text-[#e0c97a] font-heading">📋 {T('עובדות עונה')}</h2>
         </div>
         <div className="grid grid-cols-1 divide-y divide-white/[0.05] sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:divide-x-reverse">
           <div className="p-5">
-            <p className="mb-1 text-xs text-[#5a7a9a]">{T('מוביל סלים בדרום')}</p>
-            <p className="text-base font-black text-green-400">{southLeader.name}</p>
-            <p className="text-xs text-[#5a7a9a]">{southLeader.pts} {T('נקודות')}</p>
+            <p className="mb-1 text-xs text-[#5a7a9a] font-body">{T('מוביל סלים בדרום')}</p>
+            <p className="text-base font-black text-green-400 font-heading">{southLeader.name}</p>
+            <p className="text-xs text-[#5a7a9a] font-stats">{southLeader.pts} <span className="font-body">{T('נקודות')}</span></p>
           </div>
           <div className="p-5">
-            <p className="mb-1 text-xs text-[#5a7a9a]">{T('גמר הגביע')}</p>
+            <p className="mb-1 text-xs text-[#5a7a9a] font-body">{T('גמר הגביע')}</p>
             {cupFinal ? (
               <>
-                <p className="text-base font-black text-[#e0c97a]">
+                <p className="text-base font-black text-[#e0c97a] font-heading">
                   {cupFinal.played && cupFinal.home_score !== null
-                    ? `${cupFinal.home_team} ${cupFinal.home_score}–${cupFinal.away_score} ${cupFinal.away_team}`
+                    ? <><span className="font-heading">{cupFinal.home_team}</span> <span className="font-stats">{cupFinal.home_score}–{cupFinal.away_score}</span> <span className="font-heading">{cupFinal.away_team}</span></>
                     : cupFinal.date || '—'}
                 </p>
-                <p className="text-xs text-[#5a7a9a]">
+                <p className="text-xs text-[#5a7a9a] font-body">
                   {cupFinal.played
                     ? (lang === 'en' ? 'Final result' : `${cupFinal.date}`)
                     : `${cupFinal.home_team} vs ${cupFinal.away_team}`}
@@ -578,14 +578,14 @@ export default async function HomePage() {
             ) : (
               <>
                 <p className="text-base font-black text-[#e0c97a]">—</p>
-                <p className="text-xs text-[#5a7a9a]">{lang === 'en' ? 'TBD' : 'טרם נקבע'}</p>
+                <p className="text-xs text-[#5a7a9a] font-body">{lang === 'en' ? 'TBD' : 'טרם נקבע'}</p>
               </>
             )}
           </div>
           <div className="p-5">
-            <p className="mb-1 text-xs text-[#5a7a9a]">{T('מחזורים שנותרו')}</p>
-            <p className="text-3xl font-black text-blue-400">{TOTAL_ROUNDS - currentRound}</p>
-            <p className="text-xs text-[#5a7a9a]">{lang === 'en' ? `out of ${TOTAL_ROUNDS} rounds` : `מתוך ${TOTAL_ROUNDS} מחזורים`}</p>
+            <p className="mb-1 text-xs text-[#5a7a9a] font-body">{T('מחזורים שנותרו')}</p>
+            <p className="text-3xl font-black text-blue-400 font-stats">{TOTAL_ROUNDS - currentRound}</p>
+            <p className="text-xs text-[#5a7a9a] font-body">{lang === 'en' ? `out of ${TOTAL_ROUNDS} rounds` : `מתוך ${TOTAL_ROUNDS} מחזורים`}</p>
           </div>
         </div>
       </section>

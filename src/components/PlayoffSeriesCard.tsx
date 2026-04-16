@@ -88,9 +88,9 @@ function RosterList({ roster, teamName }: { roster: RosterPlayer[]; teamName: st
       {roster.map((p, i) => (
         <li key={i} className="flex items-center gap-2">
           {p.jersey_number !== null && (
-            <span className="w-6 shrink-0 text-[10px] font-black text-orange-400/70 text-center">{p.jersey_number}</span>
+            <span className="w-6 shrink-0 text-[10px] font-black text-orange-400/70 text-center font-stats">{p.jersey_number}</span>
           )}
-          <span className="text-xs text-[#c8d8e8] truncate">{p.name}</span>
+          <span className="text-xs text-[#c8d8e8] truncate font-heading">{p.name}</span>
         </li>
       ))}
     </ul>
@@ -191,18 +191,18 @@ export default function PlayoffSeriesCard({
           <div className={`flex-1 min-w-0 flex flex-col items-center gap-1.5 transition-opacity ${bWon ? 'opacity-35' : ''}`}>
             <TeamLogo name={series.team_a} logos={teamLogos} size="md" />
             <div className="text-center w-full px-1">
-              <p className={`text-xs sm:text-sm font-black leading-tight break-words ${aWon ? 'text-orange-400' : 'text-white'}`}>{series.team_a}</p>
-              <p className="text-[9px] text-[#4a6a8a] mt-0.5 font-semibold">{lA.full}</p>
+              <p className={`text-xs sm:text-sm font-black leading-tight break-words font-heading ${aWon ? 'text-orange-400' : 'text-white'}`}>{series.team_a}</p>
+              <p className="text-[9px] text-[#4a6a8a] mt-0.5 font-semibold font-body">{lA.full}</p>
             </div>
           </div>
 
           <div className="flex flex-col items-center gap-1 shrink-0 px-1">
             <div className="flex items-center gap-1.5 sm:gap-3">
-              <span className={`text-3xl sm:text-5xl font-black tabular-nums leading-none ${aWon ? 'text-orange-400' : started ? 'text-white' : 'text-[#1e3a5f]'}`}>
+              <span className={`text-3xl sm:text-5xl font-black tabular-nums leading-none font-stats ${aWon ? 'text-orange-400' : started ? 'text-white' : 'text-[#1e3a5f]'}`}>
                 {started ? winsA : '–'}
               </span>
               <span className="text-base sm:text-lg text-[#1e3a5f] font-black leading-none">:</span>
-              <span className={`text-3xl sm:text-5xl font-black tabular-nums leading-none ${bWon ? 'text-orange-400' : started ? 'text-white' : 'text-[#1e3a5f]'}`}>
+              <span className={`text-3xl sm:text-5xl font-black tabular-nums leading-none font-stats ${bWon ? 'text-orange-400' : started ? 'text-white' : 'text-[#1e3a5f]'}`}>
                 {started ? winsB : '–'}
               </span>
             </div>
@@ -217,8 +217,8 @@ export default function PlayoffSeriesCard({
           <div className={`flex-1 min-w-0 flex flex-col items-center gap-1.5 transition-opacity ${aWon ? 'opacity-35' : ''}`}>
             <TeamLogo name={series.team_b} logos={teamLogos} size="md" />
             <div className="text-center w-full px-1">
-              <p className={`text-xs sm:text-sm font-black leading-tight break-words ${bWon ? 'text-orange-400' : 'text-white'}`}>{series.team_b}</p>
-              <p className="text-[9px] text-[#4a6a8a] mt-0.5 font-semibold">{lB.full}</p>
+              <p className={`text-xs sm:text-sm font-black leading-tight break-words font-heading ${bWon ? 'text-orange-400' : 'text-white'}`}>{series.team_b}</p>
+              <p className="text-[9px] text-[#4a6a8a] mt-0.5 font-semibold font-body">{lB.full}</p>
             </div>
           </div>
         </div>

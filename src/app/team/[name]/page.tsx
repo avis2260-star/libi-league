@@ -137,7 +137,7 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
           </div>
         )}
         <div className="min-w-0">
-          <h1 className="text-2xl font-black text-white leading-tight">{teamName}</h1>
+          <h1 className="text-2xl font-black text-white leading-tight font-heading">{teamName}</h1>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             {division && (
               <span className={`rounded-lg px-2 py-0.5 text-[11px] font-bold ${
@@ -166,8 +166,8 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
             { label: '+/−', value: standing.diff > 0 ? `+${standing.diff}` : String(standing.diff), color: standing.diff > 0 ? 'text-green-400' : 'text-red-400' },
           ].map(({ label, value, color }) => (
             <div key={label} className="rounded-2xl border border-white/[0.07] bg-white/[0.04] p-4 text-center">
-              <p className={`text-2xl font-black ${color}`} dir="ltr">{value}</p>
-              <p className="text-[11px] text-[#5a7a9a] mt-0.5">{label}</p>
+              <p className={`text-2xl font-black font-stats ${color}`} dir="ltr">{value}</p>
+              <p className="text-[11px] text-[#5a7a9a] mt-0.5 font-body">{label}</p>
             </div>
           ))}
         </div>
@@ -181,16 +181,16 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
           </div>
           <div className="grid grid-cols-3 divide-x divide-x-reverse divide-white/[0.05]">
             <div className="p-4 text-center">
-              <p className="text-2xl font-black text-white">{avgPts}</p>
-              <p className="text-[11px] text-[#5a7a9a] mt-0.5">נקודות לניצחון</p>
+              <p className="text-2xl font-black text-white font-stats">{avgPts}</p>
+              <p className="text-[11px] text-[#5a7a9a] mt-0.5 font-body">נקודות לניצחון</p>
             </div>
             <div className="p-4 text-center">
-              <p className="text-2xl font-black text-[#5a7a9a]">{avgAllowed}</p>
-              <p className="text-[11px] text-[#5a7a9a] mt-0.5">נקודות נגד</p>
+              <p className="text-2xl font-black text-[#5a7a9a] font-stats">{avgAllowed}</p>
+              <p className="text-[11px] text-[#5a7a9a] mt-0.5 font-body">נקודות נגד</p>
             </div>
             <div className="p-4 text-center">
-              <p className="text-2xl font-black text-orange-400">{winPct}%</p>
-              <p className="text-[11px] text-[#5a7a9a] mt-0.5">אחוז נצחונות</p>
+              <p className="text-2xl font-black text-orange-400 font-stats">{winPct}%</p>
+              <p className="text-[11px] text-[#5a7a9a] mt-0.5 font-body">אחוז נצחונות</p>
             </div>
           </div>
         </div>
@@ -215,9 +215,9 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
                   <p className="text-[11px] text-[#5a7a9a]">מחזור {g.round} · {g.date}</p>
                 </div>
                 <div dir="ltr" className="shrink-0 text-right">
-                  <span className={`text-lg font-black ${g.won ? 'text-green-400' : 'text-red-400'}`}>{g.myScore}</span>
+                  <span className={`text-lg font-black font-stats ${g.won ? 'text-green-400' : 'text-red-400'}`}>{g.myScore}</span>
                   <span className="text-[#3a5a7a] mx-1">–</span>
-                  <span className="text-lg font-black text-[#5a7a9a]">{g.oppScore}</span>
+                  <span className="text-lg font-black text-[#5a7a9a] font-stats">{g.oppScore}</span>
                 </div>
               </div>
             ))}
@@ -251,9 +251,9 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
                   </div>
                   {hasScores ? (
                     <div dir="ltr" className="shrink-0">
-                      <span className={`text-lg font-black ${won ? 'text-green-400' : 'text-red-400'}`}>{myScore}</span>
+                      <span className={`text-lg font-black font-stats ${won ? 'text-green-400' : 'text-red-400'}`}>{myScore}</span>
                       <span className="text-[#3a5a7a] mx-1">–</span>
-                      <span className="text-lg font-black text-[#5a7a9a]">{oppScore}</span>
+                      <span className="text-lg font-black text-[#5a7a9a] font-stats">{oppScore}</span>
                     </div>
                   ) : (
                     <span className="text-xs text-[#3a5a7a]">טרם שוחק</span>

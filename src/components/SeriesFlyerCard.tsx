@@ -58,7 +58,7 @@ export default function SeriesFlyerCard({
         <p className="text-[10px] font-black uppercase tracking-[4px] text-[#e0a030]">
           🏀 ליגת ליבי פלייאוף 2025–2026
         </p>
-        <p className="mt-0.5 text-lg font-black text-white">{roundLabel} · סדרה {seriesNum}</p>
+        <p className="mt-0.5 text-lg font-black text-white font-heading">{roundLabel} · סדרה <span className="font-stats">{seriesNum}</span></p>
       </div>
 
       {/* Bouncing basketball */}
@@ -92,7 +92,7 @@ export default function SeriesFlyerCard({
               {[...teamA].find(c => /\S/.test(c)) ?? '?'}
             </div>
           )}
-          <p className={`text-xs sm:text-sm font-black text-center leading-tight w-full px-1 ${winner === teamA ? 'text-orange-400' : 'text-white'}`}>
+          <p className={`text-xs sm:text-sm font-black text-center leading-tight w-full px-1 font-heading ${winner === teamA ? 'text-orange-400' : 'text-white'}`}>
             {hasTeams ? teamA : 'ממתין'}
           </p>
         </div>
@@ -107,11 +107,11 @@ export default function SeriesFlyerCard({
               boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.5)',
             }}
           >
-            <span className={`text-4xl sm:text-5xl font-black tabular-nums leading-none ${winsA > 0 ? 'text-white' : 'text-[#1e3a5f]'}`}>
+            <span className={`text-4xl sm:text-5xl font-black tabular-nums leading-none font-stats ${winsA > 0 ? 'text-white' : 'text-[#1e3a5f]'}`}>
               {winsA}
             </span>
             <span className="text-xl sm:text-2xl text-[#1e3a5f] font-black">:</span>
-            <span className={`text-4xl sm:text-5xl font-black tabular-nums leading-none ${winsB > 0 ? 'text-white' : 'text-[#1e3a5f]'}`}>
+            <span className={`text-4xl sm:text-5xl font-black tabular-nums leading-none font-stats ${winsB > 0 ? 'text-white' : 'text-[#1e3a5f]'}`}>
               {winsB}
             </span>
           </div>
@@ -130,7 +130,7 @@ export default function SeriesFlyerCard({
               {[...teamB].find(c => /\S/.test(c)) ?? '?'}
             </div>
           )}
-          <p className={`text-xs sm:text-sm font-black text-center leading-tight w-full px-1 ${winner === teamB ? 'text-orange-400' : 'text-white'}`}>
+          <p className={`text-xs sm:text-sm font-black text-center leading-tight w-full px-1 font-heading ${winner === teamB ? 'text-orange-400' : 'text-white'}`}>
             {hasTeams ? teamB : 'ממתין'}
           </p>
         </div>
@@ -155,11 +155,11 @@ export default function SeriesFlyerCard({
             {g.played ? (
               <>
                 <div className="flex items-center gap-1.5">
-                  <span className={`text-xl font-black tabular-nums ${g.aWon ? 'text-orange-400' : 'text-white'}`}>
+                  <span className={`text-xl font-black tabular-nums font-stats ${g.aWon ? 'text-orange-400' : 'text-white'}`}>
                     {g.aScore}
                   </span>
                   <span className="text-xs text-[#2a4a6a] font-black">-</span>
-                  <span className={`text-xl font-black tabular-nums ${!g.aWon ? 'text-orange-400' : 'text-white'}`}>
+                  <span className={`text-xl font-black tabular-nums font-stats ${!g.aWon ? 'text-orange-400' : 'text-white'}`}>
                     {g.bScore}
                   </span>
                 </div>

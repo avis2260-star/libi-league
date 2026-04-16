@@ -54,11 +54,11 @@ export default async function ScorersPage() {
           <Link href="/" className="mb-2 inline-block text-xs text-[#5a7a9a] hover:text-orange-400 transition-colors">
             ← חזרה לדף הבית
           </Link>
-          <h1 className="text-2xl font-black text-white flex items-center gap-2">
+          <h1 className="text-2xl font-black text-white flex items-center gap-2 font-heading">
             <span className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-700 px-2 py-1 text-sm">🏅</span>
             רשימת קלעי הליגה
           </h1>
-          <p className="text-sm text-[#5a7a9a] mt-0.5">טבלת מובילי הנקודות — עונת 2025–2026</p>
+          <p className="text-sm text-[#5a7a9a] mt-0.5 font-body">טבלת מובילי הנקודות — עונת 2025–2026</p>
         </div>
       </div>
 
@@ -92,7 +92,7 @@ export default async function ScorersPage() {
                   {i < 3 ? (
                     <span className="text-xl">{MEDAL[i]}</span>
                   ) : (
-                    <span className={`text-sm font-black ${RANK_COLORS[i] ?? 'text-[#5a7a9a]'}`}>{i + 1}</span>
+                    <span className={`text-sm font-black font-stats ${RANK_COLORS[i] ?? 'text-[#5a7a9a]'}`}>{i + 1}</span>
                   )}
                 </div>
 
@@ -112,15 +112,15 @@ export default async function ScorersPage() {
 
                   {/* Name / team */}
                   <div className="min-w-0">
-                    <p className="truncate font-bold text-white group-hover:text-orange-300 transition-colors leading-tight">
+                    <p className="truncate font-bold text-white group-hover:text-orange-300 transition-colors leading-tight font-heading">
                       {p.name}
                     </p>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       {p.jersey_number !== null && (
-                        <span className="text-[10px] font-bold text-orange-400/80 shrink-0">#{p.jersey_number}</span>
+                        <span className="text-[10px] font-bold text-orange-400/80 shrink-0 font-stats">#{p.jersey_number}</span>
                       )}
                       {p.team_name && (
-                        <span className="truncate text-[11px] text-[#3a5a7a]">{p.team_name}</span>
+                        <span className="truncate text-[11px] text-[#3a5a7a] font-body">{p.team_name}</span>
                       )}
                     </div>
                     {/* Progress bar */}
@@ -135,18 +135,18 @@ export default async function ScorersPage() {
 
                 {/* Points */}
                 <div className="w-16 sm:w-auto shrink-0 px-2 py-4 text-center">
-                  <p className="text-lg font-black text-orange-400">{p.points}</p>
-                  <p className="text-[9px] text-[#3a5a7a] sm:hidden">נק׳</p>
+                  <p className="text-lg font-black text-orange-400 font-stats">{p.points}</p>
+                  <p className="text-[9px] text-[#3a5a7a] sm:hidden font-body">נק׳</p>
                 </div>
 
                 {/* 3PT */}
                 <div className="hidden sm:block py-4 text-center">
-                  <p className="text-base font-semibold text-sky-400">{p.three_pointers}</p>
+                  <p className="text-base font-semibold text-sky-400 font-stats">{p.three_pointers}</p>
                 </div>
 
                 {/* Fouls */}
                 <div className="hidden sm:block py-4 text-center">
-                  <p className="text-base text-rose-400">{p.fouls}</p>
+                  <p className="text-base text-rose-400 font-stats">{p.fouls}</p>
                 </div>
               </Link>
             );

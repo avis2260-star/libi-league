@@ -161,7 +161,7 @@ export default async function PlayerProfilePage({
             {/* Badges row */}
             <div className="mb-2 flex flex-wrap items-center gap-2">
               {player.jersey_number !== null && (
-                <span className="rounded-lg border border-white/[0.12] px-3 py-0.5 text-sm font-bold text-orange-400">
+                <span className="rounded-lg border border-white/[0.12] px-3 py-0.5 text-sm font-bold text-orange-400 font-stats">
                   #{player.jersey_number}
                 </span>
               )}
@@ -184,13 +184,13 @@ export default async function PlayerProfilePage({
             </div>
 
             {/* Name */}
-            <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
+            <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl font-heading">
               {player.name}
             </h1>
 
             {/* Team */}
             {player.team && (
-              <p className="mt-1 text-sm text-[#8aaac8]">{player.team.name}</p>
+              <p className="mt-1 text-sm text-[#8aaac8] font-heading">{player.team.name}</p>
             )}
           </div>
         </div>
@@ -218,8 +218,8 @@ export default async function PlayerProfilePage({
                 { label: 'סה״כ עבירות', value: totalFouls },
               ].map(({ label, value }) => (
                 <div key={label} className="flex-1 py-3">
-                  <p className="text-lg font-bold text-[#e8edf5]">{value}</p>
-                  <p className="text-xs text-[#5a7a9a]">{label}</p>
+                  <p className="text-lg font-bold text-[#e8edf5] font-stats">{value}</p>
+                  <p className="text-xs text-[#5a7a9a] font-body">{label}</p>
                 </div>
               ))}
             </div>
@@ -266,14 +266,14 @@ export default async function PlayerProfilePage({
                     return (
                       <tr key={stat.id} className="hover:bg-white/[0.02]">
                         <td className="whitespace-nowrap px-4 py-3 text-[#8aaac8]">{dateStr}</td>
-                        <td className="px-4 py-3 font-medium text-[#e8edf5]">
-                          <span className="text-[#5a7a9a] text-xs ml-1">{isHome ? 'נגד' : '@'}</span>
+                        <td className="px-4 py-3 font-medium text-[#e8edf5] font-heading">
+                          <span className="text-[#5a7a9a] text-xs ml-1 font-body">{isHome ? 'נגד' : '@'}</span>
                           {opp.name}
                         </td>
-                        <td className="px-4 py-3 text-center tabular-nums text-[#8aaac8]">
+                        <td className="px-4 py-3 text-center tabular-nums text-[#8aaac8] font-stats">
                           {stat.game.status === 'Finished'
                             ? `${myScore}–${theirScore}`
-                            : <span className="text-xs text-[#5a7a9a]">{stat.game.status}</span>}
+                            : <span className="text-xs text-[#5a7a9a] font-body">{stat.game.status}</span>}
                         </td>
                         <td className="px-4 py-3 text-center">
                           {result ? (
@@ -286,9 +286,9 @@ export default async function PlayerProfilePage({
                             </span>
                           ) : '—'}
                         </td>
-                        <td className="px-4 py-3 text-center font-bold text-orange-400">{stat.points}</td>
-                        <td className="px-4 py-3 text-center font-semibold text-sky-400">{stat.three_pointers}</td>
-                        <td className="px-4 py-3 text-center text-rose-400">{stat.fouls}</td>
+                        <td className="px-4 py-3 text-center font-bold text-orange-400 font-stats">{stat.points}</td>
+                        <td className="px-4 py-3 text-center font-semibold text-sky-400 font-stats">{stat.three_pointers}</td>
+                        <td className="px-4 py-3 text-center text-rose-400 font-stats">{stat.fouls}</td>
                       </tr>
                     );
                   })}
@@ -321,7 +321,7 @@ export default async function PlayerProfilePage({
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-white">
+    <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-white font-heading">
       <span className="h-4 w-1 rounded-full bg-orange-500" />
       {children}
     </h2>
@@ -350,9 +350,9 @@ function StatCard({
   return (
     <div className="flex flex-col justify-between rounded-2xl border border-white/[0.07] bg-white/[0.04] p-4">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-[#5a7a9a]">{label}</p>
-        <p className={`mt-1 text-4xl font-black tabular-nums ${cls.number}`}>{value}</p>
-        <p className="mt-1 text-xs text-[#4a6a8a]">{sublabel}</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-[#5a7a9a] font-body">{label}</p>
+        <p className={`mt-1 text-4xl font-black tabular-nums font-stats ${cls.number}`}>{value}</p>
+        <p className="mt-1 text-xs text-[#4a6a8a] font-body">{sublabel}</p>
       </div>
       <div className="mt-4 h-0.5 w-full rounded-full bg-white/[0.06]">
         <div className={`h-0.5 w-1/3 rounded-full ${cls.bar}`} />

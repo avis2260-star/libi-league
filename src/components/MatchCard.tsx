@@ -54,7 +54,7 @@ export default function MatchCard({ game }: MatchCardProps) {
         {/* VS / scores divider */}
         <div className="flex flex-col items-center">
           {showScores ? (
-            <span className="text-2xl font-bold tabular-nums text-gray-800">
+            <span className="text-2xl font-bold tabular-nums text-gray-800 font-stats">
               {home_score} – {away_score}
             </span>
           ) : (
@@ -73,7 +73,7 @@ export default function MatchCard({ game }: MatchCardProps) {
       </div>
 
       {/* Location */}
-      <p className="text-center text-xs text-gray-400">
+      <p className="text-center text-xs text-gray-400 font-body">
         📍 {location}
       </p>
     </article>
@@ -108,7 +108,7 @@ function TeamSlot({ name, logoUrl, score, isWinner, reverse }: TeamSlotProps) {
 
       {/* Name */}
       <span
-        className={`text-center text-sm font-semibold leading-tight ${
+        className={`text-center text-sm font-semibold leading-tight font-heading ${
           isWinner ? 'text-green-600' : 'text-gray-700'
         }`}
       >

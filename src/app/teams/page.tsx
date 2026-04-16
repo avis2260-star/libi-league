@@ -92,7 +92,7 @@ function TeamCard({
       {/* Info */}
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <p className="truncate text-base font-bold text-white">{team.name}</p>
+          <p className="truncate text-base font-bold text-white font-heading">{team.name}</p>
           {division && (
             <span className={`shrink-0 rounded-lg px-2 py-0.5 text-[10px] font-bold ${
               division === 'צפון'
@@ -122,13 +122,13 @@ function TeamCard({
 
         {/* Mini stats from standings */}
         {stats && (
-          <div className="mt-2 flex gap-4 text-xs">
+          <div className="mt-2 flex gap-4 text-xs font-stats">
             <span className="text-green-400 font-semibold">{stats.wins}נ</span>
             <span className="text-red-400 font-semibold">{stats.losses}ה</span>
             <span dir="ltr" className={`font-semibold ${stats.diff > 0 ? 'text-green-400' : 'text-red-400'}`}>
               {stats.diff > 0 ? `+${stats.diff}` : stats.diff}
             </span>
-            <span className="font-black text-orange-400">{stats.pts} נק׳</span>
+            <span className="font-black text-orange-400">{stats.pts} <span className="font-body">נק׳</span></span>
           </div>
         )}
       </div>
@@ -165,8 +165,8 @@ export default async function TeamsPage() {
     <div className="space-y-8">
       {/* Page title */}
       <div>
-        <h1 className="text-3xl font-black text-white">קבוצות</h1>
-        <p className="mt-1 text-sm text-[#5a7a9a]">{teams.length} קבוצות · עונת 2025–2026</p>
+        <h1 className="text-3xl font-black text-white font-heading">קבוצות</h1>
+        <p className="mt-1 text-sm text-[#5a7a9a] font-body"><span className="font-stats">{teams.length}</span> קבוצות · עונת 2025–2026</p>
       </div>
 
       {teams.length === 0 ? (

@@ -197,9 +197,9 @@ export default function LiveClient({
 
         {/* Title */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-black text-white truncate">🏀 ניהול משחק חי</p>
+          <p className="text-sm font-black text-white truncate font-heading">🏀 ניהול משחק חי</p>
           {selected && (
-            <p className="text-[10px] text-orange-400 truncate font-bold">
+            <p className="text-[10px] text-orange-400 truncate font-bold font-heading">
               {selected.home_name} נגד {selected.away_name}
             </p>
           )}
@@ -260,8 +260,8 @@ export default function LiveClient({
         <div className="border-b border-white/[0.07] bg-[#0b1824] overflow-y-auto max-h-[50vh]">
           {/* Panel header */}
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06]">
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#3a5a7a]">
-              {currentRound ? `מחזור ${currentRound}` : 'משחקים'}
+            <span className="text-[10px] font-black uppercase tracking-widest text-[#3a5a7a] font-body">
+              {currentRound ? <>מחזור <span className="font-stats">{currentRound}</span></> : 'משחקים'}
             </span>
             <span className="text-[10px] text-[#2a4a6a]">{games.length} משחקים</span>
           </div>
@@ -291,7 +291,7 @@ export default function LiveClient({
                           >
                             {/* Home */}
                             <div className="flex items-center gap-2 flex-1 justify-end">
-                              <span className={`text-sm font-black truncate ${isSelected ? 'text-orange-300' : 'text-white'}`}>
+                              <span className={`text-sm font-black truncate font-heading ${isSelected ? 'text-orange-300' : 'text-white'}`}>
                                 {game.home_name}
                               </span>
                               <TeamLogo logo={game.home_logo} name={game.home_name} size={8} />
@@ -305,7 +305,7 @@ export default function LiveClient({
                             {/* Away */}
                             <div className="flex items-center gap-2 flex-1">
                               <TeamLogo logo={game.away_logo} name={game.away_name} size={8} />
-                              <span className={`text-sm font-black truncate ${isSelected ? 'text-orange-300' : 'text-white'}`}>
+                              <span className={`text-sm font-black truncate font-heading ${isSelected ? 'text-orange-300' : 'text-white'}`}>
                                 {game.away_name}
                               </span>
                             </div>
@@ -323,15 +323,15 @@ export default function LiveClient({
                                 <div>
                                   <div className="flex items-center gap-1.5 mb-2">
                                     <TeamLogo logo={game.home_logo} name={game.home_name} size={6} />
-                                    <p className="text-[10px] font-black text-orange-400 truncate">{game.home_name}</p>
+                                    <p className="text-[10px] font-black text-orange-400 truncate font-heading">{game.home_name}</p>
                                   </div>
                                   {hPlayers.length === 0
                                     ? <p className="text-[10px] text-[#3a5a7a]">אין שחקנים</p>
                                     : <ul className="space-y-0.5 max-h-32 overflow-y-auto">
                                         {hPlayers.map((p, i) => (
                                           <li key={i} className="flex items-center gap-1.5 text-[10px] text-[#8aaac8]">
-                                            <span className="w-5 text-center font-mono text-[#4a6a8a]">{p.jersey_number ?? '–'}</span>
-                                            <span className="truncate">{p.name}</span>
+                                            <span className="w-5 text-center font-mono text-[#4a6a8a] font-stats">{p.jersey_number ?? '–'}</span>
+                                            <span className="truncate font-heading">{p.name}</span>
                                           </li>
                                         ))}
                                       </ul>
@@ -342,15 +342,15 @@ export default function LiveClient({
                                 <div>
                                   <div className="flex items-center gap-1.5 mb-2">
                                     <TeamLogo logo={game.away_logo} name={game.away_name} size={6} />
-                                    <p className="text-[10px] font-black text-orange-400 truncate">{game.away_name}</p>
+                                    <p className="text-[10px] font-black text-orange-400 truncate font-heading">{game.away_name}</p>
                                   </div>
                                   {aPlayers.length === 0
                                     ? <p className="text-[10px] text-[#3a5a7a]">אין שחקנים</p>
                                     : <ul className="space-y-0.5 max-h-32 overflow-y-auto">
                                         {aPlayers.map((p, i) => (
                                           <li key={i} className="flex items-center gap-1.5 text-[10px] text-[#8aaac8]">
-                                            <span className="w-5 text-center font-mono text-[#4a6a8a]">{p.jersey_number ?? '–'}</span>
-                                            <span className="truncate">{p.name}</span>
+                                            <span className="w-5 text-center font-mono text-[#4a6a8a] font-stats">{p.jersey_number ?? '–'}</span>
+                                            <span className="truncate font-heading">{p.name}</span>
                                           </li>
                                         ))}
                                       </ul>

@@ -252,8 +252,8 @@ export default function ScoreboardClient({
               {roundKeys.map(rk => (
                 <div key={rk}>
                   <div className="flex items-center justify-end gap-3 mb-3 px-1">
-                    {roundDate && <span className="text-sm font-bold text-[#8aaac8]">{roundDate}</span>}
-                    <p className="text-lg font-black text-white">{rk}</p>
+                    {roundDate && <span className="text-sm font-bold text-[#8aaac8] font-body">{roundDate}</span>}
+                    <p className="text-lg font-black text-white font-heading">{rk}</p>
                   </div>
                   <div className="space-y-2">
                     {byRound[rk].map(g => (
@@ -261,7 +261,7 @@ export default function ScoreboardClient({
                         className="w-full flex items-center gap-3 bg-[#0f1923] hover:bg-[#162030] border border-white/[0.07] hover:border-orange-500/30 rounded-2xl px-5 py-4 transition-all group">
                         {/* Home */}
                         <div className="flex items-center gap-3 flex-1 justify-end">
-                          <span className="text-base font-black text-white group-hover:text-orange-300 transition-colors">{g.home_name}</span>
+                          <span className="text-base font-black text-white group-hover:text-orange-300 transition-colors font-heading">{g.home_name}</span>
                           <Logo logo={g.home_logo} name={g.home_name} size={44} />
                         </div>
                         {/* VS */}
@@ -271,7 +271,7 @@ export default function ScoreboardClient({
                         {/* Away */}
                         <div className="flex items-center gap-3 flex-1">
                           <Logo logo={g.away_logo} name={g.away_name} size={44} />
-                          <span className="text-base font-black text-white group-hover:text-orange-300 transition-colors">{g.away_name}</span>
+                          <span className="text-base font-black text-white group-hover:text-orange-300 transition-colors font-heading">{g.away_name}</span>
                         </div>
                         {/* Arrow */}
                         <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-[#2a4a6a] group-hover:text-orange-400 transition-colors shrink-0">
@@ -440,8 +440,8 @@ export default function ScoreboardClient({
           <div className="flex items-center gap-3 mb-2">
             <Logo logo={t.logo} name={t.name} size={40} />
             <div className="min-w-0">
-              <p className="text-[11px] font-black uppercase tracking-wider truncate" style={{ color: accent }}>{t.name}</p>
-              <p className="text-4xl font-black text-white leading-none">{t.score}</p>
+              <p className="text-[11px] font-black uppercase tracking-wider truncate font-heading" style={{ color: accent }}>{t.name}</p>
+              <p className="text-4xl font-black text-white leading-none font-stats">{t.score}</p>
             </div>
           </div>
           {/* Score buttons */}
@@ -651,14 +651,14 @@ export default function ScoreboardClient({
           <div className="flex items-center gap-6">
             <div className="text-center">
               <Logo logo={home.logo} name={home.name} size={56} />
-              <p className="text-[#d4982a] font-black text-sm mt-2">{home.name}</p>
-              <p className="text-5xl font-black text-white mt-1">{home.score}</p>
+              <p className="text-[#d4982a] font-black text-sm mt-2 font-heading">{home.name}</p>
+              <p className="text-5xl font-black text-white mt-1 font-stats">{home.score}</p>
             </div>
             <p className="text-3xl font-black text-[#3a5a7a]">—</p>
             <div className="text-center">
               <Logo logo={away.logo} name={away.name} size={56} />
-              <p className="text-[#4a9fd4] font-black text-sm mt-2">{away.name}</p>
-              <p className="text-5xl font-black text-white mt-1">{away.score}</p>
+              <p className="text-[#4a9fd4] font-black text-sm mt-2 font-heading">{away.name}</p>
+              <p className="text-5xl font-black text-white mt-1 font-stats">{away.score}</p>
             </div>
           </div>
           <p className="text-lg font-black text-orange-400">
