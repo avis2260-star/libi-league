@@ -84,7 +84,7 @@ function PlayerCard({ player }: { player: EnrichedPlayer }) {
 
       {/* Info */}
       <div className="px-4 pb-5 text-center space-y-1">
-        <p className="font-black text-white text-base leading-tight">{player.name}</p>
+        <p className="font-heading font-black text-white text-base leading-tight">{player.name}</p>
 
         {player.team && (
           <p className="text-xs text-[#5a7a9a] font-medium">{player.team.name}</p>
@@ -111,8 +111,8 @@ function PlayerCard({ player }: { player: EnrichedPlayer }) {
             { label: 'פאולים', value: player.fouls ?? 0 },
           ].map(({ label, value }) => (
             <div key={label} className="py-2 text-center">
-              <p className="text-sm font-black text-white">{value}</p>
-              <p className="text-[9px] text-[#4a6a8a] font-medium">{label}</p>
+              <p className="font-stats text-2xl font-bold text-white">{value}</p>
+              <p className="font-body text-[9px] text-[#4a6a8a] font-medium">{label}</p>
             </div>
           ))}
         </div>

@@ -50,9 +50,9 @@ function GameCard({ game, logos }: { game: GameResult; logos: Record<string, str
       {/* Score */}
       <div className="min-w-[68px] shrink-0 rounded-lg bg-black/40 px-2.5 py-2 text-center">
         <div className="flex items-center justify-center gap-1.5">
-          <span className={`text-lg font-black ${homeWins ? 'text-orange-400' : 'text-[#4a6a8a]'}`}>{game.sh}</span>
-          <span className="text-xs text-[#3a5a7a]">:</span>
-          <span className={`text-lg font-black ${!homeWins ? 'text-orange-400' : 'text-[#4a6a8a]'}`}>{game.sa}</span>
+          <span className={`font-stats text-2xl font-bold ${homeWins ? 'text-orange-400' : 'text-[#4a6a8a]'}`}>{game.sh}</span>
+          <span className="font-stats text-lg text-[#3a5a7a]">:</span>
+          <span className={`font-stats text-2xl font-bold ${!homeWins ? 'text-orange-400' : 'text-[#4a6a8a]'}`}>{game.sa}</span>
         </div>
         {techni && <p className="mt-0.5 text-[8px] font-bold tracking-wide text-red-400">טכני *</p>}
       </div>

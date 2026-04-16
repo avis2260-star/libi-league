@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import type { Metadata } from 'next';
-import { Heebo } from 'next/font/google';
+import { Heebo, Teko, Assistant } from 'next/font/google';
 import './globals.css';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import GroupedNav from '@/components/GroupedNav';
@@ -18,7 +18,9 @@ import RotationShell from '@/components/RotationShell';
 import Footer from '@/components/Footer';
 import BackButton from '@/components/BackButton';
 
-const heebo = Heebo({ subsets: ['hebrew', 'latin'], weight: ['300','400','500','600','700','800','900'] });
+const heebo     = Heebo({ subsets: ['hebrew', 'latin'], weight: ['300','400','500','600','700','800','900'], variable: '--font-heebo' });
+const teko      = Teko({ subsets: ['latin'], weight: ['400','600','700'], variable: '--font-teko' });
+const assistant = Assistant({ subsets: ['hebrew', 'latin'], weight: ['400','600','700'], variable: '--font-assistant' });
 
 export const metadata: Metadata = {
   title: 'ליגת ליבי',
@@ -51,7 +53,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <link rel="apple-touch-icon" href="/logo.png" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
-      <body className={`${heebo.className} min-h-screen bg-[#060810] text-[#e8edf5]`}>
+      <body className={`${heebo.className} ${teko.variable} ${assistant.variable} min-h-screen bg-[#060810] text-[#e8edf5]`}>
         <CourtBackground />
         <AppRotationProvider>
         <RotationShell>

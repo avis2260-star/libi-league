@@ -90,7 +90,7 @@ function StandingsTable({ data, title, logos }: { data: Standing[]; title: strin
               {COLS.map((h) => (
                 <th
                   key={h}
-                  className="border-b border-white/[0.05] px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-[#4a6a8a]"
+                  className="border-b border-white/[0.05] px-3 py-2.5 text-[11px] font-heading font-bold uppercase tracking-widest text-orange-500/70"
                   style={{ textAlign: h === 'קבוצה' ? 'right' : 'center' }}
                 >
                   {h}
@@ -126,7 +126,7 @@ function StandingsTable({ data, title, logos }: { data: Standing[]; title: strin
                 >
                   {/* # Rank */}
                   <td className="px-3 py-2.5 text-center">
-                    <span className="text-sm font-bold" style={{ color: rankColor }}>
+                    <span className="font-stats text-xl font-bold" style={{ color: rankColor }}>
                       {team.rank}
                     </span>
                   </td>
@@ -135,42 +135,42 @@ function StandingsTable({ data, title, logos }: { data: Standing[]; title: strin
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-2 justify-start">
                       <TeamLogo name={team.name} logos={logos} />
-                      <TeamLink name={team.name} className="font-semibold text-[#e8edf5] text-right" />
+                      <TeamLink name={team.name} className="font-heading font-bold text-[#e8edf5] text-right" />
                     </div>
                   </td>
 
                   {/* Games played */}
-                  <td className="px-3 py-2.5 text-center text-[#8aaac8]">{team.games}</td>
+                  <td className="px-3 py-2.5 text-center font-stats text-xl text-[#8aaac8]">{team.games}</td>
 
                   {/* Wins */}
-                  <td className="px-3 py-2.5 text-center font-semibold text-green-400">{team.wins}</td>
+                  <td className="px-3 py-2.5 text-center font-stats text-2xl text-green-400">{team.wins}</td>
 
                   {/* Losses */}
-                  <td className="px-3 py-2.5 text-center font-semibold text-red-400">{team.losses}</td>
+                  <td className="px-3 py-2.5 text-center font-stats text-2xl text-red-400">{team.losses}</td>
 
                   {/* Points for */}
-                  <td className="px-3 py-2.5 text-center text-[#8aaac8]">{team.pf}</td>
+                  <td className="px-3 py-2.5 text-center font-stats text-lg text-[#8aaac8]">{team.pf}</td>
 
                   {/* Points against */}
-                  <td className="px-3 py-2.5 text-center text-[#8aaac8]">{team.pa}</td>
+                  <td className="px-3 py-2.5 text-center font-stats text-lg text-[#8aaac8]">{team.pa}</td>
 
                   {/* +/- Spread */}
-                  <td dir="ltr" className={`px-3 py-2.5 text-center font-semibold ${diffPositive ? 'text-green-400' : 'text-red-400'}`}>
+                  <td dir="ltr" className={`px-3 py-2.5 text-center font-stats text-xl ${diffPositive ? 'text-green-400' : 'text-red-400'}`}>
                     {diffPositive ? `+${team.diff}` : team.diff}
                   </td>
 
                   {/* טכ' */}
-                  <td className="px-3 py-2.5 text-center text-[#8aaac8]">
+                  <td className="px-3 py-2.5 text-center font-stats text-xl text-[#8aaac8]">
                     {hasTechni ? team.techni : ''}
                   </td>
 
                   {/* * penalty */}
-                  <td dir="ltr" className="px-3 py-2.5 text-center font-semibold text-red-400">
+                  <td dir="ltr" className="px-3 py-2.5 text-center font-stats text-xl text-red-400">
                     {hasPenalty ? team.penalty : ''}
                   </td>
 
                   {/* Total points */}
-                  <td className="px-3 py-2.5 text-center text-base font-black text-orange-400">
+                  <td className="px-3 py-2.5 text-center font-stats text-2xl font-bold text-orange-400">
                     {team.pts}
                   </td>
                 </tr>

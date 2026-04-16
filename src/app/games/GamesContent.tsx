@@ -58,8 +58,8 @@ function UpcomingRow({ home, away, logos, date }: { home: string; away: string; 
       </Link>
 
       <div className="shrink-0 flex flex-col items-center gap-0.5">
-        <span className="rounded-lg bg-black/30 px-3 py-1 text-sm font-black text-white">VS</span>
-        {date && <span className="text-[11px] font-bold text-[#8aaac8]">{date}</span>}
+        <span className="font-stats rounded-lg bg-black/30 px-3 py-1 text-base font-bold tracking-wider text-white">VS</span>
+        {date && <span className="font-stats text-sm font-bold text-[#8aaac8]">{date}</span>}
       </div>
 
       {/* Away — name inner (near VS), logo outer-right */}
