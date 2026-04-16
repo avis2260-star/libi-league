@@ -77,9 +77,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   <a href="/" className="flex items-center gap-2">
                     <span className="text-lg font-black text-white leading-tight text-right">
                       ליגת ליבי
-                      <span className="block text-[10px] font-medium tracking-widest text-[#5a7a9a] uppercase">
-                        2025 – 2026
-                      </span>
                     </span>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={logoUrl} alt="ליגת ליבי" className="h-10 w-10 object-contain rounded-full" />
