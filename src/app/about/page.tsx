@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import ContactForm from '@/components/ContactForm';
 
@@ -31,15 +32,16 @@ export default async function AboutPage() {
       {/* Stats strip */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { value: '15', label: 'קבוצות משתתפות', icon: '🏀' },
-          { value: '14', label: 'מחזורי עונה', icon: '📆' },
-          { value: '2', label: 'מחוזות', icon: '🗂' },
-        ].map(({ value, label, icon }) => (
-          <div key={label} className="rounded-2xl border border-white/[0.07] bg-white/[0.04] p-4 text-center">
+          { value: '15', label: 'קבוצות משתתפות', icon: '🏀', href: '/teams' },
+          { value: '14', label: 'מחזורי עונה',     icon: '📆', href: '/games' },
+          { value: '2',  label: 'מחוזות',           icon: '🗂', href: '/standings' },
+        ].map(({ value, label, icon, href }) => (
+          <Link key={label} href={href}
+            className="rounded-2xl border border-white/[0.07] bg-white/[0.04] p-4 text-center hover:border-orange-500/40 hover:bg-orange-500/[0.06] transition-all group">
             <div className="text-2xl mb-1">{icon}</div>
-            <p className="text-2xl font-black text-orange-400">{value}</p>
-            <p className="text-[11px] text-[#5a7a9a] mt-0.5">{label}</p>
-          </div>
+            <p className="text-2xl font-black text-orange-400 group-hover:text-orange-300 transition-colors">{value}</p>
+            <p className="text-[11px] text-[#5a7a9a] mt-0.5 group-hover:text-[#8aaac8] transition-colors">{label}</p>
+          </Link>
         ))}
       </div>
 
