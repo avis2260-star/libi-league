@@ -24,17 +24,90 @@ type Record = {
   sort_order: number | null;
 };
 
+type PlayoffSeries = {
+  series_number: number;
+  team_a: string;
+  team_b: string;
+};
+
+type PlayoffGame = {
+  series_number: number;
+  game_number: number;
+  home_score: number | null;
+  away_score: number | null;
+  played: boolean | null;
+};
+
+/* ── helpers ───────────────────────────────────────────────────────────── */
+function normName(s: string) {
+  return s.replace(/["""״'']/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function homeForGame(s: PlayoffSeries, gNum: number) {
+  return gNum === 2 ? s.team_b : s.team_a;
+}
+
+function seriesWinner(s: PlayoffSeries, games: PlayoffGame[]): string | null {
+  let winsA = 0, winsB = 0;
+  for (const g of games.filter(g => g.series_number === s.series_number && g.played)) {
+    const home = homeForGame(s, g.game_number);
+    const homeWon = (g.home_score ?? 0) > (g.away_score ?? 0);
+    if ((homeWon && home === s.team_a) || (!homeWon && home !== s.team_a)) winsA++;
+    else winsB++;
+  }
+  return winsA >= 2 ? s.team_a : winsB >= 2 ? s.team_b : null;
+}
+
 export default async function HallOfFamePage() {
   let seasons: Season[] = [];
   let records: Record[] = [];
+  let cupHolder: string | null = null;
+  let cupHolderLogo: string | null = null;
 
   try {
-    const [{ data: s }, { data: r }] = await Promise.all([
+    const [
+      { data: s },
+      { data: r },
+      { data: playoffSeries },
+      { data: playoffGames },
+      { data: teams },
+    ] = await Promise.all([
       supabaseAdmin.from('league_history_seasons').select('*').order('sort_order'),
       supabaseAdmin.from('league_history_records').select('*').order('sort_order'),
+      supabaseAdmin.from('playoff_series').select('series_number, team_a, team_b').order('series_number'),
+      supabaseAdmin.from('playoff_games').select('series_number, game_number, home_score, away_score, played'),
+      supabaseAdmin.from('teams').select('name, logo_url'),
     ]);
     seasons = (s ?? []) as Season[];
     records = (r ?? []) as Record[];
+
+    /* ── Determine playoff champion (cup holder) from finals series ── */
+    const finalSeries = (playoffSeries ?? []).find(
+      (ps: PlayoffSeries) => ps.series_number === 7 && ps.team_a && ps.team_b,
+    ) as PlayoffSeries | undefined;
+
+    if (finalSeries) {
+      const winner = seriesWinner(finalSeries, (playoffGames ?? []) as PlayoffGame[]);
+      if (winner) {
+        cupHolder = winner;
+        const logoEntry = (teams ?? []).find(
+          (t: { name: string; logo_url: string | null }) => normName(t.name) === normName(winner),
+        );
+        cupHolderLogo = logoEntry?.logo_url ?? null;
+      }
+    }
+
+    /* ── Fallback: if no playoff champion yet, use the current season champion ── */
+    if (!cupHolder) {
+      const currentSeason = seasons.find((se) => se.is_current) ?? seasons[0];
+      if (currentSeason?.champion_name) {
+        cupHolder = currentSeason.champion_name;
+        const logoEntry = (teams ?? []).find(
+          (t: { name: string; logo_url: string | null }) => normName(t.name) === normName(currentSeason.champion_name!),
+        );
+        cupHolderLogo = logoEntry?.logo_url ?? currentSeason.champion_logo ?? null;
+      }
+    }
   } catch {
     seasons = [];
     records = [];
@@ -47,6 +120,49 @@ export default async function HallOfFamePage() {
         <h1 className="font-heading font-black text-5xl mb-2 italic uppercase">היכל התהילה</h1>
         <p className="text-slate-400 text-lg font-body">מורשת הכדורסל של ליגת ליבי</p>
       </header>
+
+      {/* מחזיקת הגביע */}
+      {cupHolder && (
+        <section className="mb-16">
+          <h2 className="font-heading text-2xl mb-6 flex items-center gap-2">
+            <span className="w-8 h-px bg-orange-500 inline-block"></span> מחזיקת הגביע
+          </h2>
+          <div className="relative overflow-hidden rounded-3xl border-2 border-yellow-400/40 bg-gradient-to-br from-yellow-400/10 via-slate-900 to-slate-950 p-8 shadow-[0_0_60px_rgba(250,204,21,0.12)]">
+            {/* Trophy watermark */}
+            <div className="absolute -left-6 -top-10 text-[10rem] leading-none text-yellow-400/[0.05] select-none">
+              🏆
+            </div>
+            <div className="relative flex flex-col sm:flex-row items-center gap-6">
+              {cupHolderLogo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={cupHolderLogo}
+                  alt={cupHolder}
+                  className="h-28 w-28 rounded-full object-cover border-4 border-yellow-400/50 shadow-[0_0_30px_rgba(250,204,21,0.25)]"
+                />
+              ) : (
+                <div className="h-28 w-28 rounded-full bg-slate-800 border-4 border-yellow-400/50 flex items-center justify-center text-4xl shadow-[0_0_30px_rgba(250,204,21,0.25)]">
+                  🏆
+                </div>
+              )}
+              <div className="flex-1 text-center sm:text-right">
+                <p className="text-[11px] font-black uppercase tracking-[3px] text-yellow-400/80 mb-2">
+                  אלופת הפלייאוף · 2025–2026
+                </p>
+                <h3 className="font-heading font-black text-4xl sm:text-5xl text-yellow-400 mb-3">
+                  {cupHolder}
+                </h3>
+                <p className="text-slate-400 text-sm">
+                  המחזיקה הנוכחית של גביע ליגת ליבי
+                </p>
+              </div>
+              <div className="bg-yellow-400 text-black px-4 py-1.5 rounded-full text-xs font-black font-heading tracking-wider shrink-0">
+                CUP HOLDER
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* קיר האלופות */}
       <section className="mb-16">
