@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 
+import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
 type Season = {
@@ -57,9 +58,10 @@ export default async function HallOfFamePage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {seasons.map((season) => (
-              <div
+              <Link
                 key={season.id}
-                className="relative group overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 p-6 hover:border-orange-500 transition-all"
+                href={`/hall-of-fame/${encodeURIComponent(season.year)}`}
+                className="relative group overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 p-6 hover:border-orange-500 transition-all cursor-pointer block"
               >
                 {/* Large year watermark */}
                 <div className="absolute -left-4 -top-4 font-stats text-8xl text-white/5 group-hover:text-orange-500/10 transition-colors select-none">
@@ -79,7 +81,10 @@ export default async function HallOfFamePage() {
                     CHAMPIONS
                   </div>
                 </div>
-              </div>
+                <div className="mt-3 text-xs text-orange-400/60 group-hover:text-orange-400 transition font-body">
+                  לחץ לפרטי הגמר ←
+                </div>
+              </Link>
             ))}
           </div>
         )}
