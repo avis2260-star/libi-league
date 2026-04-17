@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { type, action, ...data } = body as {
       type: 'season' | 'record' | 'setup';
-      action: 'add' | 'delete' | 'init';
+      action: 'add' | 'delete' | 'edit' | 'init';
       [key: string]: unknown;
     };
 
@@ -71,6 +71,17 @@ export async function POST(request: Request) {
         if (error) return NextResponse.json({ error: error.message }, { status: 400 });
         return NextResponse.json({ ok: true });
       }
+      if (action === 'edit') {
+        const { error } = await supabaseAdmin.from('league_history_seasons').update({
+          year:             data.year,
+          champion_name:    data.champion_name    ?? null,
+          champion_captain: data.champion_captain ?? null,
+          mvp_name:         data.mvp_name         ?? null,
+          mvp_stats:        data.mvp_stats        ?? null,
+        }).eq('id', data.id);
+        if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+        return NextResponse.json({ ok: true });
+      }
       if (action === 'delete') {
         const { error } = await supabaseAdmin.from('league_history_seasons').delete().eq('id', data.id);
         if (error) return NextResponse.json({ error: error.message }, { status: 400 });
@@ -86,6 +97,15 @@ export async function POST(request: Request) {
           holder: data.holder ?? null,
           value:  data.value  ?? null,
         });
+        if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+        return NextResponse.json({ ok: true });
+      }
+      if (action === 'edit') {
+        const { error } = await supabaseAdmin.from('league_history_records').update({
+          title:  data.title,
+          holder: data.holder ?? null,
+          value:  data.value  ?? null,
+        }).eq('id', data.id);
         if (error) return NextResponse.json({ error: error.message }, { status: 400 });
         return NextResponse.json({ ok: true });
       }
