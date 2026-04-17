@@ -25,8 +25,8 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { type, action, ...data } = body as {
-      type: 'season' | 'record' | 'setup';
-      action: 'add' | 'delete' | 'edit' | 'init';
+      type: 'season' | 'record' | 'setup' | 'cup';
+      action: 'add' | 'delete' | 'edit' | 'init' | 'upsert';
       [key: string]: unknown;
     };
 
@@ -90,6 +90,46 @@ export async function POST(request: Request) {
       }
       if (action === 'delete') {
         const { error } = await supabaseAdmin.from('league_history_seasons').delete().eq('id', data.id);
+        if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+        return NextResponse.json({ ok: true });
+      }
+    }
+
+    /* ── Cup holders (dedicated endpoint — upserts by year) ─────────────── */
+    if (type === 'cup') {
+      if (action === 'upsert') {
+        const year = String(data.year ?? '').trim();
+        if (!year) return NextResponse.json({ error: 'year required' }, { status: 400 });
+        const cupName = (data.cup_holder_name as string | null | undefined)?.trim() || null;
+
+        const { data: existing } = await supabaseAdmin
+          .from('league_history_seasons')
+          .select('id')
+          .eq('year', year)
+          .maybeSingle();
+
+        if (existing) {
+          const { error } = await supabaseAdmin
+            .from('league_history_seasons')
+            .update({ cup_holder_name: cupName })
+            .eq('id', existing.id);
+          if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+          return NextResponse.json({ ok: true, id: existing.id });
+        }
+        const { data: inserted, error } = await supabaseAdmin
+          .from('league_history_seasons')
+          .insert({ year, cup_holder_name: cupName })
+          .select('id')
+          .single();
+        if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+        return NextResponse.json({ ok: true, id: inserted?.id });
+      }
+      if (action === 'delete') {
+        // clear cup_holder_name — don't delete the season row (may have champion data)
+        const { error } = await supabaseAdmin
+          .from('league_history_seasons')
+          .update({ cup_holder_name: null })
+          .eq('id', data.id);
         if (error) return NextResponse.json({ error: error.message }, { status: 400 });
         return NextResponse.json({ ok: true });
       }

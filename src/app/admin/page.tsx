@@ -215,7 +215,7 @@ export default async function AdminPage({
   let hofRecords: { id: string; title: string; holder: string | null; value: string | null }[] = [];
   if (tab === 'halloffame') {
     const [{ data: s }, { data: r }] = await Promise.all([
-      supabaseAdmin.from('league_history_seasons').select('id,year,champion_name,champion_captain,cup_holder_name,mvp_name,mvp_stats').order('sort_order'),
+      supabaseAdmin.from('league_history_seasons').select('id,year,champion_name,champion_captain,cup_holder_name,mvp_name,mvp_stats').order('year', { ascending: false }),
       supabaseAdmin.from('league_history_records').select('id,title,holder,value').order('sort_order'),
     ]);
     hofSeasons = (s ?? []) as typeof hofSeasons;

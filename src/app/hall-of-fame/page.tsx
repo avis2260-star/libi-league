@@ -244,10 +244,7 @@ export default async function HallOfFamePage() {
                 </div>
 
                 <p className="font-stats text-2xl text-orange-500">{season.year}</p>
-                <h3 className="font-heading font-black text-3xl mb-2">{season.champion_name ?? '—'}</h3>
-                {season.cup_holder_name && (
-                  <p className="text-xs text-yellow-300/80 mb-3">🥇 גביע: {season.cup_holder_name}</p>
-                )}
+                <h3 className="font-heading font-black text-3xl mb-4">{season.champion_name ?? '—'}</h3>
 
                 <div className="flex justify-between items-end border-t border-slate-800 pt-4">
                   <div>
@@ -263,6 +260,43 @@ export default async function HallOfFamePage() {
                   לחץ לפרטי הגמר ←
                 </div>
               </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* קיר מחזיקות הגביע */}
+      <section className="mb-16">
+        <h2 className="font-heading text-2xl mb-6 flex items-center gap-2">
+          <span className="w-8 h-px bg-yellow-400 inline-block"></span> מחזיקות הגביע
+        </h2>
+        {seasons.filter(s => s.cup_holder_name).length === 0 ? (
+          <p className="text-slate-500 text-center py-12">אין מחזיקות גביע להצגה עדיין</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {seasons.filter(s => s.cup_holder_name).map((season) => (
+              <div
+                key={`cup-${season.id}`}
+                className="relative overflow-hidden rounded-2xl bg-slate-900 border border-yellow-400/20 p-6 hover:border-yellow-400/60 transition-all"
+              >
+                {/* Large year watermark */}
+                <div className="absolute -left-4 -top-4 font-stats text-8xl text-yellow-400/[0.05] select-none">
+                  {season.year.split('-')[0]}
+                </div>
+
+                <p className="font-stats text-2xl text-yellow-400">{season.year}</p>
+                <h3 className="font-heading font-black text-3xl mb-4">{season.cup_holder_name}</h3>
+
+                <div className="flex justify-between items-end border-t border-slate-800 pt-4">
+                  <div>
+                    <p className="text-xs text-slate-500 uppercase font-body">מחזיקת הגביע</p>
+                    <p className="font-heading font-bold">🥇 {season.cup_holder_name}</p>
+                  </div>
+                  <div className="bg-yellow-400 text-black px-3 py-1 rounded-full text-xs font-black font-heading">
+                    CUP HOLDER
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         )}

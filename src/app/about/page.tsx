@@ -24,7 +24,7 @@ export default async function AboutPage() {
           <h1 className="text-4xl font-black text-white font-heading">ליגת ליבי</h1>
         </div>
         <p className="text-[#8aaac8] text-base leading-relaxed max-w-xl">
-          ליגה קהילתית לכדורסל המאגדת קבוצות מרחבי הארץ, עם שני מחוזות — צפון ודרום — ומערכת גביע ופלייאוף מרגשת.
+          ליגה קהילתית לכדורסל הפועלת משנת 2012 המאגדת קבוצות מרחבי הארץ, עם שני מחוזות — צפון ודרום — ומערכת גביע ופלייאוף מרגשת.
         </p>
       </div>
 
