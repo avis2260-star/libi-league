@@ -35,6 +35,9 @@ export default function HallOfFameTab({
   const [sAdding, setSAdding] = useState(false);
   const [sDeleting, setSDeleting] = useState<string | null>(null);
   const [sMsg, setSMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [dbReady, setDbReady] = useState(true);
+  const [setupLoading, setSetupLoading] = useState(false);
+  const [setupMsg, setSetupMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   /* ── Records state ── */
   const [records, setRecords] = useState<Record[]>(initialRecords);
@@ -44,6 +47,24 @@ export default function HallOfFameTab({
   const [rAdding, setRAdding] = useState(false);
   const [rDeleting, setRDeleting] = useState<string | null>(null);
   const [rMsg, setRMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  /* ── One-time DB setup ── */
+  async function handleSetup() {
+    setSetupLoading(true); setSetupMsg(null);
+    try {
+      const res = await fetch('/api/admin/hall-of-fame', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'setup', action: 'init' }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'שגיאה');
+      setDbReady(true);
+      setSetupMsg({ ok: true, text: '✅ הטבלאות נוצרו בהצלחה — תוכל להוסיף נתונים עכשיו' });
+    } catch (err: unknown) {
+      setSetupMsg({ ok: false, text: err instanceof Error ? err.message : 'שגיאה' });
+    } finally { setSetupLoading(false); }
+  }
 
   /* ── Add season ── */
   async function handleAddSeason(e: React.FormEvent) {
@@ -64,7 +85,10 @@ export default function HallOfFameTab({
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? 'שגיאה');
+      if (!res.ok) {
+        if ((json.error ?? '').includes('league_history')) setDbReady(false);
+        throw new Error(json.error ?? 'שגיאה');
+      }
       setSMsg({ ok: true, text: '✅ עונה נוספה' });
       setSYear(''); setSChampion(''); setSCaptain(''); setSMvpName(''); setSMvpStats('');
       // reload from server by adding a placeholder until next navigation
@@ -115,7 +139,10 @@ export default function HallOfFameTab({
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? 'שגיאה');
+      if (!res.ok) {
+        if ((json.error ?? '').includes('league_history')) setDbReady(false);
+        throw new Error(json.error ?? 'שגיאה');
+      }
       setRMsg({ ok: true, text: '✅ שיא נוסף' });
       setRecords(prev => [...prev, {
         id: Date.now().toString(),
@@ -155,6 +182,26 @@ export default function HallOfFameTab({
         <h2 className="text-xl font-bold text-white">היכל התהילה</h2>
         <p className="text-sm text-[#5a7a9a]">ניהול אלופות ושיאי הליגה</p>
       </div>
+
+      {/* ── DB setup banner (shown when tables are missing) ── */}
+      {!dbReady && (
+        <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-5 space-y-3">
+          <p className="font-bold text-yellow-300 text-sm">⚠️ הטבלאות עדיין לא נוצרו במסד הנתונים</p>
+          <p className="text-xs text-yellow-400/70">לחץ על הכפתור להלן ליצירת הטבלאות אוטומטית בסופאבייס:</p>
+          {setupMsg && (
+            <p className={`rounded-lg px-3 py-2 text-sm font-medium ${setupMsg.ok ? 'bg-green-900/40 text-green-300' : 'bg-red-900/40 text-red-300'}`}>
+              {setupMsg.text}
+            </p>
+          )}
+          <button
+            onClick={handleSetup}
+            disabled={setupLoading}
+            className="rounded-lg bg-yellow-500 px-5 py-2 text-sm font-bold text-black transition hover:bg-yellow-400 disabled:opacity-50"
+          >
+            {setupLoading ? '⏳ יוצר טבלאות...' : '🛠️ צור טבלאות עכשיו'}
+          </button>
+        </div>
+      )}
 
       {/* ── Seasons section ── */}
       <div className="border border-white/[0.07] bg-white/[0.04] rounded-2xl p-6 space-y-6">
@@ -220,9 +267,9 @@ export default function HallOfFameTab({
                 <button
                   onClick={() => handleDeleteSeason(s.id)}
                   disabled={sDeleting === s.id}
-                  className="rounded px-2 py-1 text-xs text-red-400 hover:bg-red-900/30 disabled:opacity-40 shrink-0"
+                  className="rounded-lg border border-red-500/20 px-3 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/10 hover:border-red-500/40 transition disabled:opacity-40 shrink-0"
                 >
-                  {sDeleting === s.id ? '...' : '🗑'}
+                  {sDeleting === s.id ? '⏳' : '🗑 מחק'}
                 </button>
               </div>
             ))}
@@ -279,9 +326,9 @@ export default function HallOfFameTab({
                 <button
                   onClick={() => handleDeleteRecord(r.id)}
                   disabled={rDeleting === r.id}
-                  className="rounded px-2 py-1 text-xs text-red-400 hover:bg-red-900/30 disabled:opacity-40 shrink-0"
+                  className="rounded-lg border border-red-500/20 px-3 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/10 hover:border-red-500/40 transition disabled:opacity-40 shrink-0"
                 >
-                  {rDeleting === r.id ? '...' : '🗑'}
+                  {rDeleting === r.id ? '⏳' : '🗑 מחק'}
                 </button>
               </div>
             ))}
