@@ -22,7 +22,6 @@ export default async function AboutPage() {
         <img src={logoUrl} alt="ליגת ליבי" className="h-24 w-24 rounded-full object-contain border-2 border-orange-500/30 shadow-[0_0_40px_rgba(249,115,22,0.2)]" />
         <div>
           <h1 className="text-4xl font-black text-white font-heading">ליגת ליבי</h1>
-          <p className="mt-1 text-[#5a7a9a] text-sm tracking-widest uppercase font-body">עונת 2025–2026</p>
         </div>
         <p className="text-[#8aaac8] text-base leading-relaxed max-w-xl">
           ליגה קהילתית לכדורסל המאגדת קבוצות מרחבי הארץ, עם שני מחוזות — צפון ודרום — ומערכת גביע ופלייאוף מרגשת.

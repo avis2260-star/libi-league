@@ -70,13 +70,14 @@ const NAV = [
 ];
 
 const MORE_LINKS = [
-  { href: '/players',  label: 'כרטיסי שחקן', emoji: '🃏' },
-  { href: '/scoreboard', label: 'משחק חי',    emoji: '🔴' },
-  { href: '/submit',   label: 'הגשת תוצאות', emoji: '📥' },
-  { href: '/results',  label: 'תוצאות',      emoji: '📊' },
-  { href: '/playoff',  label: 'פלייאוף',     emoji: '🏆' },
-  { href: '/takanon',  label: 'תקנון',       emoji: '📋' },
-  { href: '/about',    label: 'אודות',       emoji: 'ℹ️' },
+  { href: '/players',       label: 'כרטיסי שחקן',  emoji: '🃏' },
+  { href: '/scoreboard',    label: 'משחק חי',      emoji: '🔴' },
+  { href: '/submit',        label: 'הגשת תוצאות',  emoji: '📥' },
+  { href: '/results',       label: 'תוצאות',       emoji: '📊' },
+  { href: '/playoff',       label: 'פלייאוף',      emoji: '🏆' },
+  { href: '/hall-of-fame',  label: 'היכל התהילה',  emoji: '🏅' },
+  { href: '/takanon',       label: 'תקנון',        emoji: '📋' },
+  { href: '/about',         label: 'אודות',        emoji: 'ℹ️' },
 ];
 
 export default function BottomNav() {

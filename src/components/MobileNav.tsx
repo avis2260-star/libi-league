@@ -23,8 +23,9 @@ const NAV_GROUPS = [
   {
     label: 'תחרויות',
     links: [
-      { href: '/cup',     label: 'גביע 🏆'  },
-      { href: '/playoff', label: 'פלייאוף'  },
+      { href: '/cup',          label: 'גביע 🏆'        },
+      { href: '/playoff',      label: 'פלייאוף'        },
+      { href: '/hall-of-fame', label: 'היכל התהילה 🏅' },
     ],
   },
   {

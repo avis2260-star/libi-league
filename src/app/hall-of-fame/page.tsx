@@ -149,7 +149,7 @@ export default async function HallOfFamePage() {
       { data: cupGames },
       { data: teams },
     ] = await Promise.all([
-      supabaseAdmin.from('league_history_seasons').select('*').order('sort_order'),
+      supabaseAdmin.from('league_history_seasons').select('*').order('year', { ascending: false }),
       supabaseAdmin.from('league_history_records').select('*').order('sort_order'),
       supabaseAdmin.from('playoff_series').select('series_number, team_a, team_b').order('series_number'),
       supabaseAdmin.from('playoff_games').select('series_number, game_number, home_score, away_score, played'),
