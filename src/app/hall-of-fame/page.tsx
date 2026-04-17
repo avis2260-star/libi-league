@@ -9,6 +9,8 @@ type Season = {
   champion_name: string | null;
   champion_logo: string | null;
   champion_captain: string | null;
+  cup_holder_name: string | null;
+  cup_holder_logo: string | null;
   mvp_name: string | null;
   mvp_stats: string | null;
   is_current: boolean | null;
@@ -38,6 +40,15 @@ type PlayoffGame = {
   played: boolean | null;
 };
 
+type CupGame = {
+  round: string | null;
+  home_team: string | null;
+  away_team: string | null;
+  home_score: number | null;
+  away_score: number | null;
+  played: boolean | null;
+};
+
 /* ── helpers ───────────────────────────────────────────────────────────── */
 function normName(s: string) {
   return s.replace(/["""״'']/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -47,7 +58,7 @@ function homeForGame(s: PlayoffSeries, gNum: number) {
   return gNum === 2 ? s.team_b : s.team_a;
 }
 
-function seriesWinner(s: PlayoffSeries, games: PlayoffGame[]): string | null {
+function playoffSeriesWinner(s: PlayoffSeries, games: PlayoffGame[]): string | null {
   let winsA = 0, winsB = 0;
   for (const g of games.filter(g => g.series_number === s.series_number && g.played)) {
     const home = homeForGame(s, g.game_number);
@@ -58,9 +69,74 @@ function seriesWinner(s: PlayoffSeries, games: PlayoffGame[]): string | null {
   return winsA >= 2 ? s.team_a : winsB >= 2 ? s.team_b : null;
 }
 
+function cupFinalWinner(games: CupGame[]): string | null {
+  const finalGame = games.find(g => g.round === 'גמר' && g.played && g.home_score !== null && g.away_score !== null);
+  if (!finalGame) return null;
+  return (finalGame.home_score ?? 0) > (finalGame.away_score ?? 0)
+    ? finalGame.home_team
+    : finalGame.away_team;
+}
+
+/* ── Trophy card component ────────────────────────────────────────────── */
+function TrophyCard({
+  title,
+  subtitle,
+  team,
+  logo,
+  badge,
+  icon,
+}: {
+  title: string;
+  subtitle: string;
+  team: string;
+  logo: string | null;
+  badge: string;
+  icon: string;
+}) {
+  return (
+    <section>
+      <h2 className="font-heading text-2xl mb-6 flex items-center gap-2">
+        <span className="w-8 h-px bg-orange-500 inline-block"></span> {title}
+      </h2>
+      <div className="relative overflow-hidden rounded-3xl border-2 border-yellow-400/40 bg-gradient-to-br from-yellow-400/10 via-slate-900 to-slate-950 p-8 shadow-[0_0_60px_rgba(250,204,21,0.12)]">
+        <div className="absolute -left-6 -top-10 text-[10rem] leading-none text-yellow-400/[0.05] select-none">
+          {icon}
+        </div>
+        <div className="relative flex flex-col sm:flex-row items-center gap-6">
+          {logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logo}
+              alt={team}
+              className="h-28 w-28 rounded-full object-cover border-4 border-yellow-400/50 shadow-[0_0_30px_rgba(250,204,21,0.25)]"
+            />
+          ) : (
+            <div className="h-28 w-28 rounded-full bg-slate-800 border-4 border-yellow-400/50 flex items-center justify-center text-4xl shadow-[0_0_30px_rgba(250,204,21,0.25)]">
+              {icon}
+            </div>
+          )}
+          <div className="flex-1 text-center sm:text-right">
+            <p className="text-[11px] font-black uppercase tracking-[3px] text-yellow-400/80 mb-2">
+              {subtitle}
+            </p>
+            <h3 className="font-heading font-black text-4xl sm:text-5xl text-yellow-400 mb-3">
+              {team}
+            </h3>
+          </div>
+          <div className="bg-yellow-400 text-black px-4 py-1.5 rounded-full text-xs font-black font-heading tracking-wider shrink-0">
+            {badge}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default async function HallOfFamePage() {
   let seasons: Season[] = [];
   let records: Record[] = [];
+  let leagueChampion: string | null = null;
+  let leagueChampionLogo: string | null = null;
   let cupHolder: string | null = null;
   let cupHolderLogo: string | null = null;
 
@@ -70,43 +146,52 @@ export default async function HallOfFamePage() {
       { data: r },
       { data: playoffSeries },
       { data: playoffGames },
+      { data: cupGames },
       { data: teams },
     ] = await Promise.all([
       supabaseAdmin.from('league_history_seasons').select('*').order('sort_order'),
       supabaseAdmin.from('league_history_records').select('*').order('sort_order'),
       supabaseAdmin.from('playoff_series').select('series_number, team_a, team_b').order('series_number'),
       supabaseAdmin.from('playoff_games').select('series_number, game_number, home_score, away_score, played'),
+      supabaseAdmin.from('cup_games').select('round, home_team, away_team, home_score, away_score, played'),
       supabaseAdmin.from('teams').select('name, logo_url'),
     ]);
     seasons = (s ?? []) as Season[];
     records = (r ?? []) as Record[];
 
-    /* ── Determine playoff champion (cup holder) from finals series ── */
+    const teamList = (teams ?? []) as { name: string; logo_url: string | null }[];
+    const findLogo = (name: string) =>
+      teamList.find(t => normName(t.name) === normName(name))?.logo_url ?? null;
+
+    /* ── League champion (from playoff finals — series_number=7) ── */
     const finalSeries = (playoffSeries ?? []).find(
       (ps: PlayoffSeries) => ps.series_number === 7 && ps.team_a && ps.team_b,
     ) as PlayoffSeries | undefined;
 
     if (finalSeries) {
-      const winner = seriesWinner(finalSeries, (playoffGames ?? []) as PlayoffGame[]);
+      const winner = playoffSeriesWinner(finalSeries, (playoffGames ?? []) as PlayoffGame[]);
       if (winner) {
-        cupHolder = winner;
-        const logoEntry = (teams ?? []).find(
-          (t: { name: string; logo_url: string | null }) => normName(t.name) === normName(winner),
-        );
-        cupHolderLogo = logoEntry?.logo_url ?? null;
+        leagueChampion = winner;
+        leagueChampionLogo = findLogo(winner);
       }
     }
 
-    /* ── Fallback: if no playoff champion yet, use the current season champion ── */
-    if (!cupHolder) {
-      const currentSeason = seasons.find((se) => se.is_current) ?? seasons[0];
-      if (currentSeason?.champion_name) {
-        cupHolder = currentSeason.champion_name;
-        const logoEntry = (teams ?? []).find(
-          (t: { name: string; logo_url: string | null }) => normName(t.name) === normName(currentSeason.champion_name!),
-        );
-        cupHolderLogo = logoEntry?.logo_url ?? currentSeason.champion_logo ?? null;
-      }
+    /* ── Cup holder (from cup finals — round='גמר') ── */
+    const cupWinner = cupFinalWinner((cupGames ?? []) as CupGame[]);
+    if (cupWinner) {
+      cupHolder = cupWinner;
+      cupHolderLogo = findLogo(cupWinner);
+    }
+
+    /* ── Fallbacks: manual entries on the current season record ── */
+    const currentSeason = seasons.find((se) => se.is_current) ?? seasons[0];
+    if (!leagueChampion && currentSeason?.champion_name) {
+      leagueChampion = currentSeason.champion_name;
+      leagueChampionLogo = findLogo(currentSeason.champion_name) ?? currentSeason.champion_logo ?? null;
+    }
+    if (!cupHolder && currentSeason?.cup_holder_name) {
+      cupHolder = currentSeason.cup_holder_name;
+      cupHolderLogo = findLogo(currentSeason.cup_holder_name) ?? currentSeason.cup_holder_logo ?? null;
     }
   } catch {
     seasons = [];
@@ -121,47 +206,30 @@ export default async function HallOfFamePage() {
         <p className="text-slate-400 text-lg font-body">מורשת הכדורסל של ליגת ליבי</p>
       </header>
 
-      {/* מחזיקת הגביע */}
-      {cupHolder && (
-        <section className="mb-16">
-          <h2 className="font-heading text-2xl mb-6 flex items-center gap-2">
-            <span className="w-8 h-px bg-orange-500 inline-block"></span> מחזיקת הגביע
-          </h2>
-          <div className="relative overflow-hidden rounded-3xl border-2 border-yellow-400/40 bg-gradient-to-br from-yellow-400/10 via-slate-900 to-slate-950 p-8 shadow-[0_0_60px_rgba(250,204,21,0.12)]">
-            {/* Trophy watermark */}
-            <div className="absolute -left-6 -top-10 text-[10rem] leading-none text-yellow-400/[0.05] select-none">
-              🏆
-            </div>
-            <div className="relative flex flex-col sm:flex-row items-center gap-6">
-              {cupHolderLogo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={cupHolderLogo}
-                  alt={cupHolder}
-                  className="h-28 w-28 rounded-full object-cover border-4 border-yellow-400/50 shadow-[0_0_30px_rgba(250,204,21,0.25)]"
-                />
-              ) : (
-                <div className="h-28 w-28 rounded-full bg-slate-800 border-4 border-yellow-400/50 flex items-center justify-center text-4xl shadow-[0_0_30px_rgba(250,204,21,0.25)]">
-                  🏆
-                </div>
-              )}
-              <div className="flex-1 text-center sm:text-right">
-                <p className="text-[11px] font-black uppercase tracking-[3px] text-yellow-400/80 mb-2">
-                  אלופת הפלייאוף · 2025–2026
-                </p>
-                <h3 className="font-heading font-black text-4xl sm:text-5xl text-yellow-400 mb-3">
-                  {cupHolder}
-                </h3>
-                <p className="text-slate-400 text-sm">
-                  המחזיקה הנוכחית של גביע ליגת ליבי
-                </p>
-              </div>
-              <div className="bg-yellow-400 text-black px-4 py-1.5 rounded-full text-xs font-black font-heading tracking-wider shrink-0">
-                CUP HOLDER
-              </div>
-            </div>
-          </div>
-        </section>
+      {/* אלופת הליגה + מחזיקת הגביע */}
+      {(leagueChampion || cupHolder) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-16">
+          {leagueChampion && (
+            <TrophyCard
+              title="אלופת הליגה"
+              subtitle="אלופת הפלייאוף · 2025–2026"
+              team={leagueChampion}
+              logo={leagueChampionLogo}
+              badge="CHAMPION"
+              icon="🏆"
+            />
+          )}
+          {cupHolder && (
+            <TrophyCard
+              title="מחזיקת הגביע"
+              subtitle="אלופת הגביע · 2025–2026"
+              team={cupHolder}
+              logo={cupHolderLogo}
+              badge="CUP HOLDER"
+              icon="🥇"
+            />
+          )}
+        </div>
       )}
 
       {/* קיר האלופות */}
@@ -185,7 +253,10 @@ export default async function HallOfFamePage() {
                 </div>
 
                 <p className="font-stats text-2xl text-orange-500">{season.year}</p>
-                <h3 className="font-heading font-black text-3xl mb-4">{season.champion_name ?? '—'}</h3>
+                <h3 className="font-heading font-black text-3xl mb-2">{season.champion_name ?? '—'}</h3>
+                {season.cup_holder_name && (
+                  <p className="text-xs text-yellow-300/80 mb-3">🥇 גביע: {season.cup_holder_name}</p>
+                )}
 
                 <div className="flex justify-between items-end border-t border-slate-800 pt-4">
                   <div>

@@ -7,6 +7,7 @@ type Season = {
   year: string;
   champion_name: string | null;
   champion_captain: string | null;
+  cup_holder_name: string | null;
   mvp_name: string | null;
   mvp_stats: string | null;
 };
@@ -37,6 +38,7 @@ export default function HallOfFameTab({
   const [sYear, setSYear]         = useState('');
   const [sChampion, setSChampion] = useState('');
   const [sCaptain, setSCaptain]   = useState('');
+  const [sCupHolder, setSCupHolder] = useState('');
   const [sMvpName, setSMvpName]   = useState('');
   const [sMvpStats, setSMvpStats] = useState('');
   const [sAdding, setSAdding]     = useState(false);
@@ -93,10 +95,10 @@ export default function HallOfFameTab({
     if (!sYear.trim()) return;
     setSAdding(true); setSMsg(null);
     try {
-      await post({ type: 'season', action: 'add', year: sYear.trim(), champion_name: sChampion.trim() || null, champion_captain: sCaptain.trim() || null, mvp_name: sMvpName.trim() || null, mvp_stats: sMvpStats.trim() || null });
+      await post({ type: 'season', action: 'add', year: sYear.trim(), champion_name: sChampion.trim() || null, champion_captain: sCaptain.trim() || null, cup_holder_name: sCupHolder.trim() || null, mvp_name: sMvpName.trim() || null, mvp_stats: sMvpStats.trim() || null });
       setSMsg({ ok: true, text: '✅ Season added' });
-      setSeasons(prev => [...prev, { id: Date.now().toString(), year: sYear.trim(), champion_name: sChampion.trim() || null, champion_captain: sCaptain.trim() || null, mvp_name: sMvpName.trim() || null, mvp_stats: sMvpStats.trim() || null }]);
-      setSYear(''); setSChampion(''); setSCaptain(''); setSMvpName(''); setSMvpStats('');
+      setSeasons(prev => [...prev, { id: Date.now().toString(), year: sYear.trim(), champion_name: sChampion.trim() || null, champion_captain: sCaptain.trim() || null, cup_holder_name: sCupHolder.trim() || null, mvp_name: sMvpName.trim() || null, mvp_stats: sMvpStats.trim() || null }]);
+      setSYear(''); setSChampion(''); setSCaptain(''); setSCupHolder(''); setSMvpName(''); setSMvpStats('');
     } catch (e: unknown) { setSMsg({ ok: false, text: e instanceof Error ? e.message : 'Error' }); }
     finally { setSAdding(false); }
   }
@@ -111,7 +113,7 @@ export default function HallOfFameTab({
     if (!editingSeason) return;
     setSSaving(true); setSMsg(null);
     try {
-      await post({ type: 'season', action: 'edit', id: editingSeason.id, year: editingSeason.year, champion_name: editingSeason.champion_name, champion_captain: editingSeason.champion_captain, mvp_name: editingSeason.mvp_name, mvp_stats: editingSeason.mvp_stats });
+      await post({ type: 'season', action: 'edit', id: editingSeason.id, year: editingSeason.year, champion_name: editingSeason.champion_name, champion_captain: editingSeason.champion_captain, cup_holder_name: editingSeason.cup_holder_name, mvp_name: editingSeason.mvp_name, mvp_stats: editingSeason.mvp_stats });
       setSeasons(prev => prev.map(s => s.id === editingSeason.id ? editingSeason : s));
       setSMsg({ ok: true, text: '✅ Saved' });
       setEditingSeason(null);
@@ -205,8 +207,9 @@ export default function HallOfFameTab({
           <p className="text-sm font-semibold text-white/70">+ Add season</p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <div><label className={labelCls}>Year *</label><input value={sYear} onChange={e => setSYear(e.target.value)} placeholder="2024-2025" required className={inputCls} /></div>
-            <div><label className={labelCls}>Champion</label><input value={sChampion} onChange={e => setSChampion(e.target.value)} placeholder="Team name" className={inputCls} /></div>
+            <div><label className={labelCls}>Champion (League winner)</label><input value={sChampion} onChange={e => setSChampion(e.target.value)} placeholder="Team name" className={inputCls} /></div>
             <div><label className={labelCls}>Captain</label><input value={sCaptain} onChange={e => setSCaptain(e.target.value)} placeholder="Captain name" className={inputCls} /></div>
+            <div><label className={labelCls}>Cup Holder (Trophy winner)</label><input value={sCupHolder} onChange={e => setSCupHolder(e.target.value)} placeholder="Team name" className={inputCls} /></div>
             <div><label className={labelCls}>MVP</label><input value={sMvpName} onChange={e => setSMvpName(e.target.value)} placeholder="Player name" className={inputCls} /></div>
             <div><label className={labelCls}>MVP Stats</label><input value={sMvpStats} onChange={e => setSMvpStats(e.target.value)} placeholder="24.5 PPG" className={inputCls} /></div>
           </div>
@@ -220,8 +223,9 @@ export default function HallOfFameTab({
             <p className="text-sm font-semibold text-orange-400">✏️ Editing: {editingSeason.year}</p>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <div><label className={labelCls}>Year *</label><input value={editingSeason.year} onChange={e => setEditingSeason(s => s ? { ...s, year: e.target.value } : s)} required className={inputCls} /></div>
-              <div><label className={labelCls}>Champion</label><input value={editingSeason.champion_name ?? ''} onChange={e => setEditingSeason(s => s ? { ...s, champion_name: e.target.value } : s)} className={inputCls} /></div>
+              <div><label className={labelCls}>Champion (League winner)</label><input value={editingSeason.champion_name ?? ''} onChange={e => setEditingSeason(s => s ? { ...s, champion_name: e.target.value } : s)} className={inputCls} /></div>
               <div><label className={labelCls}>Captain</label><input value={editingSeason.champion_captain ?? ''} onChange={e => setEditingSeason(s => s ? { ...s, champion_captain: e.target.value } : s)} className={inputCls} /></div>
+              <div><label className={labelCls}>Cup Holder (Trophy winner)</label><input value={editingSeason.cup_holder_name ?? ''} onChange={e => setEditingSeason(s => s ? { ...s, cup_holder_name: e.target.value } : s)} className={inputCls} /></div>
               <div><label className={labelCls}>MVP</label><input value={editingSeason.mvp_name ?? ''} onChange={e => setEditingSeason(s => s ? { ...s, mvp_name: e.target.value } : s)} className={inputCls} /></div>
               <div><label className={labelCls}>MVP Stats</label><input value={editingSeason.mvp_stats ?? ''} onChange={e => setEditingSeason(s => s ? { ...s, mvp_stats: e.target.value } : s)} className={inputCls} /></div>
             </div>
@@ -242,9 +246,12 @@ export default function HallOfFameTab({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-orange-400 text-sm">{s.year}</span>
-                      {s.champion_name && <span className="text-white text-sm font-medium">{s.champion_name}</span>}
+                      {s.champion_name && <span className="text-white text-sm font-medium">🏆 {s.champion_name}</span>}
                       {s.champion_captain && <span className="text-[#5a7a9a] text-xs">Captain: {s.champion_captain}</span>}
                     </div>
+                    {s.cup_holder_name && (
+                      <p className="text-xs text-yellow-300/90 mt-0.5">🥇 Cup: {s.cup_holder_name}</p>
+                    )}
                     {(s.mvp_name || s.mvp_stats) && (
                       <p className="text-xs text-[#5a7a9a] mt-0.5">MVP: {s.mvp_name ?? '—'} {s.mvp_stats ? `· ${s.mvp_stats}` : ''}</p>
                     )}
