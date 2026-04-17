@@ -163,7 +163,8 @@ export default async function HallOfFamePage() {
     const findLogo = (name: string) =>
       teamList.find(t => normName(t.name) === normName(name))?.logo_url ?? null;
 
-    /* ── League champion (from playoff finals — series_number=7) ── */
+    /* ── League champion: ONLY the live winner of the playoff finals
+       (playoff_series #7). Nothing shown until the finals are decided. ── */
     const finalSeries = (playoffSeries ?? []).find(
       (ps: PlayoffSeries) => ps.series_number === 7 && ps.team_a && ps.team_b,
     ) as PlayoffSeries | undefined;
@@ -176,22 +177,12 @@ export default async function HallOfFamePage() {
       }
     }
 
-    /* ── Cup holder (from cup finals — round='גמר') ── */
+    /* ── Cup holder: ONLY the live winner of the cup final (round='גמר').
+       Nothing shown until the final is played. ── */
     const cupWinner = cupFinalWinner((cupGames ?? []) as CupGame[]);
     if (cupWinner) {
       cupHolder = cupWinner;
       cupHolderLogo = findLogo(cupWinner);
-    }
-
-    /* ── Fallbacks: manual entries on the current season record ── */
-    const currentSeason = seasons.find((se) => se.is_current) ?? seasons[0];
-    if (!leagueChampion && currentSeason?.champion_name) {
-      leagueChampion = currentSeason.champion_name;
-      leagueChampionLogo = findLogo(currentSeason.champion_name) ?? currentSeason.champion_logo ?? null;
-    }
-    if (!cupHolder && currentSeason?.cup_holder_name) {
-      cupHolder = currentSeason.cup_holder_name;
-      cupHolderLogo = findLogo(currentSeason.cup_holder_name) ?? currentSeason.cup_holder_logo ?? null;
     }
   } catch {
     seasons = [];
