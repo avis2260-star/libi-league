@@ -61,6 +61,8 @@ export default function HallOfFameTab({
   const [cAdding, setCAdding]       = useState(false);
   const [cDeleting, setCDeleting]   = useState<string | null>(null);
   const [cMsg, setCMsg]             = useState<{ ok: boolean; text: string } | null>(null);
+  const [editingCup, setEditingCup] = useState<{ id: string; origYear: string; year: string; cup_holder_name: string } | null>(null);
+  const [cSaving, setCSaving]       = useState(false);
 
   /* ── Records ── */
   const [records, setRecords]     = useState<HRecord[]>(initialRecords);
@@ -177,6 +179,54 @@ export default function HallOfFameTab({
       setCYear(''); setCHolder('');
     } catch (e: unknown) { setCMsg({ ok: false, text: e instanceof Error ? e.message : 'שגיאה' }); }
     finally { setCAdding(false); }
+  }
+
+  function startEditCupHolder(s: Season) {
+    if (!s.cup_holder_name) return;
+    setEditingCup({ id: s.id, origYear: s.year, year: s.year, cup_holder_name: s.cup_holder_name });
+    setCMsg(null);
+  }
+
+  async function handleSaveCupHolder(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingCup || !editingCup.year.trim() || !editingCup.cup_holder_name.trim()) return;
+    setCSaving(true); setCMsg(null);
+    try {
+      const res = await post({
+        type: 'cup',
+        action: 'edit',
+        id: editingCup.id,
+        year: editingCup.year.trim(),
+        cup_holder_name: editingCup.cup_holder_name.trim(),
+      });
+      const newId: string = res.id ?? editingCup.id;
+      const moved: boolean = !!res.moved;
+
+      setSeasons(prev => {
+        let next = prev;
+        if (moved) {
+          // clear cup_holder on the original row (keep the row — champion data may live there)
+          next = next.map(s => s.id === editingCup.id ? { ...s, cup_holder_name: null } : s);
+          // merge into the target year row (or insert a minimal row)
+          const targetExisting = next.find(s => s.year === editingCup.year.trim());
+          if (targetExisting) {
+            next = next.map(s => s.id === targetExisting.id ? { ...s, cup_holder_name: editingCup.cup_holder_name.trim() } : s);
+          } else {
+            next = [...next, { id: newId, year: editingCup.year.trim(), champion_name: null, champion_captain: null, cup_holder_name: editingCup.cup_holder_name.trim(), mvp_name: null, mvp_stats: null }];
+          }
+        } else {
+          next = next.map(s => s.id === editingCup.id ? { ...s, cup_holder_name: editingCup.cup_holder_name.trim() } : s);
+        }
+        return next.sort((a, b) => yearNum(b.year) - yearNum(a.year));
+      });
+
+      setCMsg({ ok: true, text: '✅ נשמר' });
+      setEditingCup(null);
+    } catch (e: unknown) {
+      setCMsg({ ok: false, text: e instanceof Error ? e.message : 'שגיאה' });
+    } finally {
+      setCSaving(false);
+    }
   }
 
   async function handleDeleteCupHolder(s: Season) {
@@ -342,9 +392,25 @@ export default function HallOfFameTab({
             <div><label className={labelCls}>שנה *</label><input value={cYear} onChange={e => setCYear(e.target.value)} placeholder="2024-2025" required className={inputCls} /></div>
             <div><label className={labelCls}>מחזיקת הגביע *</label><input value={cHolder} onChange={e => setCHolder(e.target.value)} placeholder="שם הקבוצה" required className={inputCls} /></div>
           </div>
-          {cMsg && <p className={`rounded-lg px-3 py-2 text-sm font-medium ${cMsg.ok ? 'bg-green-900/40 text-green-300' : 'bg-red-900/40 text-red-300'}`}>{cMsg.text}</p>}
+          {cMsg && !editingCup && <p className={`rounded-lg px-3 py-2 text-sm font-medium ${cMsg.ok ? 'bg-green-900/40 text-green-300' : 'bg-red-900/40 text-red-300'}`}>{cMsg.text}</p>}
           <button type="submit" disabled={cAdding} className={btnYellow}>{cAdding ? 'שומר...' : 'הוסף מחזיקת גביע'}</button>
         </form>
+
+        {/* Edit form */}
+        {editingCup && (
+          <form onSubmit={handleSaveCupHolder} className="space-y-4 border border-yellow-400/30 rounded-xl p-4 bg-yellow-400/[0.04]">
+            <p className="text-sm font-semibold text-yellow-300">✏️ עורך: {editingCup.origYear}</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div><label className={labelCls}>שנה *</label><input value={editingCup.year} onChange={e => setEditingCup(c => c ? { ...c, year: e.target.value } : c)} required className={inputCls} /></div>
+              <div><label className={labelCls}>מחזיקת הגביע *</label><input value={editingCup.cup_holder_name} onChange={e => setEditingCup(c => c ? { ...c, cup_holder_name: e.target.value } : c)} required className={inputCls} /></div>
+            </div>
+            {cMsg && <p className={`rounded-lg px-3 py-2 text-sm font-medium ${cMsg.ok ? 'bg-green-900/40 text-green-300' : 'bg-red-900/40 text-red-300'}`}>{cMsg.text}</p>}
+            <div className="flex gap-2">
+              <button type="submit" disabled={cSaving} className={btnYellow}>{cSaving ? 'שומר...' : 'שמור שינויים'}</button>
+              <button type="button" onClick={() => setEditingCup(null)} className={btnGhost}>ביטול</button>
+            </div>
+          </form>
+        )}
 
         {/* List */}
         {cupHolderList.length === 0
@@ -358,6 +424,9 @@ export default function HallOfFameTab({
                     <span className="text-white text-sm font-medium">🥇 {s.cup_holder_name}</span>
                   </div>
                   <div className="flex gap-2 shrink-0">
+                    <button onClick={() => startEditCupHolder(s)} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-bold text-[#8aaac8] hover:bg-white/5 hover:text-white transition">
+                      ✏️ ערוך
+                    </button>
                     <button onClick={() => handleDeleteCupHolder(s)} disabled={cDeleting === s.id} className={btnRed}>
                       {cDeleting === s.id ? '⏳' : '🗑 הסר'}
                     </button>

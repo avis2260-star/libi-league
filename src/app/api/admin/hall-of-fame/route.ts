@@ -124,6 +124,59 @@ export async function POST(request: Request) {
         if (error) return NextResponse.json({ error: error.message }, { status: 400 });
         return NextResponse.json({ ok: true, id: inserted?.id });
       }
+      if (action === 'edit') {
+        const id = String(data.id ?? '');
+        const newYear = String(data.year ?? '').trim();
+        const newName = (data.cup_holder_name as string | null | undefined)?.trim() || null;
+        if (!id || !newYear) return NextResponse.json({ error: 'id and year required' }, { status: 400 });
+
+        // fetch the current row to know the existing year
+        const { data: current } = await supabaseAdmin
+          .from('league_history_seasons')
+          .select('id, year')
+          .eq('id', id)
+          .maybeSingle();
+        if (!current) return NextResponse.json({ error: 'row not found' }, { status: 404 });
+
+        // if the year is unchanged, simple update
+        if (current.year === newYear) {
+          const { error } = await supabaseAdmin
+            .from('league_history_seasons')
+            .update({ cup_holder_name: newName })
+            .eq('id', id);
+          if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+          return NextResponse.json({ ok: true, id });
+        }
+
+        // year changed — clear cup_holder on old row, upsert onto the new year row
+        const { error: clearErr } = await supabaseAdmin
+          .from('league_history_seasons')
+          .update({ cup_holder_name: null })
+          .eq('id', id);
+        if (clearErr) return NextResponse.json({ error: clearErr.message }, { status: 400 });
+
+        const { data: targetRow } = await supabaseAdmin
+          .from('league_history_seasons')
+          .select('id')
+          .eq('year', newYear)
+          .maybeSingle();
+
+        if (targetRow) {
+          const { error } = await supabaseAdmin
+            .from('league_history_seasons')
+            .update({ cup_holder_name: newName })
+            .eq('id', targetRow.id);
+          if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+          return NextResponse.json({ ok: true, id: targetRow.id, moved: true });
+        }
+        const { data: inserted, error } = await supabaseAdmin
+          .from('league_history_seasons')
+          .insert({ year: newYear, cup_holder_name: newName })
+          .select('id')
+          .single();
+        if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+        return NextResponse.json({ ok: true, id: inserted?.id, moved: true });
+      }
       if (action === 'delete') {
         // clear cup_holder_name — don't delete the season row (may have champion data)
         const { error } = await supabaseAdmin
