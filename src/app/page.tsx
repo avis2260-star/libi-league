@@ -280,7 +280,7 @@ function RecordCard({ icon, label, value, sub, detail, color }: { icon: string; 
       <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#5a7a9a] font-body">{label}</p>
       <p dir="ltr" className="text-3xl font-black leading-none text-right font-stats" style={{ color }}>{value}</p>
       <p className="mt-2 text-sm font-semibold text-[#c8d8e8] font-heading">{sub}</p>
-      <p className="mt-1 text-xs text-[#5a7a9a] font-body">{detail}</p>
+      <p className="mt-1 text-sm font-bold text-[#8aaac8] font-body">{detail}</p>
     </div>
   );
 }

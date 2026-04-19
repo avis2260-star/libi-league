@@ -169,11 +169,11 @@ export default function ResultsContent({ games, logos }: { games: GameResult[]; 
         visibleRounds.map((r) => (
           <div key={r}>
             <div className="mb-3 flex items-center gap-3">
-              <div className="rounded-2xl border border-orange-500/30 bg-orange-500/15 px-4 py-1 text-xs font-bold text-orange-400">
+              <div className="rounded-2xl border border-orange-500/30 bg-orange-500/15 px-4 py-2 text-base font-black text-orange-400">
                 מחזור {r} · {formatDate(grouped[r][0]?.date) || FALLBACK_DATES[r] || ''}
               </div>
               <div className="h-px flex-1 bg-white/[0.05]" />
-              <span className="text-xs text-[#4a6a8a]">{grouped[r].length} משחקים</span>
+              <span className="text-sm font-black text-[#8aaac8]">{grouped[r].length} משחקים</span>
             </div>
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
               {grouped[r].map((g, i) => <GameCard key={i} game={g} logos={logos} />)}

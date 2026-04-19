@@ -260,10 +260,10 @@ export default function LiveClient({
         <div className="border-b border-white/[0.07] bg-[#0b1824] overflow-y-auto max-h-[50vh]">
           {/* Panel header */}
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06]">
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#3a5a7a] font-body">
+            <span className="text-sm font-black uppercase tracking-widest text-[#8aaac8] font-body">
               {currentRound ? <>מחזור <span className="font-stats">{currentRound}</span></> : 'משחקים'}
             </span>
-            <span className="text-[10px] text-[#2a4a6a]">{games.length} משחקים</span>
+            <span className="text-sm font-black text-[#5a7a9a]">{games.length} משחקים</span>
           </div>
           {games.length === 0 ? (
             <p className="px-4 py-8 text-center text-sm text-[#5a7a9a]">אין משחקים למחזור זה</p>

@@ -65,8 +65,8 @@ function GameModal({
             <span className={`text-[10px] font-bold ${game.div === 'North' ? 'text-blue-400' : 'text-orange-400'}`}>
               {game.div === 'North' ? '🔵 מחוז צפון' : '🟠 מחוז דרום'}
             </span>
-            <p className="text-sm font-black text-white mt-0.5 font-body">{heDay} · {nextDate}</p>
-            <p className="text-[10px] text-[#5a7a9a] font-body">מחזור <span className="font-stats">{nextRound}</span></p>
+            <p className="text-base font-black text-white mt-0.5 font-body">{heDay} · {nextDate}</p>
+            <p className="text-sm font-black text-[#8aaac8] font-body">מחזור <span className="font-stats">{nextRound}</span></p>
           </div>
           <button
             onClick={onClose}
@@ -236,13 +236,13 @@ export default function ScoreboardStrip({
           {heDay && (
             <>
               <div className="shrink-0 text-center min-w-[3.5rem]">
-                <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6a8a]">{heDay}</p>
-                <p className="text-[11px] font-bold text-[#8aaac8]">{nextDate}</p>
+                <p className="text-xs font-black uppercase tracking-widest text-[#8aaac8]">{heDay}</p>
+                <p className="text-sm font-black text-white">{nextDate}</p>
               </div>
               <div className="h-6 w-px bg-white/[0.06] shrink-0" />
             </>
           )}
-          <p className="flex-1 text-[11px] font-bold text-[#5a7a9a] font-body">מחזור <span className="font-stats">{nextRound}</span> · משחקים קרובים</p>
+          <p className="flex-1 text-sm font-black text-[#8aaac8] font-body">מחזור <span className="font-stats">{nextRound}</span> · משחקים קרובים</p>
 
           {/* Scroll arrows */}
           <button

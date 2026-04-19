@@ -169,14 +169,14 @@ export default function GamesContent({
             return (
               <section key={round} id={`round-${round}`}>
                 <div className="mb-4 flex items-center gap-3">
-                  <div className={`rounded-2xl border px-4 py-1.5 text-sm font-bold ${
+                  <div className={`rounded-2xl border px-4 py-2 text-base font-black ${
                     isNext   ? 'border-orange-500/50 bg-orange-500/15 text-orange-400' :
                     isPlayed ? 'border-green-500/20 bg-green-500/10 text-green-400' :
                                'border-white/10 bg-white/5 text-[#8aaac8]'
                   }`}>
                     {t('מחזור')} {round}{isNext ? (lang === 'en' ? ' ← Next' : ' ← הבא') : ''}{isPlayed ? ' ✓' : ''}
                   </div>
-                  <span className="text-sm font-bold text-[#4a6a8a]">{date}</span>
+                  <span className="text-base font-black text-[#8aaac8]">{date}</span>
                   <div className="h-px flex-1 bg-white/[0.05]" />
                 </div>
 
@@ -230,9 +230,9 @@ export default function GamesContent({
                   </div>
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="text-[10px] text-[#5a7a9a]">{lang === 'en' ? 'Round' : 'מחזור'} {g.round}</p>
-                  <p className="text-[10px] text-[#3a5a7a]">{g.date}</p>
-                  <p className="text-[9px] font-black text-rose-400 mt-0.5">Δ{Math.abs(g.home_score - g.away_score)}</p>
+                  <p className="text-sm font-black text-[#8aaac8]">{lang === 'en' ? 'Round' : 'מחזור'} {g.round}</p>
+                  <p className="text-sm font-black text-[#5a7a9a]">{g.date}</p>
+                  <p className="text-xs font-black text-rose-400 mt-0.5">Δ{Math.abs(g.home_score - g.away_score)}</p>
                 </div>
               </div>
             ))

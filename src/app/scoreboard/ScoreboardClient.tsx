@@ -252,8 +252,8 @@ export default function ScoreboardClient({
               {roundKeys.map(rk => (
                 <div key={rk}>
                   <div className="flex items-center justify-end gap-3 mb-3 px-1">
-                    {roundDate && <span className="text-sm font-bold text-[#8aaac8] font-body">{roundDate}</span>}
-                    <p className="text-lg font-black text-white font-heading">{rk}</p>
+                    {roundDate && <span className="text-base font-black text-[#8aaac8] font-body">{roundDate}</span>}
+                    <p className="text-xl font-black text-white font-heading">{rk}</p>
                   </div>
                   <div className="space-y-2">
                     {byRound[rk].map(g => (

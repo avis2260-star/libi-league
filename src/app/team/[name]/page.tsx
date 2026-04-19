@@ -212,7 +212,7 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
                   <p className="text-sm font-semibold text-white truncate">
                     {g.isHome ? 'בית' : 'חוץ'} נגד {g.oppName}
                   </p>
-                  <p className="text-[11px] text-[#5a7a9a]">מחזור {g.round} · {g.date}</p>
+                  <p className="text-sm font-black text-[#8aaac8]">מחזור {g.round} · {g.date}</p>
                 </div>
                 <div dir="ltr" className="shrink-0 text-right">
                   <span className={`text-lg font-black font-stats ${g.won ? 'text-green-400' : 'text-red-400'}`}>{g.myScore}</span>

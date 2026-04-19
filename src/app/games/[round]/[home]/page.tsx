@@ -97,10 +97,10 @@ export default async function GamePreviewPage({
 
       {/* Badges */}
       <div className="flex items-center gap-3">
-        <span className="rounded-xl border border-orange-500/30 bg-orange-500/10 px-3 py-1 text-sm font-bold text-orange-400">
+        <span className="rounded-xl border border-orange-500/30 bg-orange-500/10 px-3 py-1.5 text-base font-black text-orange-400">
           מחזור {round}
         </span>
-        <span className={`rounded-xl border px-3 py-1 text-sm font-bold ${divColor} ${divBg}`}>
+        <span className={`rounded-xl border px-3 py-1.5 text-base font-black ${divColor} ${divBg}`}>
           {divLabel}
         </span>
       </div>
@@ -108,8 +108,8 @@ export default async function GamePreviewPage({
       {/* Main matchup card */}
       <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] overflow-hidden">
         <div className="border-b border-white/[0.06] bg-white/[0.02] px-6 py-3 flex items-center justify-between">
-          <p className="text-sm text-[#5a7a9a]">
-            {dayOfWeek && <span className="font-bold text-[#8aaac8]">יום {dayOfWeek} · </span>}
+          <p className="text-base font-bold text-[#8aaac8]">
+            {dayOfWeek && <span className="font-black text-white">יום {dayOfWeek} · </span>}
             {dateStr}
           </p>
           <span className="rounded-full bg-orange-500/10 border border-orange-500/20 px-3 py-0.5 text-xs font-bold text-orange-400">
