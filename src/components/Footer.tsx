@@ -135,20 +135,24 @@ export default function Footer() {
           {/* Social icons */}
           <div className="flex items-center gap-3 mt-1">
             {[
-              { icon: <FacebookIcon />,  href: '#', label: 'פייסבוק'   },
+              { icon: <FacebookIcon />,  href: 'https://www.facebook.com/profile.php?id=100064701337581', label: 'פייסבוק'   },
               { icon: <InstagramIcon />, href: '#', label: 'אינסטגרם'  },
               { icon: <WhatsAppIcon />,  href: '#', label: 'וואטסאפ'   },
               { icon: <YoutubeIcon />,   href: '#', label: 'יוטיוב'    },
-            ].map(({ icon, href, label }) => (
-              <a
-                key={label}
-                href={href}
-                aria-label={label}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] text-[#5a7a9a] transition-all hover:border-orange-500/40 hover:bg-orange-500/10 hover:text-orange-400"
-              >
-                {icon}
-              </a>
-            ))}
+            ].map(({ icon, href, label }) => {
+              const isExternal = href.startsWith('http');
+              return (
+                <a
+                  key={label}
+                  href={href}
+                  aria-label={label}
+                  {...(isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] text-[#5a7a9a] transition-all hover:border-orange-500/40 hover:bg-orange-500/10 hover:text-orange-400"
+                >
+                  {icon}
+                </a>
+              );
+            })}
           </div>
         </div>
 
