@@ -108,7 +108,7 @@ export default function BottomNav() {
         dir="rtl"
       >
         <div className="mx-3 mb-2 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0f1e30]/98 backdrop-blur-md shadow-2xl">
-          <p className="border-b border-white/[0.06] px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-[#3a5a7a]">
+          <p className="border-b border-white/[0.06] px-4 py-2.5 text-xs font-black uppercase tracking-widest text-[#8aaac8]">
             {t('עוד דפים')}
           </p>
           <div className="grid grid-cols-2 gap-px bg-white/[0.04]">
@@ -120,7 +120,7 @@ export default function BottomNav() {
                   href={href}
                   onClick={() => setMenuOpen(false)}
                   className={`flex items-center gap-3 bg-[#0f1e30] px-4 py-4 text-sm font-bold transition-colors hover:bg-white/[0.05] ${
-                    isActive ? 'text-orange-400' : 'text-[#6b8aaa]'
+                    isActive ? 'text-orange-400' : 'text-[#c8d8e8]'
                   }`}
                 >
                   <span className="text-xl">{emoji}</span>
@@ -132,7 +132,7 @@ export default function BottomNav() {
             <button
               onClick={() => { toggleRotation(); setMenuOpen(false); }}
               className={`flex items-center gap-3 bg-[#0f1e30] px-4 py-4 text-sm font-bold transition-colors hover:bg-white/[0.05] col-span-2 border-t border-white/[0.06] ${
-                rotated ? 'text-orange-400' : 'text-[#6b8aaa]'
+                rotated ? 'text-orange-400' : 'text-[#c8d8e8]'
               }`}
             >
               <span className="text-xl">{rotated ? '📱' : '🔄'}</span>
@@ -162,10 +162,10 @@ export default function BottomNav() {
                 {isActive && (
                   <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
                 )}
-                <span className={`transition-all ${isActive ? 'text-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.6)]' : 'text-[#3a5a7a]'}`}>
+                <span className={`transition-all ${isActive ? 'text-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.6)]' : 'text-[#8aaac8]'}`}>
                   {icon}
                 </span>
-                <span className={`text-[10px] font-bold transition-all ${isActive ? 'text-orange-400' : 'text-[#3a5a7a]'}`}>
+                <span className={`text-[11px] font-black transition-all ${isActive ? 'text-orange-400' : 'text-[#8aaac8]'}`}>
                   {t(label)}
                 </span>
               </Link>
@@ -181,12 +181,12 @@ export default function BottomNav() {
             {menuOpen && (
               <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
             )}
-            <span className={`flex flex-col gap-1 transition-all ${menuOpen ? 'text-orange-400' : 'text-[#3a5a7a]'}`}>
+            <span className={`flex flex-col gap-1 transition-all ${menuOpen ? 'text-orange-400' : 'text-[#8aaac8]'}`}>
               <span className={`block h-0.5 w-5 rounded-full bg-current transition-transform duration-200 ${menuOpen ? 'translate-y-1.5 rotate-45' : ''}`} />
               <span className={`block h-0.5 w-5 rounded-full bg-current transition-opacity duration-200 ${menuOpen ? 'opacity-0' : ''}`} />
               <span className={`block h-0.5 w-5 rounded-full bg-current transition-transform duration-200 ${menuOpen ? '-translate-y-1.5 -rotate-45' : ''}`} />
             </span>
-            <span className={`text-[10px] font-bold transition-all ${menuOpen ? 'text-orange-400' : 'text-[#3a5a7a]'}`}>
+            <span className={`text-[11px] font-black transition-all ${menuOpen ? 'text-orange-400' : 'text-[#8aaac8]'}`}>
               {t('עוד')}
             </span>
           </button>

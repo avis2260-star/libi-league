@@ -27,7 +27,7 @@ export default async function SeasonDetailPage({
       <div className="mx-auto max-w-3xl px-4 py-10 space-y-10">
 
         {/* Back */}
-        <Link href="/hall-of-fame" className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-orange-400 transition">
+        <Link href="/hall-of-fame" className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-300 hover:text-orange-400 transition">
           ← חזרה להיכל התהילה
         </Link>
 
@@ -43,12 +43,12 @@ export default async function SeasonDetailPage({
             </h1>
             <div className="flex flex-wrap gap-4 text-sm">
               {season.champion_captain && (
-                <span className="flex items-center gap-1.5 text-slate-300">
+                <span className="flex items-center gap-1.5 font-semibold text-white">
                   <span className="text-orange-400">👤</span> קפטן: <strong>{season.champion_captain}</strong>
                 </span>
               )}
               {season.mvp_name && (
-                <span className="flex items-center gap-1.5 text-slate-300">
+                <span className="flex items-center gap-1.5 font-semibold text-white">
                   <span className="text-orange-400">⭐</span> MVP: <strong>{season.mvp_name}</strong>
                   {season.mvp_stats && <span className="font-stats text-lg text-orange-400 ml-1">{season.mvp_stats}</span>}
                 </span>

@@ -23,7 +23,7 @@ export default async function AboutPage() {
         <div>
           <h1 className="text-4xl font-black text-white font-heading">ליגת ליבי</h1>
         </div>
-        <p className="text-[#8aaac8] text-base leading-relaxed max-w-xl">
+        <p className="text-[#c8d8e8] text-base font-semibold leading-relaxed max-w-xl">
           ליגה קהילתית לכדורסל הפועלת משנת 2012 המאגדת קבוצות מרחבי הארץ, עם שני מחוזות — צפון ודרום — ומערכת גביע ופלייאוף מרגשת.
         </p>
       </div>
@@ -39,7 +39,7 @@ export default async function AboutPage() {
             className="rounded-2xl border border-white/[0.07] bg-white/[0.04] p-4 text-center hover:border-orange-500/40 hover:bg-orange-500/[0.06] transition-all group">
             <div className="text-2xl mb-1">{icon}</div>
             <p className="text-2xl font-black text-orange-400 group-hover:text-orange-300 transition-colors font-stats">{value}</p>
-            <p className="text-[11px] text-[#5a7a9a] mt-0.5 group-hover:text-[#8aaac8] transition-colors font-body">{label}</p>
+            <p className="text-xs font-bold text-[#8aaac8] mt-0.5 group-hover:text-white transition-colors font-body">{label}</p>
           </Link>
         ))}
       </div>
@@ -58,7 +58,7 @@ export default async function AboutPage() {
           ].map(({ title, desc }) => (
             <div key={title} className="px-5 py-4">
               <p className="font-bold text-white text-sm mb-1 font-heading">{title}</p>
-              <p className="text-sm text-[#8aaac8] leading-relaxed font-body">{desc}</p>
+              <p className="text-sm font-semibold text-[#c8d8e8] leading-relaxed font-body">{desc}</p>
             </div>
           ))}
         </div>
@@ -79,7 +79,7 @@ export default async function AboutPage() {
             <p className="text-sm font-semibold text-white mt-1 font-body">נקודה לקבוצה המפסידה</p>
           </div>
         </div>
-        <div className="border-t border-white/[0.05] px-5 py-3 text-[11px] text-[#3a5a7a]">
+        <div className="border-t border-white/[0.05] px-5 py-3 text-xs font-bold text-[#8aaac8]">
           * קבוצה שלא מגיעה למשחק מקבלת 0 נקודות ועלולה להיקנס בניכוי נקודות.
         </div>
       </div>

@@ -169,11 +169,11 @@ function ScoreboardCard({
               <span className="text-[7px]">🏀</span>
             </span>
           )}
-            <span className={`text-[11px] font-black tracking-widest uppercase
-              ${isFinal ? 'text-yellow-400' : 'text-[#4a6a8a]'}`}>{roundLabel}</span>
-            {series && <span className="text-[10px] text-[#2a4a6a] font-semibold">· סדרה {series.series_number}</span>}
+            <span className={`text-xs font-black tracking-widest uppercase
+              ${isFinal ? 'text-yellow-400' : 'text-[#8aaac8]'}`}>{roundLabel}</span>
+            {series && <span className="text-xs text-[#8aaac8] font-black">· סדרה {series.series_number}</span>}
           </div>
-          <span className="rounded-full bg-white/[0.04] border border-white/[0.07] px-2.5 py-0.5 text-[10px] font-black text-[#3a5a7a]">
+          <span className="rounded-full bg-white/[0.04] border border-white/[0.07] px-2.5 py-0.5 text-xs font-black text-[#8aaac8]">
             טרם נקבע
           </span>
         </div>
@@ -250,7 +250,7 @@ function ScoreboardCard({
             <p className={`text-xs sm:text-sm font-black leading-tight break-words font-heading ${aWon ? 'text-orange-400' : 'text-white'}`}>
               {series.team_a}
             </p>
-            <p className="text-[9px] text-[#4a6a8a] mt-0.5 font-semibold font-body">{lA.full}</p>
+            <p className="text-[11px] text-[#8aaac8] mt-0.5 font-black font-body">{lA.full}</p>
           </div>
         </div>
 
@@ -268,7 +268,7 @@ function ScoreboardCard({
             </span>
           </div>
           {!isFinal && (
-            <p className="text-[8px] sm:text-[9px] text-[#2a4a6a] tracking-widest uppercase font-bold mt-0.5">
+            <p className="text-[10px] sm:text-xs text-[#8aaac8] tracking-widest uppercase font-black mt-0.5">
               {started ? 'ניצחונות' : 'הטוב מ-3'}
             </p>
           )}
@@ -282,7 +282,7 @@ function ScoreboardCard({
             <p className={`text-xs sm:text-sm font-black leading-tight break-words font-heading ${bWon ? 'text-orange-400' : 'text-white'}`}>
               {series.team_b}
             </p>
-            <p className="text-[9px] text-[#4a6a8a] mt-0.5 font-semibold font-body">{lB.full}</p>
+            <p className="text-[11px] text-[#8aaac8] mt-0.5 font-black font-body">{lB.full}</p>
           </div>
         </div>
       </div>

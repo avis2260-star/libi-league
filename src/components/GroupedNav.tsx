@@ -191,7 +191,7 @@ export default function GroupedNav() {
             if (!group || !group.links.length) return null;
             return (
               <div className="border-t border-white/[0.06] px-3 pb-3 pt-2">
-                <p className="px-1 pb-1.5 text-[10px] font-black tracking-widest uppercase text-[#2a4a6a]">
+                <p className="px-1 pb-1.5 text-xs font-black tracking-widest uppercase text-[#8aaac8]">
                   {group.icon} {group.label}
                 </p>
                 <div className="grid grid-cols-2 gap-1.5">

@@ -267,7 +267,7 @@ function StatCard({ value, label, icon, colorClass }: { value: string; label: st
   return (
     <div className="relative overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.04] p-5">
       <div className={`absolute top-0 right-0 left-0 h-0.5 ${colorClass}`} />
-      <p className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-[#5a7a9a] font-body">{icon} {label}</p>
+      <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-[#8aaac8] font-body">{icon} {label}</p>
       <p className="text-3xl font-black text-white font-stats">{value}</p>
     </div>
   );
@@ -277,9 +277,9 @@ function RecordCard({ icon, label, value, sub, detail, color }: { icon: string; 
   return (
     <div className="relative rounded-2xl border border-white/[0.07] bg-white/[0.04] p-5" style={{ borderRightWidth: 4, borderRightColor: color }}>
       <div className="mb-2 text-2xl">{icon}</div>
-      <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#5a7a9a] font-body">{label}</p>
+      <p className="mb-1 text-[11px] font-bold tracking-wide text-[#8aaac8] font-body">{label}</p>
       <p dir="ltr" className="text-3xl font-black leading-none text-right font-stats" style={{ color }}>{value}</p>
-      <p className="mt-2 text-sm font-semibold text-[#c8d8e8] font-heading">{sub}</p>
+      <p className="mt-2 text-base font-bold text-[#c8d8e8] font-heading">{sub}</p>
       <p className="mt-1 text-sm font-bold text-[#8aaac8] font-body">{detail}</p>
     </div>
   );
@@ -402,7 +402,7 @@ export default async function HomePage() {
 
       <div>
         <h1 className="text-3xl font-black text-white font-heading">{T('סקירה כללית')}</h1>
-        <p className="mt-1 text-sm text-[#5a7a9a] font-body">{lang === 'en' ? `Season 2025–2026 · Through Round ${currentRound}` : `עונת 2025–2026 · עד מחזור ${currentRound}`}</p>
+        <p className="mt-1 text-sm font-bold text-[#8aaac8] font-body">{lang === 'en' ? `Season 2025–2026 · Through Round ${currentRound}` : `עונת 2025–2026 · עד מחזור ${currentRound}`}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -423,9 +423,9 @@ export default async function HomePage() {
         ].map(({ label, team }) => (
           <div key={label} className="rounded-2xl border border-white/[0.07] bg-white/[0.04]" style={{ borderTop: '3px solid #e0c97a' }}>
             <div className="p-5">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-[#5a7a9a] font-body">{label}</p>
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-[#8aaac8] font-body">{label}</p>
               <Link href={`/team/${encodeURIComponent(team.name)}`} className="text-xl font-black text-[#e0c97a] hover:underline underline-offset-2 transition-colors font-heading">{team.name}</Link>
-              <p className="mt-1 text-sm text-[#8aaac8] font-body">
+              <p className="mt-1 text-sm font-bold text-[#8aaac8] font-body">
                 {lang === 'en' ? `${team.wins}W / ${team.losses}L · ` : `${team.wins}נ / ${team.losses}ה · `}
                 <span className="font-bold text-orange-400 font-stats">{team.pts} {lang === 'en' ? 'pts' : 'נקודות'}</span>
               </p>
@@ -465,7 +465,7 @@ export default async function HomePage() {
           </h2>
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] overflow-hidden">
             {/* Column header — desktop only */}
-            <div className="hidden sm:flex items-center gap-3 px-4 py-2 border-b border-white/[0.06] text-[10px] font-bold uppercase tracking-widest text-[#3a5a7a]">
+            <div className="hidden sm:flex items-center gap-3 px-4 py-2 border-b border-white/[0.06] text-[11px] font-black uppercase tracking-widest text-[#8aaac8]">
               <span className="w-6 shrink-0 text-center">#</span>
               <span className="w-9 shrink-0" />
               <span className="flex-1">{lang === 'en' ? 'Player' : 'שחקן'}</span>
@@ -487,7 +487,7 @@ export default async function HomePage() {
                 >
                   {/* Rank */}
                   <span className={`w-6 shrink-0 text-center text-sm font-black ${rankColors[i] ?? 'text-[#5a7a9a]'}`}>
-                    {medal ?? <span className="text-xs text-[#3a5a7a]">{i + 1}</span>}
+                    {medal ?? <span className="text-xs font-black text-[#8aaac8]">{i + 1}</span>}
                   </span>
 
                   {/* Avatar */}
@@ -512,7 +512,7 @@ export default async function HomePage() {
                         <span className="text-[10px] font-bold text-orange-400/70 shrink-0 font-stats">#{p.jersey_number}</span>
                       )}
                       {p.team_name && (
-                        <span className="truncate text-[10px] text-[#3a5a7a] font-body">{p.team_name}</span>
+                        <span className="truncate text-[11px] font-bold text-[#8aaac8] font-body">{p.team_name}</span>
                       )}
                     </div>
                     <div className="mt-1 h-0.5 w-full rounded-full bg-white/[0.06]">
@@ -526,24 +526,24 @@ export default async function HomePage() {
                   {/* Points — always visible */}
                   <div className="w-12 shrink-0 text-center">
                     <p className="text-base font-black text-orange-400 font-stats">{p.points}</p>
-                    <p className="text-[9px] text-[#3a5a7a] font-body">{T('נק׳')}</p>
+                    <p className="text-[10px] font-bold text-[#8aaac8] font-body">{T('נק׳')}</p>
                   </div>
 
                   {/* 3PT + Fouls — hidden on small screens */}
                   <div className="hidden sm:block w-12 shrink-0 text-center">
-                    <p className="text-sm font-semibold text-sky-400 font-stats">{p.three_pointers}</p>
-                    <p className="text-[9px] text-[#3a5a7a] font-body">{T('3נק׳')}</p>
+                    <p className="text-sm font-black text-sky-400 font-stats">{p.three_pointers}</p>
+                    <p className="text-[10px] font-bold text-[#8aaac8] font-body">{T('3נק׳')}</p>
                   </div>
                   <div className="hidden sm:block w-12 shrink-0 text-center">
-                    <p className="text-sm text-rose-400 font-stats">{p.fouls}</p>
-                    <p className="text-[9px] text-[#3a5a7a] font-body">{T('פאולים')}</p>
+                    <p className="text-sm font-black text-rose-400 font-stats">{p.fouls}</p>
+                    <p className="text-[10px] font-bold text-[#8aaac8] font-body">{T('פאולים')}</p>
                   </div>
                 </a>
               );
             })}
           </div>
           <div className="mt-2 text-right">
-            <a href="/scorers" className="text-xs text-[#5a7a9a] hover:text-orange-400 transition-colors">
+            <a href="/scorers" className="text-sm font-bold text-[#8aaac8] hover:text-orange-400 transition-colors">
               {lang === 'en' ? 'League Scorers →' : 'רשימת קלעי הליגה ←'}
             </a>
           </div>
@@ -556,12 +556,12 @@ export default async function HomePage() {
         </div>
         <div className="grid grid-cols-1 divide-y divide-white/[0.05] sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:divide-x-reverse">
           <div className="p-5">
-            <p className="mb-1 text-xs text-[#5a7a9a] font-body">{T('מוביל סלים בדרום')}</p>
+            <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">{T('מוביל סלים בדרום')}</p>
             <p className="text-base font-black text-green-400 font-heading">{southLeader.name}</p>
-            <p className="text-xs text-[#5a7a9a] font-stats">{southLeader.pts} <span className="font-body">{T('נקודות')}</span></p>
+            <p className="text-sm font-bold text-[#8aaac8] font-stats">{southLeader.pts} <span className="font-body">{T('נקודות')}</span></p>
           </div>
           <div className="p-5">
-            <p className="mb-1 text-xs text-[#5a7a9a] font-body">{T('גמר הגביע')}</p>
+            <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">{T('גמר הגביע')}</p>
             {cupFinal ? (
               <>
                 <p className="text-base font-black text-[#e0c97a] font-heading">
@@ -569,7 +569,7 @@ export default async function HomePage() {
                     ? <><span className="font-heading">{cupFinal.home_team}</span> <span className="font-stats">{cupFinal.home_score}–{cupFinal.away_score}</span> <span className="font-heading">{cupFinal.away_team}</span></>
                     : cupFinal.date || '—'}
                 </p>
-                <p className="text-xs text-[#5a7a9a] font-body">
+                <p className="text-sm font-bold text-[#8aaac8] font-body">
                   {cupFinal.played
                     ? (lang === 'en' ? 'Final result' : `${cupFinal.date}`)
                     : `${cupFinal.home_team} vs ${cupFinal.away_team}`}
@@ -578,14 +578,14 @@ export default async function HomePage() {
             ) : (
               <>
                 <p className="text-base font-black text-[#e0c97a]">—</p>
-                <p className="text-xs text-[#5a7a9a] font-body">{lang === 'en' ? 'TBD' : 'טרם נקבע'}</p>
+                <p className="text-sm font-bold text-[#8aaac8] font-body">{lang === 'en' ? 'TBD' : 'טרם נקבע'}</p>
               </>
             )}
           </div>
           <div className="p-5">
-            <p className="mb-1 text-xs text-[#5a7a9a] font-body">{T('מחזורים שנותרו')}</p>
+            <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">{T('מחזורים שנותרו')}</p>
             <p className="text-3xl font-black text-blue-400 font-stats">{TOTAL_ROUNDS - currentRound}</p>
-            <p className="text-xs text-[#5a7a9a] font-body">{lang === 'en' ? `out of ${TOTAL_ROUNDS} rounds` : `מתוך ${TOTAL_ROUNDS} מחזורים`}</p>
+            <p className="text-sm font-bold text-[#8aaac8] font-body">{lang === 'en' ? `out of ${TOTAL_ROUNDS} rounds` : `מתוך ${TOTAL_ROUNDS} מחזורים`}</p>
           </div>
         </div>
       </section>

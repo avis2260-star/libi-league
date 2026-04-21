@@ -151,7 +151,7 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
             )}
           </div>
           {teamInfo?.captain_name && teamInfo.captain_name !== 'TBD' && (
-            <p className="text-xs text-[#5a7a9a] mt-1">קפטן: <span className="text-[#8aaac8]">{teamInfo.captain_name}</span></p>
+            <p className="text-sm font-bold text-[#8aaac8] mt-1">קפטן: <span className="font-black text-white">{teamInfo.captain_name}</span></p>
           )}
         </div>
       </div>
@@ -167,7 +167,7 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
           ].map(({ label, value, color }) => (
             <div key={label} className="rounded-2xl border border-white/[0.07] bg-white/[0.04] p-4 text-center">
               <p className={`text-2xl font-black font-stats ${color}`} dir="ltr">{value}</p>
-              <p className="text-[11px] text-[#5a7a9a] mt-0.5 font-body">{label}</p>
+              <p className="text-xs font-bold text-[#8aaac8] mt-0.5 font-body">{label}</p>
             </div>
           ))}
         </div>
@@ -182,15 +182,15 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
           <div className="grid grid-cols-3 divide-x divide-x-reverse divide-white/[0.05]">
             <div className="p-4 text-center">
               <p className="text-2xl font-black text-white font-stats">{avgPts}</p>
-              <p className="text-[11px] text-[#5a7a9a] mt-0.5 font-body">נקודות לניצחון</p>
+              <p className="text-xs font-bold text-[#8aaac8] mt-0.5 font-body">נקודות לניצחון</p>
             </div>
             <div className="p-4 text-center">
-              <p className="text-2xl font-black text-[#5a7a9a] font-stats">{avgAllowed}</p>
-              <p className="text-[11px] text-[#5a7a9a] mt-0.5 font-body">נקודות נגד</p>
+              <p className="text-2xl font-black text-[#8aaac8] font-stats">{avgAllowed}</p>
+              <p className="text-xs font-bold text-[#8aaac8] mt-0.5 font-body">נקודות נגד</p>
             </div>
             <div className="p-4 text-center">
               <p className="text-2xl font-black text-orange-400 font-stats">{winPct}%</p>
-              <p className="text-[11px] text-[#5a7a9a] mt-0.5 font-body">אחוז נצחונות</p>
+              <p className="text-xs font-bold text-[#8aaac8] mt-0.5 font-body">אחוז נצחונות</p>
             </div>
           </div>
         </div>
@@ -216,8 +216,8 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
                 </div>
                 <div dir="ltr" className="shrink-0 text-right">
                   <span className={`text-lg font-black font-stats ${g.won ? 'text-green-400' : 'text-red-400'}`}>{g.myScore}</span>
-                  <span className="text-[#3a5a7a] mx-1">–</span>
-                  <span className="text-lg font-black text-[#5a7a9a] font-stats">{g.oppScore}</span>
+                  <span className="text-[#8aaac8] mx-1">–</span>
+                  <span className="text-lg font-black text-[#8aaac8] font-stats">{g.oppScore}</span>
                 </div>
               </div>
             ))}
@@ -243,20 +243,20 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
               return (
                 <div key={i} className="flex items-center gap-3 px-4 py-3">
                   <span className={`shrink-0 rounded-full w-6 h-6 flex items-center justify-center text-[10px] font-black ${
-                    !isPlayed ? 'bg-white/5 text-[#3a5a7a]' :
+                    !isPlayed ? 'bg-white/5 text-[#8aaac8]' :
                     won ? 'bg-green-500/20 text-green-400' : 'bg-red-500/15 text-red-400'
                   }`}>{!isPlayed ? '?' : won ? 'נ' : 'ה'}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-white truncate">גביע — {g.round} נגד {oppName}</p>
+                    <p className="text-sm font-bold text-white truncate">גביע — {g.round} נגד {oppName}</p>
                   </div>
                   {hasScores ? (
                     <div dir="ltr" className="shrink-0">
                       <span className={`text-lg font-black font-stats ${won ? 'text-green-400' : 'text-red-400'}`}>{myScore}</span>
-                      <span className="text-[#3a5a7a] mx-1">–</span>
-                      <span className="text-lg font-black text-[#5a7a9a] font-stats">{oppScore}</span>
+                      <span className="text-[#8aaac8] mx-1">–</span>
+                      <span className="text-lg font-black text-[#8aaac8] font-stats">{oppScore}</span>
                     </div>
                   ) : (
-                    <span className="text-xs text-[#3a5a7a]">טרם שוחק</span>
+                    <span className="text-sm font-bold text-[#8aaac8]">טרם שוחק</span>
                   )}
                 </div>
               );
@@ -268,13 +268,13 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
       {gameDetails.length === 0 && cupGames.length === 0 && (
         <div className="rounded-2xl border border-white/[0.07] py-16 text-center">
           <p className="text-4xl mb-3">🏀</p>
-          <p className="text-sm text-[#5a7a9a]">לא נמצאו משחקים עבור {teamName}</p>
+          <p className="text-sm font-bold text-[#8aaac8]">לא נמצאו משחקים עבור {teamName}</p>
         </div>
       )}
 
       {/* ── Back link ───────────────────────────────────────────────────── */}
       <div className="text-center space-y-2">
-        <a href="/teams" className="text-sm text-[#4a6a8a] hover:text-[#7aaac8] transition block">← חזרה לרשימת הקבוצות</a>
+        <a href="/teams" className="text-sm font-bold text-[#8aaac8] hover:text-orange-400 transition block">← חזרה לרשימת הקבוצות</a>
         {teamInfo?.id && (
           <a href={`/teams/${teamInfo.id}/players`} className="text-sm text-orange-400/70 hover:text-orange-400 transition block">
             🃏 כרטיסי שחקנים של {teamName}

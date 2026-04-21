@@ -181,10 +181,10 @@ function StandingsTable({ data, title, logos }: { data: Standing[]; title: strin
       </div>
 
       {/* Legend */}
-      <div className="border-t border-white/[0.04] px-4 py-2.5 text-[10px] text-[#3a5a7a]">
+      <div className="border-t border-white/[0.04] px-4 py-2.5 text-xs font-bold text-[#8aaac8]">
         <span className="text-red-400/80">*</span>{' '}
         הורדת נקודות על אי-הגעה לגמר אליפות / מפגש פתיחת עונה ·{' '}
-        <span className="text-[#4a6a8a]">עמודת &quot;טכ׳&quot; = מספר עונשים</span>
+        <span className="text-[#8aaac8]">עמודת &quot;טכ׳&quot; = מספר עונשים</span>
       </div>
     </div>
   );
@@ -197,7 +197,7 @@ export default async function StandingsPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-black text-white">טבלאות ליגה</h1>
-        <p className="mt-1 text-sm text-[#5a7a9a]">עדכני עד מחזור 8 · עונת 2025–2026</p>
+        <p className="mt-1 text-sm font-bold text-[#8aaac8]">עדכני עד מחזור 8 · עונת 2025–2026</p>
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">

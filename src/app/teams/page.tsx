@@ -106,26 +106,26 @@ function TeamCard({
 
         {/* Captain */}
         {team.captain_name && team.captain_name !== 'TBD' && (
-          <p className="mt-1 text-xs text-[#5a7a9a]">
-            <span className="text-[#4a6a8a]">קפטן:</span>{' '}
-            <span className="text-[#8aaac8]">{team.captain_name}</span>
+          <p className="mt-1 text-sm font-bold text-[#8aaac8]">
+            <span className="font-black text-[#c8d8e8]">קפטן:</span>{' '}
+            <span className="font-black text-white">{team.captain_name}</span>
           </p>
         )}
 
         {/* Contact */}
         {team.contact_info && (
-          <p className="text-xs text-[#5a7a9a]">
-            <span className="text-[#4a6a8a]">פרטי קשר:</span>{' '}
-            <span className="text-[#8aaac8]">{team.contact_info}</span>
+          <p className="text-sm font-bold text-[#8aaac8]">
+            <span className="font-black text-[#c8d8e8]">פרטי קשר:</span>{' '}
+            <span className="font-black text-white">{team.contact_info}</span>
           </p>
         )}
 
         {/* Mini stats from standings */}
         {stats && (
-          <div className="mt-2 flex gap-4 text-xs font-stats">
-            <span className="text-green-400 font-semibold">{stats.wins}נ</span>
-            <span className="text-red-400 font-semibold">{stats.losses}ה</span>
-            <span dir="ltr" className={`font-semibold ${stats.diff > 0 ? 'text-green-400' : 'text-red-400'}`}>
+          <div className="mt-2 flex gap-4 text-sm font-stats">
+            <span className="text-green-400 font-black">{stats.wins}נ</span>
+            <span className="text-red-400 font-black">{stats.losses}ה</span>
+            <span dir="ltr" className={`font-black ${stats.diff > 0 ? 'text-green-400' : 'text-red-400'}`}>
               {stats.diff > 0 ? `+${stats.diff}` : stats.diff}
             </span>
             <span className="font-black text-orange-400">{stats.pts} <span className="font-body">נק׳</span></span>
@@ -166,14 +166,14 @@ export default async function TeamsPage() {
       {/* Page title */}
       <div>
         <h1 className="text-3xl font-black text-white font-heading">קבוצות</h1>
-        <p className="mt-1 text-sm text-[#5a7a9a] font-body"><span className="font-stats">{teams.length}</span> קבוצות · עונת 2025–2026</p>
+        <p className="mt-1 text-sm font-bold text-[#8aaac8] font-body"><span className="font-stats">{teams.length}</span> קבוצות · עונת 2025–2026</p>
       </div>
 
       {teams.length === 0 ? (
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] py-16 text-center">
           <p className="text-4xl mb-3">🏀</p>
-          <p className="text-sm text-[#5a7a9a]">לא נמצאו קבוצות במסד הנתונים.</p>
-          <p className="mt-1 text-xs text-[#3a5a7a]">הוסף קבוצות דרך לוח הניהול.</p>
+          <p className="text-sm font-bold text-[#8aaac8]">לא נמצאו קבוצות במסד הנתונים.</p>
+          <p className="mt-1 text-xs font-bold text-[#8aaac8]">הוסף קבוצות דרך לוח הניהול.</p>
         </div>
       ) : (
         <>

@@ -73,8 +73,8 @@ export default function Footer() {
       <div className="h-px bg-gradient-to-r from-transparent via-orange-500/50 to-transparent" />
 
       {/* Disclaimer */}
-      <div className="px-4 pt-4 pb-3 flex items-start gap-2 text-[11px] text-[#4a6a8a] leading-relaxed">
-        <span className="text-[#3a5a7a] mt-0.5 shrink-0">ⓘ</span>
+      <div className="px-4 pt-4 pb-3 flex items-start gap-2 text-xs font-semibold text-[#8aaac8] leading-relaxed">
+        <span className="text-[#8aaac8] mt-0.5 shrink-0">ⓘ</span>
         <p>
           הנתונים באתר הינם לידיעה בלבד. התמונות מועלות באישור השחקנים.{' '}
           נמצאה טעות?{' '}
@@ -91,7 +91,7 @@ export default function Footer() {
           <Link
             key={label}
             href={href}
-            className="text-xs text-[#5a7a9a] hover:text-orange-400 transition-colors"
+            className="text-sm font-bold text-[#8aaac8] hover:text-orange-400 transition-colors"
           >
             {label}
           </Link>
@@ -99,7 +99,7 @@ export default function Footer() {
       </div>
 
       {/* Copyright */}
-      <p className="pb-2 text-center text-[10px] text-[#2a4a6a]">
+      <p className="pb-2 text-center text-xs font-bold text-[#8aaac8]">
         © {year} ליגת ליבי · כל הזכויות שמורות
       </p>
     </footer>
@@ -123,12 +123,12 @@ export default function Footer() {
             <span className="text-3xl">🏀</span>
             <div>
               <p className="text-lg font-black text-white leading-tight">ליגת ליבי</p>
-              <p className="text-[11px] tracking-widest text-[#5a7a9a] uppercase">2025 – 2026</p>
+              <p className="text-xs font-bold tracking-widest text-[#8aaac8] uppercase">2025 – 2026</p>
             </div>
           </div>
 
           {/* Tagline */}
-          <p className="text-sm text-[#5a7a9a] leading-relaxed max-w-[240px]">
+          <p className="text-sm font-semibold text-[#c8d8e8] leading-relaxed max-w-[240px]">
             ליגת כדורסל קהילתית — מביאים את המשחק לשכונה, עם לוח משחקים, טבלאות ותוצאות בזמן אמת.
           </p>
 
@@ -162,7 +162,7 @@ export default function Footer() {
               <li key={href + label}>
                 <Link
                   href={href}
-                  className="group flex items-center gap-1.5 text-sm text-[#5a7a9a] transition-colors hover:text-orange-400"
+                  className="group flex items-center gap-1.5 text-sm font-bold text-[#8aaac8] transition-colors hover:text-orange-400"
                 >
                   <span className="h-px w-3 bg-current opacity-40 transition-all group-hover:w-5 group-hover:opacity-100" />
                   {label}
@@ -182,7 +182,7 @@ export default function Footer() {
               <li key={label}>
                 <Link
                   href={href}
-                  className="group flex items-center gap-1.5 text-sm text-[#5a7a9a] transition-colors hover:text-orange-400"
+                  className="group flex items-center gap-1.5 text-sm font-bold text-[#8aaac8] transition-colors hover:text-orange-400"
                 >
                   <span className="h-px w-3 bg-current opacity-40 transition-all group-hover:w-5 group-hover:opacity-100" />
                   {label}
@@ -196,7 +196,7 @@ export default function Footer() {
             <span className="text-lg">🏆</span>
             <div>
               <p className="text-xs font-black text-orange-400">עונה 2025–2026</p>
-              <p className="text-[10px] text-[#4a6a8a]">ליגת ליבי · כדורסל קהילתי</p>
+              <p className="text-xs font-bold text-[#8aaac8]">ליגת ליבי · כדורסל קהילתי</p>
             </div>
           </div>
         </div>
@@ -204,8 +204,8 @@ export default function Footer() {
 
       {/* ── Disclaimer strip ── */}
       <div className="border-t border-white/[0.04] bg-white/[0.015]">
-        <div className="mx-auto max-w-7xl px-6 py-3 flex items-start gap-2 text-[11px] text-[#4a6a8a] leading-relaxed">
-          <span className="text-[#3a5a7a] mt-0.5 shrink-0">ⓘ</span>
+        <div className="mx-auto max-w-7xl px-6 py-3 flex items-start gap-2 text-xs font-semibold text-[#8aaac8] leading-relaxed">
+          <span className="text-[#8aaac8] mt-0.5 shrink-0">ⓘ</span>
           <p>
             הנתונים באתר הינם לידיעה בלבד. התמונות מועלות באישור השחקנים.{' '}
             נמצאה טעות?{' '}
@@ -219,7 +219,7 @@ export default function Footer() {
 
       {/* ── Bottom bar ── */}
       <div className="border-t border-white/[0.04]">
-        <div className="mx-auto max-w-7xl px-6 flex flex-col sm:flex-row items-center justify-between gap-2 py-4 text-[11px] text-[#3a5a7a]">
+        <div className="mx-auto max-w-7xl px-6 flex flex-col sm:flex-row items-center justify-between gap-2 py-4 text-xs font-bold text-[#8aaac8]">
           <p>© {year} ליגת ליבי · כל הזכויות שמורות</p>
           <div className="flex items-center gap-3">
             <Link href="/terms" className="hover:text-orange-400 transition-colors">

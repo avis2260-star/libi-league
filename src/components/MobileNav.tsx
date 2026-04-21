@@ -63,7 +63,7 @@ export default function MobileNav() {
             <div key={group.label}>
               {/* Group divider + label */}
               {gi > 0 && <div className="mx-4 border-t border-white/[0.06]" />}
-              <p className="px-5 pt-3 pb-1 text-[10px] font-black tracking-widest uppercase text-[#2a4a6a]">
+              <p className="px-5 pt-3 pb-1 text-xs font-black tracking-widest uppercase text-[#8aaac8]">
                 {group.label}
               </p>
               <ul className="pb-1">

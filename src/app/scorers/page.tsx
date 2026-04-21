@@ -58,20 +58,20 @@ export default async function ScorersPage() {
             <span className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-700 px-2 py-1 text-sm">🏅</span>
             רשימת קלעי הליגה
           </h1>
-          <p className="text-sm text-[#5a7a9a] mt-0.5 font-body">טבלת מובילי הנקודות — עונת 2025–2026</p>
+          <p className="text-sm font-bold text-[#8aaac8] mt-0.5 font-body">טבלת מובילי הנקודות — עונת 2025–2026</p>
         </div>
       </div>
 
       {scorers.length === 0 ? (
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] py-20 text-center">
           <p className="text-4xl mb-3">🏀</p>
-          <p className="text-[#5a7a9a]">אין נתוני קליעה עדיין</p>
+          <p className="font-bold text-[#8aaac8]">אין נתוני קליעה עדיין</p>
         </div>
       ) : (
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] overflow-hidden">
 
           {/* Table header */}
-          <div className="hidden sm:grid grid-cols-[3rem_1fr_6rem_6rem_6rem] gap-2 px-5 py-3 border-b border-white/[0.08] text-[10px] font-bold uppercase tracking-widest text-[#3a5a7a]">
+          <div className="hidden sm:grid grid-cols-[3rem_1fr_6rem_6rem_6rem] gap-2 px-5 py-3 border-b border-white/[0.08] text-[11px] font-black uppercase tracking-widest text-[#8aaac8]">
             <span className="text-center">מקום</span>
             <span>שחקן</span>
             <span className="text-center">נק׳</span>
@@ -120,7 +120,7 @@ export default async function ScorersPage() {
                         <span className="text-[10px] font-bold text-orange-400/80 shrink-0 font-stats">#{p.jersey_number}</span>
                       )}
                       {p.team_name && (
-                        <span className="truncate text-[11px] text-[#3a5a7a] font-body">{p.team_name}</span>
+                        <span className="truncate text-xs font-bold text-[#8aaac8] font-body">{p.team_name}</span>
                       )}
                     </div>
                     {/* Progress bar */}
@@ -136,17 +136,17 @@ export default async function ScorersPage() {
                 {/* Points */}
                 <div className="w-16 sm:w-auto shrink-0 px-2 py-4 text-center">
                   <p className="text-lg font-black text-orange-400 font-stats">{p.points}</p>
-                  <p className="text-[9px] text-[#3a5a7a] sm:hidden font-body">נק׳</p>
+                  <p className="text-[10px] font-bold text-[#8aaac8] sm:hidden font-body">נק׳</p>
                 </div>
 
                 {/* 3PT */}
                 <div className="hidden sm:block py-4 text-center">
-                  <p className="text-base font-semibold text-sky-400 font-stats">{p.three_pointers}</p>
+                  <p className="text-base font-black text-sky-400 font-stats">{p.three_pointers}</p>
                 </div>
 
                 {/* Fouls */}
                 <div className="hidden sm:block py-4 text-center">
-                  <p className="text-base text-rose-400 font-stats">{p.fouls}</p>
+                  <p className="text-base font-black text-rose-400 font-stats">{p.fouls}</p>
                 </div>
               </Link>
             );

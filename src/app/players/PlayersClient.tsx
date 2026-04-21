@@ -87,18 +87,18 @@ function PlayerCard({ player }: { player: EnrichedPlayer }) {
         <p className="font-heading font-black text-white text-base leading-tight">{player.name}</p>
 
         {player.team && (
-          <p className="text-xs text-[#5a7a9a] font-medium">{player.team.name}</p>
+          <p className="text-sm font-bold text-[#8aaac8]">{player.team.name}</p>
         )}
 
         {(() => {
           const age = calcAge(player.date_of_birth);
           return age !== null ? (
-            <p className="text-[11px] text-[#5a7a9a] font-medium">גיל: {age}</p>
+            <p className="text-xs font-bold text-[#8aaac8]">גיל: {age}</p>
           ) : null;
         })()}
 
         {player.position && (
-          <span className="inline-block rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[10px] text-[#5a7a9a]">
+          <span className="inline-block rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-xs font-bold text-[#8aaac8]">
             {POSITIONS[player.position] ?? player.position}
           </span>
         )}
@@ -111,8 +111,8 @@ function PlayerCard({ player }: { player: EnrichedPlayer }) {
             { label: 'פאולים', value: player.fouls ?? 0 },
           ].map(({ label, value }) => (
             <div key={label} className="py-2 text-center">
-              <p className="font-stats text-2xl font-bold text-white">{value}</p>
-              <p className="font-body text-[9px] text-[#4a6a8a] font-medium">{label}</p>
+              <p className="font-stats text-2xl font-black text-white">{value}</p>
+              <p className="font-body text-[10px] font-bold text-[#8aaac8]">{label}</p>
             </div>
           ))}
         </div>
@@ -158,7 +158,7 @@ function TeamListView({
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-black text-white">כרטיסי שחקן</h1>
-          <p className="text-sm text-[#5a7a9a] mt-0.5">{sorted.length} קבוצות · {players.filter(p => p.is_active).length} שחקנים פעילים</p>
+          <p className="text-sm font-bold text-[#8aaac8] mt-0.5">{sorted.length} קבוצות · {players.filter(p => p.is_active).length} שחקנים פעילים</p>
         </div>
         <select
           value={sortBy}
@@ -185,12 +185,12 @@ function TeamListView({
             <div className="flex-1 min-w-0">
               <p className="font-black text-white text-sm truncate group-hover:text-orange-400 transition-colors">{team.name}</p>
               <div className="flex items-center gap-3 mt-1">
-                <span className="text-[11px] text-green-400">{active} פעילים</span>
+                <span className="text-xs font-bold text-green-400">{active} פעילים</span>
                 {total > active && (
-                  <span className="text-[11px] text-[#4a6a8a]">{total - active} לא פעילים</span>
+                  <span className="text-xs font-bold text-[#8aaac8]">{total - active} לא פעילים</span>
                 )}
                 {totalPts > 0 && (
-                  <span className="text-[11px] text-orange-400">{totalPts} נק׳</span>
+                  <span className="text-xs font-bold text-orange-400">{totalPts} נק׳</span>
                 )}
               </div>
             </div>

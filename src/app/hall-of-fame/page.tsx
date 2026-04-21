@@ -194,7 +194,7 @@ export default async function HallOfFamePage() {
 
       <header className="mb-12 border-b border-orange-500/30 pb-6">
         <h1 className="font-heading font-black text-5xl mb-2 italic uppercase">היכל התהילה</h1>
-        <p className="text-slate-400 text-lg font-body">מורשת הכדורסל של ליגת ליבי</p>
+        <p className="text-slate-300 text-lg font-semibold font-body">מורשת הכדורסל של ליגת ליבי</p>
       </header>
 
       {/* אלופת הליגה + מחזיקת הגביע */}
@@ -229,7 +229,7 @@ export default async function HallOfFamePage() {
           <span className="w-8 h-px bg-orange-500 inline-block"></span> אלופות הליגה
         </h2>
         {seasons.length === 0 ? (
-          <p className="text-slate-500 text-center py-12">אין עונות להצגה עדיין</p>
+          <p className="text-slate-300 font-bold text-center py-12">אין עונות להצגה עדיין</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {seasons.map((season) => (
@@ -248,15 +248,15 @@ export default async function HallOfFamePage() {
 
                 <div className="flex justify-between items-end border-t border-slate-800 pt-4">
                   <div>
-                    <p className="text-xs text-slate-500 uppercase font-body">MVP של העונה</p>
-                    <p className="font-heading font-bold">{season.mvp_name ?? '—'}</p>
-                    <p className="font-stats text-lg text-orange-400">{season.mvp_stats ?? ''}</p>
+                    <p className="text-xs font-black text-slate-300 uppercase font-body">MVP של העונה</p>
+                    <p className="font-heading font-black text-white">{season.mvp_name ?? '—'}</p>
+                    <p className="font-stats text-lg font-black text-orange-400">{season.mvp_stats ?? ''}</p>
                   </div>
                   <div className="bg-orange-500 text-black px-3 py-1 rounded-full text-xs font-black font-heading">
                     CHAMPIONS
                   </div>
                 </div>
-                <div className="mt-3 text-xs text-orange-400/60 group-hover:text-orange-400 transition font-body">
+                <div className="mt-3 text-sm font-bold text-orange-400 group-hover:text-orange-300 transition font-body">
                   לחץ לפרטי הגמר ←
                 </div>
               </Link>
@@ -271,7 +271,7 @@ export default async function HallOfFamePage() {
           <span className="w-8 h-px bg-yellow-400 inline-block"></span> מחזיקות הגביע
         </h2>
         {seasons.filter(s => s.cup_holder_name).length === 0 ? (
-          <p className="text-slate-500 text-center py-12">אין מחזיקות גביע להצגה עדיין</p>
+          <p className="font-bold text-[#8aaac8] text-center py-12">אין מחזיקות גביע להצגה עדיין</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {seasons.filter(s => s.cup_holder_name).map((season) => (
@@ -289,8 +289,8 @@ export default async function HallOfFamePage() {
 
                 <div className="flex justify-between items-end border-t border-slate-800 pt-4">
                   <div>
-                    <p className="text-xs text-slate-500 uppercase font-body">מחזיקת הגביע</p>
-                    <p className="font-heading font-bold">🥇 {season.cup_holder_name}</p>
+                    <p className="text-xs font-black text-slate-300 uppercase font-body">מחזיקת הגביע</p>
+                    <p className="font-heading font-black text-white">🥇 {season.cup_holder_name}</p>
                   </div>
                   <div className="bg-yellow-400 text-black px-3 py-1 rounded-full text-xs font-black font-heading">
                     CUP HOLDER
@@ -308,7 +308,7 @@ export default async function HallOfFamePage() {
           <span className="w-8 h-px bg-orange-500 inline-block"></span> שיאי כל הזמנים
         </h2>
         {records.length === 0 ? (
-          <p className="text-slate-500 text-center py-12">אין שיאים להצגה עדיין</p>
+          <p className="text-slate-300 font-bold text-center py-12">אין שיאים להצגה עדיין</p>
         ) : (
           <div className="bg-slate-900 rounded-3xl overflow-hidden border border-slate-800">
             <table className="w-full">
@@ -323,7 +323,7 @@ export default async function HallOfFamePage() {
                 {records.map((record) => (
                   <tr key={record.id} className="hover:bg-orange-500/5 transition-colors">
                     <td className="p-4 font-heading font-bold">{record.title}</td>
-                    <td className="p-4 font-body text-slate-300">{record.holder ?? '—'}</td>
+                    <td className="p-4 font-body font-bold text-white">{record.holder ?? '—'}</td>
                     <td className="p-4 text-center font-stats text-3xl text-orange-500">{record.value ?? '—'}</td>
                   </tr>
                 ))}

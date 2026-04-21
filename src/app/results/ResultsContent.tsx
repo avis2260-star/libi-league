@@ -40,19 +40,19 @@ function GameCard({ game, logos }: { game: GameResult; logos: Record<string, str
       <Link href={`/team/${encodeURIComponent(game.home)}`} className="flex items-center justify-end gap-2 min-w-0 group">
         <TeamLogo name={game.home} logos={logos} />
         <div className="text-right min-w-0">
-          <p className={`text-sm font-semibold leading-tight truncate group-hover:text-orange-400 transition-colors ${homeWins ? 'text-white' : 'text-[#5a7a9a]'}`}>
+          <p className={`text-sm font-bold leading-tight truncate group-hover:text-orange-400 transition-colors ${homeWins ? 'text-white' : 'text-[#8aaac8]'}`}>
             {game.home}
           </p>
-          {techniOnHome && <p className="mt-0.5 text-[9px] font-semibold text-red-400">🔴 הפסד טכני</p>}
+          {techniOnHome && <p className="mt-0.5 text-[10px] font-black text-red-400">🔴 הפסד טכני</p>}
         </div>
       </Link>
 
       {/* Score */}
       <div className="min-w-[68px] shrink-0 rounded-lg bg-black/40 px-2.5 py-2 text-center">
         <div className="flex items-center justify-center gap-1.5">
-          <span className={`font-stats text-2xl font-bold ${homeWins ? 'text-orange-400' : 'text-[#4a6a8a]'}`}>{game.sh}</span>
-          <span className="font-stats text-lg text-[#3a5a7a]">:</span>
-          <span className={`font-stats text-2xl font-bold ${!homeWins ? 'text-orange-400' : 'text-[#4a6a8a]'}`}>{game.sa}</span>
+          <span className={`font-stats text-2xl font-black ${homeWins ? 'text-orange-400' : 'text-[#8aaac8]'}`}>{game.sh}</span>
+          <span className="font-stats text-lg font-black text-[#8aaac8]">:</span>
+          <span className={`font-stats text-2xl font-black ${!homeWins ? 'text-orange-400' : 'text-[#8aaac8]'}`}>{game.sa}</span>
         </div>
         {techni && <p className="mt-0.5 text-[8px] font-bold tracking-wide text-red-400">טכני *</p>}
       </div>
@@ -60,10 +60,10 @@ function GameCard({ game, logos }: { game: GameResult; logos: Record<string, str
       {/* Away */}
       <Link href={`/team/${encodeURIComponent(game.away)}`} className="flex items-center justify-start gap-2 min-w-0 group">
         <div className="text-left min-w-0">
-          <p className={`text-sm font-semibold leading-tight truncate group-hover:text-orange-400 transition-colors ${!homeWins ? 'text-white' : 'text-[#5a7a9a]'}`}>
+          <p className={`text-sm font-bold leading-tight truncate group-hover:text-orange-400 transition-colors ${!homeWins ? 'text-white' : 'text-[#8aaac8]'}`}>
             {game.away}
           </p>
-          {techniOnAway && <p className="mt-0.5 text-[9px] font-semibold text-red-400">🔴 הפסד טכני</p>}
+          {techniOnAway && <p className="mt-0.5 text-[10px] font-black text-red-400">🔴 הפסד טכני</p>}
         </div>
         <TeamLogo name={game.away} logos={logos} />
       </Link>
