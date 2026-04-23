@@ -11,6 +11,9 @@ type Season = {
   cup_holder_name: string | null;
   mvp_name: string | null;
   mvp_stats: string | null;
+  final_score: string | null;
+  final_date: string | null;
+  final_location: string | null;
 };
 
 type HRecord = {
@@ -52,6 +55,9 @@ export default function HallOfFameTab({
   const [sCupHolder, setSCupHolder] = useState('');
   const [sMvpName, setSMvpName]   = useState('');
   const [sMvpStats, setSMvpStats] = useState('');
+  const [sFinalScore, setSFinalScore]       = useState('');
+  const [sFinalDate, setSFinalDate]         = useState('');
+  const [sFinalLocation, setSFinalLocation] = useState('');
   const [sAdding, setSAdding]     = useState(false);
   const [sSaving, setSSaving]     = useState(false);
   const [sDeleting, setSDeleting] = useState<string | null>(null);
@@ -122,10 +128,23 @@ export default function HallOfFameTab({
     if (!sYear.trim()) return;
     setSAdding(true); setSMsg(null);
     try {
-      await post({ type: 'season', action: 'add', year: sYear.trim(), champion_name: sChampion.trim() || null, champion_captain: sCaptain.trim() || null, runner_up_name: sRunnerUp.trim() || null, cup_holder_name: sCupHolder.trim() || null, mvp_name: sMvpName.trim() || null, mvp_stats: sMvpStats.trim() || null });
+      const payload = {
+        year: sYear.trim(),
+        champion_name:    sChampion.trim()      || null,
+        champion_captain: sCaptain.trim()       || null,
+        runner_up_name:   sRunnerUp.trim()      || null,
+        cup_holder_name:  sCupHolder.trim()     || null,
+        mvp_name:         sMvpName.trim()       || null,
+        mvp_stats:        sMvpStats.trim()      || null,
+        final_score:      sFinalScore.trim()    || null,
+        final_date:       sFinalDate.trim()     || null,
+        final_location:   sFinalLocation.trim() || null,
+      };
+      await post({ type: 'season', action: 'add', ...payload });
       setSMsg({ ok: true, text: '✅ העונה נוספה' });
-      upsertSeasonLocal({ id: Date.now().toString(), year: sYear.trim(), champion_name: sChampion.trim() || null, champion_captain: sCaptain.trim() || null, runner_up_name: sRunnerUp.trim() || null, cup_holder_name: sCupHolder.trim() || null, mvp_name: sMvpName.trim() || null, mvp_stats: sMvpStats.trim() || null });
+      upsertSeasonLocal({ id: Date.now().toString(), ...payload });
       setSYear(''); setSChampion(''); setSCaptain(''); setSRunnerUp(''); setSCupHolder(''); setSMvpName(''); setSMvpStats('');
+      setSFinalScore(''); setSFinalDate(''); setSFinalLocation('');
     } catch (e: unknown) { setSMsg({ ok: false, text: e instanceof Error ? e.message : 'שגיאה' }); }
     finally { setSAdding(false); }
   }
@@ -140,7 +159,21 @@ export default function HallOfFameTab({
     if (!editingSeason) return;
     setSSaving(true); setSMsg(null);
     try {
-      await post({ type: 'season', action: 'edit', id: editingSeason.id, year: editingSeason.year, champion_name: editingSeason.champion_name, champion_captain: editingSeason.champion_captain, runner_up_name: editingSeason.runner_up_name, cup_holder_name: editingSeason.cup_holder_name, mvp_name: editingSeason.mvp_name, mvp_stats: editingSeason.mvp_stats });
+      await post({
+        type: 'season',
+        action: 'edit',
+        id: editingSeason.id,
+        year: editingSeason.year,
+        champion_name:    editingSeason.champion_name,
+        champion_captain: editingSeason.champion_captain,
+        runner_up_name:   editingSeason.runner_up_name,
+        cup_holder_name:  editingSeason.cup_holder_name,
+        mvp_name:         editingSeason.mvp_name,
+        mvp_stats:        editingSeason.mvp_stats,
+        final_score:      editingSeason.final_score,
+        final_date:       editingSeason.final_date,
+        final_location:   editingSeason.final_location,
+      });
       upsertSeasonLocal(editingSeason);
       setSMsg({ ok: true, text: '✅ נשמר' });
       setEditingSeason(null);
@@ -174,7 +207,7 @@ export default function HallOfFameTab({
         const existing = prev.find(s => s.year === cYear.trim());
         const merged: Season = existing
           ? { ...existing, cup_holder_name: cHolder.trim() }
-          : { id, year: cYear.trim(), champion_name: null, champion_captain: null, runner_up_name: null, cup_holder_name: cHolder.trim(), mvp_name: null, mvp_stats: null };
+          : { id, year: cYear.trim(), champion_name: null, champion_captain: null, runner_up_name: null, cup_holder_name: cHolder.trim(), mvp_name: null, mvp_stats: null, final_score: null, final_date: null, final_location: null };
         const rest = prev.filter(s => s.year !== cYear.trim());
         return [...rest, merged].sort((a, b) => yearNum(b.year) - yearNum(a.year));
       });
@@ -214,7 +247,7 @@ export default function HallOfFameTab({
           if (targetExisting) {
             next = next.map(s => s.id === targetExisting.id ? { ...s, cup_holder_name: editingCup.cup_holder_name.trim() } : s);
           } else {
-            next = [...next, { id: newId, year: editingCup.year.trim(), champion_name: null, champion_captain: null, runner_up_name: null, cup_holder_name: editingCup.cup_holder_name.trim(), mvp_name: null, mvp_stats: null }];
+            next = [...next, { id: newId, year: editingCup.year.trim(), champion_name: null, champion_captain: null, runner_up_name: null, cup_holder_name: editingCup.cup_holder_name.trim(), mvp_name: null, mvp_stats: null, final_score: null, final_date: null, final_location: null }];
           }
         } else {
           next = next.map(s => s.id === editingCup.id ? { ...s, cup_holder_name: editingCup.cup_holder_name.trim() } : s);
@@ -325,6 +358,9 @@ export default function HallOfFameTab({
             <div><label className={labelCls}>מחזיקת הגביע</label><input value={sCupHolder} onChange={e => setSCupHolder(e.target.value)} placeholder="שם הקבוצה" className={inputCls} /></div>
             <div><label className={labelCls}>MVP</label><input value={sMvpName} onChange={e => setSMvpName(e.target.value)} placeholder="שם השחקן" className={inputCls} /></div>
             <div><label className={labelCls}>סטטיסטיקות MVP</label><input value={sMvpStats} onChange={e => setSMvpStats(e.target.value)} placeholder="PPG 24.5" className={inputCls} /></div>
+            <div><label className={labelCls}>תוצאת הגמר</label><input value={sFinalScore} onChange={e => setSFinalScore(e.target.value)} placeholder="85-78" className={inputCls} /></div>
+            <div><label className={labelCls}>תאריך/שעה של הגמר</label><input value={sFinalDate} onChange={e => setSFinalDate(e.target.value)} placeholder="15/5/2024 · 20:00" className={inputCls} /></div>
+            <div><label className={labelCls}>מיקום הגמר</label><input value={sFinalLocation} onChange={e => setSFinalLocation(e.target.value)} placeholder="היכל קריית משה" className={inputCls} /></div>
           </div>
           {sMsg && <p className={`rounded-lg px-3 py-2 text-sm font-medium ${sMsg.ok ? 'bg-green-900/40 text-green-300' : 'bg-red-900/40 text-red-300'}`}>{sMsg.text}</p>}
           <button type="submit" disabled={sAdding} className={btnOrange}>{sAdding ? 'שומר...' : 'הוסף עונה'}</button>
@@ -342,6 +378,9 @@ export default function HallOfFameTab({
               <div><label className={labelCls}>מחזיקת הגביע</label><input value={editingSeason.cup_holder_name ?? ''} onChange={e => setEditingSeason(s => s ? { ...s, cup_holder_name: e.target.value } : s)} className={inputCls} /></div>
               <div><label className={labelCls}>MVP</label><input value={editingSeason.mvp_name ?? ''} onChange={e => setEditingSeason(s => s ? { ...s, mvp_name: e.target.value } : s)} className={inputCls} /></div>
               <div><label className={labelCls}>סטטיסטיקות MVP</label><input value={editingSeason.mvp_stats ?? ''} onChange={e => setEditingSeason(s => s ? { ...s, mvp_stats: e.target.value } : s)} className={inputCls} /></div>
+              <div><label className={labelCls}>תוצאת הגמר</label><input value={editingSeason.final_score ?? ''} onChange={e => setEditingSeason(s => s ? { ...s, final_score: e.target.value } : s)} placeholder="85-78" className={inputCls} /></div>
+              <div><label className={labelCls}>תאריך/שעה של הגמר</label><input value={editingSeason.final_date ?? ''} onChange={e => setEditingSeason(s => s ? { ...s, final_date: e.target.value } : s)} placeholder="15/5/2024 · 20:00" className={inputCls} /></div>
+              <div><label className={labelCls}>מיקום הגמר</label><input value={editingSeason.final_location ?? ''} onChange={e => setEditingSeason(s => s ? { ...s, final_location: e.target.value } : s)} placeholder="היכל קריית משה" className={inputCls} /></div>
             </div>
             <div className="flex gap-2">
               <button type="submit" disabled={sSaving} className={btnOrange}>{sSaving ? 'שומר...' : 'שמור שינויים'}</button>
@@ -371,6 +410,13 @@ export default function HallOfFameTab({
                     )}
                     {(s.mvp_name || s.mvp_stats) && (
                       <p className="text-xs text-[#5a7a9a] mt-0.5">MVP: {s.mvp_name ?? '—'} {s.mvp_stats ? `· ${s.mvp_stats}` : ''}</p>
+                    )}
+                    {(s.final_score || s.final_date || s.final_location) && (
+                      <p className="text-xs text-[#5a7a9a] mt-0.5">
+                        {s.final_score    && <>📋 {s.final_score} </>}
+                        {s.final_date     && <>· 📅 {s.final_date} </>}
+                        {s.final_location && <>· 📍 {s.final_location}</>}
+                      </p>
                     )}
                   </div>
                   <div className="flex gap-2 shrink-0">

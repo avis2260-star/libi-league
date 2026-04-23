@@ -44,6 +44,9 @@ export async function POST(request: Request) {
           cup_holder_logo  text,
           mvp_name         text,
           mvp_stats        text,
+          final_score      text,
+          final_date       text,
+          final_location   text,
           is_current       boolean DEFAULT false,
           sort_order       int DEFAULT 0,
           created_at       timestamptz DEFAULT now()
@@ -51,6 +54,9 @@ export async function POST(request: Request) {
         ALTER TABLE league_history_seasons ADD COLUMN IF NOT EXISTS cup_holder_name text;
         ALTER TABLE league_history_seasons ADD COLUMN IF NOT EXISTS cup_holder_logo text;
         ALTER TABLE league_history_seasons ADD COLUMN IF NOT EXISTS runner_up_name  text;
+        ALTER TABLE league_history_seasons ADD COLUMN IF NOT EXISTS final_score     text;
+        ALTER TABLE league_history_seasons ADD COLUMN IF NOT EXISTS final_date      text;
+        ALTER TABLE league_history_seasons ADD COLUMN IF NOT EXISTS final_location  text;
         CREATE TABLE IF NOT EXISTS league_history_records (
           id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
           title       text NOT NULL,
@@ -75,6 +81,9 @@ export async function POST(request: Request) {
           cup_holder_name:  data.cup_holder_name  ?? null,
           mvp_name:         data.mvp_name         ?? null,
           mvp_stats:        data.mvp_stats        ?? null,
+          final_score:      data.final_score      ?? null,
+          final_date:       data.final_date       ?? null,
+          final_location:   data.final_location   ?? null,
         });
         if (error) return NextResponse.json({ error: error.message }, { status: 400 });
         return NextResponse.json({ ok: true });
@@ -88,6 +97,9 @@ export async function POST(request: Request) {
           cup_holder_name:  data.cup_holder_name  ?? null,
           mvp_name:         data.mvp_name         ?? null,
           mvp_stats:        data.mvp_stats        ?? null,
+          final_score:      data.final_score      ?? null,
+          final_date:       data.final_date       ?? null,
+          final_location:   data.final_location   ?? null,
         }).eq('id', data.id);
         if (error) return NextResponse.json({ error: error.message }, { status: 400 });
         return NextResponse.json({ ok: true });

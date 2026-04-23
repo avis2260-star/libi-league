@@ -67,6 +67,71 @@ export default async function SeasonDetailPage({
           </div>
         </header>
 
+        {/* ── Finals details (score / date / location) ──────────────────── */}
+        {(season.final_score || season.final_date || season.final_location) && (
+          <section className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 sm:p-8">
+            <h2 className="font-heading text-2xl mb-6 flex items-center gap-2">
+              <span className="w-8 h-px bg-orange-500 inline-block" /> פרטי הגמר
+            </h2>
+
+            {/* Big score banner */}
+            {season.final_score && (season.champion_name || season.runner_up_name) && (
+              <div className="mb-6 flex items-center justify-center gap-6 rounded-2xl bg-gradient-to-r from-orange-500/10 via-slate-900 to-slate-900 border border-orange-500/20 p-6">
+                <div className="flex-1 text-center">
+                  <p className="font-heading font-black text-lg sm:text-xl text-white">
+                    {season.champion_name ?? '—'}
+                  </p>
+                  <p className="text-[11px] font-black uppercase tracking-[2px] text-orange-400 mt-1">
+                    אלופה
+                  </p>
+                </div>
+                <div className="font-stats text-4xl sm:text-5xl font-black text-orange-500 shrink-0" dir="ltr">
+                  {season.final_score}
+                </div>
+                <div className="flex-1 text-center">
+                  <p className="font-heading font-black text-lg sm:text-xl text-slate-200">
+                    {season.runner_up_name ?? '—'}
+                  </p>
+                  <p className="text-[11px] font-black uppercase tracking-[2px] text-slate-400 mt-1">
+                    סגנית
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Meta rows */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {season.final_date && (
+                <div className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+                  <span className="text-2xl">📅</span>
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-[2px] text-slate-400">תאריך / שעה</p>
+                    <p className="font-bold text-white text-sm">{season.final_date}</p>
+                  </div>
+                </div>
+              )}
+              {season.final_location && (
+                <div className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+                  <span className="text-2xl">📍</span>
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-[2px] text-slate-400">מיקום</p>
+                    <p className="font-bold text-white text-sm">{season.final_location}</p>
+                  </div>
+                </div>
+              )}
+              {season.final_score && !(season.champion_name || season.runner_up_name) && (
+                <div className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4 sm:col-span-2">
+                  <span className="text-2xl">📋</span>
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-[2px] text-slate-400">תוצאה</p>
+                    <p className="font-stats text-2xl font-black text-orange-400" dir="ltr">{season.final_score}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
       </div>
     </div>
   );
