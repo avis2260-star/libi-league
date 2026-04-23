@@ -9,6 +9,7 @@ type Season = {
   champion_name: string | null;
   champion_logo: string | null;
   champion_captain: string | null;
+  runner_up_name: string | null;
   cup_holder_name: string | null;
   cup_holder_logo: string | null;
   mvp_name: string | null;
@@ -244,7 +245,15 @@ export default async function HallOfFamePage() {
                 </div>
 
                 <p className="font-stats text-2xl text-orange-500">{season.year}</p>
-                <h3 className="font-heading font-black text-3xl mb-4">{season.champion_name ?? '—'}</h3>
+                <h3 className="font-heading font-black text-3xl mb-2">{season.champion_name ?? '—'}</h3>
+
+                {season.runner_up_name && (
+                  <p className="mb-4 flex items-center gap-1.5 text-sm font-bold text-slate-300">
+                    <span className="text-slate-400">🥈</span>
+                    <span className="text-slate-400">סגנית אלופה:</span>
+                    <span className="text-white">{season.runner_up_name}</span>
+                  </p>
+                )}
 
                 <div className="flex justify-between items-end border-t border-slate-800 pt-4">
                   <div>

@@ -39,6 +39,7 @@ export async function POST(request: Request) {
           champion_name    text,
           champion_logo    text,
           champion_captain text,
+          runner_up_name   text,
           cup_holder_name  text,
           cup_holder_logo  text,
           mvp_name         text,
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
         );
         ALTER TABLE league_history_seasons ADD COLUMN IF NOT EXISTS cup_holder_name text;
         ALTER TABLE league_history_seasons ADD COLUMN IF NOT EXISTS cup_holder_logo text;
+        ALTER TABLE league_history_seasons ADD COLUMN IF NOT EXISTS runner_up_name  text;
         CREATE TABLE IF NOT EXISTS league_history_records (
           id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
           title       text NOT NULL,
@@ -69,6 +71,7 @@ export async function POST(request: Request) {
           year:             data.year,
           champion_name:    data.champion_name    ?? null,
           champion_captain: data.champion_captain ?? null,
+          runner_up_name:   data.runner_up_name   ?? null,
           cup_holder_name:  data.cup_holder_name  ?? null,
           mvp_name:         data.mvp_name         ?? null,
           mvp_stats:        data.mvp_stats        ?? null,
@@ -81,6 +84,7 @@ export async function POST(request: Request) {
           year:             data.year,
           champion_name:    data.champion_name    ?? null,
           champion_captain: data.champion_captain ?? null,
+          runner_up_name:   data.runner_up_name   ?? null,
           cup_holder_name:  data.cup_holder_name  ?? null,
           mvp_name:         data.mvp_name         ?? null,
           mvp_stats:        data.mvp_stats        ?? null,

@@ -7,6 +7,7 @@ type Season = {
   year: string;
   champion_name: string | null;
   champion_captain: string | null;
+  runner_up_name: string | null;
   cup_holder_name: string | null;
   mvp_name: string | null;
   mvp_stats: string | null;
@@ -47,6 +48,7 @@ export default function HallOfFameTab({
   const [sYear, setSYear]         = useState('');
   const [sChampion, setSChampion] = useState('');
   const [sCaptain, setSCaptain]   = useState('');
+  const [sRunnerUp, setSRunnerUp] = useState('');
   const [sCupHolder, setSCupHolder] = useState('');
   const [sMvpName, setSMvpName]   = useState('');
   const [sMvpStats, setSMvpStats] = useState('');
@@ -120,10 +122,10 @@ export default function HallOfFameTab({
     if (!sYear.trim()) return;
     setSAdding(true); setSMsg(null);
     try {
-      await post({ type: 'season', action: 'add', year: sYear.trim(), champion_name: sChampion.trim() || null, champion_captain: sCaptain.trim() || null, cup_holder_name: sCupHolder.trim() || null, mvp_name: sMvpName.trim() || null, mvp_stats: sMvpStats.trim() || null });
+      await post({ type: 'season', action: 'add', year: sYear.trim(), champion_name: sChampion.trim() || null, champion_captain: sCaptain.trim() || null, runner_up_name: sRunnerUp.trim() || null, cup_holder_name: sCupHolder.trim() || null, mvp_name: sMvpName.trim() || null, mvp_stats: sMvpStats.trim() || null });
       setSMsg({ ok: true, text: '✅ העונה נוספה' });
-      upsertSeasonLocal({ id: Date.now().toString(), year: sYear.trim(), champion_name: sChampion.trim() || null, champion_captain: sCaptain.trim() || null, cup_holder_name: sCupHolder.trim() || null, mvp_name: sMvpName.trim() || null, mvp_stats: sMvpStats.trim() || null });
-      setSYear(''); setSChampion(''); setSCaptain(''); setSCupHolder(''); setSMvpName(''); setSMvpStats('');
+      upsertSeasonLocal({ id: Date.now().toString(), year: sYear.trim(), champion_name: sChampion.trim() || null, champion_captain: sCaptain.trim() || null, runner_up_name: sRunnerUp.trim() || null, cup_holder_name: sCupHolder.trim() || null, mvp_name: sMvpName.trim() || null, mvp_stats: sMvpStats.trim() || null });
+      setSYear(''); setSChampion(''); setSCaptain(''); setSRunnerUp(''); setSCupHolder(''); setSMvpName(''); setSMvpStats('');
     } catch (e: unknown) { setSMsg({ ok: false, text: e instanceof Error ? e.message : 'שגיאה' }); }
     finally { setSAdding(false); }
   }
@@ -138,7 +140,7 @@ export default function HallOfFameTab({
     if (!editingSeason) return;
     setSSaving(true); setSMsg(null);
     try {
-      await post({ type: 'season', action: 'edit', id: editingSeason.id, year: editingSeason.year, champion_name: editingSeason.champion_name, champion_captain: editingSeason.champion_captain, cup_holder_name: editingSeason.cup_holder_name, mvp_name: editingSeason.mvp_name, mvp_stats: editingSeason.mvp_stats });
+      await post({ type: 'season', action: 'edit', id: editingSeason.id, year: editingSeason.year, champion_name: editingSeason.champion_name, champion_captain: editingSeason.champion_captain, runner_up_name: editingSeason.runner_up_name, cup_holder_name: editingSeason.cup_holder_name, mvp_name: editingSeason.mvp_name, mvp_stats: editingSeason.mvp_stats });
       upsertSeasonLocal(editingSeason);
       setSMsg({ ok: true, text: '✅ נשמר' });
       setEditingSeason(null);
@@ -172,7 +174,7 @@ export default function HallOfFameTab({
         const existing = prev.find(s => s.year === cYear.trim());
         const merged: Season = existing
           ? { ...existing, cup_holder_name: cHolder.trim() }
-          : { id, year: cYear.trim(), champion_name: null, champion_captain: null, cup_holder_name: cHolder.trim(), mvp_name: null, mvp_stats: null };
+          : { id, year: cYear.trim(), champion_name: null, champion_captain: null, runner_up_name: null, cup_holder_name: cHolder.trim(), mvp_name: null, mvp_stats: null };
         const rest = prev.filter(s => s.year !== cYear.trim());
         return [...rest, merged].sort((a, b) => yearNum(b.year) - yearNum(a.year));
       });
@@ -212,7 +214,7 @@ export default function HallOfFameTab({
           if (targetExisting) {
             next = next.map(s => s.id === targetExisting.id ? { ...s, cup_holder_name: editingCup.cup_holder_name.trim() } : s);
           } else {
-            next = [...next, { id: newId, year: editingCup.year.trim(), champion_name: null, champion_captain: null, cup_holder_name: editingCup.cup_holder_name.trim(), mvp_name: null, mvp_stats: null }];
+            next = [...next, { id: newId, year: editingCup.year.trim(), champion_name: null, champion_captain: null, runner_up_name: null, cup_holder_name: editingCup.cup_holder_name.trim(), mvp_name: null, mvp_stats: null }];
           }
         } else {
           next = next.map(s => s.id === editingCup.id ? { ...s, cup_holder_name: editingCup.cup_holder_name.trim() } : s);
@@ -319,6 +321,7 @@ export default function HallOfFameTab({
             <div><label className={labelCls}>שנה *</label><input value={sYear} onChange={e => setSYear(e.target.value)} placeholder="2024-2025" required className={inputCls} /></div>
             <div><label className={labelCls}>אלופת הליגה</label><input value={sChampion} onChange={e => setSChampion(e.target.value)} placeholder="שם הקבוצה" className={inputCls} /></div>
             <div><label className={labelCls}>קפטן</label><input value={sCaptain} onChange={e => setSCaptain(e.target.value)} placeholder="שם הקפטן" className={inputCls} /></div>
+            <div><label className={labelCls}>סגנית אלופה</label><input value={sRunnerUp} onChange={e => setSRunnerUp(e.target.value)} placeholder="שם הקבוצה שהפסידה בגמר" className={inputCls} /></div>
             <div><label className={labelCls}>מחזיקת הגביע</label><input value={sCupHolder} onChange={e => setSCupHolder(e.target.value)} placeholder="שם הקבוצה" className={inputCls} /></div>
             <div><label className={labelCls}>MVP</label><input value={sMvpName} onChange={e => setSMvpName(e.target.value)} placeholder="שם השחקן" className={inputCls} /></div>
             <div><label className={labelCls}>סטטיסטיקות MVP</label><input value={sMvpStats} onChange={e => setSMvpStats(e.target.value)} placeholder="PPG 24.5" className={inputCls} /></div>
@@ -335,6 +338,7 @@ export default function HallOfFameTab({
               <div><label className={labelCls}>שנה *</label><input value={editingSeason.year} onChange={e => setEditingSeason(s => s ? { ...s, year: e.target.value } : s)} required className={inputCls} /></div>
               <div><label className={labelCls}>אלופת הליגה</label><input value={editingSeason.champion_name ?? ''} onChange={e => setEditingSeason(s => s ? { ...s, champion_name: e.target.value } : s)} className={inputCls} /></div>
               <div><label className={labelCls}>קפטן</label><input value={editingSeason.champion_captain ?? ''} onChange={e => setEditingSeason(s => s ? { ...s, champion_captain: e.target.value } : s)} className={inputCls} /></div>
+              <div><label className={labelCls}>סגנית אלופה</label><input value={editingSeason.runner_up_name ?? ''} onChange={e => setEditingSeason(s => s ? { ...s, runner_up_name: e.target.value } : s)} className={inputCls} /></div>
               <div><label className={labelCls}>מחזיקת הגביע</label><input value={editingSeason.cup_holder_name ?? ''} onChange={e => setEditingSeason(s => s ? { ...s, cup_holder_name: e.target.value } : s)} className={inputCls} /></div>
               <div><label className={labelCls}>MVP</label><input value={editingSeason.mvp_name ?? ''} onChange={e => setEditingSeason(s => s ? { ...s, mvp_name: e.target.value } : s)} className={inputCls} /></div>
               <div><label className={labelCls}>סטטיסטיקות MVP</label><input value={editingSeason.mvp_stats ?? ''} onChange={e => setEditingSeason(s => s ? { ...s, mvp_stats: e.target.value } : s)} className={inputCls} /></div>
@@ -359,6 +363,9 @@ export default function HallOfFameTab({
                       {s.champion_name && <span className="text-white text-sm font-medium">🏆 {s.champion_name}</span>}
                       {s.champion_captain && <span className="text-[#5a7a9a] text-xs">קפטן: {s.champion_captain}</span>}
                     </div>
+                    {s.runner_up_name && (
+                      <p className="text-xs text-[#8aaac8] mt-0.5">🥈 סגנית: {s.runner_up_name}</p>
+                    )}
                     {s.cup_holder_name && (
                       <p className="text-xs text-yellow-300/90 mt-0.5">🥇 גביע: {s.cup_holder_name}</p>
                     )}

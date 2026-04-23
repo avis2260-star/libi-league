@@ -38,9 +38,16 @@ export default async function SeasonDetailPage({
           </div>
           <div className="relative">
             <p className="font-stats text-3xl text-orange-500 mb-1">{season.year}</p>
-            <h1 className="font-heading font-black text-4xl sm:text-5xl mb-4 leading-tight">
+            <h1 className="font-heading font-black text-4xl sm:text-5xl mb-2 leading-tight">
               {season.champion_name ?? '—'}
             </h1>
+            {season.runner_up_name && (
+              <p className="mb-4 flex items-center gap-1.5 text-sm font-bold text-slate-300">
+                <span>🥈</span>
+                <span className="text-slate-400">סגנית אלופה:</span>
+                <span className="text-white">{season.runner_up_name}</span>
+              </p>
+            )}
             <div className="flex flex-wrap gap-4 text-sm">
               {season.champion_captain && (
                 <span className="flex items-center gap-1.5 font-semibold text-white">
