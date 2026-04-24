@@ -189,22 +189,35 @@ function parseCupGames(rows: unknown[][]): CupGameRow[] {
         const cellDateMatch = DATE_RE.exec(cell);
         if (cellDateMatch) date = cellDateMatch[0];
 
-        // Priority 2: standalone date cell in the SAME ROW, within ±8 cols of header
+        // Priority 2: standalone date cell in the SAME ROW, within ±8 cols of
+        // header — pick the date in the cell CLOSEST to the header column
+        // (the header for round N can sit between round N-1's date and round
+        // N's date, and we want round N's).
         if (!date) {
           const s = Math.max(0, col - 4), e = Math.min(row.length, col + 10);
-          for (let dc = s; dc < e && !date; dc++) {
+          let bestDist = Infinity;
+          for (let dc = s; dc < e; dc++) {
             const v = String(row[dc] ?? '').trim();
-            if (DATE_EXACT.test(v)) date = v;
+            if (DATE_EXACT.test(v)) {
+              const dist = Math.abs(dc - col);
+              if (dist < bestDist) { bestDist = dist; date = v; }
+            }
           }
         }
-        // Priority 3: row ABOVE, within ±8 cols of header (dates often live there)
+        // Priority 3: row ABOVE, within ±8 cols of header — same nearest-cell
+        // rule. Dates are usually one row above the stage header, with one
+        // column per stage.
         if (!date && ri > 0) {
           const above = rows[ri - 1];
           if (above && Array.isArray(above)) {
             const s = Math.max(0, col - 4), e = Math.min(above.length, col + 10);
-            for (let dc = s; dc < e && !date; dc++) {
+            let bestDist = Infinity;
+            for (let dc = s; dc < e; dc++) {
               const v = String(above[dc] ?? '').trim();
-              if (DATE_EXACT.test(v)) date = v;
+              if (DATE_EXACT.test(v)) {
+                const dist = Math.abs(dc - col);
+                if (dist < bestDist) { bestDist = dist; date = v; }
+              }
             }
           }
         }
