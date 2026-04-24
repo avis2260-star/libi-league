@@ -45,8 +45,19 @@ function MatchCard({ game, teamLogos }: { game: CupGame; teamLogos: Record<strin
   const homeWin = winner === game.home_team;
   const awayWin = winner === game.away_team;
 
-  const Row = ({ name, score, isWinner, placeholder }: { name: string; score: number | null; isWinner: boolean; placeholder: boolean }) => (
-    <div className={`flex items-center gap-2.5 px-3 py-2 ${isWinner ? 'bg-orange-500/15' : ''}`}>
+  const Row = ({ name, score, isWinner, placeholder, isHome }: { name: string; score: number | null; isWinner: boolean; placeholder: boolean; isHome: boolean }) => (
+    <div className={`flex items-center gap-2 px-3 py-2 ${isWinner ? 'bg-orange-500/15' : ''}`}>
+      <span
+        className={`shrink-0 inline-flex items-center justify-center h-4 w-4 rounded text-[9px] font-black ring-1 ${
+          isHome
+            ? 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/25'
+            : 'bg-sky-500/15 text-sky-300 ring-sky-500/25'
+        }`}
+        title={isHome ? 'משחק בית' : 'משחק חוץ'}
+        aria-label={isHome ? 'בית' : 'חוץ'}
+      >
+        {isHome ? 'ב' : 'ח'}
+      </span>
       <TeamLogo name={name} logos={teamLogos} />
       <span className={`flex-1 min-w-0 truncate text-xs font-bold ${isWinner ? 'text-orange-400' : placeholder ? 'text-[#5a7a9a]' : 'text-white'}`}>
         {name}
@@ -62,9 +73,9 @@ function MatchCard({ game, teamLogos }: { game: CupGame; teamLogos: Record<strin
 
   return (
     <div className="overflow-hidden rounded-xl border border-white/[0.07] bg-[#0c1825] shadow-lg">
-      <Row name={game.home_team} score={game.home_score} isWinner={homeWin} placeholder={game.played && !homeWin} />
+      <Row name={game.home_team} score={game.home_score} isWinner={homeWin} placeholder={game.played && !homeWin} isHome />
       <div className="h-px bg-white/[0.05]" />
-      <Row name={game.away_team} score={game.away_score} isWinner={awayWin} placeholder={game.played && !awayWin} />
+      <Row name={game.away_team} score={game.away_score} isWinner={awayWin} placeholder={game.played && !awayWin} isHome={false} />
     </div>
   );
 }
@@ -83,8 +94,9 @@ function FinalCard({ game, teamLogos }: { game: CupGame; teamLogos: Record<strin
       </div>
       <div className="grid grid-cols-[1fr,auto,1fr] items-center gap-3 px-5 py-5">
         {/* Home (right in RTL) */}
-        <div className={`flex flex-col items-center gap-2 ${homeWin ? 'text-orange-400' : 'text-white'}`}>
+        <div className={`flex flex-col items-center gap-1.5 ${homeWin ? 'text-orange-400' : 'text-white'}`}>
           <TeamLogo name={game.home_team} logos={teamLogos} size="lg" />
+          <span className="inline-flex items-center rounded px-1.5 py-px text-[9px] font-black bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/25">בית</span>
           <span className="text-sm font-black text-center">{game.home_team}</span>
           {homeWin && <span className="text-[10px] font-bold text-orange-400">🏆 אלוף</span>}
         </div>
@@ -103,8 +115,9 @@ function FinalCard({ game, teamLogos }: { game: CupGame; teamLogos: Record<strin
         </div>
 
         {/* Away (left in RTL) */}
-        <div className={`flex flex-col items-center gap-2 ${awayWin ? 'text-orange-400' : 'text-white'}`}>
+        <div className={`flex flex-col items-center gap-1.5 ${awayWin ? 'text-orange-400' : 'text-white'}`}>
           <TeamLogo name={game.away_team} logos={teamLogos} size="lg" />
+          <span className="inline-flex items-center rounded px-1.5 py-px text-[9px] font-black bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/25">חוץ</span>
           <span className="text-sm font-black text-center">{game.away_team}</span>
           {awayWin && <span className="text-[10px] font-bold text-orange-400">🏆 אלוף</span>}
         </div>
