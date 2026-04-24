@@ -25,16 +25,15 @@ function resolveAlias(name: string): string {
   return name;
 }
 
-type GameRow = {
-  home_team_id: string | null;
-  away_team_id: string | null;
+type GameResultRow = {
+  round: number;
+  home_team: string;
+  away_team: string;
   home_score: number | null;
   away_score: number | null;
-  status: string | null;
-  game_date: string | null;
 };
 
-type TeamRow = { id: string; name: string; logo_url: string | null };
+type TeamRow = { name: string; logo_url: string | null };
 
 async function getStandings(): Promise<{
   north: StandingWithStreak[];
@@ -45,21 +44,23 @@ async function getStandings(): Promise<{
     const [
       { data, error },
       { data: teamsData },
-      { data: games },
+      { data: results },
     ] = await Promise.all([
       supabaseAdmin.from('standings').select('*').order('rank', { ascending: true }),
-      supabaseAdmin.from('teams').select('id, name, logo_url'),
+      supabaseAdmin.from('teams').select('name, logo_url'),
+      // Pull round results from the Excel-sync table. Sort by round DESC so
+      // the most recent round is first — string dates like "22.11.25" don't
+      // sort chronologically, but the round number does.
       supabaseAdmin
-        .from('games')
-        .select('home_team_id, away_team_id, home_score, away_score, status, game_date')
-        .eq('status', 'Finished')
-        .order('game_date', { ascending: false }),
+        .from('game_results')
+        .select('round, home_team, away_team, home_score, away_score')
+        .order('round', { ascending: false }),
     ]);
 
     if (error || !data || data.length === 0) throw new Error('no data');
 
     const teamRows = (teamsData ?? []) as TeamRow[];
-    const gameRows = (games ?? []) as GameRow[];
+    const gameRows = (results ?? []) as GameResultRow[];
 
     // logos map (by team name)
     const logos: Record<string, string> = {};
@@ -67,41 +68,34 @@ async function getStandings(): Promise<{
       if (t.name && t.logo_url) logos[t.name] = t.logo_url;
     }
 
-    // per-team results, newest first
+    // per-team results, newest first (keyed by normalized team name).
+    // We key by the alias-resolved canonical name so that a team called
+    // "א.ס. ק. גת" in game_results matches "אריות קריית גת" in standings.
     const byTeamResults = new Map<string, ('W' | 'L')[]>();
+    const keyFor = (name: string) => normName(resolveAlias(name));
     for (const g of gameRows) {
       if (g.home_score == null || g.away_score == null) continue;
+      // skip unplayed rows (both scores 0 usually means not played yet)
+      if (g.home_score === 0 && g.away_score === 0) continue;
       const homeWon = g.home_score > g.away_score;
-      if (g.home_team_id) {
+      if (g.home_team) {
         const r: 'W' | 'L' = homeWon ? 'W' : 'L';
-        const arr = byTeamResults.get(g.home_team_id) ?? [];
+        const k = keyFor(g.home_team);
+        const arr = byTeamResults.get(k) ?? [];
         arr.push(r);
-        byTeamResults.set(g.home_team_id, arr);
+        byTeamResults.set(k, arr);
       }
-      if (g.away_team_id) {
+      if (g.away_team) {
         const r: 'W' | 'L' = homeWon ? 'L' : 'W';
-        const arr = byTeamResults.get(g.away_team_id) ?? [];
+        const k = keyFor(g.away_team);
+        const arr = byTeamResults.get(k) ?? [];
         arr.push(r);
-        byTeamResults.set(g.away_team_id, arr);
+        byTeamResults.set(k, arr);
       }
-    }
-
-    // lookup from standings.name → team.id, with alias support
-    const teamByName = new Map<string, TeamRow>();
-    for (const t of teamRows) {
-      teamByName.set(normName(t.name), t);
-      teamByName.set(normName(resolveAlias(t.name)), t);
-    }
-    function findTeamId(name: string): string | undefined {
-      return (
-        teamByName.get(normName(name)) ??
-        teamByName.get(normName(resolveAlias(name)))
-      )?.id;
     }
 
     function enrich(s: Standing): StandingWithStreak {
-      const id = findTeamId(s.name);
-      const results = id ? (byTeamResults.get(id) ?? []) : [];
+      const results = byTeamResults.get(keyFor(s.name)) ?? [];
       const form: ('W' | 'L')[] = results.slice(0, 5);
       let streak = '';
       if (results.length > 0) {

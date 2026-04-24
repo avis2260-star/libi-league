@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import TeamLink from '@/components/TeamLink';
 import type { Standing } from '@/lib/league-data';
 
@@ -52,6 +52,40 @@ function TeamLogo({ name, logos }: { name: string; logos: Record<string, string>
 /* ── Streak pill with Last-5 tooltip ───────────────────────────────────── */
 function StreakPill({ streak, form }: { streak: string; form: ('W' | 'L')[] }) {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const arrowRef = useRef<HTMLDivElement>(null);
+
+  // When the tooltip opens, measure its position against the viewport and
+  // shift it horizontally if it would overflow (columns near the edge of
+  // the screen — especially the rightmost streak column on mobile —
+  // otherwise clip the tooltip). The pill stays centered under the arrow
+  // by separately translating the little arrow element in the opposite
+  // direction.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const trigger = triggerRef.current;
+    const tooltip = tooltipRef.current;
+    const arrow = arrowRef.current;
+    if (!trigger || !tooltip) return;
+
+    // reset so we can measure natural position
+    tooltip.style.transform = 'translateX(-50%)';
+    if (arrow) arrow.style.transform = 'translateX(-50%) rotate(45deg)';
+
+    const tRect = tooltip.getBoundingClientRect();
+    const margin = 8;
+    let shift = 0;
+    if (tRect.left < margin) {
+      shift = margin - tRect.left;
+    } else if (tRect.right > window.innerWidth - margin) {
+      shift = window.innerWidth - margin - tRect.right;
+    }
+    if (shift !== 0) {
+      tooltip.style.transform = `translateX(calc(-50% + ${shift}px))`;
+      if (arrow) arrow.style.transform = `translateX(calc(-50% + ${-shift}px)) rotate(45deg)`;
+    }
+  }, [open]);
 
   if (!streak) {
     return <span className="text-[#4a6a8a] text-xs">—</span>;
@@ -61,11 +95,13 @@ function StreakPill({ streak, form }: { streak: string; form: ('W' | 'L')[] }) {
 
   return (
     <div
+      ref={triggerRef}
       className="relative inline-flex items-center justify-center"
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
       onFocus={() => setOpen(true)}
       onBlur={() => setOpen(false)}
+      onClick={() => setOpen((o) => !o)}
       tabIndex={0}
     >
       <span
@@ -83,15 +119,17 @@ function StreakPill({ streak, form }: { streak: string; form: ('W' | 'L')[] }) {
 
       {form.length > 0 && (
         <div
+          ref={tooltipRef}
           className={[
-            'absolute z-30 bottom-full mb-2 left-1/2 -translate-x-1/2',
-            'pointer-events-none transition-all duration-150',
-            open ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1',
+            'absolute z-30 bottom-full mb-2 left-1/2',
+            'pointer-events-none transition-opacity duration-150',
+            open ? 'opacity-100' : 'opacity-0',
           ].join(' ')}
+          style={{ transform: 'translateX(-50%)' }}
           role="tooltip"
           dir="ltr"
         >
-          <div className="rounded-lg bg-[#0f1e30] ring-1 ring-white/10 shadow-2xl shadow-black/60 px-3 py-2.5 w-max">
+          <div className="relative rounded-lg bg-[#0f1e30] ring-1 ring-white/10 shadow-2xl shadow-black/60 px-3 py-2.5 w-max">
             <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8aaac8] mb-1.5 text-center">
               5 משחקים אחרונים
             </div>
@@ -108,7 +146,11 @@ function StreakPill({ streak, form }: { streak: string; form: ('W' | 'L')[] }) {
                 </div>
               ))}
             </div>
-            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 bg-[#0f1e30] ring-1 ring-white/10" />
+            <div
+              ref={arrowRef}
+              className="absolute -bottom-1 left-1/2 w-2 h-2 bg-[#0f1e30] ring-1 ring-white/10"
+              style={{ transform: 'translateX(-50%) rotate(45deg)' }}
+            />
           </div>
         </div>
       )}
