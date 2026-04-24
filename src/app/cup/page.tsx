@@ -23,16 +23,16 @@ export default async function CupPage() {
   }
 
   return (
-    <div className="space-y-8" dir="rtl">
+    <div className="space-y-4" dir="rtl">
       <div className="text-center">
-        <div className="flex items-center justify-center gap-3 mb-2">
+        <div className="flex items-center justify-center gap-3 mb-1">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={logoUrl} alt="ליגת ליבי" className="h-12 w-12 object-contain rounded-full" />
-          <h1 className="text-4xl font-black text-white font-heading">🏆 גביע ליגת ליבי</h1>
+          <img src={logoUrl} alt="ליגת ליבי" className="h-9 w-9 object-contain rounded-full" />
+          <h1 className="text-2xl sm:text-3xl font-black text-white font-heading">🏆 גביע ליגת ליבי</h1>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={logoUrl} alt="ליגת ליבי" className="h-12 w-12 object-contain rounded-full" />
+          <img src={logoUrl} alt="ליגת ליבי" className="h-9 w-9 object-contain rounded-full" />
         </div>
-        <p className="text-[#5a7a9a] font-body">טורניר הגביע העונתי 2025–2026</p>
+        <p className="text-[#5a7a9a] text-xs font-body">טורניר הגביע העונתי 2025–2026</p>
       </div>
       <TournamentBracket games={games ?? []} teamLogos={teamLogos} />
     </div>

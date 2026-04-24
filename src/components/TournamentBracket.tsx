@@ -14,7 +14,7 @@ function getWinner(g: CupGame): string | null {
   return g.home_score > g.away_score ? g.home_team : g.away_score > g.home_score ? g.away_team : null;
 }
 
-const HEADER_H = 44; // h-11 in px
+const HEADER_H = 32; // compact round-label row
 
 /* ── Normalize team name for fuzzy logo lookup ───────────────────────────── */
 function normalizeName(s: string) {
@@ -33,7 +33,7 @@ function findLogoUrl(name: string, logos: Record<string, string>): string | unde
 /* ── Team logo ───────────────────────────────────────────────────────────── */
 function TeamLogo({ name, logos, large }: { name: string; logos: Record<string, string>; large?: boolean }) {
   const url = findLogoUrl(name, logos);
-  const sz = large ? 'h-11 w-11' : 'h-7 w-7';
+  const sz = large ? 'h-9 w-9' : 'h-6 w-6';
   if (url) {
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={url} alt={name} className={`${sz} shrink-0 rounded-full object-cover border border-white/10`} />;
@@ -56,26 +56,26 @@ function MatchCard({ game, teamLogos, isFinal }: { game: CupGame; teamLogos: Rec
       ? 'border-orange-500/30 ring-1 ring-orange-500/20 shadow-[0_0_30px_rgba(255,121,56,0.12)]'
       : 'border-white/[0.07]'} bg-[#0c1825]`}
     >
-      <div className={`flex items-center gap-2.5 px-3 py-2.5 ${homeWin ? 'bg-orange-500/15' : ''}`}>
+      <div className={`flex items-center gap-2 px-2.5 py-1.5 ${homeWin ? 'bg-orange-500/15' : ''}`}>
         <TeamLogo name={game.home_team} logos={teamLogos} large={isFinal} />
         <span className={`flex-1 min-w-0 truncate font-bold ${isFinal ? 'text-sm' : 'text-xs'} ${homeWin ? 'text-orange-400' : game.played ? 'text-[#5a7a9a]' : 'text-white'}`}>
           {game.home_team}
         </span>
         {game.played && game.home_score !== null && (
-          <span className={`shrink-0 font-black tabular-nums ${isFinal ? 'text-xl' : 'text-sm'} ${homeWin ? 'text-orange-400' : 'text-[#5a7a9a]'}`}>
+          <span className={`shrink-0 font-black tabular-nums ${isFinal ? 'text-lg' : 'text-sm'} ${homeWin ? 'text-orange-400' : 'text-[#5a7a9a]'}`}>
             {game.home_score}
           </span>
         )}
         {homeWin && <span className="text-orange-400 text-xs shrink-0">✓</span>}
       </div>
       <div className="h-px bg-white/[0.05]" />
-      <div className={`flex items-center gap-2.5 px-3 py-2.5 ${awayWin ? 'bg-orange-500/15' : ''}`}>
+      <div className={`flex items-center gap-2 px-2.5 py-1.5 ${awayWin ? 'bg-orange-500/15' : ''}`}>
         <TeamLogo name={game.away_team} logos={teamLogos} large={isFinal} />
         <span className={`flex-1 min-w-0 truncate font-bold ${isFinal ? 'text-sm' : 'text-xs'} ${awayWin ? 'text-orange-400' : game.played ? 'text-[#5a7a9a]' : 'text-white'}`}>
           {game.away_team}
         </span>
         {game.played && game.away_score !== null && (
-          <span className={`shrink-0 font-black tabular-nums ${isFinal ? 'text-xl' : 'text-sm'} ${awayWin ? 'text-orange-400' : 'text-[#5a7a9a]'}`}>
+          <span className={`shrink-0 font-black tabular-nums ${isFinal ? 'text-lg' : 'text-sm'} ${awayWin ? 'text-orange-400' : 'text-[#5a7a9a]'}`}>
             {game.away_score}
           </span>
         )}
@@ -147,24 +147,28 @@ function RoundGap({ totalH }: { totalH: number }) {
 function ChampionBanner({ teamName, teamLogos }: { teamName: string; teamLogos: Record<string, string> }) {
   const url = teamLogos[teamName];
   return (
-    <div className="mt-10 flex flex-col items-center gap-4 rounded-2xl border-2 border-yellow-400/40 bg-gradient-to-b from-yellow-400/10 to-transparent p-8 shadow-[0_0_60px_rgba(250,204,21,0.15)] max-w-sm mx-auto">
-      <div className="text-5xl">🏆</div>
+    <div className="mt-4 flex flex-row items-center justify-center gap-4 rounded-2xl border-2 border-yellow-400/40 bg-gradient-to-b from-yellow-400/10 to-transparent px-6 py-4 shadow-[0_0_60px_rgba(250,204,21,0.15)] max-w-md mx-auto">
+      <div className="text-3xl">🏆</div>
       {url && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt={teamName} className="h-16 w-16 rounded-full border-2 border-yellow-400/50 object-cover shadow-lg" />
+        <img src={url} alt={teamName} className="h-12 w-12 rounded-full border-2 border-yellow-400/50 object-cover shadow-lg shrink-0" />
       )}
-      <p className="text-[11px] font-black uppercase tracking-widest text-[#a08020]">אלוף הגביע 2025–2026</p>
-      <p className="text-2xl font-black text-yellow-400 text-center">{teamName}</p>
+      <div className="flex flex-col items-start">
+        <p className="text-[10px] font-black uppercase tracking-widest text-[#a08020]">אלוף הגביע 2025–2026</p>
+        <p className="text-lg font-black text-yellow-400">{teamName}</p>
+      </div>
     </div>
   );
 }
 
 function TBDBanner() {
   return (
-    <div className="mt-10 flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-[#1e3a5f] bg-[#080f18]/60 p-8 max-w-sm mx-auto">
-      <div className="text-4xl">🏆</div>
-      <p className="text-[11px] font-black uppercase tracking-widest text-[#3a5a7a]">אלוף הגביע</p>
-      <p className="text-sm font-bold text-[#2a4a6a]">טרם נקבע — ממתין לגמר</p>
+    <div className="mt-4 flex flex-row items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-[#1e3a5f] bg-[#080f18]/60 px-6 py-3 max-w-md mx-auto">
+      <div className="text-2xl">🏆</div>
+      <div className="flex flex-col items-start">
+        <p className="text-[10px] font-black uppercase tracking-widest text-[#3a5a7a]">אלוף הגביע</p>
+        <p className="text-sm font-bold text-[#2a4a6a]">טרם נקבע — ממתין לגמר</p>
+      </div>
     </div>
   );
 }
@@ -195,8 +199,8 @@ export default function TournamentBracket({ games, teamLogos }: { games: CupGame
   const maxGames   = Math.max(...rounds.map(r => r.games.length));
 
   // Total bracket height — no gap between cards, justify-around handles spacing
-  const CARD_H  = 78;  // approximate card height in px
-  const bracketH = HEADER_H + maxGames * CARD_H + (maxGames + 1) * 10;
+  const CARD_H  = 58;  // approximate card height in px (compact)
+  const bracketH = HEADER_H + maxGames * CARD_H + (maxGames + 1) * 4;
 
   return (
     <div dir="ltr">
