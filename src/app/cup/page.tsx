@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import TournamentBracket from '@/components/TournamentBracket';
+import StageCardsBracket from '@/components/cup/StageCardsBracket';
+import JourneyBracket from '@/components/cup/JourneyBracket';
 
 async function getLogoUrl() {
   try {
@@ -22,14 +23,15 @@ export default async function CupPage() {
     if (t.name && t.logo_url) teamLogos[t.name] = t.logo_url;
   }
 
+  const cupGames = games ?? [];
+
   return (
     <>
       {/* Scope-specific tweaks: let the /cup page fill the viewport without
-          triggering a page scrollbar. Hide the tall desktop footer and
-          mobile footer (top nav + bottom nav still give access to the rest
-          of the site); trim the <main> padding so the bracket sits closer
-          to the header. These styles are only in the DOM while /cup is
-          mounted — they disappear on navigation. */}
+          triggering a page scrollbar. Hide the tall desktop footer and mobile
+          footer (top nav + bottom nav still give access to the rest of the
+          site); trim the <main> padding so the bracket sits closer to the
+          header. These styles are only in the DOM while /cup is mounted. */}
       <style>{`
         main { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
         footer { display: none !important; }
@@ -45,8 +47,18 @@ export default async function CupPage() {
             <img src={logoUrl} alt="ליגת ליבי" className="h-8 w-8 object-contain rounded-full" />
           </div>
           <p className="text-[#5a7a9a] text-[11px] font-body">טורניר הגביע העונתי 2025–2026</p>
+          <p className="hidden sm:block text-[#8aaac8] text-[10px] mt-1">💡 לחצו על כל קבוצה כדי לצפות במסע שלה בטורניר</p>
         </div>
-        <TournamentBracket games={games ?? []} teamLogos={teamLogos} />
+
+        {/* Mobile: stacked round cards (Option A) */}
+        <div className="sm:hidden">
+          <StageCardsBracket games={cupGames} teamLogos={teamLogos} />
+        </div>
+
+        {/* Desktop/tablet: interactive bracket with team-journey overlay (Option E) */}
+        <div className="hidden sm:block">
+          <JourneyBracket games={cupGames} teamLogos={teamLogos} />
+        </div>
       </div>
     </>
   );
