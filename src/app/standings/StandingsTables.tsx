@@ -40,10 +40,10 @@ function TeamLogo({ name, logos }: { name: string; logos: Record<string, string>
   const url = findLogo(name, logos);
   if (url) return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={url} alt={name} className="h-6 w-6 shrink-0 rounded-full object-cover border border-white/10" />
+    <img src={url} alt={name} className="h-5 w-5 sm:h-6 sm:w-6 shrink-0 rounded-full object-cover border border-white/10" />
   );
   return (
-    <div className="h-6 w-6 shrink-0 rounded-full bg-[#1a2e45] border border-white/10 flex items-center justify-center text-[9px] font-black text-[#3a5a7a]">
+    <div className="h-5 w-5 sm:h-6 sm:w-6 shrink-0 rounded-full bg-[#1a2e45] border border-white/10 flex items-center justify-center text-[9px] font-black text-[#3a5a7a]">
       {[...name].find(c => /\S/.test(c)) ?? '?'}
     </div>
   );
@@ -71,7 +71,7 @@ function StreakPill({ streak, form }: { streak: string; form: ('W' | 'L')[] }) {
       <span
         dir="ltr"
         className={[
-          'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums',
+          'inline-flex items-center gap-0.5 sm:gap-1 rounded-full px-1.5 sm:px-2.5 py-0.5 text-[10px] sm:text-xs font-bold tabular-nums',
           'ring-1 transition-colors cursor-default',
           isWin
             ? 'bg-green-500/10 text-green-300 ring-green-500/30'
@@ -134,8 +134,8 @@ function StandingsTable({
     { key: 'pf',      label: 'זכות',  hide: 'hidden md:table-cell' },
     { key: 'pa',      label: 'חובה',  hide: 'hidden md:table-cell' },
     { key: 'diff',    label: '+/-' },
-    { key: 'techni',  label: "טכ'",   hide: 'hidden lg:table-cell' },
-    { key: 'penalty', label: '*',     hide: 'hidden lg:table-cell' },
+    { key: 'techni',  label: "טכ'" },
+    { key: 'penalty', label: '*' },
     { key: 'pts',     label: "נק'" },
     { key: 'streak',  label: 'רצף' },
   ];
@@ -155,7 +155,7 @@ function StandingsTable({
               <th
                 key={c.key}
                 className={[
-                  'border-b border-white/[0.05] px-1.5 sm:px-2 py-2.5 text-[10px] sm:text-[11px] font-heading font-bold uppercase tracking-wider text-orange-500/70',
+                  'border-b border-white/[0.05] px-1 sm:px-2 py-2.5 text-[10px] sm:text-[11px] font-heading font-bold uppercase tracking-wider text-orange-500/70',
                   c.hide ?? '',
                 ].join(' ')}
                 style={{ textAlign: c.key === 'name' ? 'right' : 'center' }}
@@ -192,57 +192,57 @@ function StandingsTable({
                 style={{ background: rowBg }}
               >
                 {/* # Rank */}
-                <td className="px-1.5 sm:px-2 py-2.5 text-center">
-                  <span className="font-stats text-lg sm:text-xl font-bold" style={{ color: rankColor }}>
+                <td className="px-1 sm:px-2 py-2.5 text-center">
+                  <span className="font-stats text-base sm:text-xl font-bold" style={{ color: rankColor }}>
                     {team.rank}
                   </span>
                 </td>
 
                 {/* Team name + logo */}
-                <td className="px-1.5 sm:px-2 py-2.5">
-                  <div className="flex items-center gap-2 justify-start min-w-0">
+                <td className="px-1 sm:px-2 py-2.5">
+                  <div className="flex items-center gap-1.5 sm:gap-2 justify-start min-w-0">
                     <TeamLogo name={team.name} logos={logos} />
-                    <TeamLink name={team.name} className="font-heading font-bold text-[#e8edf5] text-right truncate" />
+                    <TeamLink name={team.name} className="font-heading font-bold text-[10px] sm:text-sm text-[#e8edf5] text-right truncate" />
                   </div>
                 </td>
 
                 {/* Games played */}
-                <td className="px-1.5 sm:px-2 py-2.5 text-center font-stats text-base sm:text-lg text-[#8aaac8]">{team.games}</td>
+                <td className="px-1 sm:px-2 py-2.5 text-center font-stats text-sm sm:text-lg text-[#8aaac8]">{team.games}</td>
 
                 {/* Wins */}
-                <td className="px-1.5 sm:px-2 py-2.5 text-center font-stats text-lg sm:text-xl text-green-400">{team.wins}</td>
+                <td className="px-1 sm:px-2 py-2.5 text-center font-stats text-base sm:text-xl text-green-400">{team.wins}</td>
 
                 {/* Losses */}
-                <td className="px-1.5 sm:px-2 py-2.5 text-center font-stats text-lg sm:text-xl text-red-400">{team.losses}</td>
+                <td className="px-1 sm:px-2 py-2.5 text-center font-stats text-base sm:text-xl text-red-400">{team.losses}</td>
 
                 {/* Points for */}
-                <td className="px-1.5 sm:px-2 py-2.5 text-center font-stats text-base text-[#8aaac8] hidden md:table-cell">{team.pf}</td>
+                <td className="px-1 sm:px-2 py-2.5 text-center font-stats text-base text-[#8aaac8] hidden md:table-cell">{team.pf}</td>
 
                 {/* Points against */}
-                <td className="px-1.5 sm:px-2 py-2.5 text-center font-stats text-base text-[#8aaac8] hidden md:table-cell">{team.pa}</td>
+                <td className="px-1 sm:px-2 py-2.5 text-center font-stats text-base text-[#8aaac8] hidden md:table-cell">{team.pa}</td>
 
                 {/* +/- Spread */}
-                <td dir="ltr" className={`px-1.5 sm:px-2 py-2.5 text-center font-stats text-lg sm:text-xl ${diffPositive ? 'text-green-400' : 'text-red-400'}`}>
+                <td dir="ltr" className={`px-1 sm:px-2 py-2.5 text-center font-stats text-sm sm:text-xl ${diffPositive ? 'text-green-400' : 'text-red-400'}`}>
                   {diffPositive ? `+${team.diff}` : team.diff}
                 </td>
 
                 {/* טכ' */}
-                <td className="px-1.5 sm:px-2 py-2.5 text-center font-stats text-lg text-[#8aaac8] hidden lg:table-cell">
+                <td className="px-1 sm:px-2 py-2.5 text-center font-stats text-base sm:text-lg text-[#8aaac8]">
                   {hasTechni ? team.techni : ''}
                 </td>
 
                 {/* * penalty */}
-                <td dir="ltr" className="px-1.5 sm:px-2 py-2.5 text-center font-stats text-lg text-red-400 hidden lg:table-cell">
+                <td dir="ltr" className="px-1 sm:px-2 py-2.5 text-center font-stats text-base sm:text-lg text-red-400">
                   {hasPenalty ? team.penalty : ''}
                 </td>
 
                 {/* Total points */}
-                <td className="px-1.5 sm:px-2 py-2.5 text-center font-stats text-xl sm:text-2xl font-bold text-orange-400">
+                <td className="px-1 sm:px-2 py-2.5 text-center font-stats text-lg sm:text-2xl font-bold text-orange-400">
                   {team.pts}
                 </td>
 
                 {/* Streak */}
-                <td className="px-1.5 sm:px-2 py-2.5 text-center">
+                <td className="px-1 sm:px-2 py-2.5 text-center">
                   <StreakPill streak={team.streak} form={team.form} />
                 </td>
               </tr>
