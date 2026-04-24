@@ -90,13 +90,15 @@ function FinalCard({ game, teamLogos }: { game: CupGame; teamLogos: Record<strin
     <div className="mx-auto w-full max-w-xl overflow-hidden rounded-2xl border-2 border-orange-500/30 bg-gradient-to-b from-orange-500/[0.06] to-transparent shadow-[0_0_50px_rgba(255,121,56,0.12)]">
       <div className="flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500/10 border-b border-orange-500/20">
         <span className="text-lg">🏆</span>
-        <span className="text-[11px] font-black uppercase tracking-widest text-orange-400">הגמר · {game.date || 'תאריך טרם נקבע'}</span>
+        <span className="text-[11px] font-black uppercase tracking-widest text-orange-400">
+          הגמר · {game.date || 'תאריך טרם נקבע'} · מגרש ניטרלי
+        </span>
       </div>
       <div className="grid grid-cols-[1fr,auto,1fr] items-center gap-3 px-5 py-5">
-        {/* Home (right in RTL) */}
-        <div className={`flex flex-col items-center gap-1.5 ${homeWin ? 'text-orange-400' : 'text-white'}`}>
+        {/* Home team (right in RTL). Final is played on a neutral court so we
+            don't show a בית/חוץ badge here. */}
+        <div className={`flex flex-col items-center gap-2 ${homeWin ? 'text-orange-400' : 'text-white'}`}>
           <TeamLogo name={game.home_team} logos={teamLogos} size="lg" />
-          <span className="inline-flex items-center rounded px-1.5 py-px text-[9px] font-black bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/25">בית</span>
           <span className="text-sm font-black text-center">{game.home_team}</span>
           {homeWin && <span className="text-[10px] font-bold text-orange-400">🏆 אלוף</span>}
         </div>
@@ -114,10 +116,9 @@ function FinalCard({ game, teamLogos }: { game: CupGame; teamLogos: Record<strin
           )}
         </div>
 
-        {/* Away (left in RTL) */}
-        <div className={`flex flex-col items-center gap-1.5 ${awayWin ? 'text-orange-400' : 'text-white'}`}>
+        {/* Away team (left in RTL). Neutral-court final — no בית/חוץ badge. */}
+        <div className={`flex flex-col items-center gap-2 ${awayWin ? 'text-orange-400' : 'text-white'}`}>
           <TeamLogo name={game.away_team} logos={teamLogos} size="lg" />
-          <span className="inline-flex items-center rounded px-1.5 py-px text-[9px] font-black bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/25">חוץ</span>
           <span className="text-sm font-black text-center">{game.away_team}</span>
           {awayWin && <span className="text-[10px] font-bold text-orange-400">🏆 אלוף</span>}
         </div>

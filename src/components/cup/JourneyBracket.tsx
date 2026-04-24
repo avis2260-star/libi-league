@@ -80,13 +80,15 @@ function MatchCard({
           homeOnPath ? 'bg-orange-500/25' : homeWin ? 'bg-orange-500/15' : ''
         } hover:bg-orange-500/20`}
       >
-        <span
-          className="shrink-0 inline-flex items-center justify-center h-4 w-4 rounded text-[9px] font-black bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/25"
-          title="משחק בית"
-          aria-label="בית"
-        >
-          ב
-        </span>
+        {!isFinal && (
+          <span
+            className="shrink-0 inline-flex items-center justify-center h-4 w-4 rounded text-[9px] font-black bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/25"
+            title="משחק בית"
+            aria-label="בית"
+          >
+            ב
+          </span>
+        )}
         <TeamLogo name={game.home_team} logos={teamLogos} size={isFinal ? 'md' : 'sm'} />
         <span className={`flex-1 min-w-0 truncate font-bold ${isFinal ? 'text-sm' : 'text-xs'} ${
           homeOnPath ? 'text-orange-300' : homeWin ? 'text-orange-400' : game.played ? 'text-[#5a7a9a]' : 'text-white'
@@ -109,13 +111,15 @@ function MatchCard({
           awayOnPath ? 'bg-orange-500/25' : awayWin ? 'bg-orange-500/15' : ''
         } hover:bg-orange-500/20`}
       >
-        <span
-          className="shrink-0 inline-flex items-center justify-center h-4 w-4 rounded text-[9px] font-black bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/25"
-          title="משחק חוץ"
-          aria-label="חוץ"
-        >
-          ח
-        </span>
+        {!isFinal && (
+          <span
+            className="shrink-0 inline-flex items-center justify-center h-4 w-4 rounded text-[9px] font-black bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/25"
+            title="משחק חוץ"
+            aria-label="חוץ"
+          >
+            ח
+          </span>
+        )}
         <TeamLogo name={game.away_team} logos={teamLogos} size={isFinal ? 'md' : 'sm'} />
         <span className={`flex-1 min-w-0 truncate font-bold ${isFinal ? 'text-sm' : 'text-xs'} ${
           awayOnPath ? 'text-orange-300' : awayWin ? 'text-orange-400' : game.played ? 'text-[#5a7a9a]' : 'text-white'
@@ -237,7 +241,10 @@ function RoundHeader({ label, date, allPlayed, isFinal, gamesLeft }: {
       ) : (
         <span className="mt-1 text-[10px] text-[#3a5a7a]">—</span>
       )}
-      {!allPlayed && gamesLeft > 0 && (
+      {isFinal && (
+        <span className="mt-0.5 text-[9px] font-bold text-[#8aaac8]">מגרש ניטרלי</span>
+      )}
+      {!isFinal && !allPlayed && gamesLeft > 0 && (
         <span className="mt-0.5 text-[9px] text-[#5a7a9a]">{gamesLeft} משחקים נותרו</span>
       )}
     </div>
@@ -438,13 +445,19 @@ function JourneyPanel({
                       <span className="text-[10px] font-black uppercase tracking-widest text-[#e0c97a]">
                         {step.round}
                       </span>
-                      <span className={`inline-flex items-center gap-0.5 rounded px-1.5 py-px text-[9px] font-black ring-1 ${
-                        step.isHome
-                          ? 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/25'
-                          : 'bg-sky-500/15 text-sky-300 ring-sky-500/25'
-                      }`}>
-                        {step.isHome ? 'בבית' : 'בחוץ'}
-                      </span>
+                      {step.round === 'גמר' ? (
+                        <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-px text-[9px] font-black ring-1 bg-white/[0.04] text-[#8aaac8] ring-white/[0.08]">
+                          מגרש ניטרלי
+                        </span>
+                      ) : (
+                        <span className={`inline-flex items-center gap-0.5 rounded px-1.5 py-px text-[9px] font-black ring-1 ${
+                          step.isHome
+                            ? 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/25'
+                            : 'bg-sky-500/15 text-sky-300 ring-sky-500/25'
+                        }`}>
+                          {step.isHome ? 'בבית' : 'בחוץ'}
+                        </span>
+                      )}
                     </div>
                     <span className={`text-[10px] font-bold ${
                       step.outcome === 'win' ? 'text-green-400'
