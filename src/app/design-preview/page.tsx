@@ -128,7 +128,7 @@ export default function DesignPreviewPage() {
             <div className="space-y-3">
               <div>
                 <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-0.5">Teko — font-stats (מספרים ונתונים)</p>
-                <p className="font-stats text-4xl text-white">54 : 67 · מחזור 9 · 14.03.26</p>
+                <p className="font-stats text-4xl text-white">54 : 67 · מחזור 9 · 24.04.26</p>
               </div>
               <div>
                 <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-0.5">Heebo — font-heading (כותרות ושמות)</p>

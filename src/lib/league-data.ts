@@ -152,13 +152,13 @@ export const GAME_RESULTS: GameResult[] = [
 // ── Upcoming games ─────────────────────────────────────────────────────────────
 
 export const UPCOMING_GAMES: UpcomingGame[] = [
-  { round: 9, date: '28.02.26', home: 'ידרסל חדרה',           away: 'בני מוצקין',           division: 'North' },
-  { round: 9, date: '28.02.26', home: 'גוטלמן השרון',         away: 'גלי בת-ים',            division: 'North' },
-  { round: 9, date: '28.02.26', home: 'בני נתניה',            away: 'כ.ע. בת-ים',           division: 'North' },
-  { round: 9, date: '28.02.26', home: 'אדיס אשדוד',           away: 'אוריה ירושלים',        division: 'South' },
-  { round: 9, date: '28.02.26', home: 'קריית מלאכי',          away: 'אופק רחובות',          division: 'South' },
-  { round: 9, date: '28.02.26', home: 'ראשון "גפן" לציון',    away: "החבר'ה הטובים גדרה",   division: 'South' },
-  { round: 9, date: '28.02.26', home: 'אחים קריית משה',       away: 'אריות קריית גת',       division: 'South' },
+  { round: 9, date: '24.04.26', home: 'ידרסל חדרה',           away: 'בני מוצקין',           division: 'North' },
+  { round: 9, date: '24.04.26', home: 'גוטלמן השרון',         away: 'גלי בת-ים',            division: 'North' },
+  { round: 9, date: '24.04.26', home: 'בני נתניה',            away: 'כ.ע. בת-ים',           division: 'North' },
+  { round: 9, date: '24.04.26', home: 'אדיס אשדוד',           away: 'אוריה ירושלים',        division: 'South' },
+  { round: 9, date: '24.04.26', home: 'קריית מלאכי',          away: 'אופק רחובות',          division: 'South' },
+  { round: 9, date: '24.04.26', home: 'ראשון "גפן" לציון',    away: "החבר'ה הטובים גדרה",   division: 'South' },
+  { round: 9, date: '24.04.26', home: 'אחים קריית משה',       away: 'אריות קריית גת',       division: 'South' },
 ];
 
 // ── Cup ───────────────────────────────────────────────────────────────────────
