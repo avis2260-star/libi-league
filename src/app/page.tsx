@@ -6,6 +6,7 @@ import { NORTH_TABLE, SOUTH_TABLE, CURRENT_ROUND, TOTAL_ROUNDS } from '@/lib/lea
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import { getTeams } from '@/lib/supabase';
 import ScoreboardStrip from '@/components/ScoreboardStrip';
+import LastRoundResults from '@/components/LastRoundResults';
 import { getLang, st } from '@/lib/get-lang';
 
 const ROUND_DATES: Record<number, string> = {
@@ -399,6 +400,9 @@ export default async function HomePage() {
           teamRosters={teamRosters}
         />
       )}
+
+      {/* ── Last Round Results ── */}
+      <LastRoundResults />
 
       <div>
         <h1 className="text-3xl font-black text-white font-heading">{T('סקירה כללית')}</h1>
