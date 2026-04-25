@@ -14,16 +14,15 @@ const STATUS_COLORS: Record<GameStatus, string> = {
   Finished:  'bg-gray-800    text-gray-400',
 };
 
-// ── Round lookup: by date first, then fall back to team-pair ────────────────
-// We can't rely on date alone because the DB sometimes lags the schedule
-// (e.g. league reschedules a round but the games table hasn't been re-synced
-// yet). The team-pair fallback uses the LIBI_SCHEDULE — which is fixture
-// metadata that doesn't change when dates shift — to recover the round.
-const DATE_TO_ROUND: Record<string, number> = {};
-for (const g of LIBI_SCHEDULE) {
-  if (!DATE_TO_ROUND[g.date]) DATE_TO_ROUND[g.date] = g.round;
-}
-
+// ── Round lookup: team-pair first, then fall back to date ───────────────────
+// Date alone is unreliable because the games table in the DB can lag the
+// schedule (the league sometimes reschedules a round but the games rows
+// keep their old game_date until the next Excel sync). Worse, when a
+// reschedule shifts dates around, an old round's date can collide with a
+// new round's date — e.g. round 14's old date "2026-04-24" is now round 9's
+// date, which would (incorrectly) bucket all stale round 14 games under
+// round 9. Team pairings, by contrast, are unique per round and never
+// change when dates shift, so they are the reliable signal.
 const TEAM_PAIR_TO_ROUND: Record<string, number> = {};
 function pairKey(a: string, b: string): string {
   return [a, b].sort().join('|');
@@ -32,16 +31,27 @@ for (const g of LIBI_SCHEDULE) {
   TEAM_PAIR_TO_ROUND[pairKey(g.homeTeam, g.awayTeam)] = g.round;
 }
 
+const DATE_TO_ROUND: Record<string, number> = {};
+for (const g of LIBI_SCHEDULE) {
+  if (!DATE_TO_ROUND[g.date]) DATE_TO_ROUND[g.date] = g.round;
+}
+
+// Canonical date per round (from LIBI_SCHEDULE) so the round header
+// always shows the *current* scheduled date, not whatever stale date
+// the DB game row happens to carry.
+const ROUND_TO_DATE: Record<number, string> = {};
+for (const g of LIBI_SCHEDULE) {
+  if (!ROUND_TO_DATE[g.round]) ROUND_TO_DATE[g.round] = g.date;
+}
+
 function getRoundForGame(game: GameWithTeams): number {
-  const byDate = DATE_TO_ROUND[game.game_date];
-  if (byDate) return byDate;
   const home = game.home_team?.name;
   const away = game.away_team?.name;
   if (home && away) {
     const byPair = TEAM_PAIR_TO_ROUND[pairKey(home, away)];
     if (byPair) return byPair;
   }
-  return 0;
+  return DATE_TO_ROUND[game.game_date] ?? 0;
 }
 
 interface Props {
@@ -157,8 +167,11 @@ function RoundSection({
   const total    = games.length;
   const finished = games.filter(g => g.status === 'Finished').length;
   const live     = games.filter(g => g.status === 'Live').length;
-  const date     = games[0]?.game_date
-    ? new Date(games[0].game_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })
+  // Prefer the canonical schedule date (always current). Fall back to the
+  // DB row date only for round 0 ("מחזור —", unmatched games).
+  const isoDate  = ROUND_TO_DATE[round] ?? games[0]?.game_date ?? '';
+  const date     = isoDate
+    ? new Date(isoDate).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })
     : '';
 
   return (
