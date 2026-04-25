@@ -89,12 +89,12 @@ export default function GamesTab({ games }: Props) {
     roundMap.get(r)!.some(g => g.status !== 'Finished')
   ) ?? allRounds[allRounds.length - 1] ?? 0;
 
-  // Display order: descending but active round first
-  const sortedRounds = [...allRounds].sort((a, b) => b - a);
-  const displayRounds = [
-    activeRound,
-    ...sortedRounds.filter(r => r !== activeRound),
-  ];
+  // Display order: chronological ascending — last played at the top,
+  // then the next round, then the rest of the season. The active round
+  // stays at the start (it's the lowest non-Finished round, so it's
+  // already first in the ascending list); the visual "← הבא" badge is
+  // applied via the isActive prop on the section.
+  const displayRounds = [...allRounds].sort((a, b) => a - b);
 
   return (
     <div className="space-y-4">
