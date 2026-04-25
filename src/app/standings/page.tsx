@@ -71,7 +71,8 @@ async function getStandings(): Promise<{
     // per-team results, newest first (keyed by normalized team name).
     // We key by the alias-resolved canonical name so that a team called
     // "א.ס. ק. גת" in game_results matches "אריות קריית גת" in standings.
-    const byTeamResults = new Map<string, ('W' | 'L')[]>();
+    type FormEntry = { result: 'W' | 'L'; round: number };
+    const byTeamResults = new Map<string, FormEntry[]>();
     const keyFor = (name: string) => normName(resolveAlias(name));
     for (const g of gameRows) {
       if (g.home_score == null || g.away_score == null) continue;
@@ -79,30 +80,30 @@ async function getStandings(): Promise<{
       if (g.home_score === 0 && g.away_score === 0) continue;
       const homeWon = g.home_score > g.away_score;
       if (g.home_team) {
-        const r: 'W' | 'L' = homeWon ? 'W' : 'L';
+        const result: 'W' | 'L' = homeWon ? 'W' : 'L';
         const k = keyFor(g.home_team);
         const arr = byTeamResults.get(k) ?? [];
-        arr.push(r);
+        arr.push({ result, round: g.round });
         byTeamResults.set(k, arr);
       }
       if (g.away_team) {
-        const r: 'W' | 'L' = homeWon ? 'L' : 'W';
+        const result: 'W' | 'L' = homeWon ? 'L' : 'W';
         const k = keyFor(g.away_team);
         const arr = byTeamResults.get(k) ?? [];
-        arr.push(r);
+        arr.push({ result, round: g.round });
         byTeamResults.set(k, arr);
       }
     }
 
     function enrich(s: Standing): StandingWithStreak {
       const results = byTeamResults.get(keyFor(s.name)) ?? [];
-      const form: ('W' | 'L')[] = results.slice(0, 5);
+      const form: FormEntry[] = results.slice(0, 5);
       let streak = '';
       if (results.length > 0) {
-        const kind = results[0];
+        const kind = results[0].result;
         let n = 0;
         for (const r of results) {
-          if (r === kind) n++; else break;
+          if (r.result === kind) n++; else break;
         }
         streak = `${kind}${n}`;
       }
@@ -117,7 +118,7 @@ async function getStandings(): Promise<{
 
     return { north, south, logos };
   } catch {
-    const empty = { streak: '', form: [] as ('W' | 'L')[] };
+    const empty = { streak: '', form: [] as { result: 'W' | 'L'; round: number }[] };
     return {
       north: NORTH_TABLE.map(s => ({ ...s, ...empty })),
       south: SOUTH_TABLE.map(s => ({ ...s, ...empty })),

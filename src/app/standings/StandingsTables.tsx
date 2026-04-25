@@ -1,12 +1,14 @@
 'use client';
 
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import TeamLink from '@/components/TeamLink';
 import type { Standing } from '@/lib/league-data';
 
+export type FormEntry = { result: 'W' | 'L'; round: number };
+
 export type StandingWithStreak = Standing & {
   streak: string;             // e.g. "W3" / "L2" / ""
-  form: ('W' | 'L')[];        // last 5, newest first
+  form: FormEntry[];          // last 5, newest first (rendered reversed so oldest is on the left)
 };
 
 /* ── Team name aliases ────────────────────────────────────────────────── */
@@ -50,18 +52,19 @@ function TeamLogo({ name, logos }: { name: string; logos: Record<string, string>
 }
 
 /* ── Streak pill with Last-5 tooltip ───────────────────────────────────── */
-function StreakPill({ streak, form }: { streak: string; form: ('W' | 'L')[] }) {
+function StreakPill({ streak, form }: { streak: string; form: FormEntry[] }) {
   const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLSpanElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const arrowRef = useRef<HTMLDivElement>(null);
 
-  // When the tooltip opens, measure its position against the viewport and
-  // shift it horizontally if it would overflow (columns near the edge of
-  // the screen — especially the rightmost streak column on mobile —
-  // otherwise clip the tooltip). The pill stays centered under the arrow
-  // by separately translating the little arrow element in the opposite
-  // direction.
+  // The standings table wrapper uses `overflow-hidden` for its rounded
+  // corners, which clips any absolutely-positioned tooltip that extends
+  // beyond the wrapper. We sidestep the clip by rendering the tooltip
+  // with `position: fixed` (escapes overflow ancestors) and computing
+  // top/left from the trigger's bounding rect. The little arrow is then
+  // independently positioned so it stays centered under the trigger,
+  // even when the tooltip itself has been pushed back into the viewport.
   useLayoutEffect(() => {
     if (!open) return;
     const trigger = triggerRef.current;
@@ -69,22 +72,40 @@ function StreakPill({ streak, form }: { streak: string; form: ('W' | 'L')[] }) {
     const arrow = arrowRef.current;
     if (!trigger || !tooltip) return;
 
-    // reset so we can measure natural position
-    tooltip.style.transform = 'translateX(-50%)';
-    if (arrow) arrow.style.transform = 'translateX(-50%) rotate(45deg)';
-
-    const tRect = tooltip.getBoundingClientRect();
+    const tRect = trigger.getBoundingClientRect();
+    const ttRect = tooltip.getBoundingClientRect();
     const margin = 8;
-    let shift = 0;
-    if (tRect.left < margin) {
-      shift = margin - tRect.left;
-    } else if (tRect.right > window.innerWidth - margin) {
-      shift = window.innerWidth - margin - tRect.right;
+
+    // place above trigger, centered horizontally
+    let left = tRect.left + tRect.width / 2 - ttRect.width / 2;
+    const top = tRect.top - ttRect.height - 8;
+
+    if (left < margin) left = margin;
+    if (left + ttRect.width > window.innerWidth - margin) {
+      left = window.innerWidth - margin - ttRect.width;
     }
-    if (shift !== 0) {
-      tooltip.style.transform = `translateX(calc(-50% + ${shift}px))`;
-      if (arrow) arrow.style.transform = `translateX(calc(-50% + ${-shift}px)) rotate(45deg)`;
+
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+
+    // arrow stays under the trigger center, even after tooltip clamping
+    if (arrow) {
+      const arrowLeft = tRect.left + tRect.width / 2 - left - 4; // 4 = half arrow width
+      arrow.style.left = `${arrowLeft}px`;
     }
+  }, [open]);
+
+  // close the tooltip when the user scrolls or resizes — its fixed
+  // position would otherwise drift away from the trigger.
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
   }, [open]);
 
   if (!streak) {
@@ -93,68 +114,79 @@ function StreakPill({ streak, form }: { streak: string; form: ('W' | 'L')[] }) {
 
   const isWin = streak.startsWith('W');
 
+  // Render oldest → newest left-to-right (the universal "form guide"
+  // convention); `form` is stored newest-first so we reverse here.
+  const displayForm = [...form].reverse();
+
   return (
-    <div
-      ref={triggerRef}
-      className="relative inline-flex items-center justify-center"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      onFocus={() => setOpen(true)}
-      onBlur={() => setOpen(false)}
-      onClick={() => setOpen((o) => !o)}
-      tabIndex={0}
-    >
+    <>
       <span
+        ref={triggerRef}
         dir="ltr"
         className={[
           'inline-flex items-center gap-0.5 sm:gap-1 rounded-full px-1.5 sm:px-2.5 py-0.5 text-[10px] sm:text-xs font-bold tabular-nums',
-          'ring-1 transition-colors cursor-default',
+          'ring-1 transition-colors cursor-pointer select-none',
           isWin
             ? 'bg-green-500/10 text-green-300 ring-green-500/30'
             : 'bg-red-500/10 text-red-300 ring-red-500/30',
         ].join(' ')}
+        tabIndex={0}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onClick={() => setOpen((o) => !o)}
       >
         {isWin ? '🔥' : '❄️'} {streak}
       </span>
 
-      {form.length > 0 && (
+      {form.length > 0 && open && (
         <div
           ref={tooltipRef}
-          className={[
-            'absolute z-30 bottom-full mb-2 left-1/2',
-            'pointer-events-none transition-opacity duration-150',
-            open ? 'opacity-100' : 'opacity-0',
-          ].join(' ')}
-          style={{ transform: 'translateX(-50%)' }}
+          className="fixed z-50 pointer-events-none"
+          style={{ top: 0, left: 0 }}
           role="tooltip"
           dir="ltr"
         >
           <div className="relative rounded-lg bg-[#0f1e30] ring-1 ring-white/10 shadow-2xl shadow-black/60 px-3 py-2.5 w-max">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8aaac8] mb-1.5 text-center">
-              5 משחקים אחרונים
+            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8aaac8] mb-2 text-center" dir="rtl">
+              {form.length} משחקים אחרונים
             </div>
             <div className="flex items-center gap-1.5" dir="ltr">
-              {form.map((r, i) => (
-                <div
-                  key={i}
-                  className={[
-                    'w-5 h-5 rounded-full grid place-items-center text-[10px] font-black',
-                    r === 'W' ? 'bg-green-500 text-green-950' : 'bg-red-500 text-red-950',
-                  ].join(' ')}
-                >
-                  {r}
+              {displayForm.map((entry, i) => (
+                <div key={i} className="flex flex-col items-center gap-0.5">
+                  <div
+                    className={[
+                      'w-6 h-6 rounded-full grid place-items-center text-[10px] font-black',
+                      entry.result === 'W'
+                        ? 'bg-green-500 text-green-950'
+                        : 'bg-red-500 text-red-950',
+                    ].join(' ')}
+                  >
+                    {entry.result}
+                  </div>
+                  <div className="text-[9px] font-bold text-[#5a7a9a] tabular-nums">
+                    {entry.round}
+                  </div>
                 </div>
               ))}
             </div>
             <div
+              className="mt-1.5 flex items-center justify-between text-[8px] font-bold text-[#3a5a7a] uppercase tracking-wider"
+              dir="ltr"
+            >
+              <span>← ישן</span>
+              <span>חדש →</span>
+            </div>
+            <div
               ref={arrowRef}
-              className="absolute -bottom-1 left-1/2 w-2 h-2 bg-[#0f1e30] ring-1 ring-white/10"
-              style={{ transform: 'translateX(-50%) rotate(45deg)' }}
+              className="absolute -bottom-1 w-2 h-2 bg-[#0f1e30] ring-1 ring-white/10"
+              style={{ left: '50%', transform: 'rotate(45deg)' }}
             />
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
