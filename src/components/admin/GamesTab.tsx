@@ -113,7 +113,7 @@ export default function GamesTab({ games }: Props) {
               key={round}
               round={round}
               games={roundMap.get(round)!}
-              defaultOpen={round === activeRound}
+              defaultOpen={false}
               isActive={round === activeRound}
             />
           ))}
