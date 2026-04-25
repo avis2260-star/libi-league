@@ -14,14 +14,34 @@ const STATUS_COLORS: Record<GameStatus, string> = {
   Finished:  'bg-gray-800    text-gray-400',
 };
 
-// ── Build date → round map from schedule ─────────────────────────────────────
+// ── Round lookup: by date first, then fall back to team-pair ────────────────
+// We can't rely on date alone because the DB sometimes lags the schedule
+// (e.g. league reschedules a round but the games table hasn't been re-synced
+// yet). The team-pair fallback uses the LIBI_SCHEDULE — which is fixture
+// metadata that doesn't change when dates shift — to recover the round.
 const DATE_TO_ROUND: Record<string, number> = {};
 for (const g of LIBI_SCHEDULE) {
   if (!DATE_TO_ROUND[g.date]) DATE_TO_ROUND[g.date] = g.round;
 }
 
+const TEAM_PAIR_TO_ROUND: Record<string, number> = {};
+function pairKey(a: string, b: string): string {
+  return [a, b].sort().join('|');
+}
+for (const g of LIBI_SCHEDULE) {
+  TEAM_PAIR_TO_ROUND[pairKey(g.homeTeam, g.awayTeam)] = g.round;
+}
+
 function getRoundForGame(game: GameWithTeams): number {
-  return DATE_TO_ROUND[game.game_date] ?? 0;
+  const byDate = DATE_TO_ROUND[game.game_date];
+  if (byDate) return byDate;
+  const home = game.home_team?.name;
+  const away = game.away_team?.name;
+  if (home && away) {
+    const byPair = TEAM_PAIR_TO_ROUND[pairKey(home, away)];
+    if (byPair) return byPair;
+  }
+  return 0;
 }
 
 interface Props {
