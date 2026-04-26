@@ -76,7 +76,7 @@ export default function Footer() {
       <div className="px-4 pt-4 pb-3 flex items-start gap-2 text-xs font-semibold text-[#8aaac8] leading-relaxed">
         <span className="text-[#8aaac8] mt-0.5 shrink-0">ⓘ</span>
         <p>
-          הנתונים באתר הינם לידיעה בלבד. התמונות מועלות באישור השחקנים.{' '}
+          הנתונים באתר הינם לידיעה בלבד.{' '}
           נמצאה טעות?{' '}
           <Link href="/about" className="text-orange-400/70 hover:text-orange-400 underline underline-offset-2">
             פנו אלינו
@@ -211,7 +211,7 @@ export default function Footer() {
         <div className="mx-auto max-w-7xl px-6 py-3 flex items-start gap-2 text-xs font-semibold text-[#8aaac8] leading-relaxed">
           <span className="text-[#8aaac8] mt-0.5 shrink-0">ⓘ</span>
           <p>
-            הנתונים באתר הינם לידיעה בלבד. התמונות מועלות באישור השחקנים.{' '}
+            הנתונים באתר הינם לידיעה בלבד.{' '}
             נמצאה טעות?{' '}
             <Link href="/about" className="text-orange-400/70 hover:text-orange-400 underline underline-offset-2 transition-colors">
               פנו אלינו
