@@ -54,8 +54,14 @@ type TopPlayer = {
 
 type RosterEntry = { name: string; jersey_number: number | null };
 
-// Key: "homeTeamName|awayTeamName|date" → { location, time }
-async function getGameDetails(games: { home: string; away: string; date: string }[]): Promise<Record<string, { location: string; time: string }>> {
+// Key: "homeTeamName|awayTeamName" → { location, time }
+//
+// We deliberately do NOT key by date. The DB `games.game_date` can drift from
+// the canonical LIBI_SCHEDULE date (e.g. after a reschedule, the row keeps its
+// old date until the next Excel sync). Keying by team pair only — which is
+// unique per matchup per round — survives those drifts so admin-entered
+// time/location still surfaces in the public UI.
+async function getGameDetails(games: { home: string; away: string }[]): Promise<Record<string, { location: string; time: string }>> {
   if (!games.length) return {};
   try {
     const { data: teamsData } = await supabaseAdmin.from('teams').select('id, name');
@@ -77,16 +83,20 @@ async function getGameDetails(games: { home: string; away: string; date: string 
       .from('games')
       .select('home_team_id, away_team_id, game_date, game_time, location')
       .in('home_team_id', [...ids])
-      .in('away_team_id', [...ids]);
+      .in('away_team_id', [...ids])
+      .order('game_date', { ascending: true });
 
     const idToName: Record<string, string> = {};
     for (const t of teamsData) idToName[t.id] = t.name;
 
     const result: Record<string, { location: string; time: string }> = {};
+    // Iterate in date-asc order so that, if two rows exist for the same
+    // matchup (rare — only after a reschedule that left both rows behind),
+    // the newer row's data wins by overwriting the older.
     for (const g of dbGames ?? []) {
       const home = idToName[g.home_team_id] ?? '';
       const away = idToName[g.away_team_id] ?? '';
-      const key  = `${norm(home)}|${norm(away)}|${g.game_date}`;
+      const key  = `${norm(home)}|${norm(away)}`;
       const loc  = (g.location && g.location !== 'TBD') ? g.location : '';
       const time = (g.game_time && g.game_time !== '00:00:00') ? g.game_time.slice(0, 5) : '';
       if (loc || time) result[key] = { location: loc, time };
@@ -310,7 +320,7 @@ export default async function HomePage() {
   const nextRoundEarly = liveData.currentRound + 1;
   const nextRoundSchedule = LIBI_SCHEDULE.filter(g => g.round === nextRoundEarly);
   const gameDetails = await getGameDetails(
-    nextRoundSchedule.map(g => ({ home: g.homeTeam, away: g.awayTeam, date: g.date }))
+    nextRoundSchedule.map(g => ({ home: g.homeTeam, away: g.awayTeam }))
   );
   const T = (he: string) => st(he, lang);
 
@@ -345,13 +355,13 @@ export default async function HomePage() {
   function normKey(s: string) { return s.replace(/["""''`״׳]/g, '').replace(/\s+/g, ' ').trim().toLowerCase(); }
   const allNextGames: { home: string; away: string; div: 'North' | 'South'; homeLogo: string | null; awayLogo: string | null; location?: string; time?: string }[] = [
     ...LIBI_SCHEDULE.filter((g) => g.round === nextRound && g.division === 'South').map(g => {
-      const det = gameDetails[`${normKey(g.homeTeam)}|${normKey(g.awayTeam)}|${g.date}`];
+      const det = gameDetails[`${normKey(g.homeTeam)}|${normKey(g.awayTeam)}`];
       return { home: g.homeTeam, away: g.awayTeam, div: 'South' as const,
         homeLogo: logoMap[norm(g.homeTeam)] ?? null, awayLogo: logoMap[norm(g.awayTeam)] ?? null,
         location: det?.location, time: det?.time };
     }),
     ...LIBI_SCHEDULE.filter((g) => g.round === nextRound && g.division === 'North').map(g => {
-      const det = gameDetails[`${normKey(g.homeTeam)}|${normKey(g.awayTeam)}|${g.date}`];
+      const det = gameDetails[`${normKey(g.homeTeam)}|${normKey(g.awayTeam)}`];
       return { home: g.homeTeam, away: g.awayTeam, div: 'North' as const,
         homeLogo: logoMap[norm(g.homeTeam)] ?? null, awayLogo: logoMap[norm(g.awayTeam)] ?? null,
         location: det?.location, time: det?.time };

@@ -46,14 +46,21 @@ export default async function GamePreviewPage({
   );
   if (!game) notFound();
 
-  // Fetch logos + standings + Supabase game details in parallel
+  // Fetch logos + standings + Supabase game details in parallel.
+  //
+  // Note: we deliberately do NOT filter by `game_date`. The DB row's
+  // `game_date` can drift from the canonical LIBI_SCHEDULE date after a
+  // reschedule (the row keeps its old date until the next Excel sync), so
+  // a date filter would silently miss the row and the time/location entered
+  // in admin would never appear here. Instead we filter by team pair, which
+  // is unique per matchup per round and survives date drifts.
   const [teams, standingsRes, dbGamesRes] = await Promise.all([
     getTeams(),
     supabaseAdmin.from('standings').select('name,rank,wins,losses,diff,pts,games,pf,pa').order('rank'),
     supabaseAdmin
       .from('games')
-      .select('game_time,location,home_team:teams!games_home_team_id_fkey(name)')
-      .eq('game_date', game.date),
+      .select('game_time,location,game_date,home_team:teams!games_home_team_id_fkey(name),away_team:teams!games_away_team_id_fkey(name)')
+      .order('game_date', { ascending: false }),
   ]);
 
   // Logo map
@@ -67,11 +74,22 @@ export default async function GamePreviewPage({
   const homeStats = findStat(standings, game.homeTeam);
   const awayStats = findStat(standings, game.awayTeam);
 
-  // Time + location from Supabase games table
+  // Time + location from Supabase games table — match by team pair.
+  // Rows are ordered by game_date desc, so .find() picks the newest row
+  // if (rarely) more than one row exists for the same matchup.
   let gameTime: string | null = null;
   let gameLocation: string | null = null;
-  const dbGames = (dbGamesRes.data ?? []) as unknown as { game_time: string; location: string; home_team: { name: string } }[];
-  const dbMatch = dbGames.find(g => normalize(g.home_team?.name ?? '') === normalize(game.homeTeam));
+  const dbGames = (dbGamesRes.data ?? []) as unknown as {
+    game_time: string;
+    location: string;
+    home_team: { name: string } | null;
+    away_team: { name: string } | null;
+  }[];
+  const dbMatch = dbGames.find(
+    g =>
+      normalize(g.home_team?.name ?? '') === normalize(game.homeTeam) &&
+      normalize(g.away_team?.name ?? '') === normalize(game.awayTeam)
+  );
   if (dbMatch) {
     const t = dbMatch.game_time;
     gameTime     = (t && t !== '00:00:00') ? t : null;
