@@ -440,7 +440,7 @@ function JourneyPanel({
                       ? 'border-green-500/20 bg-green-900/10'
                       : 'border-red-500/20 bg-red-900/10'
                 } ${isLast && step.outcome === 'upcoming' ? 'ring-1 ring-orange-500/30' : ''}`}>
-                  <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[#e0c97a]">
                         {step.round}
@@ -459,14 +459,29 @@ function JourneyPanel({
                         </span>
                       )}
                     </div>
-                    <span className={`text-[10px] font-bold ${
-                      step.outcome === 'win' ? 'text-green-400'
-                      : step.outcome === 'loss' ? 'text-red-400'
-                      : 'text-[#8aaac8]'
-                    }`}>
-                      {label}
-                      {step.game.date ? <span className="text-[#5a7a9a] font-normal" dir="ltr"> · {step.game.date}</span> : null}
-                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`text-[11px] font-black uppercase tracking-wider ${
+                        step.outcome === 'win' ? 'text-green-400'
+                        : step.outcome === 'loss' ? 'text-red-400'
+                        : 'text-[#8aaac8]'
+                      }`}>
+                        {label}
+                      </span>
+                      {step.game.date && (
+                        <span
+                          dir="ltr"
+                          className={`rounded-md px-2 py-0.5 text-sm font-black tabular-nums tracking-wide border ${
+                            step.outcome === 'win'
+                              ? 'bg-green-500/15 text-green-300 border-green-500/30'
+                              : step.outcome === 'loss'
+                                ? 'bg-red-500/15 text-red-300 border-red-500/30'
+                                : 'bg-orange-500/15 text-orange-300 border-orange-500/30'
+                          }`}
+                        >
+                          {step.game.date}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {opponentLogo ? (
