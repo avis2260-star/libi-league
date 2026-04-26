@@ -118,6 +118,8 @@ export const DICT: Record<string, string> = {
   '🥇 מוביל דרום': '🥇 South Leader',
   'עובדות עונה': 'Season Facts',
   'מוביל סלים בדרום': 'South Scoring Leader',
+  'מוביל סלים בליגה': 'League Scoring Leader',
+  'סלים': 'baskets',
   'גמר הגביע': 'Cup Final',
   'מחזורים שנותרו': 'Rounds Remaining',
   'מתוך': 'out of',

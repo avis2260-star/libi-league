@@ -324,10 +324,15 @@ export default async function HomePage() {
 
   const {
     northLeader, southLeader,
-    southTopScorer,
+    southTopScorer, northTopScorer,
     gamesPlayed, currentRound,
     highScore, highCombined, biggestWin, closestCount,
   } = liveData;
+
+  // Overall league scoring leader — whichever division top has more baskets
+  const leagueTopScorer = (northTopScorer.pf ?? 0) >= (southTopScorer.pf ?? 0)
+    ? northTopScorer
+    : southTopScorer;
 
   const biggestMargin = Math.abs(biggestWin.sh - biggestWin.sa);
   const biggestWinner = biggestWin.sh > biggestWin.sa ? biggestWin.home : biggestWin.away;
@@ -568,19 +573,22 @@ export default async function HomePage() {
         </div>
         <div className="grid grid-cols-1 divide-y divide-white/[0.05] sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:divide-x-reverse">
           <div className="p-5">
-            <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">{T('מוביל סלים בדרום')}</p>
-            <Link href={`/team/${encodeURIComponent(southTopScorer.name)}`} className="text-base font-black text-green-400 hover:underline underline-offset-2 transition-colors font-heading">
-              {southTopScorer.name}
+            <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">{T('מוביל סלים בליגה')}</p>
+            <Link href={`/team/${encodeURIComponent(leagueTopScorer.name)}`} className="text-base font-black text-green-400 hover:underline underline-offset-2 transition-colors font-heading">
+              {leagueTopScorer.name}
             </Link>
             <p className="text-sm font-bold text-[#8aaac8] font-stats">
-              {southTopScorer.pf ?? 0} <span className="font-body">{T('סלים')}</span>
+              {leagueTopScorer.pf ?? 0} <span className="font-body">{T('סלים')}</span>
             </p>
           </div>
-          <div className="p-5">
-            <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">{T('גמר הגביע')}</p>
+          <Link href="/cup" className="group block p-5 transition-colors hover:bg-white/[0.03]">
+            <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">
+              {T('גמר הגביע')}
+              <span className="ms-1 text-[#e0c97a] opacity-0 transition-opacity group-hover:opacity-100">←</span>
+            </p>
             {cupFinal ? (
               <>
-                <p className="text-base font-black text-[#e0c97a] font-heading">
+                <p className="text-base font-black text-[#e0c97a] transition-colors group-hover:text-yellow-300 font-heading">
                   {cupFinal.played && cupFinal.home_score !== null
                     ? <><span className="font-heading">{cupFinal.home_team}</span> <span className="font-stats">{cupFinal.home_score}–{cupFinal.away_score}</span> <span className="font-heading">{cupFinal.away_team}</span></>
                     : cupFinal.date || '—'}
@@ -593,11 +601,11 @@ export default async function HomePage() {
               </>
             ) : (
               <>
-                <p className="text-base font-black text-[#e0c97a]">—</p>
+                <p className="text-base font-black text-[#e0c97a] transition-colors group-hover:text-yellow-300">—</p>
                 <p className="text-sm font-bold text-[#8aaac8] font-body">{lang === 'en' ? 'TBD' : 'טרם נקבע'}</p>
               </>
             )}
-          </div>
+          </Link>
           <div className="p-5">
             <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">{T('מחזורים שנותרו')}</p>
             <p className="text-3xl font-black text-blue-400 font-stats">{TOTAL_ROUNDS - currentRound}</p>
