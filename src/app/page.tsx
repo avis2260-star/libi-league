@@ -16,7 +16,7 @@ const ROUND_DATES: Record<number, string> = {
   12: '05.06.26', 13: '12.06.26', 14: '19.06.26',
 };
 
-type Standing = { rank: number; name: string; wins: number; losses: number; pts: number; division: string };
+type Standing = { rank: number; name: string; wins: number; losses: number; pts: number; pf: number; division: string };
 type GameRow  = { round: number; date: string; home_team: string; away_team: string; home_score: number; away_score: number; techni: boolean };
 
 type ActiveAnnouncement = { id: string; message: string; type: string; bg_color: string };
@@ -183,7 +183,7 @@ async function getTickerSpeed(): Promise<number> {
 async function getLiveData() {
   try {
     const [{ data: standings }, { data: results }] = await Promise.all([
-      supabaseAdmin.from('standings').select('rank,name,wins,losses,pts,division').order('rank'),
+      supabaseAdmin.from('standings').select('rank,name,wins,losses,pts,pf,division').order('rank'),
       supabaseAdmin.from('game_results').select('round,date,home_team,away_team,home_score,away_score,techni').order('round'),
     ]);
 
@@ -193,6 +193,9 @@ async function getLiveData() {
     const south = (standings as Standing[]).filter((s) => s.division === 'South');
     const northLeader = north[0] ?? NORTH_TABLE[0];
     const southLeader = south[0] ?? SOUTH_TABLE[0];
+    // Top "basket scorer" team per division — highest accumulated points-for (pf)
+    const southTopScorer = [...south].sort((a, b) => (b.pf ?? 0) - (a.pf ?? 0))[0] ?? SOUTH_TABLE[0];
+    const northTopScorer = [...north].sort((a, b) => (b.pf ?? 0) - (a.pf ?? 0))[0] ?? NORTH_TABLE[0];
 
     const games = (results ?? []) as GameRow[];
     const gamesPlayed  = games.filter((g) => !g.techni).length;
@@ -216,12 +219,16 @@ async function getLiveData() {
       if (margin <= 3) closestCount++;
     }
 
-    return { northLeader, southLeader, gamesPlayed, currentRound, highScore, highCombined, biggestWin, closestCount };
+    return { northLeader, southLeader, southTopScorer, northTopScorer, gamesPlayed, currentRound, highScore, highCombined, biggestWin, closestCount };
   } catch {
     // fallback to static data
+    const fbSouthTop = [...SOUTH_TABLE].sort((a, b) => (b.pf ?? 0) - (a.pf ?? 0))[0];
+    const fbNorthTop = [...NORTH_TABLE].sort((a, b) => (b.pf ?? 0) - (a.pf ?? 0))[0];
     return {
       northLeader: NORTH_TABLE[0],
       southLeader: SOUTH_TABLE[0],
+      southTopScorer: fbSouthTop,
+      northTopScorer: fbNorthTop,
       gamesPlayed: 56,
       currentRound: CURRENT_ROUND,
       highScore:    { score: 81, team: 'חולון', opp: 'כ.ע. בת-ים', round: 7, date: '07.02.26' },
@@ -317,6 +324,7 @@ export default async function HomePage() {
 
   const {
     northLeader, southLeader,
+    southTopScorer,
     gamesPlayed, currentRound,
     highScore, highCombined, biggestWin, closestCount,
   } = liveData;
@@ -561,8 +569,12 @@ export default async function HomePage() {
         <div className="grid grid-cols-1 divide-y divide-white/[0.05] sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:divide-x-reverse">
           <div className="p-5">
             <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">{T('מוביל סלים בדרום')}</p>
-            <p className="text-base font-black text-green-400 font-heading">{southLeader.name}</p>
-            <p className="text-sm font-bold text-[#8aaac8] font-stats">{southLeader.pts} <span className="font-body">{T('נקודות')}</span></p>
+            <Link href={`/team/${encodeURIComponent(southTopScorer.name)}`} className="text-base font-black text-green-400 hover:underline underline-offset-2 transition-colors font-heading">
+              {southTopScorer.name}
+            </Link>
+            <p className="text-sm font-bold text-[#8aaac8] font-stats">
+              {southTopScorer.pf ?? 0} <span className="font-body">{T('סלים')}</span>
+            </p>
           </div>
           <div className="p-5">
             <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">{T('גמר הגביע')}</p>
