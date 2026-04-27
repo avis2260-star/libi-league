@@ -61,7 +61,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <CourtBackground />
         <AppRotationProvider>
         <RotationShell>
-        <TranslationProvider>
+        <TranslationProvider initialLang={lang}>
         <ThemeProvider>
 
           {/* ── Top navigation ───────────────────────────────────────────── */}

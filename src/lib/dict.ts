@@ -298,6 +298,46 @@ export const DICT: Record<string, string> = {
   'נשמר': 'Saved',
   'שגיאה': 'Error',
   'טוען...': 'Loading...',
+  'טוען…': 'Loading…',
   'לא נמצאו תוצאות': 'No results found',
   'קליק לפרטים': 'Click for details',
+
+  // Nav composite labels (emoji + Hebrew)
+  '🃏 כרטיסי שחקן': '🃏 Player Cards',
+  '🔴 משחק חי': '🔴 Live Game',
+  '📥 הגשת תוצאות': '📥 Submit Results',
+  '🏆 היכל התהילה': '🏆 Hall of Fame',
+  'גביע 🏆': 'Cup 🏆',
+  'היכל התהילה 🏅': 'Hall of Fame 🏅',
+  'תקנון 📋': 'Rules 📋',
+
+  // MobileNav group headers
+  'ראשי': 'Main',
+  'עונה שוטפת': 'Current Season',
+  'כללי': 'General',
+
+  // Search dialog
+  'חיפוש': 'Search',
+  'חיפוש (/)': 'Search (/)',
+  'חפש קבוצה, שחקן או דף…': 'Search team, player or page…',
+  'דף הבית': 'Home',
+  'טבלאות ליגה': 'League Standings',
+  'לוח ניקוד': 'Scoreboard',
+  'שידור חי': 'Live Broadcast',
+  'דפים': 'Pages',
+  'לניווט': 'navigate',
+  'לפתיחה': 'open',
+  'לסגירה': 'close',
+  'ליגת ליבי · חיפוש': 'Libi League · Search',
+  '· לא פעיל': '· Inactive',
+
+  // Back button + chrome
+  'חזרה': 'Back',
+  'תפריט ניווט': 'Navigation menu',
+
+  // Theme toggle
+  'עבור למצב בהיר': 'Switch to light mode',
+  'עבור למצב כהה': 'Switch to dark mode',
+  'מצב בהיר': 'Light mode',
+  'מצב כהה': 'Dark mode',
 };

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback } from 'react';
 
 type LangContextType = {
   lang: 'he' | 'en';
@@ -20,19 +20,21 @@ export const useLang = () => useContext(LangContext);
 import { DICT } from '@/lib/dict';
 export { DICT };
 
-export default function TranslationProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLang] = useState<'he' | 'en'>('he');
-
-  // Persist choice
-  useEffect(() => {
-    const saved = localStorage.getItem('libi-lang');
-    if (saved === 'en') setLang('en');
-  }, []);
+export default function TranslationProvider({
+  children,
+  initialLang = 'he',
+}: {
+  children: React.ReactNode;
+  initialLang?: 'he' | 'en';
+}) {
+  const [lang, setLang] = useState<'he' | 'en'>(initialLang);
 
   const toggle = useCallback(() => {
     setLang(prev => {
       const next = prev === 'he' ? 'en' : 'he';
-      localStorage.setItem('libi-lang', next);
+      try {
+        localStorage.setItem('libi-lang', next);
+      } catch {}
       // Set cookie so server components can read it
       document.cookie = `libi-lang=${next}; path=/; max-age=31536000; SameSite=Lax`;
       // Update html dir and lang

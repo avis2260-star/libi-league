@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useLang } from './TranslationProvider';
 
 const NAV_GROUPS = [
   {
@@ -38,6 +39,8 @@ const NAV_GROUPS = [
 ];
 
 export default function MobileNav() {
+  const { t, lang } = useLang();
+  const dir = lang === 'he' ? 'rtl' : 'ltr';
   const [open, setOpen] = useState(false);
 
   return (
@@ -45,7 +48,7 @@ export default function MobileNav() {
       {/* Hamburger — mobile only */}
       <button
         onClick={() => setOpen(o => !o)}
-        aria-label="תפריט ניווט"
+        aria-label={t('תפריט ניווט')}
         className="flex sm:hidden flex-col gap-1.5 p-2 rounded-lg hover:bg-white/5 transition"
       >
         <span className={`block h-0.5 w-5 bg-white transition-transform duration-200 ${open ? 'translate-y-2 rotate-45' : ''}`} />
@@ -57,14 +60,14 @@ export default function MobileNav() {
       {open && (
         <div
           className="absolute top-full right-0 left-0 z-50 border-b border-white/5 bg-[#0f1e30]/98 backdrop-blur-sm sm:hidden"
-          dir="rtl"
+          dir={dir}
         >
           {NAV_GROUPS.map((group, gi) => (
             <div key={group.label}>
               {/* Group divider + label */}
               {gi > 0 && <div className="mx-4 border-t border-white/[0.06]" />}
               <p className="px-5 pt-3 pb-1 text-xs font-black tracking-widest uppercase text-[#8aaac8]">
-                {group.label}
+                {t(group.label)}
               </p>
               <ul className="pb-1">
                 {group.links.map(({ href, label }) => (
@@ -74,7 +77,7 @@ export default function MobileNav() {
                       onClick={() => setOpen(false)}
                       className="block px-5 py-2.5 text-sm font-semibold text-[#6b8aaa] transition hover:bg-white/5 hover:text-white"
                     >
-                      {label}
+                      {t(label)}
                     </a>
                   </li>
                 ))}

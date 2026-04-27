@@ -2,9 +2,11 @@
 
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
+import { useLang } from './TranslationProvider';
 
 export default function ThemeToggle() {
   const { theme, setTheme } = useTheme();
+  const { t } = useLang();
   const [mounted, setMounted] = useState(false);
 
   // Avoid hydration mismatch
@@ -16,8 +18,8 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
-      aria-label={isDark ? 'עבור למצב בהיר' : 'עבור למצב כהה'}
-      title={isDark ? 'מצב בהיר' : 'מצב כהה'}
+      aria-label={isDark ? t('עבור למצב בהיר') : t('עבור למצב כהה')}
+      title={isDark ? t('מצב בהיר') : t('מצב כהה')}
       className="flex items-center justify-center h-8 w-8 rounded-full border
         border-white/[0.09] bg-white/[0.04] text-[#6b8aaa]
         hover:border-white/20 hover:text-white hover:bg-white/[0.08]

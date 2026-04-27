@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useLang } from './TranslationProvider';
 
 /* ── Groups definition ──────────────────────────────────────────────────── */
 const GROUPS = [
@@ -50,6 +51,8 @@ const pillActive =
 
 /* ────────────────────────────────────────────────────────────────────────── */
 export default function GroupedNav() {
+  const { t, lang } = useLang();
+  const dir = lang === 'he' ? 'rtl' : 'ltr';
   const [desktopOpen, setDesktopOpen] = useState<string | null>(null);
   const [mobileOpen,  setMobileOpen]  = useState(false);
   const [mobileGroup, setMobileGroup] = useState<string | null>(null);
@@ -75,7 +78,7 @@ export default function GroupedNav() {
           return (
             <a key={group.id} href={group.direct} className={`${pillBase} ${pillIdle}`}>
               <span>{group.icon}</span>
-              <span>{group.label}</span>
+              <span>{t(group.label)}</span>
             </a>
           );
         }
@@ -89,7 +92,7 @@ export default function GroupedNav() {
               className={`${pillBase} ${isOpen ? pillActive : pillIdle}`}
             >
               <span>{group.icon}</span>
-              <span>{group.label}</span>
+              <span>{t(group.label)}</span>
               <span
                 className="text-[9px] leading-none transition-transform duration-200"
                 style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
@@ -102,7 +105,7 @@ export default function GroupedNav() {
               <div
                 className="absolute top-full mt-2 min-w-[150px] rounded-2xl border border-white/[0.09]
                   bg-[#0f1e30] shadow-2xl py-1"
-                dir="rtl"
+                dir={dir}
                 style={{ right: 0, zIndex: 9999 }}
               >
                 {group.links.map(link => (
@@ -113,7 +116,7 @@ export default function GroupedNav() {
                     className="block px-4 py-2.5 text-sm font-semibold text-[#6b8aaa]
                       hover:bg-white/[0.06] hover:text-white transition-colors"
                   >
-                    {link.label}
+                    {t(link.label)}
                   </a>
                 ))}
               </div>
@@ -130,7 +133,7 @@ export default function GroupedNav() {
       {/* Hamburger */}
       <button
         onClick={() => { setMobileOpen(o => !o); setMobileGroup(null); }}
-        aria-label="תפריט ניווט"
+        aria-label={t('תפריט ניווט')}
         className="flex flex-col gap-1.5 p-2 rounded-lg hover:bg-white/5 transition"
       >
         <span className={`block h-0.5 w-5 bg-white transition-transform duration-200 ${mobileOpen ? 'translate-y-2 rotate-45' : ''}`} />
@@ -143,7 +146,7 @@ export default function GroupedNav() {
         <div
           className="absolute top-full right-0 left-0 z-50 border-b border-white/[0.06]
             bg-[#0f1e30]/98 backdrop-blur-sm"
-          dir="rtl"
+          dir={dir}
           style={{ right: '-1rem', left: '-100vw' }}
         >
           {/* 2×2 pill grid */}
@@ -161,7 +164,7 @@ export default function GroupedNav() {
                       text-[#6b8aaa] hover:text-white hover:bg-white/[0.07] transition"
                   >
                     <span className="text-base">{group.icon}</span>
-                    <span>{group.label}</span>
+                    <span>{t(group.label)}</span>
                   </a>
                 );
               }
@@ -176,7 +179,7 @@ export default function GroupedNav() {
                     ${isOpen ? pillActive : 'border-white/[0.09] bg-white/[0.04] text-[#6b8aaa] hover:text-white hover:bg-white/[0.07]'}`}
                 >
                   <span className="text-base">{group.icon}</span>
-                  <span>{group.label}</span>
+                  <span>{t(group.label)}</span>
                   <span className="text-[9px] leading-none" style={{ transform: isOpen ? 'rotate(180deg)' : undefined }}>
                     {isOpen ? '▴' : '▾'}
                   </span>
@@ -192,7 +195,7 @@ export default function GroupedNav() {
             return (
               <div className="border-t border-white/[0.06] px-3 pb-3 pt-2">
                 <p className="px-1 pb-1.5 text-xs font-black tracking-widest uppercase text-[#8aaac8]">
-                  {group.icon} {group.label}
+                  {group.icon} {t(group.label)}
                 </p>
                 <div className="grid grid-cols-2 gap-1.5">
                   {group.links.map(link => (
@@ -204,7 +207,7 @@ export default function GroupedNav() {
                         text-sm font-semibold text-[#6b8aaa] hover:bg-white/[0.07] hover:text-white
                         text-center transition"
                     >
-                      {link.label}
+                      {t(link.label)}
                     </a>
                   ))}
                 </div>

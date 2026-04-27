@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { useLang } from './TranslationProvider';
 
 type TeamHit = {
   kind: 'team';
@@ -59,6 +60,8 @@ function norm(s: string) {
 
 export default function SearchButton() {
   const router = useRouter();
+  const { t, lang } = useLang();
+  const dir = lang === 'he' ? 'rtl' : 'ltr';
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [teams, setTeams] = useState<TeamHit[]>([]);
@@ -201,8 +204,8 @@ export default function SearchButton() {
     <>
       <button
         onClick={() => setOpen(true)}
-        aria-label="חיפוש"
-        title="חיפוש (/)"
+        aria-label={t('חיפוש')}
+        title={t('חיפוש (/)')}
         className="flex items-center gap-1 rounded-full border border-white/[0.09] bg-white/[0.04] px-2.5 py-1.5 text-[#8aaac8] transition hover:border-orange-500/40 hover:bg-orange-500/[0.08] hover:text-orange-400"
       >
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
@@ -215,7 +218,7 @@ export default function SearchButton() {
         <div
           className="fixed inset-0 z-[70] flex items-start justify-center bg-black/60 backdrop-blur-sm px-3 pt-16 sm:pt-24"
           onClick={() => setOpen(false)}
-          dir="rtl"
+          dir={dir}
         >
           <div
             onClick={(e) => e.stopPropagation()}
@@ -232,7 +235,7 @@ export default function SearchButton() {
                 value={query}
                 onChange={(e) => { setQuery(e.target.value); setCursor(0); }}
                 onKeyDown={onKeyDown}
-                placeholder="חפש קבוצה, שחקן או דף…"
+                placeholder={t('חפש קבוצה, שחקן או דף…')}
                 className="flex-1 bg-transparent text-base font-bold text-white placeholder:text-[#8aaac8] placeholder:font-semibold focus:outline-none"
               />
               <button
@@ -246,24 +249,24 @@ export default function SearchButton() {
             {/* Results */}
             <div ref={listRef} className="max-h-[70vh] overflow-y-auto divide-y divide-white/[0.04]">
               {!loaded && (
-                <div className="px-5 py-10 text-center text-sm font-bold text-[#8aaac8]">טוען…</div>
+                <div className="px-5 py-10 text-center text-sm font-bold text-[#8aaac8]">{t('טוען…')}</div>
               )}
 
               {loaded && allFlat.length === 0 && (
                 <div className="px-5 py-10 text-center text-sm font-bold text-[#8aaac8]">
-                  לא נמצאו תוצאות עבור &ldquo;{query}&rdquo;
+                  {t('לא נמצאו תוצאות')} &ldquo;{query}&rdquo;
                 </div>
               )}
 
               {pageHits.length > 0 && (
-                <Section title="דפים" icon="🧭">
+                <Section title={t('דפים')} icon="🧭">
                   {pageHits.map((p) => {
                     const idx = allFlat.indexOf(p);
                     return (
                       <Row key={`page-${p.id}`} active={idx === cursor} onClick={() => go(p)}>
                         <span className="text-xl shrink-0">{p.icon}</span>
                         <div className="flex-1 min-w-0">
-                          <p className="truncate text-sm font-bold text-white">{p.name}</p>
+                          <p className="truncate text-sm font-bold text-white">{t(p.name)}</p>
                           <p className="truncate text-xs font-semibold text-[#8aaac8]">{p.path}</p>
                         </div>
                       </Row>
@@ -273,22 +276,22 @@ export default function SearchButton() {
               )}
 
               {teamHits.length > 0 && (
-                <Section title="קבוצות" icon="🏀">
-                  {teamHits.map((t) => {
-                    const idx = allFlat.indexOf(t);
+                <Section title={t('קבוצות')} icon="🏀">
+                  {teamHits.map((tm) => {
+                    const idx = allFlat.indexOf(tm);
                     return (
-                      <Row key={`team-${t.id}`} active={idx === cursor} onClick={() => go(t)}>
+                      <Row key={`team-${tm.id}`} active={idx === cursor} onClick={() => go(tm)}>
                         <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full border border-white/[0.08] bg-[#1a2e45] flex items-center justify-center">
-                          {t.logo_url ? (
+                          {tm.logo_url ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={t.logo_url} alt={t.name} className="h-full w-full object-contain" />
+                            <img src={tm.logo_url} alt={tm.name} className="h-full w-full object-contain" />
                           ) : (
-                            <span className="text-xs font-black text-[#8aaac8]">{t.name.charAt(0)}</span>
+                            <span className="text-xs font-black text-[#8aaac8]">{tm.name.charAt(0)}</span>
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="truncate text-sm font-bold text-white">{t.name}</p>
-                          <p className="truncate text-xs font-semibold text-[#8aaac8]">קבוצה</p>
+                          <p className="truncate text-sm font-bold text-white">{tm.name}</p>
+                          <p className="truncate text-xs font-semibold text-[#8aaac8]">{t('קבוצה')}</p>
                         </div>
                       </Row>
                     );
@@ -297,7 +300,7 @@ export default function SearchButton() {
               )}
 
               {playerHits.length > 0 && (
-                <Section title="שחקנים" icon="👤">
+                <Section title={t('שחקנים')} icon="👤">
                   {playerHits.map((p) => {
                     const idx = allFlat.indexOf(p);
                     return (
@@ -317,10 +320,10 @@ export default function SearchButton() {
                             )}
                             <span className="truncate">{p.name}</span>
                             {!p.is_active && (
-                              <span className="text-[10px] font-bold text-[#8aaac8] shrink-0">· לא פעיל</span>
+                              <span className="text-[10px] font-bold text-[#8aaac8] shrink-0">{t('· לא פעיל')}</span>
                             )}
                           </p>
-                          <p className="truncate text-xs font-semibold text-[#8aaac8]">{p.team_name ?? 'שחקן'}</p>
+                          <p className="truncate text-xs font-semibold text-[#8aaac8]">{p.team_name ?? t('שחקן')}</p>
                         </div>
                       </Row>
                     );
@@ -332,11 +335,11 @@ export default function SearchButton() {
             {/* Footer hints */}
             <div className="flex items-center justify-between border-t border-white/[0.06] bg-black/20 px-4 py-2 text-[10px] font-bold text-[#8aaac8]">
               <span className="flex items-center gap-3">
-                <kbd className="rounded border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 font-stats">↑↓</kbd> לניווט
-                <kbd className="rounded border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 font-stats">↵</kbd> לפתיחה
-                <kbd className="rounded border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 font-stats">Esc</kbd> לסגירה
+                <kbd className="rounded border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 font-stats">↑↓</kbd> {t('לניווט')}
+                <kbd className="rounded border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 font-stats">↵</kbd> {t('לפתיחה')}
+                <kbd className="rounded border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 font-stats">Esc</kbd> {t('לסגירה')}
               </span>
-              <span className="hidden sm:inline">ליגת ליבי · חיפוש</span>
+              <span className="hidden sm:inline">{t('ליגת ליבי · חיפוש')}</span>
             </div>
           </div>
         </div>
