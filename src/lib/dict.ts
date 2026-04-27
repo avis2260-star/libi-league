@@ -162,4 +162,142 @@ export const DICT: Record<string, string> = {
   'כל המשחקים': 'All Games',
   'סגור': 'Close',
   'לחץ לפרטים': 'Tap for Details',
+  '← כל המשחקים': '← All Games',
+  '← כל משחקי המחזור': '← All Round Games',
+  'בית ': 'Home ',
+  'חוץ ': 'Away ',
+  'סגל': 'Roster',
+
+  // Footer
+  'עמוד הבית': 'Home',
+  'טבלת הליגה': 'Standings',
+  'לוח תוצאות חי': 'Live Scoreboard',
+  'תקנון הליגה': 'League Rules',
+  'תנאי שימוש ומדיניות פרטיות': 'Terms & Privacy',
+  'תנאי שימוש': 'Terms of Use',
+  'צור קשר': 'Contact Us',
+  'ניווט מהיר': 'Quick Navigation',
+  'ליגת ליבי': 'Libi League',
+  'ליגת כדורסל קהילתית — מביאים את המשחק לשכונה, עם לוח משחקים, טבלאות ותוצאות בזמן אמת.':
+    'A community basketball league — bringing the game to the neighborhood, with schedules, standings and live results.',
+  'הנתונים באתר הינם לידיעה בלבד.': 'Site data is for information purposes only.',
+  'נמצאה טעות?': 'Found a mistake?',
+  'פנו אלינו': 'Contact us',
+  'כל הזכויות שמורות': 'All rights reserved',
+  'נבנה באהבה לקהילה': 'Built with love for the community',
+  'עונה 2025–2026': 'Season 2025–2026',
+  'ליגת ליבי · כדורסל קהילתי': 'Libi League · Community Basketball',
+
+  // About page
+  'פורמט הליגה': 'League Format',
+  'שלב הבית': 'Regular Season',
+  '14 מחזורים — כל קבוצה משחקת נגד כל קבוצה אחרת במחוזה פעמיים (בית וחוץ).':
+    '14 rounds — every team plays every other team in its division twice (home and away).',
+  'ארבעת המובילות מכל מחוז נפגשות בסדרות של הטוב מ-3 משחקים — רבע גמר, חצי גמר וגמר.':
+    'The top four from each division meet in best-of-3 series — quarterfinals, semifinals and finals.',
+  'טורניר גביע מקביל הפתוח לכל קבוצות הליגה, בפורמט נוקאאוט חד-שלבי.':
+    'A parallel cup tournament open to all league teams, in a single-elimination knockout format.',
+  'כלל הבית': 'Home-Court Rule',
+  'הקבוצה המדורגת גבוה יותר מארחת את משחקים 1 ו-3. הקבוצה הנמוכה מארחת את משחק 2.':
+    'The higher-seeded team hosts games 1 and 3. The lower-seeded team hosts game 2.',
+  'שיטת הניקוד': 'Scoring System',
+  'נקודות לקבוצה המנצחת': 'Points for the winning team',
+  'נקודה לקבוצה המפסידה': 'Point for the losing team',
+  '* קבוצה שלא מגיעה למשחק מקבלת 0 נקודות ועלולה להיקנס בניכוי נקודות.':
+    '* A team that does not show up for a game receives 0 points and may be penalized.',
+  'קבוצות משתתפות': 'Participating Teams',
+  'מחוזות': 'Divisions',
+  'ליגה קהילתית לכדורסל הפועלת משנת 2012 המאגדת קבוצות מרחבי הארץ, עם שני מחוזות — צפון ודרום — ומערכת גביע ופלייאוף מרגשת.':
+    'A community basketball league running since 2012, uniting teams from across the country across two divisions — North and South — with an exciting cup and playoff system.',
+
+  // Cup page
+  '🏆 גביע ליגת ליבי': '🏆 Libi League Cup',
+  'טורניר הגביע העונתי 2025–2026': 'Cup Tournament 2025–2026',
+  '💡 לחצו על כל קבוצה כדי לצפות במסע שלה בטורניר':
+    '💡 Click any team to follow its tournament journey',
+  'טורניר': 'Tournament',
+  'הימור עוצמתי': 'Underdog Story',
+
+  // Hall of Fame
+  'היכל התהילה': 'Hall of Fame',
+  'מורשת הכדורסל של ליגת ליבי': 'The Basketball Legacy of Libi League',
+  'אלופת הליגה': 'League Champion',
+  'אלופת הפלייאוף · 2025–2026': 'Playoff Champion · 2025–2026',
+  'מחזיקת הגביע': 'Cup Holder',
+  'אלופת הגביע · 2025–2026': 'Cup Champion · 2025–2026',
+  'אלופות הליגה': 'League Champions',
+  'מחזיקות הגביע': 'Cup Holders',
+  'אין עונות להצגה עדיין': 'No seasons to display yet',
+  'אין מחזיקות גביע להצגה עדיין': 'No cup holders to display yet',
+  'אין שיאים להצגה עדיין': 'No records to display yet',
+  'סגנית אלופה:': 'Runner-up:',
+  'MVP של העונה': 'Season MVP',
+  'לחץ לפרטי הגמר ←': 'Click for final details →',
+  'שיאי כל הזמנים': 'All-Time Records',
+  'קטגוריה': 'Category',
+  'בעל השיא': 'Record Holder',
+  'נתון': 'Value',
+
+  // Teams page
+  'קפטן:': 'Captain:',
+  'פרטי קשר:': 'Contact:',
+  'לא נמצאו קבוצות במסד הנתונים.': 'No teams found in the database.',
+  'הוסף קבוצות דרך לוח הניהול.': 'Add teams via the admin panel.',
+  'קבוצות נוספות': 'Other Teams',
+  'קבוצות ': 'teams ',
+
+  // Scorers page
+  '← חזרה לדף הבית': '← Back to Home',
+  'טבלת מובילי הנקודות — עונת 2025–2026': 'Top Scorers — Season 2025–2026',
+  'אין נתוני קליעה עדיין': 'No scoring data yet',
+  'מקום': 'Rank',
+  'שחקן': 'Player',
+  'סובב למצב אופקי לצפייה בנתוני 3נק׳ ופאולים':
+    'Rotate to landscape to view 3PT and fouls',
+
+  // Last Round Results
+  'תוצאות מחזור': 'Round Results',
+  'הפסד טכני': 'Technical loss',
+  '🔴 הפסד טכני': '🔴 Technical loss',
+  'טכני *': 'Technical *',
+  'כל התוצאות ←': 'All Results →',
+
+  // Contact form
+  'שגיאה לא ידועה': 'Unknown error',
+  'בעיית חיבור לשרת': 'Server connection problem',
+  'ההודעה נשלחה בהצלחה!': 'Message sent successfully!',
+  'נחזור אליך בהקדם.': 'We will get back to you soon.',
+  'שלח הודעה נוספת': 'Send another message',
+  'לשאלות, עדכונים ומידע נוסף על הליגה':
+    'For questions, updates and more info about the league',
+  'שם מלא': 'Full name',
+  'כתובת אימייל': 'Email address',
+  'ההודעה שלך...': 'Your message...',
+  'שולח...': 'Sending...',
+  'שלח הודעה': 'Send message',
+
+  // Submit / scoresheet upload (longer phrases)
+  'הגשת תוצאות משחק': 'Submit Game Results',
+  'בחר את הקבוצה שלך, המשחק, וצלם את דף הסטטיסטיקות':
+    'Select your team, the game, and take a photo of the stats sheet',
+
+  // Cup bracket / journey
+  'המסע של': 'Journey of',
+  'אין משחקים בטורניר עדיין': 'No tournament games yet',
+  'מנצחת': 'Winner',
+  'מפסידה': 'Loser',
+  'הוכרע': 'Decided',
+  'הסיבוב הבא': 'Next Round',
+
+  // Live / scoreboard extras
+  'אין משחק חי כרגע': 'No live game right now',
+  'משחק חי כעת': 'Game Live Now',
+  'התחיל ב': 'Started at',
+
+  // Misc
+  'נשמר': 'Saved',
+  'שגיאה': 'Error',
+  'טוען...': 'Loading...',
+  'לא נמצאו תוצאות': 'No results found',
+  'קליק לפרטים': 'Click for details',
 };
