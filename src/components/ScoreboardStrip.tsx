@@ -313,7 +313,11 @@ export default function ScoreboardStrip({
                 </p>
               </div>
 
-              <p className="mt-2 text-[9px] text-[#3a5a7a] font-body">{nextDate} · לחץ לפרטים</p>
+              <p className="mt-2 text-xs font-black text-[#8aaac8] font-body">
+                <span className="font-stats text-[#c8d8e8]">{nextDate}</span>
+                <span className="mx-1 text-[#3a5a7a]">·</span>
+                <span className="text-orange-400/90 group-hover:text-orange-400 transition-colors">לחץ לפרטים</span>
+              </p>
             </button>
           ))}
         </div>
