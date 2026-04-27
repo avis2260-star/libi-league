@@ -18,6 +18,7 @@ import AppRotationProvider from '@/components/AppRotationProvider';
 import RotationShell from '@/components/RotationShell';
 import Footer from '@/components/Footer';
 import BackButton from '@/components/BackButton';
+import { getLang, st } from '@/lib/get-lang';
 
 const heebo     = Heebo({ subsets: ['hebrew', 'latin'], weight: ['300','400','500','600','700','800','900'], variable: '--font-heebo' });
 const teko      = Teko({ subsets: ['latin'], weight: ['400','600','700'], variable: '--font-teko' });
@@ -42,9 +43,11 @@ async function getLogoUrl(): Promise<string> {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const logoUrl = await getLogoUrl();
+  const [logoUrl, lang] = await Promise.all([getLogoUrl(), getLang()]);
+  const T = (he: string) => st(he, lang);
+  const dir = lang === 'he' ? 'rtl' : 'ltr';
   return (
-    <html lang="he" dir="rtl" suppressHydrationWarning>
+    <html lang={lang} dir={dir} suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#0b1520" />
@@ -80,10 +83,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   {/* Right: Logo + title */}
                   <a href="/" className="flex items-center gap-2">
                     <span className="text-lg font-black text-white leading-tight text-right">
-                      ליגת ליבי
+                      {T('ליגת ליבי')}
                     </span>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={logoUrl} alt="ליגת ליבי" className="h-10 w-10 object-contain rounded-full" />
+                    <img src={logoUrl} alt={T('ליגת ליבי')} className="h-10 w-10 object-contain rounded-full" />
                   </a>
                 </nav>
               </header>

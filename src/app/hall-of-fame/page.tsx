@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getLang, st } from '@/lib/get-lang';
 
 type Season = {
   id: string;
@@ -134,6 +135,10 @@ function TrophyCard({
 }
 
 export default async function HallOfFamePage() {
+  const lang = await getLang();
+  const T = (he: string) => st(he, lang);
+  const dir = lang === 'he' ? 'rtl' : 'ltr';
+
   let seasons: Season[] = [];
   let records: Record[] = [];
   let leagueChampion: string | null = null;
@@ -191,20 +196,20 @@ export default async function HallOfFamePage() {
   }
 
   return (
-    <div className="bg-slate-950 min-h-screen p-8 text-white font-body text-right" dir="rtl">
+    <div className={`bg-slate-950 min-h-screen p-8 text-white font-body ${lang === 'he' ? 'text-right' : 'text-left'}`} dir={dir}>
 
       <header className="mb-12 border-b border-orange-500/30 pb-6">
-        <h1 className="font-heading font-black text-5xl mb-2 italic uppercase">היכל התהילה</h1>
-        <p className="text-slate-300 text-lg font-semibold font-body">מורשת הכדורסל של ליגת ליבי</p>
+        <h1 className="font-heading font-black text-5xl mb-2 italic uppercase">{T('היכל התהילה')}</h1>
+        <p className="text-slate-300 text-lg font-semibold font-body">{T('מורשת הכדורסל של ליגת ליבי')}</p>
       </header>
 
-      {/* אלופת הליגה + מחזיקת הגביע */}
+      {/* League Champion + Cup Holder */}
       {(leagueChampion || cupHolder) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-16">
           {leagueChampion && (
             <TrophyCard
-              title="אלופת הליגה"
-              subtitle="אלופת הפלייאוף · 2025–2026"
+              title={T('אלופת הליגה')}
+              subtitle={T('אלופת הפלייאוף · 2025–2026')}
               team={leagueChampion}
               logo={leagueChampionLogo}
               badge="CHAMPION"
@@ -213,8 +218,8 @@ export default async function HallOfFamePage() {
           )}
           {cupHolder && (
             <TrophyCard
-              title="מחזיקת הגביע"
-              subtitle="אלופת הגביע · 2025–2026"
+              title={T('מחזיקת הגביע')}
+              subtitle={T('אלופת הגביע · 2025–2026')}
               team={cupHolder}
               logo={cupHolderLogo}
               badge="CUP HOLDER"
@@ -224,13 +229,13 @@ export default async function HallOfFamePage() {
         </div>
       )}
 
-      {/* קיר האלופות */}
+      {/* Champions wall */}
       <section className="mb-16">
         <h2 className="font-heading text-2xl mb-6 flex items-center gap-2">
-          <span className="w-8 h-px bg-orange-500 inline-block"></span> אלופות הליגה
+          <span className="w-8 h-px bg-orange-500 inline-block"></span> {T('אלופות הליגה')}
         </h2>
         {seasons.length === 0 ? (
-          <p className="text-slate-300 font-bold text-center py-12">אין עונות להצגה עדיין</p>
+          <p className="text-slate-300 font-bold text-center py-12">{T('אין עונות להצגה עדיין')}</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {seasons.map((season) => (
@@ -250,14 +255,14 @@ export default async function HallOfFamePage() {
                 {season.runner_up_name && (
                   <p className="mb-4 flex items-center gap-1.5 text-sm font-bold text-slate-300">
                     <span className="text-slate-400">🥈</span>
-                    <span className="text-slate-400">סגנית אלופה:</span>
+                    <span className="text-slate-400">{T('סגנית אלופה:')}</span>
                     <span className="text-white">{season.runner_up_name}</span>
                   </p>
                 )}
 
                 <div className="flex justify-between items-end border-t border-slate-800 pt-4">
                   <div>
-                    <p className="text-xs font-black text-slate-300 uppercase font-body">MVP של העונה</p>
+                    <p className="text-xs font-black text-slate-300 uppercase font-body">{T('MVP של העונה')}</p>
                     <p className="font-heading font-black text-white">{season.mvp_name ?? '—'}</p>
                     <p className="font-stats text-lg font-black text-orange-400">{season.mvp_stats ?? ''}</p>
                   </div>
@@ -266,7 +271,7 @@ export default async function HallOfFamePage() {
                   </div>
                 </div>
                 <div className="mt-3 text-sm font-bold text-orange-400 group-hover:text-orange-300 transition font-body">
-                  לחץ לפרטי הגמר ←
+                  {T('לחץ לפרטי הגמר ←')}
                 </div>
               </Link>
             ))}
@@ -274,13 +279,13 @@ export default async function HallOfFamePage() {
         )}
       </section>
 
-      {/* קיר מחזיקות הגביע */}
+      {/* Cup holders wall */}
       <section className="mb-16">
         <h2 className="font-heading text-2xl mb-6 flex items-center gap-2">
-          <span className="w-8 h-px bg-yellow-400 inline-block"></span> מחזיקות הגביע
+          <span className="w-8 h-px bg-yellow-400 inline-block"></span> {T('מחזיקות הגביע')}
         </h2>
         {seasons.filter(s => s.cup_holder_name).length === 0 ? (
-          <p className="font-bold text-[#8aaac8] text-center py-12">אין מחזיקות גביע להצגה עדיין</p>
+          <p className="font-bold text-[#8aaac8] text-center py-12">{T('אין מחזיקות גביע להצגה עדיין')}</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {seasons.filter(s => s.cup_holder_name).map((season) => (
@@ -298,7 +303,7 @@ export default async function HallOfFamePage() {
 
                 <div className="flex justify-between items-end border-t border-slate-800 pt-4">
                   <div>
-                    <p className="text-xs font-black text-slate-300 uppercase font-body">מחזיקת הגביע</p>
+                    <p className="text-xs font-black text-slate-300 uppercase font-body">{T('מחזיקת הגביע')}</p>
                     <p className="font-heading font-black text-white">🥇 {season.cup_holder_name}</p>
                   </div>
                   <div className="bg-yellow-400 text-black px-3 py-1 rounded-full text-xs font-black font-heading">
@@ -311,21 +316,21 @@ export default async function HallOfFamePage() {
         )}
       </section>
 
-      {/* לוח שיאי כל הזמנים */}
+      {/* All-time records */}
       <section>
         <h2 className="font-heading text-2xl mb-6 flex items-center gap-2">
-          <span className="w-8 h-px bg-orange-500 inline-block"></span> שיאי כל הזמנים
+          <span className="w-8 h-px bg-orange-500 inline-block"></span> {T('שיאי כל הזמנים')}
         </h2>
         {records.length === 0 ? (
-          <p className="text-slate-300 font-bold text-center py-12">אין שיאים להצגה עדיין</p>
+          <p className="text-slate-300 font-bold text-center py-12">{T('אין שיאים להצגה עדיין')}</p>
         ) : (
           <div className="bg-slate-900 rounded-3xl overflow-hidden border border-slate-800">
             <table className="w-full">
               <thead className="bg-slate-800/50 font-heading text-orange-500 text-sm italic">
                 <tr>
-                  <th className="p-4 text-right">קטגוריה</th>
-                  <th className="p-4 text-right">בעל השיא</th>
-                  <th className="p-4 text-center">נתון</th>
+                  <th className={`p-4 ${lang === 'he' ? 'text-right' : 'text-left'}`}>{T('קטגוריה')}</th>
+                  <th className={`p-4 ${lang === 'he' ? 'text-right' : 'text-left'}`}>{T('בעל השיא')}</th>
+                  <th className="p-4 text-center">{T('נתון')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">

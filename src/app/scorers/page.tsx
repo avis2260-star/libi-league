@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getLang, st } from '@/lib/get-lang';
 
 type ScorerRow = {
   id: string;
@@ -43,40 +44,42 @@ const MEDAL = ['🥇', '🥈', '🥉'];
 const RANK_COLORS = ['text-yellow-400', 'text-slate-300', 'text-amber-600'];
 
 export default async function ScorersPage() {
-  const scorers = await getScorers();
+  const [scorers, lang] = await Promise.all([getScorers(), getLang()]);
+  const T = (he: string) => st(he, lang);
+  const dir = lang === 'he' ? 'rtl' : 'ltr';
 
   return (
-    <div dir="rtl" className="space-y-6">
+    <div dir={dir} className="space-y-6">
 
       {/* Header */}
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <Link href="/" className="mb-2 inline-block text-xs text-[#5a7a9a] hover:text-orange-400 transition-colors">
-            ← חזרה לדף הבית
+            {T('← חזרה לדף הבית')}
           </Link>
           <h1 className="text-2xl font-black text-white flex items-center gap-2 font-heading">
             <span className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-700 px-2 py-1 text-sm">🏅</span>
-            רשימת קלעי הליגה
+            {T('רשימת קלעי הליגה')}
           </h1>
-          <p className="text-sm font-bold text-[#8aaac8] mt-0.5 font-body">טבלת מובילי הנקודות — עונת 2025–2026</p>
+          <p className="text-sm font-bold text-[#8aaac8] mt-0.5 font-body">{T('טבלת מובילי הנקודות — עונת 2025–2026')}</p>
         </div>
       </div>
 
       {scorers.length === 0 ? (
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] py-20 text-center">
           <p className="text-4xl mb-3">🏀</p>
-          <p className="font-bold text-[#8aaac8]">אין נתוני קליעה עדיין</p>
+          <p className="font-bold text-[#8aaac8]">{T('אין נתוני קליעה עדיין')}</p>
         </div>
       ) : (
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] overflow-hidden">
 
           {/* Table header */}
           <div className="hidden sm:grid grid-cols-[3rem_1fr_6rem_6rem_6rem] gap-2 px-5 py-3 border-b border-white/[0.08] text-[11px] font-black uppercase tracking-widest text-[#8aaac8]">
-            <span className="text-center">מקום</span>
-            <span>שחקן</span>
-            <span className="text-center">נק׳</span>
-            <span className="text-center">3נק׳</span>
-            <span className="text-center">פאולים</span>
+            <span className="text-center">{T('מקום')}</span>
+            <span>{T('שחקן')}</span>
+            <span className="text-center">{T('נק׳')}</span>
+            <span className="text-center">{T('3נק׳')}</span>
+            <span className="text-center">{T('פאולים')}</span>
           </div>
 
           {scorers.map((p, i) => {
@@ -136,7 +139,7 @@ export default async function ScorersPage() {
                 {/* Points */}
                 <div className="w-16 sm:w-auto shrink-0 px-2 py-4 text-center">
                   <p className="text-lg font-black text-orange-400 font-stats">{p.points}</p>
-                  <p className="text-[10px] font-bold text-[#8aaac8] sm:hidden font-body">נק׳</p>
+                  <p className="text-[10px] font-bold text-[#8aaac8] sm:hidden font-body">{T('נק׳')}</p>
                 </div>
 
                 {/* 3PT */}
@@ -156,7 +159,7 @@ export default async function ScorersPage() {
 
       {/* Mobile extra columns note */}
       <p className="text-center text-xs text-[#3a5a7a] sm:hidden">
-        סובב למצב אופקי לצפייה בנתוני 3נק׳ ופאולים
+        {T('סובב למצב אופקי לצפייה בנתוני 3נק׳ ופאולים')}
       </p>
     </div>
   );

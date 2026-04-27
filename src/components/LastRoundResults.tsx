@@ -7,6 +7,7 @@
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getTeams } from '@/lib/supabase';
+import { getLang, st } from '@/lib/get-lang';
 
 type ResultRow = {
   round: number;
@@ -59,9 +60,11 @@ function TeamLogo({ name, url }: { name: string; url: string | null }) {
 function GameCard({
   game,
   logos,
+  T,
 }: {
   game: ResultRow;
   logos: Record<string, string | null>;
+  T: (he: string) => string;
 }) {
   const homeWins     = game.home_score > game.away_score;
   const techni       = !!game.techni || isTechniScore(game.home_score, game.away_score);
@@ -85,7 +88,7 @@ function GameCard({
             {game.home_team}
           </p>
           {techniOnHome && (
-            <p className="mt-0.5 text-[10px] font-black text-red-400">🔴 הפסד טכני</p>
+            <p className="mt-0.5 text-[10px] font-black text-red-400">{T('🔴 הפסד טכני')}</p>
           )}
         </div>
       </Link>
@@ -110,7 +113,7 @@ function GameCard({
           </span>
         </div>
         {techni && (
-          <p className="mt-0.5 text-[8px] font-bold tracking-wide text-red-400">טכני *</p>
+          <p className="mt-0.5 text-[8px] font-bold tracking-wide text-red-400">{T('טכני *')}</p>
         )}
       </div>
 
@@ -128,7 +131,7 @@ function GameCard({
             {game.away_team}
           </p>
           {techniOnAway && (
-            <p className="mt-0.5 text-[10px] font-black text-red-400">🔴 הפסד טכני</p>
+            <p className="mt-0.5 text-[10px] font-black text-red-400">{T('🔴 הפסד טכני')}</p>
           )}
         </div>
         <TeamLogo name={game.away_team} url={findLogo(game.away_team, logos)} />
@@ -139,13 +142,16 @@ function GameCard({
 
 // ── Section ──────────────────────────────────────────────────────────────
 export default async function LastRoundResults() {
-  const [{ data: results }, teams] = await Promise.all([
+  const [{ data: results }, teams, lang] = await Promise.all([
     supabaseAdmin
       .from('game_results')
       .select('round,date,home_team,away_team,home_score,away_score,techni,division')
       .order('round', { ascending: false }),
     getTeams(),
+    getLang(),
   ]);
+  const T = (he: string) => st(he, lang);
+  const dir = lang === 'he' ? 'rtl' : 'ltr';
 
   const games = (results ?? []) as ResultRow[];
   if (games.length === 0) return null;
@@ -165,20 +171,20 @@ export default async function LastRoundResults() {
   const date = roundGames[0]?.date ?? '';
 
   return (
-    <section dir="rtl">
+    <section dir={dir}>
       <div className="mb-4 flex items-center gap-3">
         <h2 className="flex items-center gap-2 text-lg font-black text-white font-heading">
           <span className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-700 px-2 py-1 text-sm">
             ✅
           </span>
-          תוצאות מחזור {lastRound}
+          {T('תוצאות מחזור')} {lastRound}
         </h2>
         {date && <span className="text-sm font-bold text-[#8aaac8]">· {date}</span>}
         <Link
           href="/results"
           className="ms-auto text-sm font-bold text-[#8aaac8] transition-colors hover:text-orange-400"
         >
-          כל התוצאות ←
+          {T('כל התוצאות ←')}
         </Link>
       </div>
 
@@ -186,27 +192,27 @@ export default async function LastRoundResults() {
         {south.length > 0 && (
           <div className="space-y-2">
             <h3 className="flex items-center gap-2 text-sm font-bold text-orange-400">
-              <span className="h-2 w-2 rounded-full bg-orange-400" /> מחוז דרום
+              <span className="h-2 w-2 rounded-full bg-orange-400" /> {T('מחוז דרום')}
             </h3>
             {south.map((g, i) => (
-              <GameCard key={`s-${i}`} game={g} logos={logos} />
+              <GameCard key={`s-${i}`} game={g} logos={logos} T={T} />
             ))}
           </div>
         )}
         {north.length > 0 && (
           <div className="space-y-2">
             <h3 className="flex items-center gap-2 text-sm font-bold text-blue-400">
-              <span className="h-2 w-2 rounded-full bg-blue-400" /> מחוז צפון
+              <span className="h-2 w-2 rounded-full bg-blue-400" /> {T('מחוז צפון')}
             </h3>
             {north.map((g, i) => (
-              <GameCard key={`n-${i}`} game={g} logos={logos} />
+              <GameCard key={`n-${i}`} game={g} logos={logos} T={T} />
             ))}
           </div>
         )}
         {other.length > 0 && (
           <div className="space-y-2 lg:col-span-2">
             {other.map((g, i) => (
-              <GameCard key={`o-${i}`} game={g} logos={logos} />
+              <GameCard key={`o-${i}`} game={g} logos={logos} T={T} />
             ))}
           </div>
         )}

@@ -1,21 +1,22 @@
 import Link from 'next/link';
+import { getLang, st } from '@/lib/get-lang';
 
 const QUICK_LINKS = [
-  { href: '/',          label: 'עמוד הבית'     },
-  { href: '/games',     label: 'לוח משחקים'    },
-  { href: '/standings', label: 'טבלת הליגה'    },
-  { href: '/teams',     label: 'קבוצות'        },
-  { href: '/results',   label: 'תוצאות'        },
-  { href: '/playoff',   label: 'פלייאוף'       },
-  { href: '/scoreboard',label: 'לוח תוצאות חי' },
-  { href: '/submit',    label: 'הגשת תוצאות'  },
+  { href: '/',          he: 'עמוד הבית'     },
+  { href: '/games',     he: 'לוח משחקים'    },
+  { href: '/standings', he: 'טבלת הליגה'    },
+  { href: '/teams',     he: 'קבוצות'        },
+  { href: '/results',   he: 'תוצאות'        },
+  { href: '/playoff',   he: 'פלייאוף'       },
+  { href: '/scoreboard',he: 'לוח תוצאות חי' },
+  { href: '/submit',    he: 'הגשת תוצאות'  },
 ];
 
 const LEGAL_LINKS = [
-  { href: '/takanon', label: 'תקנון הליגה'              },
-  { href: '/terms',   label: 'תנאי שימוש ומדיניות פרטיות' },
-  { href: '/about',   label: 'אודות'                    },
-  { href: '/about',   label: 'צור קשר'                  },
+  { href: '/takanon', he: 'תקנון הליגה'              },
+  { href: '/terms',   he: 'תנאי שימוש ומדיניות פרטיות' },
+  { href: '/about',   he: 'אודות'                    },
+  { href: '/about',   he: 'צור קשר'                  },
 ];
 
 // Social icon SVGs
@@ -53,20 +54,23 @@ function YoutubeIcon() {
 }
 
 const MOBILE_LINKS = [
-  { href: '/about',    label: 'אודות'       },
-  { href: '/about',    label: 'צור קשר'     },
-  { href: '/terms',    label: 'תנאי שימוש'  },
-  { href: '/takanon',  label: 'תקנון'       },
+  { href: '/about',    he: 'אודות'       },
+  { href: '/about',    he: 'צור קשר'     },
+  { href: '/terms',    he: 'תנאי שימוש'  },
+  { href: '/takanon',  he: 'תקנון'       },
 ];
 
-export default function Footer() {
+export default async function Footer() {
   const year = new Date().getFullYear();
+  const lang = await getLang();
+  const T = (he: string) => st(he, lang);
+  const dir = lang === 'he' ? 'rtl' : 'ltr';
 
   return (
     <>
     {/* ── Mobile footer (sm:hidden) ── */}
     <footer
-      dir="rtl"
+      dir={dir}
       className="sm:hidden mt-8 pb-20 border-t border-white/[0.06] bg-[#080f1a]"
     >
       {/* Orange top accent */}
@@ -76,10 +80,10 @@ export default function Footer() {
       <div className="px-4 pt-4 pb-3 flex items-start gap-2 text-xs font-semibold text-[#8aaac8] leading-relaxed">
         <span className="text-[#8aaac8] mt-0.5 shrink-0">ⓘ</span>
         <p>
-          הנתונים באתר הינם לידיעה בלבד.{' '}
-          נמצאה טעות?{' '}
+          {T('הנתונים באתר הינם לידיעה בלבד.')}{' '}
+          {T('נמצאה טעות?')}{' '}
           <Link href="/about" className="text-orange-400/70 hover:text-orange-400 underline underline-offset-2">
-            פנו אלינו
+            {T('פנו אלינו')}
           </Link>
           .
         </p>
@@ -87,26 +91,26 @@ export default function Footer() {
 
       {/* Links row */}
       <div className="px-4 pb-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-        {MOBILE_LINKS.map(({ href, label }) => (
+        {MOBILE_LINKS.map(({ href, he }) => (
           <Link
-            key={label}
+            key={he}
             href={href}
             className="text-sm font-bold text-[#8aaac8] hover:text-orange-400 transition-colors"
           >
-            {label}
+            {T(he)}
           </Link>
         ))}
       </div>
 
       {/* Copyright */}
       <p className="pb-2 text-center text-xs font-bold text-[#8aaac8]">
-        © {year} ליגת ליבי · כל הזכויות שמורות
+        © {year} {T('ליגת ליבי')} · {T('כל הזכויות שמורות')}
       </p>
     </footer>
 
     {/* ── Desktop footer (hidden on mobile) ── */}
     <footer
-      dir="rtl"
+      dir={dir}
       className="hidden sm:block mt-16 border-t border-white/[0.06] bg-[#080f1a]"
     >
       {/* ── Orange top accent line ── */}
@@ -122,14 +126,14 @@ export default function Footer() {
             {/* Basketball emoji stand-in – replace with <img> if logo is available */}
             <span className="text-3xl">🏀</span>
             <div>
-              <p className="text-lg font-black text-white leading-tight">ליגת ליבי</p>
+              <p className="text-lg font-black text-white leading-tight">{T('ליגת ליבי')}</p>
               <p className="text-xs font-bold tracking-widest text-[#8aaac8] uppercase">2025 – 2026</p>
             </div>
           </div>
 
           {/* Tagline */}
           <p className="text-sm font-semibold text-[#c8d8e8] leading-relaxed max-w-[240px]">
-            ליגת כדורסל קהילתית — מביאים את המשחק לשכונה, עם לוח משחקים, טבלאות ותוצאות בזמן אמת.
+            {T('ליגת כדורסל קהילתית — מביאים את המשחק לשכונה, עם לוח משחקים, טבלאות ותוצאות בזמן אמת.')}
           </p>
 
           {/* Social icons */}
@@ -159,17 +163,17 @@ export default function Footer() {
         {/* ── Column 2: Quick links ── */}
         <div>
           <p className="mb-4 text-[11px] font-black tracking-[0.15em] text-orange-500 uppercase">
-            ניווט מהיר
+            {T('ניווט מהיר')}
           </p>
           <ul className="grid grid-cols-2 gap-x-4 gap-y-2">
-            {QUICK_LINKS.map(({ href, label }) => (
-              <li key={href + label}>
+            {QUICK_LINKS.map(({ href, he }) => (
+              <li key={href + he}>
                 <Link
                   href={href}
                   className="group flex items-center gap-1.5 text-sm font-bold text-[#8aaac8] transition-colors hover:text-orange-400"
                 >
                   <span className="h-px w-3 bg-current opacity-40 transition-all group-hover:w-5 group-hover:opacity-100" />
-                  {label}
+                  {T(he)}
                 </Link>
               </li>
             ))}
@@ -179,17 +183,17 @@ export default function Footer() {
         {/* ── Column 3: Legal + season info ── */}
         <div>
           <p className="mb-4 text-[11px] font-black tracking-[0.15em] text-orange-500 uppercase">
-            מידע
+            {T('מידע')}
           </p>
           <ul className="flex flex-col gap-2 mb-6">
-            {LEGAL_LINKS.map(({ href, label }) => (
-              <li key={label}>
+            {LEGAL_LINKS.map(({ href, he }) => (
+              <li key={he}>
                 <Link
                   href={href}
                   className="group flex items-center gap-1.5 text-sm font-bold text-[#8aaac8] transition-colors hover:text-orange-400"
                 >
                   <span className="h-px w-3 bg-current opacity-40 transition-all group-hover:w-5 group-hover:opacity-100" />
-                  {label}
+                  {T(he)}
                 </Link>
               </li>
             ))}
@@ -199,8 +203,8 @@ export default function Footer() {
           <div className="inline-flex items-center gap-2 rounded-xl border border-orange-500/20 bg-orange-500/[0.06] px-3 py-2">
             <span className="text-lg">🏆</span>
             <div>
-              <p className="text-xs font-black text-orange-400">עונה 2025–2026</p>
-              <p className="text-xs font-bold text-[#8aaac8]">ליגת ליבי · כדורסל קהילתי</p>
+              <p className="text-xs font-black text-orange-400">{T('עונה 2025–2026')}</p>
+              <p className="text-xs font-bold text-[#8aaac8]">{T('ליגת ליבי · כדורסל קהילתי')}</p>
             </div>
           </div>
         </div>
@@ -211,10 +215,10 @@ export default function Footer() {
         <div className="mx-auto max-w-7xl px-6 py-3 flex items-start gap-2 text-xs font-semibold text-[#8aaac8] leading-relaxed">
           <span className="text-[#8aaac8] mt-0.5 shrink-0">ⓘ</span>
           <p>
-            הנתונים באתר הינם לידיעה בלבד.{' '}
-            נמצאה טעות?{' '}
+            {T('הנתונים באתר הינם לידיעה בלבד.')}{' '}
+            {T('נמצאה טעות?')}{' '}
             <Link href="/about" className="text-orange-400/70 hover:text-orange-400 underline underline-offset-2 transition-colors">
-              פנו אלינו
+              {T('פנו אלינו')}
             </Link>
             .
           </p>
@@ -224,14 +228,14 @@ export default function Footer() {
       {/* ── Bottom bar ── */}
       <div className="border-t border-white/[0.04]">
         <div className="mx-auto max-w-7xl px-6 flex flex-col sm:flex-row items-center justify-between gap-2 py-4 text-xs font-bold text-[#8aaac8]">
-          <p>© {year} ליגת ליבי · כל הזכויות שמורות</p>
+          <p>© {year} {T('ליגת ליבי')} · {T('כל הזכויות שמורות')}</p>
           <div className="flex items-center gap-3">
             <Link href="/terms" className="hover:text-orange-400 transition-colors">
-              תנאי שימוש
+              {T('תנאי שימוש')}
             </Link>
             <span className="opacity-30">·</span>
             <p className="flex items-center gap-1">
-              נבנה באהבה לקהילה
+              {T('נבנה באהבה לקהילה')}
               <span className="text-orange-500">🧡</span>
             </p>
           </div>
