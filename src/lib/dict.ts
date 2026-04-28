@@ -33,6 +33,14 @@ export const DICT: Record<string, string> = {
   'מיין: שם': 'Sort: Name',
   'מיין: קבוצה': 'Sort: Team',
   'מיין: נקודות': 'Sort: Points',
+  'מיין: מספר שחקנים': 'Sort: Player Count',
+  'מיין: מספר חולצה': 'Sort: Jersey Number',
+  'גיל': 'Age',
+  'כל השחקנים': 'All Players',
+  'נצ׳': 'W',
+  'הפ׳': 'L',
+  'תק׳': 'D',
+  'עב׳': 'F',
   'פעיל': 'Active',
   'לא פעיל': 'Inactive',
 
@@ -73,6 +81,9 @@ export const DICT: Record<string, string> = {
   'נקודות לניצחון': 'Points For',
   'נקודות נגד': 'Points Against',
   'אחוז נצחונות': 'Win %',
+  'קפטן': 'Captain',
+  'ממוצעים עונתיים': 'Season Averages',
+  'טרם שוחק': 'Not played yet',
 
   // Submit flow
   'הגשת התוצאות': 'Submit Results',

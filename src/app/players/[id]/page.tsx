@@ -8,18 +8,19 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import type { GameStatWithGame, Position } from '@/types';
 import VideoGallery from '@/components/player/VideoGallery';
 import PlayerStatsChart from '@/components/player/PlayerStatsChart';
+import { getLang, st } from '@/lib/get-lang';
 
 // ── Position metadata ─────────────────────────────────────────────────────────
 
 const POSITION_META: Record<
   Position,
-  { label: string; color: string; bg: string }
+  { he: string; en: string; color: string; bg: string }
 > = {
-  PG: { label: 'פוינט גארד',    color: 'text-sky-400',     bg: 'bg-sky-500/10 border-sky-500/30' },
-  SG: { label: 'שוטינג גארד',   color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30' },
-  SF: { label: 'סמול פורוורד',  color: 'text-violet-400',  bg: 'bg-violet-500/10 border-violet-500/30' },
-  PF: { label: 'פאואר פורוורד', color: 'text-amber-400',   bg: 'bg-amber-500/10 border-amber-500/30' },
-  C:  { label: 'סנטר',          color: 'text-rose-400',    bg: 'bg-rose-500/10 border-rose-500/30' },
+  PG: { he: 'פוינט גארד',    en: 'Point Guard',    color: 'text-sky-400',     bg: 'bg-sky-500/10 border-sky-500/30' },
+  SG: { he: 'שוטינג גארד',   en: 'Shooting Guard', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30' },
+  SF: { he: 'סמול פורוורד',  en: 'Small Forward',  color: 'text-violet-400',  bg: 'bg-violet-500/10 border-violet-500/30' },
+  PF: { he: 'פאואר פורוורד', en: 'Power Forward',  color: 'text-amber-400',   bg: 'bg-amber-500/10 border-amber-500/30' },
+  C:  { he: 'סנטר',          en: 'Center',          color: 'text-rose-400',    bg: 'bg-rose-500/10 border-rose-500/30' },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -53,10 +54,12 @@ export default async function PlayerProfilePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [player, gameStats] = await Promise.all([
+  const [player, gameStats, lang] = await Promise.all([
     getPlayerById(id),
     getPlayerGameStats(id),
+    getLang(),
   ]);
+  const T = (he: string) => st(he, lang);
 
   if (!player) notFound();
 
@@ -96,9 +99,9 @@ export default async function PlayerProfilePage({
   const ptsVal     = hasGames ? avg(totalPts,   gamesPlayed) : '0';
   const threePtVal = hasGames ? avg(total3pt,   gamesPlayed) : '0';
   const foulsVal   = hasGames ? avg(totalFouls, gamesPlayed) : '0';
-  const ptsSub     = 'נקודות בממוצע';
-  const threePtSub = '3נק׳ בממוצע';
-  const foulsSub   = 'עבירות בממוצע';
+  const ptsSub     = T('נקודות בממוצע');
+  const threePtSub = T('3נק׳ בממוצע');
+  const foulsSub   = T('עבירות בממוצע');
 
   const posMeta = player.position ? POSITION_META[player.position] : null;
 
@@ -155,7 +158,7 @@ export default async function PlayerProfilePage({
               href="/players"
               className="mb-3 inline-block text-xs text-[#5a7a9a] hover:text-orange-400 transition-colors"
             >
-              ← כל השחקנים
+              ← {T('כל השחקנים')}
             </Link>
 
             {/* Badges row */}
@@ -167,18 +170,18 @@ export default async function PlayerProfilePage({
               )}
               {posMeta && (
                 <span className={`rounded-lg border px-3 py-0.5 text-sm font-semibold ${posMeta.color} ${posMeta.bg}`}>
-                  {posMeta.label}
+                  {lang === 'en' ? posMeta.en : posMeta.he}
                 </span>
               )}
               {player.is_active === false ? (
                 <span className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-0.5 text-sm font-bold text-red-400">
                   <span className="h-2 w-2 rounded-full bg-red-500" />
-                  לא פעיל
+                  {T('לא פעיל')}
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-0.5 text-sm font-bold text-green-400">
                   <span className="h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.6)]" />
-                  פעיל
+                  {T('פעיל')}
                 </span>
               )}
             </div>
@@ -201,21 +204,21 @@ export default async function PlayerProfilePage({
 
         {/* ── Stats dashboard ──────────────────────────────────────────── */}
         <section>
-          <SectionTitle>ממוצעי עונה</SectionTitle>
+          <SectionTitle>{T('ממוצעי עונה')}</SectionTitle>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatCard label="נק׳"     value={ptsVal}              sublabel={ptsSub}     accent="orange" />
-            <StatCard label="3נק׳"    value={threePtVal}          sublabel={threePtSub} accent="sky" />
-            <StatCard label="עבירות"  value={foulsVal}            sublabel={foulsSub}   accent="rose" />
-            <StatCard label="משחקים"  value={String(gamesPlayed)} sublabel="משחקים שהשתתף" accent="emerald" />
+            <StatCard label={T('נק׳')}     value={ptsVal}              sublabel={ptsSub}     accent="orange" />
+            <StatCard label={T('3נק׳')}    value={threePtVal}          sublabel={threePtSub} accent="sky" />
+            <StatCard label={T('עבירות')}  value={foulsVal}            sublabel={foulsSub}   accent="rose" />
+            <StatCard label={T('משחקים')}  value={String(gamesPlayed)} sublabel={T('משחקים שהשתתף')} accent="emerald" />
           </div>
 
           {/* Season totals strip — shown when player has stats AND game count is known */}
           {hasTotals && hasGames && (
             <div className="mt-3 flex divide-x divide-x-reverse divide-white/[0.06] overflow-hidden rounded-xl border border-white/[0.07] bg-white/[0.03] text-center">
               {[
-                { label: 'סה״כ נק׳',    value: totalPts },
-                { label: 'סה״כ 3נק׳',   value: total3pt },
-                { label: 'סה״כ עבירות', value: totalFouls },
+                { label: T('סה״כ נק׳'),    value: totalPts },
+                { label: T('סה״כ 3נק׳'),   value: total3pt },
+                { label: T('סה״כ עבירות'), value: totalFouls },
               ].map(({ label, value }) => (
                 <div key={label} className="flex-1 py-3">
                   <p className="text-lg font-bold text-[#e8edf5] font-stats">{value}</p>
@@ -229,7 +232,7 @@ export default async function PlayerProfilePage({
         {/* ── Performance chart ────────────────────────────────────────── */}
         {chartData.length > 0 && (
           <section>
-            <SectionTitle>גרף ביצועים</SectionTitle>
+            <SectionTitle>{T('גרף ביצועים')}</SectionTitle>
             <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] p-4 sm:p-6">
               <PlayerStatsChart data={chartData} />
             </div>
@@ -239,18 +242,18 @@ export default async function PlayerProfilePage({
         {/* ── Game history table ───────────────────────────────────────── */}
         {gameStats.length > 0 && (
           <section>
-            <SectionTitle>היסטוריית משחקים</SectionTitle>
+            <SectionTitle>{T('היסטוריית משחקים')}</SectionTitle>
             <div className="overflow-x-auto rounded-2xl border border-white/[0.07] bg-white/[0.03]">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="border-b border-white/[0.06] text-xs uppercase tracking-wide text-[#5a7a9a]">
-                    <th className="px-4 py-3 text-right">תאריך</th>
-                    <th className="px-4 py-3 text-right">יריב</th>
-                    <th className="px-4 py-3 text-center">תוצאה</th>
-                    <th className="px-4 py-3 text-center">נצ׳</th>
-                    <th className="px-4 py-3 text-center">נק׳</th>
-                    <th className="px-4 py-3 text-center">3נק׳</th>
-                    <th className="px-4 py-3 text-center">עב׳</th>
+                    <th className="px-4 py-3 text-right">{T('תאריך')}</th>
+                    <th className="px-4 py-3 text-right">{T('יריב')}</th>
+                    <th className="px-4 py-3 text-center">{T('תוצאה')}</th>
+                    <th className="px-4 py-3 text-center">{T('נצ׳')}</th>
+                    <th className="px-4 py-3 text-center">{T('נק׳')}</th>
+                    <th className="px-4 py-3 text-center">{T('3נק׳')}</th>
+                    <th className="px-4 py-3 text-center">{T('עב׳')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.05]">
@@ -260,14 +263,14 @@ export default async function PlayerProfilePage({
                     const isHome = stat.game.home_team_id === player.team_id;
                     const myScore = isHome ? stat.game.home_score : stat.game.away_score;
                     const theirScore = isHome ? stat.game.away_score : stat.game.home_score;
-                    const dateStr = new Date(stat.game.game_date).toLocaleDateString('he-IL', {
+                    const dateStr = new Date(stat.game.game_date).toLocaleDateString(lang === 'en' ? 'en-US' : 'he-IL', {
                       day: 'numeric', month: 'numeric', year: '2-digit',
                     });
                     return (
                       <tr key={stat.id} className="hover:bg-white/[0.02]">
                         <td className="whitespace-nowrap px-4 py-3 text-[#8aaac8]">{dateStr}</td>
                         <td className="px-4 py-3 font-medium text-[#e8edf5] font-heading">
-                          <span className="text-[#5a7a9a] text-xs ml-1 font-body">{isHome ? 'נגד' : '@'}</span>
+                          <span className="text-[#5a7a9a] text-xs ml-1 font-body">{isHome ? T('נגד') : '@'}</span>
                           {opp.name}
                         </td>
                         <td className="px-4 py-3 text-center tabular-nums text-[#8aaac8] font-stats">
@@ -282,7 +285,7 @@ export default async function PlayerProfilePage({
                               result === 'L' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
                                               'bg-white/[0.04] text-[#8aaac8] border border-white/[0.07]'
                             }`}>
-                              {result === 'W' ? 'נצ׳' : result === 'L' ? 'הפ׳' : 'תק׳'}
+                              {result === 'W' ? (lang === 'en' ? 'W' : 'נצ׳') : result === 'L' ? (lang === 'en' ? 'L' : 'הפ׳') : (lang === 'en' ? 'D' : 'תק׳')}
                             </span>
                           ) : '—'}
                         </td>
@@ -301,14 +304,14 @@ export default async function PlayerProfilePage({
         {/* ── No games yet ─────────────────────────────────────────────── */}
         {gameStats.length === 0 && (
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] py-16 text-center text-[#5a7a9a]">
-            אין נתוני משחק עדיין עבור שחקן זה.
+            {lang === 'en' ? 'No game data yet for this player.' : 'אין נתוני משחק עדיין עבור שחקן זה.'}
           </div>
         )}
 
         {/* ── Video gallery ────────────────────────────────────────────── */}
         {videos.length > 0 && (
           <section>
-            <SectionTitle>גלריית סרטונים</SectionTitle>
+            <SectionTitle>{T('גלריית סרטונים')}</SectionTitle>
             <VideoGallery videos={videos} />
           </section>
         )}

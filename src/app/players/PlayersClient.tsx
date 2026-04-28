@@ -3,13 +3,21 @@
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import type { EnrichedPlayer, TeamOption } from './page';
+import { useLang } from '@/components/TranslationProvider';
 
-const POSITIONS: Record<string, string> = {
+const POSITIONS_HE: Record<string, string> = {
   PG: 'פוינט גארד',
   SG: 'שוטינג גארד',
   SF: 'סמול פורוורד',
   PF: 'פאוור פורוורד',
   C:  'סנטר',
+};
+const POSITIONS_EN: Record<string, string> = {
+  PG: 'Point Guard',
+  SG: 'Shooting Guard',
+  SF: 'Small Forward',
+  PF: 'Power Forward',
+  C:  'Center',
 };
 
 function Avatar({ name, photoUrl, size = 80 }: { name: string; photoUrl: string | null; size?: number }) {
@@ -49,7 +57,9 @@ function calcAge(dob: string | null): number | null {
 }
 
 function PlayerCard({ player }: { player: EnrichedPlayer }) {
+  const { t, lang } = useLang();
   const inactive = !player.is_active;
+  const POSITIONS = lang === 'en' ? POSITIONS_EN : POSITIONS_HE;
 
   return (
     <Link
@@ -67,7 +77,7 @@ function PlayerCard({ player }: { player: EnrichedPlayer }) {
           : 'bg-green-500/10 border-green-500/20 text-green-400'
       }`}>
         <span className={`inline-block h-1.5 w-1.5 rounded-full ${inactive ? 'bg-[#4a6a8a]' : 'bg-green-400'}`} />
-        {inactive ? 'לא פעיל' : 'פעיל'}
+        {inactive ? t('לא פעיל') : t('פעיל')}
       </div>
 
       {/* Jersey number badge */}
@@ -93,7 +103,7 @@ function PlayerCard({ player }: { player: EnrichedPlayer }) {
         {(() => {
           const age = calcAge(player.date_of_birth);
           return age !== null ? (
-            <p className="text-xs font-bold text-[#8aaac8]">גיל: {age}</p>
+            <p className="text-xs font-bold text-[#8aaac8]">{t('גיל')}: {age}</p>
           ) : null;
         })()}
 
@@ -106,9 +116,9 @@ function PlayerCard({ player }: { player: EnrichedPlayer }) {
         {/* Stats row */}
         <div className="mt-3 grid grid-cols-3 divide-x divide-x-reverse divide-white/[0.06] rounded-xl border border-white/[0.06] bg-white/[0.02]">
           {[
-            { label: 'נק׳', value: player.points ?? 0 },
+            { label: t('נק׳'), value: player.points ?? 0 },
             { label: '3PT', value: player.three_pointers ?? 0 },
-            { label: 'פאולים', value: player.fouls ?? 0 },
+            { label: t('פאולים'), value: player.fouls ?? 0 },
           ].map(({ label, value }) => (
             <div key={label} className="py-2 text-center">
               <p className="font-stats text-2xl font-black text-white">{value}</p>
@@ -134,6 +144,7 @@ function TeamListView({
   teams: TeamOption[];
   onSelectTeam: (teamId: string) => void;
 }) {
+  const { t, lang } = useLang();
   const [sortBy, setSortBy] = useState<'name' | 'count'>('name');
 
   const teamStats = useMemo(() => {
@@ -157,16 +168,18 @@ function TeamListView({
       {/* Header */}
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-black text-white">כרטיסי שחקן</h1>
-          <p className="text-sm font-bold text-[#8aaac8] mt-0.5">{sorted.length} קבוצות · {players.filter(p => p.is_active).length} שחקנים פעילים</p>
+          <h1 className="text-2xl font-black text-white">{t('כרטיסי שחקן')}</h1>
+          <p className="text-sm font-bold text-[#8aaac8] mt-0.5">
+            {sorted.length} {lang === 'en' ? 'teams' : 'קבוצות'} · {players.filter(p => p.is_active).length} {lang === 'en' ? 'active players' : 'שחקנים פעילים'}
+          </p>
         </div>
         <select
           value={sortBy}
           onChange={e => setSortBy(e.target.value as typeof sortBy)}
           className="rounded-xl border border-white/[0.08] bg-[#0c1825] px-3 py-2 text-sm text-[#8aaac8] focus:border-orange-500/40 focus:outline-none"
         >
-          <option value="name">מיין: שם</option>
-          <option value="count">מיין: מספר שחקנים</option>
+          <option value="name">{t('מיין: שם')}</option>
+          <option value="count">{t('מיין: מספר שחקנים')}</option>
         </select>
       </div>
 
@@ -185,12 +198,12 @@ function TeamListView({
             <div className="flex-1 min-w-0">
               <p className="font-black text-white text-sm truncate group-hover:text-orange-400 transition-colors">{team.name}</p>
               <div className="flex items-center gap-3 mt-1">
-                <span className="text-xs font-bold text-green-400">{active} פעילים</span>
+                <span className="text-xs font-bold text-green-400">{active} {t('פעילים')}</span>
                 {total > active && (
-                  <span className="text-xs font-bold text-[#8aaac8]">{total - active} לא פעילים</span>
+                  <span className="text-xs font-bold text-[#8aaac8]">{total - active} {t('לא פעילים')}</span>
                 )}
                 {totalPts > 0 && (
-                  <span className="text-xs font-bold text-orange-400">{totalPts} נק׳</span>
+                  <span className="text-xs font-bold text-orange-400">{totalPts} {t('נק׳')}</span>
                 )}
               </div>
             </div>
@@ -214,6 +227,7 @@ function PlayerGridView({
   initialTeamId: string;
   onBack: () => void;
 }) {
+  const { t, lang } = useLang();
   const [search, setSearch]           = useState('');
   const [teamFilter, setTeamFilter]   = useState(initialTeamId);
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>('active');
@@ -249,7 +263,7 @@ function PlayerGridView({
   }, [players, search, teamFilter, activeFilter, sortBy]);
 
   return (
-    <div dir="rtl" className="space-y-6">
+    <div dir={lang === 'en' ? 'ltr' : 'rtl'} className="space-y-6">
 
       {/* Header with back button */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -258,14 +272,14 @@ function PlayerGridView({
             onClick={onBack}
             className="flex items-center gap-1.5 text-sm text-[#5a7a9a] hover:text-orange-400 transition-colors mb-2"
           >
-            → חזרה לרשימת קבוצות
+            → {lang === 'en' ? 'Back to teams list' : 'חזרה לרשימת קבוצות'}
           </button>
           <h1 className="text-2xl font-black text-white">
-            {selectedTeamName || 'כרטיסי שחקן'}
+            {selectedTeamName || t('כרטיסי שחקן')}
           </h1>
           <p className="text-sm text-[#5a7a9a] mt-0.5">
-            {filtered.length} שחקנים
-            {activeFilter === 'all' && ` · ${activeCount} פעילים, ${inactiveCount} לא פעילים`}
+            {filtered.length} {lang === 'en' ? 'players' : 'שחקנים'}
+            {activeFilter === 'all' && ` · ${activeCount} ${t('פעילים')}, ${inactiveCount} ${t('לא פעילים')}`}
           </p>
         </div>
       </div>
@@ -273,9 +287,9 @@ function PlayerGridView({
       {/* Active status toggle pills */}
       <div className="flex items-center gap-2 flex-wrap">
         {([
-          { key: 'active',   label: '🟢 פעילים',    count: players.filter(p => p.is_active && (!teamFilter || p.team_id === teamFilter)).length   },
-          { key: 'inactive', label: '⚫ לא פעילים', count: players.filter(p => !p.is_active && (!teamFilter || p.team_id === teamFilter)).length },
-          { key: 'all',      label: 'הכל',           count: players.filter(p => !teamFilter || p.team_id === teamFilter).length },
+          { key: 'active',   label: `🟢 ${t('פעילים')}`,    count: players.filter(p => p.is_active && (!teamFilter || p.team_id === teamFilter)).length   },
+          { key: 'inactive', label: `⚫ ${t('לא פעילים')}`, count: players.filter(p => !p.is_active && (!teamFilter || p.team_id === teamFilter)).length },
+          { key: 'all',      label: t('הכל'),                count: players.filter(p => !teamFilter || p.team_id === teamFilter).length },
         ] as { key: ActiveFilter; label: string; count: number }[]).map(({ key, label, count }) => (
           <button
             key={key}
@@ -301,7 +315,7 @@ function PlayerGridView({
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#3a5a7a] text-sm">🔍</span>
           <input
             type="text"
-            placeholder="חיפוש שם שחקן..."
+            placeholder={t('חיפוש שם שחקן...')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2 pr-9 text-sm text-white placeholder:text-[#3a5a7a] focus:border-orange-500/40 focus:outline-none"
@@ -314,9 +328,9 @@ function PlayerGridView({
           onChange={e => setTeamFilter(e.target.value)}
           className="rounded-xl border border-white/[0.08] bg-[#0c1825] px-3 py-2 text-sm text-[#8aaac8] focus:border-orange-500/40 focus:outline-none"
         >
-          <option value="">כל הקבוצות</option>
-          {teams.map(t => (
-            <option key={t.id} value={t.id}>{t.name}</option>
+          <option value="">{t('כל הקבוצות')}</option>
+          {teams.map(tm => (
+            <option key={tm.id} value={tm.id}>{tm.name}</option>
           ))}
         </select>
 
@@ -326,9 +340,9 @@ function PlayerGridView({
           onChange={e => setSortBy(e.target.value as typeof sortBy)}
           className="rounded-xl border border-white/[0.08] bg-[#0c1825] px-3 py-2 text-sm text-[#8aaac8] focus:border-orange-500/40 focus:outline-none"
         >
-          <option value="name">מיין: שם</option>
-          <option value="points">מיין: נקודות</option>
-          <option value="jersey">מיין: מספר חולצה</option>
+          <option value="name">{t('מיין: שם')}</option>
+          <option value="points">{t('מיין: נקודות')}</option>
+          <option value="jersey">{t('מיין: מספר חולצה')}</option>
         </select>
       </div>
 
@@ -336,7 +350,7 @@ function PlayerGridView({
       {filtered.length === 0 ? (
         <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] py-16 text-center">
           <p className="text-4xl mb-3">🏀</p>
-          <p className="text-[#5a7a9a]">לא נמצאו שחקנים</p>
+          <p className="text-[#5a7a9a]">{lang === 'en' ? 'No players found' : 'לא נמצאו שחקנים'}</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -382,12 +396,10 @@ export default function PlayersClient({
   }
 
   return (
-    <div dir="rtl">
-      <TeamListView
-        players={players}
-        teams={teams}
-        onSelectTeam={handleSelectTeam}
-      />
-    </div>
+    <TeamListView
+      players={players}
+      teams={teams}
+      onSelectTeam={handleSelectTeam}
+    />
   );
 }
