@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import type { LiveGame, LivePlayer } from './page';
+import { useLang } from '@/components/TranslationProvider';
 
 const SCOREBOARD_URL = 'https://game-scoreboard-libi.vercel.app';
 
@@ -34,6 +35,7 @@ export default function LiveClient({
   players: LivePlayer[];
   currentRound: number | null;
 }) {
+  const { t, lang } = useLang();
   const iframeRef    = useRef<HTMLIFrameElement>(null);
   const [loaded,     setLoaded]     = useState(false);
   const [rotated,    setRotated]    = useState(false);
@@ -172,7 +174,7 @@ export default function LiveClient({
   } : {};
 
   return (
-    <div dir="rtl" className="min-h-screen flex flex-col bg-[#060810]">
+    <div dir={lang === 'en' ? 'ltr' : 'rtl'} className="min-h-screen flex flex-col bg-[#060810]">
 
       {/* ── Top bar ─────────────────────────────────────────────────────── */}
       <div className={`sticky top-0 z-30 flex items-center gap-2 border-b border-white/[0.07] bg-[#0a1628]/90 backdrop-blur-md px-3 py-2.5 ${rotated ? 'hidden' : ''}`}>
@@ -181,7 +183,7 @@ export default function LiveClient({
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
             <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
           </svg>
-          חזרה
+          {t('חזרה')}
         </Link>
 
         <div className="h-5 w-px bg-white/10 shrink-0" />
@@ -192,15 +194,15 @@ export default function LiveClient({
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
           </span>
-          <span className="text-[10px] font-black uppercase tracking-widest text-red-400">חי</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-red-400">{lang === 'en' ? 'LIVE' : 'חי'}</span>
         </span>
 
         {/* Title */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-black text-white truncate font-heading">🏀 ניהול משחק חי</p>
+          <p className="text-sm font-black text-white truncate font-heading">🏀 {lang === 'en' ? 'Live Game Manager' : 'ניהול משחק חי'}</p>
           {selected && (
             <p className="text-[10px] text-orange-400 truncate font-bold font-heading">
-              {selected.home_name} נגד {selected.away_name}
+              {selected.home_name} {t('נגד')} {selected.away_name}
             </p>
           )}
         </div>
@@ -217,13 +219,13 @@ export default function LiveClient({
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
             <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
           </svg>
-          <span className="hidden sm:inline">בחר משחק</span>
+          <span className="hidden sm:inline">{t('בחר משחק')}</span>
         </button>
 
         {/* Rotate — mobile only */}
         <button
           onClick={toggleRotate}
-          title="סובב למצב רוחב"
+          title={lang === 'en' ? 'Rotate to landscape' : 'סובב למצב רוחב'}
           className="sm:hidden flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] text-[#8aaac8] hover:bg-white/[0.08] hover:text-white transition-all"
         >
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -232,7 +234,7 @@ export default function LiveClient({
         </button>
 
         {/* Reload */}
-        <button onClick={reloadIframe} title="רענן"
+        <button onClick={reloadIframe} title={lang === 'en' ? 'Reload' : 'רענן'}
           className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] text-[#8aaac8] hover:bg-white/[0.08] hover:text-white transition-all">
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
             <path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0V5.36l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z" clipRule="evenodd" />
@@ -240,7 +242,7 @@ export default function LiveClient({
         </button>
 
         {/* Fullscreen */}
-        <button onClick={toggleFullscreen} title={fsActive ? 'צא ממסך מלא' : 'מסך מלא'}
+        <button onClick={toggleFullscreen} title={fsActive ? (lang === 'en' ? 'Exit fullscreen' : 'צא ממסך מלא') : (lang === 'en' ? 'Fullscreen' : 'מסך מלא')}
           className="flex items-center gap-1.5 rounded-lg border border-orange-500/30 bg-orange-500/10 px-2.5 py-1.5 text-xs font-bold text-orange-400 hover:bg-orange-500/20 transition-all">
           {fsActive ? (
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
@@ -251,7 +253,7 @@ export default function LiveClient({
               <path d="M13.28 7.78l3.22-3.22v2.69a.75.75 0 001.5 0v-4.5a.75.75 0 00-.75-.75h-4.5a.75.75 0 000 1.5h2.69l-3.22 3.22a.75.75 0 001.06 1.06zM2 17.25v-4.5a.75.75 0 011.5 0v2.69l3.22-3.22a.75.75 0 011.06 1.06L4.56 16.5h2.69a.75.75 0 010 1.5h-4.5a.75.75 0 01-.75-.75zM12.22 13.28l3.22 3.22h-2.69a.75.75 0 000 1.5h4.5a.75.75 0 00.75-.75v-4.5a.75.75 0 00-1.5 0v2.69l-3.22-3.22a.75.75 0 10-1.06 1.06zM3.5 4.56l3.22 3.22a.75.75 0 001.06-1.06L4.56 3.5h2.69a.75.75 0 000-1.5h-4.5A.75.75 0 002 2.75v4.5a.75.75 0 001.5 0V4.56z" />
             </svg>
           )}
-          <span className="hidden sm:inline">{fsActive ? 'צמצם' : 'מסך מלא'}</span>
+          <span className="hidden sm:inline">{fsActive ? (lang === 'en' ? 'Minimize' : 'צמצם') : (lang === 'en' ? 'Fullscreen' : 'מסך מלא')}</span>
         </button>
       </div>
 
@@ -261,12 +263,12 @@ export default function LiveClient({
           {/* Panel header */}
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06]">
             <span className="text-sm font-black uppercase tracking-widest text-[#8aaac8] font-body">
-              {currentRound ? <>מחזור <span className="font-stats">{currentRound}</span></> : 'משחקים'}
+              {currentRound ? <>{t('מחזור')} <span className="font-stats">{currentRound}</span></> : t('משחקים')}
             </span>
-            <span className="text-sm font-black text-[#5a7a9a]">{games.length} משחקים</span>
+            <span className="text-sm font-black text-[#5a7a9a]">{games.length} {t('משחקים')}</span>
           </div>
           {games.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-[#5a7a9a]">אין משחקים למחזור זה</p>
+            <p className="px-4 py-8 text-center text-sm text-[#5a7a9a]">{lang === 'en' ? 'No games for this round' : 'אין משחקים למחזור זה'}</p>
           ) : (
             <div className="p-3 space-y-4">
               {rounds.map(round => (
@@ -311,7 +313,7 @@ export default function LiveClient({
                             </div>
 
                             {isSelected && (
-                              <span className="shrink-0 text-[10px] font-black text-green-400">✓ נבחר</span>
+                              <span className="shrink-0 text-[10px] font-black text-green-400">✓ {lang === 'en' ? 'Selected' : 'נבחר'}</span>
                             )}
                           </button>
 
@@ -326,7 +328,7 @@ export default function LiveClient({
                                     <p className="text-[10px] font-black text-orange-400 truncate font-heading">{game.home_name}</p>
                                   </div>
                                   {hPlayers.length === 0
-                                    ? <p className="text-[10px] text-[#3a5a7a]">אין שחקנים</p>
+                                    ? <p className="text-[10px] text-[#3a5a7a]">{lang === 'en' ? 'No players' : 'אין שחקנים'}</p>
                                     : <ul className="space-y-0.5 max-h-32 overflow-y-auto">
                                         {hPlayers.map((p, i) => (
                                           <li key={i} className="flex items-center gap-1.5 text-[10px] text-[#8aaac8]">
@@ -345,7 +347,7 @@ export default function LiveClient({
                                     <p className="text-[10px] font-black text-orange-400 truncate font-heading">{game.away_name}</p>
                                   </div>
                                   {aPlayers.length === 0
-                                    ? <p className="text-[10px] text-[#3a5a7a]">אין שחקנים</p>
+                                    ? <p className="text-[10px] text-[#3a5a7a]">{lang === 'en' ? 'No players' : 'אין שחקנים'}</p>
                                     : <ul className="space-y-0.5 max-h-32 overflow-y-auto">
                                         {aPlayers.map((p, i) => (
                                           <li key={i} className="flex items-center gap-1.5 text-[10px] text-[#8aaac8]">
@@ -367,7 +369,9 @@ export default function LiveClient({
                                     : 'bg-orange-500 hover:bg-orange-400 text-white'
                                 }`}
                               >
-                                {injected ? '✓ נתונים הוזנו ללוח התוצאות' : '📋 הזן נתונים ללוח התוצאות'}
+                                {injected
+                                  ? (lang === 'en' ? '✓ Data sent to scoreboard' : '✓ נתונים הוזנו ללוח התוצאות')
+                                  : (lang === 'en' ? '📋 Send data to scoreboard' : '📋 הזן נתונים ללוח התוצאות')}
                               </button>
                             </div>
                           )}
@@ -393,7 +397,7 @@ export default function LiveClient({
               <div className="h-16 w-16 rounded-full border-4 border-orange-500/20 border-t-orange-500 animate-spin" />
               <div className="absolute inset-0 flex items-center justify-center text-2xl">🏀</div>
             </div>
-            <p className="text-sm font-bold text-[#5a7a9a] animate-pulse">טוען לוח תוצאות...</p>
+            <p className="text-sm font-bold text-[#5a7a9a] animate-pulse">{lang === 'en' ? 'Loading scoreboard...' : 'טוען לוח תוצאות...'}</p>
           </div>
         )}
 
@@ -403,7 +407,7 @@ export default function LiveClient({
             onClick={() => setRotated(false)}
             className="fixed top-3 left-3 z-50 flex items-center gap-1.5 rounded-full bg-black/70 border border-white/20 px-3 py-1.5 text-xs font-bold text-white backdrop-blur-sm"
           >
-            ↩ חזור לאנכי
+            ↩ {lang === 'en' ? 'Back to portrait' : 'חזור לאנכי'}
           </button>
         )}
 
@@ -420,7 +424,7 @@ export default function LiveClient({
             }}
             allow="fullscreen"
             onLoad={() => setLoaded(true)}
-            title="לוח תוצאות חי"
+            title={lang === 'en' ? 'Live scoreboard' : 'לוח תוצאות חי'}
           />
         </div>
       </div>

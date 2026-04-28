@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import ScoreboardClient from './ScoreboardClient';
+import { getLang } from '@/lib/get-lang';
 
 export type ScoreboardGame = {
   id: string;
@@ -107,12 +108,15 @@ export default async function ScoreboardPage() {
 
   const players: ScoreboardPlayer[] = (rawPlayers ?? []) as ScoreboardPlayer[];
 
+  const lang = await getLang();
+
   return (
     <ScoreboardClient
       games={games}
       players={players}
       currentRound={nextRound}
       roundDate={roundDate}
+      initialLang={lang}
     />
   );
 }

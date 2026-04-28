@@ -36,8 +36,10 @@ function Logo({ logo, name, size = 48 }: { logo: string|null; name: string; size
 
 // ── Component ────────────────────────────────────────────────────────────────
 export default function ScoreboardClient({
-  games, players, currentRound, roundDate = '',
-}: { games: ScoreboardGame[]; players: ScoreboardPlayer[]; currentRound: number; roundDate?: string }) {
+  games, players, currentRound, roundDate = '', initialLang = 'he',
+}: { games: ScoreboardGame[]; players: ScoreboardPlayer[]; currentRound: number; roundDate?: string; initialLang?: 'he' | 'en' }) {
+
+  const lang = initialLang;
 
   // ── Step tracking ──────────────────────────────────────────────────────────
   const [phase,   setPhase]   = useState<Phase>('pick');
@@ -97,7 +99,9 @@ export default function ScoreboardClient({
     if (nameMode === 'last')  return name.split(' ').slice(-1)[0];
     return name;
   }
-  const nameModeLabel = { full: 'שם מלא', first: 'שם פרטי', last: 'שם משפחה', num: 'מספר בלבד' } as const;
+  const nameModeLabel = lang === 'en'
+    ? { full: 'Full Name', first: 'First Name', last: 'Last Name', num: 'Number Only' } as const
+    : { full: 'שם מלא', first: 'שם פרטי', last: 'שם משפחה', num: 'מספר בלבד' } as const;
 
   // ── Player helpers ─────────────────────────────────────────────────────────
   function allPlayersFor(teamId: string): ScoreboardPlayer[] {
@@ -205,7 +209,9 @@ export default function ScoreboardClient({
 
   // ── Group games by round ───────────────────────────────────────────────────
   const byRound = games.reduce<Record<string, ScoreboardGame[]>>((acc, g) => {
-    const k = g.round != null ? `מחזור ${g.round}` : g.game_date;
+    const k = g.round != null
+      ? (lang === 'en' ? `Round ${g.round}` : `מחזור ${g.round}`)
+      : g.game_date;
     (acc[k] ??= []).push(g); return acc;
   }, {});
   const roundKeys = Object.keys(byRound);
@@ -556,7 +562,7 @@ export default function ScoreboardClient({
         {/* Name display mode */}
         <button onClick={() => setNameMode(m => ({ full:'first', first:'last', last:'num', num:'full' } as const)[m])}
           className="rounded-md border border-white/10 bg-white/5 text-[#8aaac8] hover:text-white text-[10px] font-black px-2 py-1.5 shrink-0 hidden sm:block"
-          title="שינוי תצוגת שם">
+          title={lang === 'en' ? 'Change name display' : 'שינוי תצוגת שם'}>
           {nameModeLabel[nameMode]}
         </button>
         {/* Mobile rotate */}
