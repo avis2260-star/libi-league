@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NORTH_TABLE, SOUTH_TABLE, type Standing } from '@/lib/league-data';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import StandingsTables, { type StandingWithStreak } from './StandingsTables';
+import { getLang, st } from '@/lib/get-lang';
 
 /* ── Team name normalizer ─────────────────────────────────────────────── */
 function normName(s: string) {
@@ -128,12 +129,13 @@ async function getStandings(): Promise<{
 }
 
 export default async function StandingsPage() {
-  const { north, south, logos } = await getStandings();
+  const [{ north, south, logos }, lang] = await Promise.all([getStandings(), getLang()]);
+  const T = (he: string) => st(he, lang);
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-black text-white">טבלאות ליגה</h1>
-        <p className="mt-1 text-sm font-bold text-[#8aaac8]">עדכני עד מחזור 8 · עונת 2025–2026</p>
+        <h1 className="text-3xl font-black text-white">{T('טבלאות ליגה')}</h1>
+        <p className="mt-1 text-sm font-bold text-[#8aaac8]">{lang === 'en' ? 'Updated through Round 8 · Season 2025–2026' : 'עדכני עד מחזור 8 · עונת 2025–2026'}</p>
       </div>
 
       <StandingsTables north={north} south={south} logos={logos} />

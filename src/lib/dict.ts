@@ -340,4 +340,38 @@ export const DICT: Record<string, string> = {
   'עבור למצב כהה': 'Switch to dark mode',
   'מצב בהיר': 'Light mode',
   'מצב כהה': 'Dark mode',
+
+  // Standings table
+  'טבלת דרום': 'South Table',
+  'טבלת צפון': 'North Table',
+  "מ'": 'G',
+  "נ'": 'W',
+  "ה'": 'L',
+  "טכ'": 'T',
+  "נק'": 'PTS',
+  'זכות': 'PF',
+  'חובה': 'PA',
+  'רצף': 'Streak',
+  'משחקים אחרונים': 'recent games',
+  '← ישן': '← Older',
+  'חדש →': 'Newer →',
+  'הורדת נקודות על אי-הגעה לגמר אליפות / מפגש פתיחת עונה':
+    'Points deducted for missing championship final / season-opening event',
+  'עמודת "טכ׳" = מספר עונשים': 'Column "T" = number of penalties',
+
+  // Generic (used in many pages)
+  'הפרש קטן': 'Small margin',
+  'אין מחזורים להצגה': 'No rounds to display',
+  'אין תוצאות להצגה': 'No results to display',
+
+  // Results page
+  'תוצאות משחקים': 'Game Results',
+  'במחזור': 'in round',
+  'כל המחזורים': 'All Rounds',
+  'כל המחוזות': 'All Divisions',
+  'הפסד טכני *': 'Technical loss *',
+  '— תוצאה של 20:0 עקב אי-הגעה לאולם או פסילה.':
+    '— a 20:0 result due to no-show or disqualification.',
+  'כל עונה עד כה': 'All season so far',
+  'רשימת קלעי הליגה ←': 'League Scorers →',
 };

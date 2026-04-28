@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { Suspense } from 'react';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import GamesContent from './GamesContent';
+import { getLang, st } from '@/lib/get-lang';
 
 async function getCurrentRound(): Promise<number> {
   try {
@@ -31,7 +32,7 @@ async function getTeamLogos(): Promise<Record<string, string>> {
 }
 
 export default async function GamesPage() {
-  const [currentRound, logos, closeGamesData, roundDatesData] = await Promise.all([
+  const [currentRound, logos, closeGamesData, roundDatesData, lang] = await Promise.all([
     getCurrentRound(),
     getTeamLogos(),
     supabaseAdmin
@@ -57,12 +58,14 @@ export default async function GamesPage() {
           return r;
         } catch { return {} as Record<number, string>; }
       }),
+    getLang(),
   ]);
+  const T = (he: string) => st(he, lang);
 
   type CloseGame = { round: number; date: string; home_team: string; away_team: string; home_score: number; away_score: number };
 
   return (
-    <Suspense fallback={<div className="py-16 text-center text-[#5a7a9a]">טוען...</div>}>
+    <Suspense fallback={<div className="py-16 text-center text-[#5a7a9a]">{T('טוען...')}</div>}>
       <GamesContent
         currentRound={currentRound}
         logos={logos}

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { type GameResult } from '@/lib/league-data';
+import { useLang } from '@/components/TranslationProvider';
 
 function normName(n: string) {
   return n.replace(/["""״'']/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -28,7 +29,7 @@ function TeamLogo({ name, logos }: { name: string; logos: Record<string, string>
 const isTechniScore = (sh: number, sa: number) =>
   (sh === 20 && sa === 0) || (sh === 0 && sa === 20);
 
-function GameCard({ game, logos }: { game: GameResult; logos: Record<string, string> }) {
+function GameCard({ game, logos, t }: { game: GameResult; logos: Record<string, string>; t: (he: string) => string }) {
   const homeWins     = game.sh > game.sa;
   const techni       = !!game.techni || isTechniScore(game.sh, game.sa);
   const techniOnHome = techni && !homeWins;
@@ -43,7 +44,7 @@ function GameCard({ game, logos }: { game: GameResult; logos: Record<string, str
           <p className={`text-sm font-bold leading-tight truncate group-hover:text-orange-400 transition-colors ${homeWins ? 'text-white' : 'text-[#8aaac8]'}`}>
             {game.home}
           </p>
-          {techniOnHome && <p className="mt-0.5 text-[10px] font-black text-red-400">🔴 הפסד טכני</p>}
+          {techniOnHome && <p className="mt-0.5 text-[10px] font-black text-red-400">{t('🔴 הפסד טכני')}</p>}
         </div>
       </Link>
 
@@ -54,7 +55,7 @@ function GameCard({ game, logos }: { game: GameResult; logos: Record<string, str
           <span className="font-stats text-lg font-black text-[#8aaac8]">:</span>
           <span className={`font-stats text-2xl font-black ${!homeWins ? 'text-orange-400' : 'text-[#8aaac8]'}`}>{game.sa}</span>
         </div>
-        {techni && <p className="mt-0.5 text-[8px] font-bold tracking-wide text-red-400">טכני *</p>}
+        {techni && <p className="mt-0.5 text-[8px] font-bold tracking-wide text-red-400">{t('טכני *')}</p>}
       </div>
 
       {/* Away */}
@@ -63,7 +64,7 @@ function GameCard({ game, logos }: { game: GameResult; logos: Record<string, str
           <p className={`text-sm font-bold leading-tight truncate group-hover:text-orange-400 transition-colors ${!homeWins ? 'text-white' : 'text-[#8aaac8]'}`}>
             {game.away}
           </p>
-          {techniOnAway && <p className="mt-0.5 text-[10px] font-black text-red-400">🔴 הפסד טכני</p>}
+          {techniOnAway && <p className="mt-0.5 text-[10px] font-black text-red-400">{t('🔴 הפסד טכני')}</p>}
         </div>
         <TeamLogo name={game.away} logos={logos} />
       </Link>
@@ -87,6 +88,7 @@ function formatDate(d: string | undefined): string {
 }
 
 export default function ResultsContent({ games, logos }: { games: GameResult[]; logos: Record<string, string> }) {
+  const { t, lang } = useLang();
   const ROUNDS = [...new Set(games.map((g) => g.round))].sort((a, b) => b - a);
 
   const [activeRound, setActiveRound]       = useState<number | null>(null);
@@ -112,10 +114,10 @@ export default function ResultsContent({ games, logos }: { games: GameResult[]; 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-black text-white">תוצאות משחקים</h1>
+        <h1 className="text-3xl font-black text-white">{t('תוצאות משחקים')}</h1>
         <p className="mt-1 text-sm text-[#5a7a9a]">
-          מחזורים {ROUNDS[0]}–{ROUNDS[ROUNDS.length - 1]} · {filtered.length} משחקים
-          {activeRound !== null ? ` במחזור ${activeRound}` : ''}
+          {lang === 'en' ? 'Rounds' : 'מחזורים'} {ROUNDS[0]}–{ROUNDS[ROUNDS.length - 1]} · {filtered.length} {lang === 'en' ? 'games' : 'משחקים'}
+          {activeRound !== null ? ` ${lang === 'en' ? `in round ${activeRound}` : `במחזור ${activeRound}`}` : ''}
         </p>
       </div>
 
@@ -126,7 +128,7 @@ export default function ResultsContent({ games, logos }: { games: GameResult[]; 
             onClick={() => setActiveRound(null)}
             className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition ${activeRound === null ? 'border-orange-500 bg-orange-500 text-white' : 'border-white/10 bg-white/5 text-[#6b8aaa] hover:border-white/20 hover:text-white'}`}
           >
-            כל המחזורים
+            {t('כל המחזורים')}
           </button>
           {ROUNDS.map((r) => (
             <button
@@ -134,14 +136,14 @@ export default function ResultsContent({ games, logos }: { games: GameResult[]; 
               onClick={() => setActiveRound((prev) => (prev === r ? null : r))}
               className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition ${activeRound === r ? 'border-orange-500 bg-orange-500 text-white' : 'border-white/10 bg-white/5 text-[#6b8aaa] hover:border-white/20 hover:text-white'}`}
             >
-              מחזור {r}
+              {t('מחזור')} {r}
             </button>
           ))}
         </div>
 
         <div className="flex flex-wrap gap-2">
           {(['all', 'South', 'North'] as const).map((div) => {
-            const LABEL = { all: 'כל המחוזות', South: 'מחוז דרום', North: 'מחוז צפון' };
+            const LABEL: Record<typeof div, string> = { all: t('כל המחוזות'), South: t('מחוז דרום'), North: t('מחוז צפון') };
             const active = activeDivision === div;
             const activeStyle =
               div === 'South' ? 'border-orange-500 bg-orange-500/15 text-orange-400'
@@ -163,20 +165,20 @@ export default function ResultsContent({ games, logos }: { games: GameResult[]; 
       {/* Results */}
       {visibleRounds.length === 0 ? (
         <p className="rounded-xl border border-white/[0.07] py-12 text-center text-sm text-[#5a7a9a]">
-          אין תוצאות להצגה
+          {t('אין תוצאות להצגה')}
         </p>
       ) : (
         visibleRounds.map((r) => (
           <div key={r}>
             <div className="mb-3 flex items-center gap-3">
               <div className="rounded-2xl border border-orange-500/30 bg-orange-500/15 px-4 py-2 text-base font-black text-orange-400">
-                מחזור {r} · {formatDate(grouped[r][0]?.date) || FALLBACK_DATES[r] || ''}
+                {t('מחזור')} {r} · {formatDate(grouped[r][0]?.date) || FALLBACK_DATES[r] || ''}
               </div>
               <div className="h-px flex-1 bg-white/[0.05]" />
-              <span className="text-sm font-black text-[#8aaac8]">{grouped[r].length} משחקים</span>
+              <span className="text-sm font-black text-[#8aaac8]">{grouped[r].length} {lang === 'en' ? 'games' : 'משחקים'}</span>
             </div>
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-              {grouped[r].map((g, i) => <GameCard key={i} game={g} logos={logos} />)}
+              {grouped[r].map((g, i) => <GameCard key={i} game={g} logos={logos} t={t} />)}
             </div>
           </div>
         ))
@@ -186,8 +188,8 @@ export default function ResultsContent({ games, logos }: { games: GameResult[]; 
         <div className="flex items-start gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-xs text-[#8aaac8]">
           <span className="mt-0.5 shrink-0 text-red-400">🔴</span>
           <span>
-            <span className="font-bold text-red-400">הפסד טכני *</span>
-            {' '}— תוצאה של 20:0 עקב אי-הגעה לאולם או פסילה.
+            <span className="font-bold text-red-400">{t('הפסד טכני *')}</span>
+            {' '}{t('— תוצאה של 20:0 עקב אי-הגעה לאולם או פסילה.')}
           </span>
         </div>
       )}

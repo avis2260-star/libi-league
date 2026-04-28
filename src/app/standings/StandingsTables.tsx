@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import TeamLink from '@/components/TeamLink';
 import type { Standing } from '@/lib/league-data';
+import { useLang } from '@/components/TranslationProvider';
 
 export type FormEntry = { result: 'W' | 'L'; round: number };
 
@@ -53,6 +54,7 @@ function TeamLogo({ name, logos }: { name: string; logos: Record<string, string>
 
 /* ── Streak pill with Last-5 tooltip ───────────────────────────────────── */
 function StreakPill({ streak, form }: { streak: string; form: FormEntry[] }) {
+  const { t } = useLang();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLSpanElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -149,8 +151,8 @@ function StreakPill({ streak, form }: { streak: string; form: FormEntry[] }) {
           dir="ltr"
         >
           <div className="relative rounded-lg bg-[#0f1e30] ring-1 ring-white/10 shadow-2xl shadow-black/60 px-3 py-2.5 w-max">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8aaac8] mb-2 text-center" dir="rtl">
-              {form.length} משחקים אחרונים
+            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8aaac8] mb-2 text-center">
+              {form.length} {t('משחקים אחרונים')}
             </div>
             <div className="flex items-center gap-1.5" dir="ltr">
               {displayForm.map((entry, i) => (
@@ -175,8 +177,8 @@ function StreakPill({ streak, form }: { streak: string; form: FormEntry[] }) {
               className="mt-1.5 flex items-center justify-between text-[8px] font-bold text-[#3a5a7a] uppercase tracking-wider"
               dir="ltr"
             >
-              <span>← ישן</span>
-              <span>חדש →</span>
+              <span>{t('← ישן')}</span>
+              <span>{t('חדש →')}</span>
             </div>
             <div
               ref={arrowRef}
@@ -198,20 +200,21 @@ function StandingsTable({
   title: string;
   logos: Record<string, string>;
 }) {
+  const { t } = useLang();
   type Col = { key: string; label: string; hide?: string };
   const COLS: Col[] = [
     { key: 'rank',    label: '#' },
-    { key: 'name',    label: 'קבוצה' },
-    { key: 'games',   label: "מ'" },
-    { key: 'wins',    label: "נ'" },
-    { key: 'losses',  label: "ה'" },
-    { key: 'pf',      label: 'זכות',  hide: 'hidden md:table-cell' },
-    { key: 'pa',      label: 'חובה',  hide: 'hidden md:table-cell' },
+    { key: 'name',    label: t('קבוצה') },
+    { key: 'games',   label: t("מ'") },
+    { key: 'wins',    label: t("נ'") },
+    { key: 'losses',  label: t("ה'") },
+    { key: 'pf',      label: t('זכות'),  hide: 'hidden md:table-cell' },
+    { key: 'pa',      label: t('חובה'),  hide: 'hidden md:table-cell' },
     { key: 'diff',    label: '+/-' },
-    { key: 'techni',  label: "טכ'" },
+    { key: 'techni',  label: t("טכ'") },
     { key: 'penalty', label: '*' },
-    { key: 'pts',     label: "נק'" },
-    { key: 'streak',  label: 'רצף' },
+    { key: 'pts',     label: t("נק'") },
+    { key: 'streak',  label: t('רצף') },
   ];
 
   return (
@@ -328,8 +331,8 @@ function StandingsTable({
       {/* Legend */}
       <div className="border-t border-white/[0.04] px-4 py-2.5 text-xs font-bold text-[#8aaac8] leading-relaxed">
         <span className="text-red-400/80">*</span>{' '}
-        הורדת נקודות על אי-הגעה לגמר אליפות / מפגש פתיחת עונה ·{' '}
-        <span className="text-[#8aaac8]">עמודת &quot;טכ׳&quot; = מספר עונשים</span>
+        {t('הורדת נקודות על אי-הגעה לגמר אליפות / מפגש פתיחת עונה')} ·{' '}
+        <span className="text-[#8aaac8]">{t('עמודת "טכ׳" = מספר עונשים')}</span>
       </div>
     </div>
   );
@@ -343,10 +346,11 @@ export default function StandingsTables({
   south: StandingWithStreak[];
   logos: Record<string, string>;
 }) {
+  const { t } = useLang();
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-      <StandingsTable data={south} title="טבלת דרום" logos={logos} />
-      <StandingsTable data={north} title="טבלת צפון" logos={logos} />
+      <StandingsTable data={south} title={t('טבלת דרום')} logos={logos} />
+      <StandingsTable data={north} title={t('טבלת צפון')} logos={logos} />
     </div>
   );
 }
