@@ -5,6 +5,7 @@ import Fuse from 'fuse.js';
 import ImageQualityModal from '@/components/ImageQualityModal';
 import ImageCropper from '@/components/ImageCropper';
 import { submitGameResult } from '@/app/admin/actions';
+import { useLang } from '@/components/TranslationProvider';
 
 type Game = {
   id: string;
@@ -96,6 +97,7 @@ function NameCell({
   roster: RosterPlayer[];
   ocrName?: string;
 }) {
+  const { lang } = useLang();
   const showSuggestion = match && match.score > 0 && match.ocr !== match.matched;
   const isLowConfidence = match && match.score < (1 - DROPDOWN_THRESHOLD) && match.score > 0;
 
@@ -120,7 +122,7 @@ function NameCell({
             </option>
           ))}
         </select>
-        <p className="text-[9px] text-yellow-500/70">⚠ בחר שחקן מהרשימה</p>
+        <p className="text-[9px] text-yellow-500/70">{lang === 'en' ? '⚠ Select player from list' : '⚠ בחר שחקן מהרשימה'}</p>
       </div>
     );
   }
@@ -155,6 +157,8 @@ export default function SubmitFlow({
   teams: Team[];
   players: RosterPlayer[];
 }) {
+  const { t, lang } = useLang();
+  const en = lang === 'en';
   const [step, setStep] = useState<Step>('select');
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [submitterName, setSubmitterName] = useState('');
@@ -252,7 +256,7 @@ export default function SubmitFlow({
 
   async function analyzeImage(b64: string, type: string) {
     setLoading(true);
-    setLoadingMsg('בודק איכות תמונה...');
+    setLoadingMsg(en ? 'Checking image quality...' : 'בודק איכות תמונה...');
     try {
       const res = await fetch('/api/analyze-scoresheet', {
         method: 'POST',
@@ -270,7 +274,7 @@ export default function SubmitFlow({
       }
     } catch {
       setLoading(false);
-      alert('שגיאה בניתוח התמונה. נסה שוב.');
+      alert(en ? 'Image analysis error. Try again.' : 'שגיאה בניתוח התמונה. נסה שוב.');
     }
   }
 
@@ -290,7 +294,7 @@ export default function SubmitFlow({
   async function extractStats(b64: string, type: string, needsReview: boolean) {
     setLoading(true);
     setExtractError('');
-    setLoadingMsg('מחלץ נתונים מהטופס... (עד 30 שניות)');
+    setLoadingMsg(en ? 'Extracting data from form... (up to 30 seconds)' : 'מחלץ נתונים מהטופס... (עד 30 שניות)');
     setIsNeedsReview(needsReview);
     try {
       const res = await fetch('/api/extract-stats', {
@@ -308,7 +312,9 @@ export default function SubmitFlow({
       const data = await res.json();
 
       if (!res.ok || data.error) {
-        setExtractError(`שגיאה: ${data.error ?? 'תגובה לא תקינה מהשרת'}`);
+        setExtractError(en
+          ? `Error: ${data.error ?? 'Invalid server response'}`
+          : `שגיאה: ${data.error ?? 'תגובה לא תקינה מהשרת'}`);
         setLoading(false);
         return;
       }
@@ -316,7 +322,7 @@ export default function SubmitFlow({
       const extracted = data as ExtractedData;
 
       // ── Merge full roster with extracted stats ────────────────────────────
-      setLoadingMsg('מתאים שמות לרשימת שחקנים...');
+      setLoadingMsg(en ? 'Matching names to roster...' : 'מתאים שמות לרשימת שחקנים...');
 
       function mergeRosterWithExtracted(
         roster: RosterPlayer[],
@@ -362,7 +368,9 @@ export default function SubmitFlow({
       setEditedData(JSON.parse(JSON.stringify(patched)));
       setStep('confirm');
     } catch (err) {
-      setExtractError(`שגיאת רשת: ${err instanceof Error ? err.message : 'נסה שוב'}`);
+      setExtractError(en
+        ? `Network error: ${err instanceof Error ? err.message : 'Try again'}`
+        : `שגיאת רשת: ${err instanceof Error ? err.message : 'נסה שוב'}`);
     } finally {
       setLoading(false);
     }
@@ -423,7 +431,7 @@ export default function SubmitFlow({
 
     let scoresheetImageUrl: string | undefined;
     if (base64 && mediaType) {
-      setLoadingMsg('מעלה תמונה...');
+      setLoadingMsg(en ? 'Uploading image...' : 'מעלה תמונה...');
       try {
         const byteChars = atob(base64);
         const byteArr = new Uint8Array(byteChars.length);
@@ -441,7 +449,7 @@ export default function SubmitFlow({
       }
     }
 
-    setLoadingMsg('שולח נתונים...');
+    setLoadingMsg(en ? 'Sending data...' : 'שולח נתונים...');
     const result = await submitGameResult({
       gameId: selectedGame.id,
       submittedBy: selectedTeamName ? `${submitterName.trim()} · ${selectedTeamName}` : submitterName.trim(),
@@ -472,22 +480,24 @@ export default function SubmitFlow({
           <div className="space-y-5">
 
             {/* One-time upload notice */}
-            <div className="flex items-start gap-3 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3" dir="rtl">
+            <div className="flex items-start gap-3 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3" dir={en ? 'ltr' : 'rtl'}>
               <span className="text-yellow-400 text-lg shrink-0">⚠️</span>
               <p className="text-sm font-bold text-yellow-300">
-                העלאת טופס המשחק היא חד פעמית — נא לשים לב
+                {en ? 'Game form upload is one-time — please pay attention' : 'העלאת טופס המשחק היא חד פעמית — נא לשים לב'}
               </p>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-bold text-[#8aaac8]">הקבוצה שלך *</label>
+              <label className="text-sm font-bold text-[#8aaac8]">{t('הקבוצה שלך *')}</label>
               <select
                 className="w-full rounded-xl border border-white/10 px-4 py-3 text-white text-sm focus:outline-none focus:border-orange-500/50"
                 style={{ backgroundColor: '#0f1e30' }}
                 value={selectedTeamId}
                 onChange={e => { setSelectedTeamId(e.target.value); setSelectedGame(null); }}
               >
-                <option value="" style={{ backgroundColor: '#0f1e30', color: 'white' }}>-- בחר קבוצה --</option>
+                <option value="" style={{ backgroundColor: '#0f1e30', color: 'white' }}>
+                  {en ? '-- Select team --' : '-- בחר קבוצה --'}
+                </option>
                 {teams.map(t => (
                   <option key={t.id} value={t.id} style={{ backgroundColor: '#0f1e30', color: 'white' }}>
                     {t.name}
@@ -497,7 +507,7 @@ export default function SubmitFlow({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-bold text-[#8aaac8]">בחר משחק</label>
+              <label className="text-sm font-bold text-[#8aaac8]">{t('בחר משחק')}</label>
               <select
                 className="w-full rounded-xl border border-white/10 px-4 py-3 text-white text-sm focus:outline-none focus:border-orange-500/50"
                 style={{ backgroundColor: '#0f1e30' }}
@@ -506,7 +516,9 @@ export default function SubmitFlow({
                 disabled={!selectedTeamId}
               >
                 <option value="" style={{ backgroundColor: '#0f1e30', color: 'white' }}>
-                  {selectedTeamId ? '-- בחר משחק --' : '-- בחר קבוצה תחילה --'}
+                  {selectedTeamId
+                    ? (en ? '-- Select game --' : '-- בחר משחק --')
+                    : (en ? '-- Select team first --' : '-- בחר קבוצה תחילה --')}
                 </option>
                 {visibleGames.map(g => (
                   <option
@@ -515,23 +527,23 @@ export default function SubmitFlow({
                     disabled={g.is_locked}
                     style={{ backgroundColor: '#0f1e30', color: g.is_locked ? '#5a7a9a' : 'white' }}
                   >
-                    {g.home_name} נגד {g.away_name} · {g.game_date}{g.is_locked ? ' 🔒 כבר הוגש' : ''}
+                    {g.home_name} {en ? 'vs' : 'נגד'} {g.away_name} · {g.game_date}{g.is_locked ? (en ? ' 🔒 already submitted' : ' 🔒 כבר הוגש') : ''}
                   </option>
                 ))}
               </select>
               {selectedTeamId && visibleGames.length === 0 && (
-                <p className="text-xs text-[#5a7a9a]">לא נמצאו משחקים שהסתיימו לקבוצה זו</p>
+                <p className="text-xs text-[#5a7a9a]">{en ? 'No finished games found for this team' : 'לא נמצאו משחקים שהסתיימו לקבוצה זו'}</p>
               )}
               {selectedGame?.is_locked && (
-                <p className="text-xs text-red-400">משחק זה כבר הוגש ונמצא בבדיקה. פנה למנהל הליגה לביטול.</p>
+                <p className="text-xs text-red-400">{en ? 'This game has already been submitted and is under review. Contact the league admin to cancel.' : 'משחק זה כבר הוגש ונמצא בבדיקה. פנה למנהל הליגה לביטול.'}</p>
               )}
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-bold text-[#8aaac8]">שמך המלא *</label>
+              <label className="text-sm font-bold text-[#8aaac8]">{t('שמך המלא *')}</label>
               <input
                 type="text"
-                placeholder="ישראל ישראלי"
+                placeholder={en ? 'John Doe' : 'ישראל ישראלי'}
                 value={submitterName}
                 onChange={e => setSubmitterName(e.target.value)}
                 className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-[#4a6a8a] text-sm focus:outline-none focus:border-orange-500/50"
@@ -543,7 +555,7 @@ export default function SubmitFlow({
               disabled={!selectedGame || !submitterName.trim() || !selectedTeamId || selectedGame.is_locked}
               className="w-full bg-orange-500 hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all"
             >
-              המשך להעלאת טופס ←
+              {t('המשך להעלאת טופס ←')}
             </button>
           </div>
         )}
@@ -553,30 +565,46 @@ export default function SubmitFlow({
           <div className="space-y-5">
             <div className="text-center space-y-2">
               <div className="text-5xl mb-2">📋</div>
-              <h2 className="text-xl font-black text-white">הוראות הגשה</h2>
-              <p className="text-sm text-[#5a7a9a]">{selectedGame?.home_name} נגד {selectedGame?.away_name}</p>
+              <h2 className="text-xl font-black text-white">{en ? 'Submission Instructions' : 'הוראות הגשה'}</h2>
+              <p className="text-sm text-[#5a7a9a]">{selectedGame?.home_name} {en ? 'vs' : 'נגד'} {selectedGame?.away_name}</p>
             </div>
 
-            <div className="rounded-2xl border border-orange-500/25 bg-orange-500/[0.06] p-5 space-y-4 text-right">
+            <div className={`rounded-2xl border border-orange-500/25 bg-orange-500/[0.06] p-5 space-y-4 ${en ? 'text-left' : 'text-right'}`}>
               <p className="text-sm font-black text-orange-300 flex items-center gap-2">
-                <span>⚠️</span> חשוב לפני ההעלאה
+                <span>⚠️</span> {en ? 'Important before uploading' : 'חשוב לפני ההעלאה'}
               </p>
               <ul className="space-y-3 text-sm text-[#c8d8e8]">
                 <li className="flex items-start gap-2">
                   <span className="shrink-0 text-orange-400 mt-0.5">•</span>
-                  <span>יש לצלם את <strong className="text-white">דף הסטטיסטיקות הרשמי</strong> של המשחק — לא גיליון אחר.</span>
+                  <span>
+                    {en
+                      ? <>Photograph the <strong className="text-white">official game statistics sheet</strong> — not any other sheet.</>
+                      : <>יש לצלם את <strong className="text-white">דף הסטטיסטיקות הרשמי</strong> של המשחק — לא גיליון אחר.</>}
+                  </span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="shrink-0 text-orange-400 mt-0.5">•</span>
-                  <span>ודא שהטופס <strong className="text-white">קריא לחלוטין</strong> — כל השמות, המספרים והנקודות גלויים.</span>
+                  <span>
+                    {en
+                      ? <>Make sure the form is <strong className="text-white">fully legible</strong> — all names, numbers and points are visible.</>
+                      : <>ודא שהטופס <strong className="text-white">קריא לחלוטין</strong> — כל השמות, המספרים והנקודות גלויים.</>}
+                  </span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="shrink-0 text-orange-400 mt-0.5">•</span>
-                  <span>המערכת תנסה לחלץ את הנתונים <strong className="text-white">אוטומטית מהתמונה</strong> — תוכל לאמת ולתקן לפני השליחה.</span>
+                  <span>
+                    {en
+                      ? <>The system will try to extract the data <strong className="text-white">automatically from the image</strong> — you can verify and correct before sending.</>
+                      : <>המערכת תנסה לחלץ את הנתונים <strong className="text-white">אוטומטית מהתמונה</strong> — תוכל לאמת ולתקן לפני השליחה.</>}
+                  </span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="shrink-0 text-orange-400 mt-0.5">•</span>
-                  <span>לאחר הגשה, הנתונים ממתינים <strong className="text-white">לאישור מנהל הליגה</strong> לפני שיופיעו בטבלאות.</span>
+                  <span>
+                    {en
+                      ? <>After submission, the data awaits <strong className="text-white">league admin approval</strong> before appearing in the standings.</>
+                      : <>לאחר הגשה, הנתונים ממתינים <strong className="text-white">לאישור מנהל הליגה</strong> לפני שיופיעו בטבלאות.</>}
+                  </span>
                 </li>
               </ul>
             </div>
@@ -586,13 +614,13 @@ export default function SubmitFlow({
                 onClick={() => setStep('select')}
                 className="flex-1 border border-white/10 bg-white/5 text-[#8aaac8] hover:border-white/20 hover:text-white font-bold py-3 rounded-xl transition-all text-sm"
               >
-                ← חזור
+                {t('← חזור')}
               </button>
               <button
                 onClick={() => setStep('upload')}
                 className="flex-1 bg-orange-500 hover:bg-orange-400 text-white font-bold py-3 rounded-xl transition-all text-sm"
               >
-                העלה טופס משחק ←
+                {en ? 'Upload game form →' : 'העלה טופס משחק ←'}
               </button>
             </div>
           </div>
@@ -603,7 +631,7 @@ export default function SubmitFlow({
           <div className="space-y-5">
             <div className="text-center">
               <p className="text-sm text-[#8aaac8]">
-                {selectedGame?.home_name} נגד {selectedGame?.away_name}
+                {selectedGame?.home_name} {en ? 'vs' : 'נגד'} {selectedGame?.away_name}
               </p>
             </div>
 
@@ -633,22 +661,22 @@ export default function SubmitFlow({
             ) : preview ? (
               <div className="space-y-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={preview} alt="תצוגה מקדימה" className="w-full rounded-xl object-contain max-h-64 border border-white/10" />
+                <img src={preview} alt={en ? 'Preview' : 'תצוגה מקדימה'} className="w-full rounded-xl object-contain max-h-64 border border-white/10" />
                 <button
                   onClick={handleReupload}
                   className="w-full border border-white/10 text-[#8aaac8] hover:text-white font-medium py-2.5 rounded-xl transition-all text-sm hover:bg-white/5"
                 >
-                  החלף תמונה
+                  {t('החלף תמונה')}
                 </button>
               </div>
             ) : (
               <label htmlFor="scoresheet-input" className="cursor-pointer block">
                 <div className="rounded-2xl border-2 border-dashed border-white/20 hover:border-orange-500/50 bg-white/[0.02] hover:bg-white/5 p-16 text-center transition-all space-y-3">
                   <div className="text-5xl">📋</div>
-                  <p className="text-white font-bold">העלה טופס משחק</p>
-                  <p className="text-sm text-[#5a7a9a]">צלם את דף הסטטיסטיקות של המשחק</p>
+                  <p className="text-white font-bold">{t('העלה טופס משחק')}</p>
+                  <p className="text-sm text-[#5a7a9a]">{t('צלם את דף הסטטיסטיקות של המשחק')}</p>
                   <span className="inline-block mt-2 bg-orange-500 hover:bg-orange-400 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-all">
-                    📷 צלם / בחר תמונה
+                    {t('📷 צלם / בחר תמונה')}
                   </span>
                 </div>
               </label>
@@ -658,7 +686,11 @@ export default function SubmitFlow({
             {extractError && (
               <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-4 space-y-3">
                 <p className="text-sm text-red-300 font-medium">⚠️ {extractError}</p>
-                <p className="text-xs text-[#5a7a9a]">הניתוח עשוי לקחת עד 30 שניות. לחץ על ״נסה שוב״ כדי לנסות מחדש.</p>
+                <p className="text-xs text-[#5a7a9a]">
+                  {en
+                    ? 'Analysis may take up to 30 seconds. Click "Try again" to retry.'
+                    : 'הניתוח עשוי לקחת עד 30 שניות. לחץ על ״נסה שוב״ כדי לנסות מחדש.'}
+                </p>
                 <button
                   onClick={() => {
                     setExtractError('');
@@ -666,7 +698,7 @@ export default function SubmitFlow({
                   }}
                   className="w-full bg-orange-500 hover:bg-orange-400 text-white font-bold py-2.5 rounded-xl transition-all text-sm"
                 >
-                  🔄 נסה שוב
+                  {en ? '🔄 Try again' : '🔄 נסה שוב'}
                 </button>
               </div>
             )}
@@ -675,7 +707,7 @@ export default function SubmitFlow({
               onClick={() => setStep('select')}
               className="text-[#5a7a9a] text-sm hover:text-white transition-colors"
             >
-              ← חזור
+              {t('← חזור')}
             </button>
           </div>
         )}
@@ -690,26 +722,30 @@ export default function SubmitFlow({
           <div className="space-y-5">
             {isNeedsReview && (
               <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 text-sm text-yellow-300">
-                ⚠️ איכות תמונה נמוכה — אנא בדוק את הנתונים שחולצו ותקן שגיאות לפני שליחה
+                {en
+                  ? '⚠️ Low image quality — please check the extracted data and fix errors before sending'
+                  : '⚠️ איכות תמונה נמוכה — אנא בדוק את הנתונים שחולצו ותקן שגיאות לפני שליחה'}
               </div>
             )}
             {allZeros && (
               <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-3 text-sm text-orange-300">
-                ⚠️ הנתונים נראים ריקים — כל הנקודות, הפאולים והשלשות הם אפס. האם הטופס היה קריא? אנא בדוק ותקן לפני שליחה.
+                {en
+                  ? '⚠️ The data looks empty — all points, fouls and threes are zero. Was the form legible? Please check and fix before sending.'
+                  : '⚠️ הנתונים נראים ריקים — כל הנקודות, הפאולים והשלשות הם אפס. האם הטופס היה קריא? אנא בדוק ותקן לפני שליחה.'}
               </div>
             )}
 
             {/* Fuzzy matching legend */}
             {nameMatches && (
               <div className="flex flex-wrap gap-3 text-[10px] text-[#4a6a8a] bg-white/[0.02] rounded-xl px-3 py-2 border border-white/[0.05]">
-                <span>🔍 שמות תואמו אוטומטית לרשימת השחקנים</span>
-                <span className="text-[#5a7a9a]">· שורת ה-OCR (מה שנקרא מהטופס) מוצגת בצבע אפור מתחת לכל שם</span>
+                <span>{en ? '🔍 Names auto-matched to roster' : '🔍 שמות תואמו אוטומטית לרשימת השחקנים'}</span>
+                <span className="text-[#5a7a9a]">{en ? '· OCR row (what was read from form) shown in gray below each name' : '· שורת ה-OCR (מה שנקרא מהטופס) מוצגת בצבע אפור מתחת לכל שם'}</span>
               </div>
             )}
 
             {/* Scores */}
             <div className="bg-white/5 rounded-xl p-4 space-y-3">
-              <p className="text-xs font-bold text-[#8aaac8] uppercase tracking-wide">תוצאת המשחק</p>
+              <p className="text-xs font-bold text-[#8aaac8] uppercase tracking-wide">{en ? 'Game Result' : 'תוצאת המשחק'}</p>
               <div className="flex items-center gap-3">
                 <div className="flex-1 text-center">
                   <p className="text-xs text-[#5a7a9a] mb-1">{selectedGame.home_name}</p>
@@ -746,19 +782,21 @@ export default function SubmitFlow({
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-bold text-white">{teamName}</p>
                     <p className="text-[10px] text-[#5a7a9a]">
-                      ✓ סמן את השחקנים ששיחקו ({playedCount}/{ps.length})
+                      {en
+                        ? `✓ Mark players who played (${playedCount}/${ps.length})`
+                        : `✓ סמן את השחקנים ששיחקו (${playedCount}/${ps.length})`}
                     </p>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="text-[#4a6a8a] border-b border-white/5">
-                          <th className="text-center pb-2 font-medium w-8">שיחק</th>
-                          <th className="text-right pb-2 font-medium">שם</th>
+                          <th className="text-center pb-2 font-medium w-8">{en ? 'Played' : 'שיחק'}</th>
+                          <th className={`pb-2 font-medium ${en ? 'text-left' : 'text-right'}`}>{en ? 'Name' : 'שם'}</th>
                           <th className="text-center pb-2 font-medium w-10">#</th>
-                          <th className="text-center pb-2 font-medium w-12">נק׳</th>
-                          <th className="text-center pb-2 font-medium w-12">3נק׳</th>
-                          <th className="text-center pb-2 font-medium w-12">פאול</th>
+                          <th className="text-center pb-2 font-medium w-12">{t('נק׳')}</th>
+                          <th className="text-center pb-2 font-medium w-12">{t('3נק׳')}</th>
+                          <th className="text-center pb-2 font-medium w-12">{en ? 'Foul' : 'פאול'}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/[0.04]">
@@ -832,13 +870,13 @@ export default function SubmitFlow({
               disabled={loading}
               className="w-full bg-orange-500 hover:bg-orange-400 disabled:opacity-40 text-white font-bold py-3 rounded-xl transition-all"
             >
-              {loading ? loadingMsg : '✅ שלח נתונים לאישור'}
+              {loading ? loadingMsg : t('✅ שלח נתונים לאישור')}
             </button>
             <button
               onClick={() => setStep('upload')}
               className="text-[#5a7a9a] text-sm hover:text-white transition-colors"
             >
-              ← חזור
+              {t('← חזור')}
             </button>
           </div>
           );
@@ -848,11 +886,13 @@ export default function SubmitFlow({
         {step === 'success' && (
           <div className="text-center space-y-4 py-16">
             <div className="text-6xl">✅</div>
-            <h2 className="text-2xl font-black text-white">תודה!</h2>
-            <p className="text-[#8aaac8]">הנתונים התקבלו וממתינים לאישור מנהל הליגה</p>
+            <h2 className="text-2xl font-black text-white">{t('תודה!')}</h2>
+            <p className="text-[#8aaac8]">{t('הנתונים התקבלו וממתינים לאישור מנהל הליגה')}</p>
             {isNeedsReview && (
               <p className="text-xs text-yellow-300 bg-yellow-500/10 rounded-xl p-3">
-                הגשה זו תסומן לבדיקה ידנית עקב איכות תמונה נמוכה
+                {en
+                  ? 'This submission will be flagged for manual review due to low image quality'
+                  : 'הגשה זו תסומן לבדיקה ידנית עקב איכות תמונה נמוכה'}
               </p>
             )}
           </div>

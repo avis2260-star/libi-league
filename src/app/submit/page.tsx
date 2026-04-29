@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import SubmitFlow from './SubmitFlow';
+import { getLang } from '@/lib/get-lang';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,10 +49,13 @@ export default async function SubmitPage() {
     return t.name ?? '';
   }
 
+  const lang = await getLang();
+  const en = lang === 'en';
+
   const formattedGames = ((games ?? []) as unknown as RawGame[]).map((g) => ({
     id: g.id,
-    home_name: teamName(g.home_team) || 'בית',
-    away_name: teamName(g.away_team) || 'חוץ',
+    home_name: teamName(g.home_team) || (en ? 'Home' : 'בית'),
+    away_name: teamName(g.away_team) || (en ? 'Away' : 'חוץ'),
     game_date: g.game_date,
     game_time: g.game_time,
     is_locked: lockedIds.has(g.id),
@@ -61,13 +65,17 @@ export default async function SubmitPage() {
   const players = (playersData ?? []) as { id: string; name: string; jersey_number: number | null; team_id: string | null }[];
 
   return (
-    <main className="container mx-auto px-4 py-8 max-w-2xl" dir="rtl">
+    <main className="container mx-auto px-4 py-8 max-w-2xl" dir={en ? 'ltr' : 'rtl'}>
       <div className="mb-8 space-y-1">
         <h1 className="text-3xl font-black">
-          <span className="text-white">הגשת </span>
-          <span className="text-orange-500">תוצאות</span>
+          <span className="text-white">{en ? 'Submit ' : 'הגשת '}</span>
+          <span className="text-orange-500">{en ? 'Results' : 'תוצאות'}</span>
         </h1>
-        <p className="text-sm text-[#5a7a9a]">צלם את דף הסטטיסטיקות של המשחק ושלח לאישור</p>
+        <p className="text-sm text-[#5a7a9a]">
+          {en
+            ? 'Photograph the game stats sheet and send it for approval'
+            : 'צלם את דף הסטטיסטיקות של המשחק ושלח לאישור'}
+        </p>
       </div>
 
       <SubmitFlow games={formattedGames} teams={teams} players={players} />
