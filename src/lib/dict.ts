@@ -153,6 +153,8 @@ export const DICT: Record<string, string> = {
   'נק׳ ליגה': 'League PTS',
 
   // Playoff
+  'שמינית גמר': 'Round of 16',
+  'שמיניית גמר': 'Round of 16',
   'רבע גמר': 'Quarter Finals',
   'חצי גמר': 'Semi Finals',
   'גמר': 'Final',
