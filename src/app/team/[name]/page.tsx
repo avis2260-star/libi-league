@@ -16,6 +16,16 @@ type GameRow = {
   home_team: string; away_team: string;
   home_score: number; away_score: number; techni: boolean;
 };
+type UpcomingGameRow = {
+  game_date: string;
+  game_time: string | null;
+  location: string | null;
+  status: string;
+  home_team_id: string;
+  away_team_id: string;
+  home_team: { name: string } | { name: string }[] | null;
+  away_team: { name: string } | { name: string }[] | null;
+};
 
 /* ── Team name aliases (same team, different names across tables) ──────────── */
 const TEAM_ALIASES: [string, string][] = [
@@ -62,15 +72,22 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
     { data: resultsData },
     { data: teamsData },
     { data: cupData },
+    { data: upcomingData },
     lang,
   ] = await Promise.all([
     supabaseAdmin.from('standings').select('*').order('rank'),
     supabaseAdmin.from('game_results').select('*').order('round'),
     supabaseAdmin.from('teams').select('id, name, logo_url, captain_name, contact_info'),
     supabaseAdmin.from('cup_games').select('*').order('round_order'),
+    supabaseAdmin
+      .from('games')
+      .select('game_date, game_time, location, status, home_team_id, away_team_id, home_team:teams!games_home_team_id_fkey(name), away_team:teams!games_away_team_id_fkey(name)')
+      .neq('status', 'Finished')
+      .order('game_date', { ascending: true }),
     getLang(),
   ]);
   const T = (he: string) => st(he, lang);
+  const en = lang === 'en';
 
   const allStandings: Standing[] = (standingsData ?? [
     ...NORTH_TABLE.map(t => ({ ...t, division: 'North' })),
@@ -97,6 +114,30 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
   /* Cup games */
   const cupGames = ((cupData ?? []) as { home_team: string; away_team: string; home_score: number | null; away_score: number | null; played: boolean; round: string; game_number: number }[])
     .filter(g => matchTeam(g.home_team, teamName) || matchTeam(g.away_team, teamName));
+
+  /* Upcoming games — pull team_id once, then filter by it */
+  function teamNameOf(t: UpcomingGameRow['home_team']): string {
+    if (!t) return '';
+    if (Array.isArray(t)) return t[0]?.name ?? '';
+    return t.name ?? '';
+  }
+  const teamId = teamInfo?.id ?? null;
+  const upcomingGames = teamId
+    ? ((upcomingData ?? []) as unknown as UpcomingGameRow[])
+        .filter(g => g.home_team_id === teamId || g.away_team_id === teamId)
+        .map(g => {
+          const homeName = teamNameOf(g.home_team);
+          const awayName = teamNameOf(g.away_team);
+          const isHome = g.home_team_id === teamId;
+          return {
+            isHome,
+            opponent: isHome ? awayName : homeName,
+            game_date: g.game_date,
+            game_time: g.game_time,
+            location: g.location,
+          };
+        })
+    : [];
 
   /* Compute per-game stats */
   let totalPts = 0, totalAllowed = 0, wins = 0, losses = 0;
@@ -271,10 +312,43 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
         </div>
       )}
 
-      {gameDetails.length === 0 && cupGames.length === 0 && (
+      {/* ── Upcoming games ──────────────────────────────────────────────── */}
+      {upcomingGames.length > 0 && (
+        <div className="rounded-2xl border border-orange-400/20 bg-orange-400/[0.03] overflow-hidden">
+          <div className="border-b border-orange-400/[0.1] px-5 py-3 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-orange-400">📅 {T('משחקים קרובים')}</h2>
+            <span className="text-[10px] font-bold text-orange-400/70">{upcomingGames.length}</span>
+          </div>
+          <div className="divide-y divide-white/[0.04]">
+            {upcomingGames.map((g, i) => {
+              const time = (g.game_time && g.game_time !== '00:00:00') ? g.game_time.slice(0, 5) : '';
+              const loc  = (g.location && g.location !== 'TBD') ? g.location : '';
+              return (
+                <div key={i} className="flex items-center gap-3 px-4 py-3">
+                  <span className="shrink-0 rounded-full w-6 h-6 flex items-center justify-center text-[10px] font-black bg-orange-500/15 text-orange-400 ring-1 ring-orange-500/25">
+                    {g.isHome ? (en ? 'H' : 'ב') : (en ? 'A' : 'ח')}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-white truncate">
+                      {g.isHome ? T('בית') : T('חוץ')} {T('נגד')} {g.opponent}
+                    </p>
+                    <p className="text-xs font-bold text-[#8aaac8] mt-0.5">
+                      <span dir="ltr">{g.game_date}</span>
+                      {time && <> · <span dir="ltr">{time}</span></>}
+                      {loc && <> · 📍 {loc}</>}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {gameDetails.length === 0 && cupGames.length === 0 && upcomingGames.length === 0 && (
         <div className="rounded-2xl border border-white/[0.07] py-16 text-center">
           <p className="text-4xl mb-3">🏀</p>
-          <p className="text-sm font-bold text-[#8aaac8]">{lang === 'en' ? `No games found for ${teamName}` : `לא נמצאו משחקים עבור ${teamName}`}</p>
+          <p className="text-sm font-bold text-[#8aaac8]">{en ? `No games found for ${teamName}` : `לא נמצאו משחקים עבור ${teamName}`}</p>
         </div>
       )}
 
