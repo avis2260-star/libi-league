@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import { getTeams } from '@/lib/supabase';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getLang, st } from '@/lib/get-lang';
 
 const ROUND_DATES: Record<number, string> = {
   1: '01.11.25', 2: '08.11.25', 3: '29.11.25', 4: '20.12.25',
@@ -14,6 +15,7 @@ const ROUND_DATES: Record<number, string> = {
 };
 
 const HE_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+const EN_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 function normalize(s: string) {
   return s.replace(/["""''`״׳]/g, '').replace(/\s+/g, ' ').trim();
@@ -40,6 +42,9 @@ export default async function GamePreviewPage({
   const { round: roundStr, home: homeEncoded } = await params;
   const round = parseInt(roundStr, 10);
   const homeTeam = decodeURIComponent(homeEncoded);
+  const lang = await getLang();
+  const T = (he: string) => st(he, lang);
+  const en = lang === 'en';
 
   const game = LIBI_SCHEDULE.find(
     (g) => g.round === round && normalize(g.homeTeam) === normalize(homeTeam)
@@ -98,8 +103,10 @@ export default async function GamePreviewPage({
   }
 
   const dateStr    = ROUND_DATES[round] ?? game.date;
-  const dayOfWeek  = game.date ? HE_DAYS[new Date(game.date).getDay()] : '';
-  const divLabel   = game.division === 'North' ? 'מחוז צפון' : 'מחוז דרום';
+  const dayOfWeek  = game.date
+    ? (en ? EN_DAYS[new Date(game.date).getDay()] : HE_DAYS[new Date(game.date).getDay()])
+    : '';
+  const divLabel   = game.division === 'North' ? T('מחוז צפון') : T('מחוז דרום');
   const divColor   = game.division === 'North' ? 'text-blue-400' : 'text-orange-400';
   const divBg      = game.division === 'North' ? 'bg-blue-500/10 border-blue-500/30' : 'bg-orange-500/10 border-orange-500/30';
 
@@ -107,16 +114,16 @@ export default async function GamePreviewPage({
     rank === 1 ? '#e0c97a' : rank === 2 ? '#b0b8c8' : rank === 3 ? '#c87d3a' : '#8aaac8';
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6" dir={en ? 'ltr' : 'rtl'}>
       {/* Back */}
       <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-[#5a7a9a] hover:text-orange-400 transition-colors">
-        ← חזרה לדף הבית
+        {en ? '← Back to Home' : '← חזרה לדף הבית'}
       </Link>
 
       {/* Badges */}
       <div className="flex items-center gap-3">
         <span className="rounded-xl border border-orange-500/30 bg-orange-500/10 px-3 py-1.5 text-base font-black text-orange-400">
-          מחזור {round}
+          {T('מחזור')} {round}
         </span>
         <span className={`rounded-xl border px-3 py-1.5 text-base font-black ${divColor} ${divBg}`}>
           {divLabel}
@@ -127,11 +134,11 @@ export default async function GamePreviewPage({
       <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] overflow-hidden">
         <div className="border-b border-white/[0.06] bg-white/[0.02] px-6 py-3 flex items-center justify-between">
           <p className="text-base font-bold text-[#8aaac8]">
-            {dayOfWeek && <span className="font-black text-white">יום {dayOfWeek} · </span>}
+            {dayOfWeek && <span className="font-black text-white">{en ? `${dayOfWeek} · ` : `יום ${dayOfWeek} · `}</span>}
             {dateStr}
           </p>
           <span className="rounded-full bg-orange-500/10 border border-orange-500/20 px-3 py-0.5 text-xs font-bold text-orange-400">
-            קרוב
+            {en ? 'Upcoming' : 'קרוב'}
           </span>
         </div>
 
@@ -151,7 +158,7 @@ export default async function GamePreviewPage({
             </div>
             <div className="text-center">
               <p className="text-base font-black text-white leading-tight group-hover/team:text-orange-400 transition-colors">{game.homeTeam}</p>
-              <p className="mt-0.5 text-xs text-[#5a7a9a]">קבוצת בית</p>
+              <p className="mt-0.5 text-xs text-[#5a7a9a]">{en ? 'Home Team' : 'קבוצת בית'}</p>
             </div>
           </Link>
 
@@ -172,7 +179,7 @@ export default async function GamePreviewPage({
             </div>
             <div className="text-center">
               <p className="text-base font-black text-white leading-tight group-hover/team:text-orange-400 transition-colors">{game.awayTeam}</p>
-              <p className="mt-0.5 text-xs text-[#5a7a9a]">קבוצת חוץ</p>
+              <p className="mt-0.5 text-xs text-[#5a7a9a]">{en ? 'Away Team' : 'קבוצת חוץ'}</p>
             </div>
           </Link>
         </div>
@@ -181,22 +188,22 @@ export default async function GamePreviewPage({
       {/* Game info row */}
       <div className="grid grid-cols-3 gap-4">
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] p-5">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#5a7a9a]">📅 תאריך</p>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#5a7a9a]">📅 {en ? 'Date' : 'תאריך'}</p>
           <p className="text-lg font-black text-white">{dateStr}</p>
-          {dayOfWeek && <p className="mt-0.5 text-xs text-[#8aaac8]">יום {dayOfWeek}</p>}
+          {dayOfWeek && <p className="mt-0.5 text-xs text-[#8aaac8]">{en ? dayOfWeek : `יום ${dayOfWeek}`}</p>}
         </div>
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] p-5">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#5a7a9a]">⏰ שעה</p>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#5a7a9a]">⏰ {en ? 'Time' : 'שעה'}</p>
           {gameTime
             ? <p className="text-lg font-black text-white">{gameTime.slice(0, 5)}</p>
-            : <><p className="text-lg font-black text-[#3a5a7a]">TBD</p><p className="mt-0.5 text-xs text-[#3a5a7a]">טרם נקבע</p></>
+            : <><p className="text-lg font-black text-[#3a5a7a]">TBD</p><p className="mt-0.5 text-xs text-[#3a5a7a]">{T('טרם נקבע')}</p></>
           }
         </div>
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] p-5">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#5a7a9a]">📍 מיקום</p>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#5a7a9a]">📍 {en ? 'Location' : 'מיקום'}</p>
           {gameLocation
             ? <p className="text-lg font-black text-white">{gameLocation}</p>
-            : <><p className="text-lg font-black text-[#3a5a7a]">יתווסף בקרוב</p><p className="mt-0.5 text-xs text-[#3a5a7a]">טרם נקבע</p></>
+            : <><p className="text-lg font-black text-[#3a5a7a]">{en ? 'Coming soon' : 'יתווסף בקרוב'}</p><p className="mt-0.5 text-xs text-[#3a5a7a]">{T('טרם נקבע')}</p></>
           }
         </div>
       </div>
@@ -205,27 +212,27 @@ export default async function GamePreviewPage({
       {(homeStats || awayStats) && (
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] overflow-hidden">
           <div className="border-b border-white/[0.06] px-5 py-3">
-            <h2 className="text-sm font-bold text-white">📊 השוואת קבוצות</h2>
+            <h2 className="text-sm font-bold text-white">📊 {en ? 'Team Comparison' : 'השוואת קבוצות'}</h2>
           </div>
 
           {/* Column headers */}
           <div className="grid grid-cols-3 border-b border-white/[0.05] px-5 py-2 text-[10px] font-bold uppercase tracking-widest text-[#4a6a8a]">
-            <span className="text-right">{game.homeTeam}</span>
-            <span className="text-center">סטט</span>
-            <span className="text-left">{game.awayTeam}</span>
+            <span className={en ? 'text-left' : 'text-right'}>{game.homeTeam}</span>
+            <span className="text-center">{en ? 'Stat' : 'סטט'}</span>
+            <span className={en ? 'text-right' : 'text-left'}>{game.awayTeam}</span>
           </div>
 
           {[
-            { label: 'מ׳ (ניצחונות)', home: homeStats ? `${homeStats.wins}נ / ${homeStats.losses}ה` : '—', away: awayStats ? `${awayStats.wins}נ / ${awayStats.losses}ה` : '—' },
-            { label: 'נקודות ליגה',   home: homeStats?.pts  != null ? String(homeStats.pts)  : '—', away: awayStats?.pts  != null ? String(awayStats.pts)  : '—' },
-            { label: 'הפרש נקודות',  home: homeStats?.diff != null ? (homeStats.diff > 0 ? `+${homeStats.diff}` : String(homeStats.diff)) : '—', away: awayStats?.diff != null ? (awayStats.diff > 0 ? `+${awayStats.diff}` : String(awayStats.diff)) : '—' },
-            { label: 'ממוצע נק׳ למשחק', home: homeStats?.games ? (homeStats.pf / homeStats.games).toFixed(1) : '—', away: awayStats?.games ? (awayStats.pf / awayStats.games).toFixed(1) : '—' },
-            { label: 'ממוצע ספיגה',  home: homeStats?.games ? (homeStats.pa / homeStats.games).toFixed(1) : '—', away: awayStats?.games ? (awayStats.pa / awayStats.games).toFixed(1) : '—' },
+            { label: en ? 'G (Wins)' : 'מ׳ (ניצחונות)', home: homeStats ? (en ? `${homeStats.wins}W / ${homeStats.losses}L` : `${homeStats.wins}נ / ${homeStats.losses}ה`) : '—', away: awayStats ? (en ? `${awayStats.wins}W / ${awayStats.losses}L` : `${awayStats.wins}נ / ${awayStats.losses}ה`) : '—' },
+            { label: en ? 'League Points' : 'נקודות ליגה', home: homeStats?.pts  != null ? String(homeStats.pts)  : '—', away: awayStats?.pts  != null ? String(awayStats.pts)  : '—' },
+            { label: en ? 'Point Diff' : 'הפרש נקודות', home: homeStats?.diff != null ? (homeStats.diff > 0 ? `+${homeStats.diff}` : String(homeStats.diff)) : '—', away: awayStats?.diff != null ? (awayStats.diff > 0 ? `+${awayStats.diff}` : String(awayStats.diff)) : '—' },
+            { label: en ? 'PPG' : 'ממוצע נק׳ למשחק', home: homeStats?.games ? (homeStats.pf / homeStats.games).toFixed(1) : '—', away: awayStats?.games ? (awayStats.pf / awayStats.games).toFixed(1) : '—' },
+            { label: en ? 'OPP PPG' : 'ממוצע ספיגה', home: homeStats?.games ? (homeStats.pa / homeStats.games).toFixed(1) : '—', away: awayStats?.games ? (awayStats.pa / awayStats.games).toFixed(1) : '—' },
           ].map(({ label, home, away }) => (
             <div key={label} className="grid grid-cols-3 border-b border-white/[0.04] px-5 py-3 text-sm last:border-0">
-              <span dir="ltr" className="font-bold text-[#e8edf5] text-right">{home}</span>
+              <span dir="ltr" className={`font-bold text-[#e8edf5] ${en ? 'text-left' : 'text-right'}`}>{home}</span>
               <span className="text-center text-[10px] text-[#5a7a9a] self-center">{label}</span>
-              <span dir="ltr" className="font-semibold text-[#8aaac8] text-left">{away}</span>
+              <span dir="ltr" className={`font-semibold text-[#8aaac8] ${en ? 'text-right' : 'text-left'}`}>{away}</span>
             </div>
           ))}
         </div>
