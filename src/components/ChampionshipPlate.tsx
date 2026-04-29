@@ -1,6 +1,10 @@
 'use client';
 
+import { useLang } from '@/components/TranslationProvider';
+
 export default function ChampionshipPlate({ year = '2025–2026' }: { year?: string }) {
+  const { lang } = useLang();
+  const en = lang === 'en';
   return (
     <div className="flex items-center justify-center">
       <div
@@ -115,7 +119,7 @@ export default function ChampionshipPlate({ year = '2025–2026' }: { year?: str
                     marginTop: 2,
                   }}
                 >
-                  ליגת ליבי
+                  {en ? 'LIBI LEAGUE' : 'ליגת ליבי'}
                 </p>
               </div>
             </div>

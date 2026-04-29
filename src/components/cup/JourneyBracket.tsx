@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useMemo, useState } from 'react';
+import { useLang } from '@/components/TranslationProvider';
 
 type CupGame = {
   id: string; round: string; round_order: number; game_number: number;
@@ -58,6 +59,8 @@ function MatchCard({
   focused: boolean; dimmed: boolean; focusedTeam: string | null;
   onClickTeam: (name: string) => void;
 }) {
+  const { t, lang } = useLang();
+  const en = lang === 'en';
   const winner = getWinner(game);
   const homeWin = winner === game.home_team;
   const awayWin = winner === game.away_team;
@@ -83,10 +86,10 @@ function MatchCard({
         {!isFinal && (
           <span
             className="shrink-0 inline-flex items-center justify-center h-4 w-4 rounded text-[9px] font-black bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/25"
-            title="משחק בית"
-            aria-label="בית"
+            title={t('משחק בית')}
+            aria-label={t('בית')}
           >
-            ב
+            {en ? 'H' : 'ב'}
           </span>
         )}
         <TeamLogo name={game.home_team} logos={teamLogos} size={isFinal ? 'md' : 'sm'} />
@@ -114,10 +117,10 @@ function MatchCard({
         {!isFinal && (
           <span
             className="shrink-0 inline-flex items-center justify-center h-4 w-4 rounded text-[9px] font-black bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/25"
-            title="משחק חוץ"
-            aria-label="חוץ"
+            title={t('משחק חוץ')}
+            aria-label={t('חוץ')}
           >
-            ח
+            {en ? 'A' : 'ח'}
           </span>
         )}
         <TeamLogo name={game.away_team} logos={teamLogos} size={isFinal ? 'md' : 'sm'} />
@@ -222,11 +225,12 @@ function RoundGap({ totalH }: { totalH: number }) {
 function RoundHeader({ label, date, allPlayed, isFinal, gamesLeft }: {
   label: string; date: string; allPlayed: boolean; isFinal: boolean; gamesLeft: number;
 }) {
+  const { t } = useLang();
   return (
     <div className="flex flex-col items-center shrink-0 pb-2" style={{ height: HEADER_H }}>
       <div className="flex items-center gap-2">
         <span className={`text-[10px] font-black uppercase tracking-widest ${isFinal ? 'text-orange-400' : 'text-[#e0c97a]'}`}>
-          {isFinal ? '🏆 ' : ''}{label}
+          {isFinal ? '🏆 ' : ''}{t(label)}
         </span>
         {allPlayed ? (
           <span className="rounded-full bg-green-900/40 px-1.5 py-px text-[9px] font-bold text-green-400">✓</span>
@@ -242,10 +246,10 @@ function RoundHeader({ label, date, allPlayed, isFinal, gamesLeft }: {
         <span className="mt-1 text-[10px] text-[#3a5a7a]">—</span>
       )}
       {isFinal && (
-        <span className="mt-0.5 text-[9px] font-bold text-[#8aaac8]">מגרש ניטרלי</span>
+        <span className="mt-0.5 text-[9px] font-bold text-[#8aaac8]">{t('מגרש ניטרלי')}</span>
       )}
       {!isFinal && !allPlayed && gamesLeft > 0 && (
-        <span className="mt-0.5 text-[9px] text-[#5a7a9a]">{gamesLeft} משחקים נותרו</span>
+        <span className="mt-0.5 text-[9px] text-[#5a7a9a]">{gamesLeft} {t('משחקים נותרו')}</span>
       )}
     </div>
   );
@@ -253,6 +257,7 @@ function RoundHeader({ label, date, allPlayed, isFinal, gamesLeft }: {
 
 /* ── Champion / TBD banners ──────────────────────────────────────────── */
 function ChampionBanner({ teamName, teamLogos, dimmed }: { teamName: string; teamLogos: Record<string, string>; dimmed: boolean }) {
+  const { t } = useLang();
   const url = teamLogos[teamName];
   return (
     <div className={`mt-2 flex flex-row items-center justify-center gap-4 rounded-2xl border-2 border-yellow-400/40 bg-gradient-to-b from-yellow-400/10 to-transparent px-6 py-4 shadow-[0_0_60px_rgba(250,204,21,0.15)] max-w-md mx-auto transition-opacity duration-300 ${dimmed ? 'opacity-30' : 'opacity-100'}`}>
@@ -262,7 +267,7 @@ function ChampionBanner({ teamName, teamLogos, dimmed }: { teamName: string; tea
         <img src={url} alt={teamName} className="h-12 w-12 rounded-full border-2 border-yellow-400/50 object-cover shadow-lg shrink-0" />
       )}
       <div className="flex flex-col items-start">
-        <p className="text-[10px] font-black uppercase tracking-widest text-[#a08020]">אלוף הגביע 2025–2026</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-[#a08020]">{t('אלוף הגביע 2025–2026')}</p>
         <p className="text-lg font-black text-yellow-400">{teamName}</p>
       </div>
     </div>
@@ -270,12 +275,13 @@ function ChampionBanner({ teamName, teamLogos, dimmed }: { teamName: string; tea
 }
 
 function TBDBanner({ dimmed }: { dimmed: boolean }) {
+  const { t } = useLang();
   return (
     <div className={`mt-2 flex flex-row items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-[#1e3a5f] bg-[#080f18]/60 px-6 py-3 max-w-md mx-auto transition-opacity duration-300 ${dimmed ? 'opacity-30' : 'opacity-100'}`}>
       <div className="text-2xl">🏆</div>
       <div className="flex flex-col items-start">
-        <p className="text-[10px] font-black uppercase tracking-widest text-[#3a5a7a]">אלוף הגביע</p>
-        <p className="text-sm font-bold text-[#2a4a6a]">טרם נקבע — ממתין לגמר</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-[#3a5a7a]">{t('אלוף הגביע')}</p>
+        <p className="text-sm font-bold text-[#2a4a6a]">{t('טרם נקבע — ממתין לגמר')}</p>
       </div>
     </div>
   );
@@ -316,6 +322,8 @@ function JourneyPanel({
   focusedTeam: string; teamLogos: Record<string, string>;
   games: CupGame[]; onClose: () => void;
 }) {
+  const { t, lang } = useLang();
+  const en = lang === 'en';
   const steps = useMemo(() => buildJourney(focusedTeam, games), [focusedTeam, games]);
   const wins = steps.filter(s => s.outcome === 'win').length;
   const losses = steps.filter(s => s.outcome === 'loss').length;
@@ -326,25 +334,25 @@ function JourneyPanel({
   // headline for the run
   let headline = '';
   if (eliminated && lastPlayed) {
-    headline = `הודחה ב${lastPlayed.round}`;
+    headline = en ? `Eliminated in ${t(lastPlayed.round)}` : `הודחה ב${lastPlayed.round}`;
   } else if (wins === 0 && upcoming) {
-    headline = `מתחילה את הדרך ב${upcoming.round}`;
+    headline = en ? `Starting in ${t(upcoming.round)}` : `מתחילה את הדרך ב${upcoming.round}`;
   } else if (upcoming) {
-    headline = `${wins} ניצחונות · בדרך ל${upcoming.round}`;
+    headline = en ? `${wins} wins · heading to ${t(upcoming.round)}` : `${wins} ניצחונות · בדרך ל${upcoming.round}`;
   } else if (wins === steps.length && steps.length > 0) {
-    headline = `🏆 אלופת הגביע! ${wins} ניצחונות`;
+    headline = en ? `🏆 Cup Champion! ${wins} wins` : `🏆 אלופת הגביע! ${wins} ניצחונות`;
   }
 
   const logoUrl = findLogoUrl(focusedTeam, teamLogos);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-stretch justify-start sm:justify-start pointer-events-none" dir="rtl">
+    <div className="fixed inset-0 z-50 flex items-stretch justify-start sm:justify-start pointer-events-none" dir={en ? 'ltr' : 'rtl'}>
       {/* Backdrop */}
       <button
         type="button"
         onClick={onClose}
         className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto transition-opacity"
-        aria-label="סגור"
+        aria-label={t('סגור')}
       />
 
       {/* Panel: bottom sheet on mobile, right side drawer on desktop */}
@@ -374,7 +382,7 @@ function JourneyPanel({
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">מסע בגביע</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">{t('מסע בגביע')}</p>
               <h3 className="text-lg font-black text-white truncate">{focusedTeam}</h3>
               <p className="text-[11px] text-[#8aaac8] mt-0.5">{headline}</p>
             </div>
@@ -382,7 +390,7 @@ function JourneyPanel({
               type="button"
               onClick={onClose}
               className="shrink-0 h-8 w-8 rounded-lg border border-white/[0.08] bg-white/[0.03] text-white/70 hover:bg-white/[0.08] hover:text-white transition-colors flex items-center justify-center"
-              aria-label="סגור"
+              aria-label={t('סגור')}
             >
               ✕
             </button>
@@ -390,15 +398,15 @@ function JourneyPanel({
           {/* mini stats */}
           <div className="flex gap-2 px-4 pb-3">
             <div className="flex-1 rounded-lg bg-green-900/20 border border-green-500/20 px-2 py-1.5 text-center">
-              <p className="text-[9px] font-bold uppercase text-green-400/80">ניצחונות</p>
+              <p className="text-[9px] font-bold uppercase text-green-400/80">{t('ניצחונות')}</p>
               <p className="text-base font-black text-green-400 tabular-nums">{wins}</p>
             </div>
             <div className="flex-1 rounded-lg bg-red-900/20 border border-red-500/20 px-2 py-1.5 text-center">
-              <p className="text-[9px] font-bold uppercase text-red-400/80">הפסדים</p>
+              <p className="text-[9px] font-bold uppercase text-red-400/80">{t('הפסדים')}</p>
               <p className="text-base font-black text-red-400 tabular-nums">{losses}</p>
             </div>
             <div className="flex-1 rounded-lg bg-white/[0.03] border border-white/[0.08] px-2 py-1.5 text-center">
-              <p className="text-[9px] font-bold uppercase text-[#5a7a9a]">משחקים</p>
+              <p className="text-[9px] font-bold uppercase text-[#5a7a9a]">{t('משחקים')}</p>
               <p className="text-base font-black text-white tabular-nums">{steps.length}</p>
             </div>
           </div>
@@ -420,9 +428,9 @@ function JourneyPanel({
               : step.outcome === 'loss' ? '✕'
               : '○';
             const label =
-              step.outcome === 'win' ? 'ניצחון'
-              : step.outcome === 'loss' ? 'הפסד'
-              : 'עתידי';
+              step.outcome === 'win' ? t('ניצחון')
+              : step.outcome === 'loss' ? t('הפסד')
+              : t('עתידי');
             const opponentLogo = findLogoUrl(step.opponent, teamLogos);
 
             return (
@@ -443,11 +451,11 @@ function JourneyPanel({
                   <div className="flex items-center justify-between gap-2 mb-1.5">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[#e0c97a]">
-                        {step.round}
+                        {t(step.round)}
                       </span>
                       {step.round === 'גמר' ? (
                         <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-px text-[9px] font-black ring-1 bg-white/[0.04] text-[#8aaac8] ring-white/[0.08]">
-                          מגרש ניטרלי
+                          {t('מגרש ניטרלי')}
                         </span>
                       ) : (
                         <span className={`inline-flex items-center gap-0.5 rounded px-1.5 py-px text-[9px] font-black ring-1 ${
@@ -455,7 +463,7 @@ function JourneyPanel({
                             ? 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/25'
                             : 'bg-sky-500/15 text-sky-300 ring-sky-500/25'
                         }`}>
-                          {step.isHome ? 'בבית' : 'בחוץ'}
+                          {step.isHome ? t('בבית') : t('בחוץ')}
                         </span>
                       )}
                     </div>
@@ -493,7 +501,7 @@ function JourneyPanel({
                       </div>
                     )}
                     <span className="flex-1 min-w-0 truncate text-sm font-bold text-white">
-                      {step.outcome === 'upcoming' ? 'תפגוש את ' : 'מול '}
+                      {step.outcome === 'upcoming' ? t('תפגוש את ') : t('מול ')}
                       {step.opponent}
                     </span>
                     {step.outcome !== 'upcoming' && step.teamScore !== null && step.oppScore !== null && (
@@ -510,7 +518,7 @@ function JourneyPanel({
           })}
 
           {steps.length === 0 && (
-            <li className="text-center text-[#5a7a9a] text-sm py-6">אין משחקים לקבוצה זו</li>
+            <li className="text-center text-[#5a7a9a] text-sm py-6">{t('אין משחקים לקבוצה זו')}</li>
           )}
         </ol>
 
@@ -520,7 +528,7 @@ function JourneyPanel({
             onClick={onClose}
             className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.08] text-sm font-bold text-white py-2.5 transition-colors"
           >
-            חזרה לטורניר
+            {t('חזרה לטורניר')}
           </button>
         </div>
       </div>
@@ -530,14 +538,15 @@ function JourneyPanel({
 
 /* ── Main component ──────────────────────────────────────────────────── */
 export default function JourneyBracket({ games, teamLogos }: { games: CupGame[]; teamLogos: Record<string, string> }) {
+  const { t } = useLang();
   const [focusedTeam, setFocusedTeam] = useState<string | null>(null);
 
   if (games.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 space-y-4">
         <div className="text-6xl">🏆</div>
-        <h2 className="text-xl font-bold text-white">טורניר הגביע</h2>
-        <p className="text-[#5a7a9a] text-sm">הנתונים יופיעו לאחר סנכרון קובץ האקסל</p>
+        <h2 className="text-xl font-bold text-white">{t('טורניר הגביע')}</h2>
+        <p className="text-[#5a7a9a] text-sm">{t('הנתונים יופיעו לאחר סנכרון קובץ האקסל')}</p>
       </div>
     );
   }

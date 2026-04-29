@@ -1,5 +1,7 @@
 'use client';
 
+import { useLang } from '@/components/TranslationProvider';
+
 type CupGame = {
   id: string; round: string; round_order: number; game_number: number;
   home_team: string; away_team: string;
@@ -41,6 +43,8 @@ function TeamLogo({ name, logos, size = 'sm' }: { name: string; logos: Record<st
 
 /* ── A compact match card — two-row layout, score on outside ─────────── */
 function MatchCard({ game, teamLogos }: { game: CupGame; teamLogos: Record<string, string> }) {
+  const { t, lang } = useLang();
+  const en = lang === 'en';
   const winner = getWinner(game);
   const homeWin = winner === game.home_team;
   const awayWin = winner === game.away_team;
@@ -53,10 +57,10 @@ function MatchCard({ game, teamLogos }: { game: CupGame; teamLogos: Record<strin
             ? 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/25'
             : 'bg-sky-500/15 text-sky-300 ring-sky-500/25'
         }`}
-        title={isHome ? 'משחק בית' : 'משחק חוץ'}
-        aria-label={isHome ? 'בית' : 'חוץ'}
+        title={isHome ? t('משחק בית') : t('משחק חוץ')}
+        aria-label={isHome ? t('בית') : t('חוץ')}
       >
-        {isHome ? 'ב' : 'ח'}
+        {en ? (isHome ? 'H' : 'A') : (isHome ? 'ב' : 'ח')}
       </span>
       <TeamLogo name={name} logos={teamLogos} />
       <span className={`flex-1 min-w-0 truncate text-xs font-bold ${isWinner ? 'text-orange-400' : placeholder ? 'text-[#5a7a9a]' : 'text-white'}`}>
@@ -82,6 +86,7 @@ function MatchCard({ game, teamLogos }: { game: CupGame; teamLogos: Record<strin
 
 /* ── Featured final card (big, centered) ─────────────────────────────── */
 function FinalCard({ game, teamLogos }: { game: CupGame; teamLogos: Record<string, string> }) {
+  const { t } = useLang();
   const winner = getWinner(game);
   const homeWin = winner === game.home_team;
   const awayWin = winner === game.away_team;
@@ -91,7 +96,7 @@ function FinalCard({ game, teamLogos }: { game: CupGame; teamLogos: Record<strin
       <div className="flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500/10 border-b border-orange-500/20">
         <span className="text-lg">🏆</span>
         <span className="text-[11px] font-black uppercase tracking-widest text-orange-400">
-          הגמר · {game.date || 'תאריך טרם נקבע'} · מגרש ניטרלי
+          {t('הגמר')} · {game.date || t('תאריך טרם נקבע')} · {t('מגרש ניטרלי')}
         </span>
       </div>
       <div className="grid grid-cols-[1fr,auto,1fr] items-center gap-3 px-5 py-5">
@@ -100,7 +105,7 @@ function FinalCard({ game, teamLogos }: { game: CupGame; teamLogos: Record<strin
         <div className={`flex flex-col items-center gap-2 ${homeWin ? 'text-orange-400' : 'text-white'}`}>
           <TeamLogo name={game.home_team} logos={teamLogos} size="lg" />
           <span className="text-sm font-black text-center">{game.home_team}</span>
-          {homeWin && <span className="text-[10px] font-bold text-orange-400">🏆 אלוף</span>}
+          {homeWin && <span className="text-[10px] font-bold text-orange-400">🏆 {t('אלוף')}</span>}
         </div>
 
         {/* Score / vs */}
@@ -120,7 +125,7 @@ function FinalCard({ game, teamLogos }: { game: CupGame; teamLogos: Record<strin
         <div className={`flex flex-col items-center gap-2 ${awayWin ? 'text-orange-400' : 'text-white'}`}>
           <TeamLogo name={game.away_team} logos={teamLogos} size="lg" />
           <span className="text-sm font-black text-center">{game.away_team}</span>
-          {awayWin && <span className="text-[10px] font-bold text-orange-400">🏆 אלוף</span>}
+          {awayWin && <span className="text-[10px] font-bold text-orange-400">🏆 {t('אלוף')}</span>}
         </div>
       </div>
     </div>
@@ -131,18 +136,20 @@ function FinalCard({ game, teamLogos }: { game: CupGame; teamLogos: Record<strin
 function RoundHeader({ label, date, count, allPlayed, isFinal }: {
   label: string; date: string; count: number; allPlayed: boolean; isFinal: boolean;
 }) {
+  const { t, lang } = useLang();
+  const en = lang === 'en';
   return (
     <div className={`flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border ${
       isFinal ? 'border-orange-500/30 bg-orange-500/[0.05]' : 'border-white/[0.07] bg-white/[0.03]'
     }`}>
       <div className="flex items-center gap-2.5 min-w-0">
         <span className={`text-xs font-black uppercase tracking-widest ${isFinal ? 'text-orange-400' : 'text-[#e0c97a]'}`}>
-          {isFinal ? '🏆 ' : ''}{label}
+          {isFinal ? '🏆 ' : ''}{t(label)}
         </span>
         {allPlayed ? (
-          <span className="rounded-full bg-green-900/40 px-1.5 py-px text-[10px] font-bold text-green-400">הושלם ✓</span>
+          <span className="rounded-full bg-green-900/40 px-1.5 py-px text-[10px] font-bold text-green-400">{t('הושלם ✓')}</span>
         ) : (
-          <span className="rounded-full bg-orange-900/30 px-1.5 py-px text-[10px] font-bold text-orange-400">● פעיל</span>
+          <span className="rounded-full bg-orange-900/30 px-1.5 py-px text-[10px] font-bold text-orange-400">{t('● פעיל')}</span>
         )}
       </div>
       <div className="flex items-center gap-3 text-[11px] font-bold text-[#5a7a9a] shrink-0">
@@ -151,7 +158,7 @@ function RoundHeader({ label, date, count, allPlayed, isFinal }: {
             📅 {date}
           </span>
         )}
-        <span>{count} {count === 1 ? 'משחק' : 'משחקים'}</span>
+        <span>{count} {en ? (count === 1 ? 'game' : 'games') : (count === 1 ? 'משחק' : 'משחקים')}</span>
       </div>
     </div>
   );
@@ -159,6 +166,7 @@ function RoundHeader({ label, date, count, allPlayed, isFinal }: {
 
 /* ── Champion / TBD banner ───────────────────────────────────────────── */
 function ChampionBanner({ teamName, teamLogos }: { teamName: string; teamLogos: Record<string, string> }) {
+  const { t } = useLang();
   const url = teamLogos[teamName];
   return (
     <div className="mt-2 flex flex-row items-center justify-center gap-4 rounded-2xl border-2 border-yellow-400/40 bg-gradient-to-b from-yellow-400/10 to-transparent px-6 py-4 shadow-[0_0_60px_rgba(250,204,21,0.15)] max-w-md mx-auto">
@@ -168,7 +176,7 @@ function ChampionBanner({ teamName, teamLogos }: { teamName: string; teamLogos: 
         <img src={url} alt={teamName} className="h-12 w-12 rounded-full border-2 border-yellow-400/50 object-cover shadow-lg shrink-0" />
       )}
       <div className="flex flex-col items-start">
-        <p className="text-[10px] font-black uppercase tracking-widest text-[#a08020]">אלוף הגביע 2025–2026</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-[#a08020]">{t('אלוף הגביע 2025–2026')}</p>
         <p className="text-lg font-black text-yellow-400">{teamName}</p>
       </div>
     </div>
@@ -176,12 +184,13 @@ function ChampionBanner({ teamName, teamLogos }: { teamName: string; teamLogos: 
 }
 
 function TBDBanner() {
+  const { t } = useLang();
   return (
     <div className="mt-2 flex flex-row items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-[#1e3a5f] bg-[#080f18]/60 px-6 py-3 max-w-md mx-auto">
       <div className="text-2xl">🏆</div>
       <div className="flex flex-col items-start">
-        <p className="text-[10px] font-black uppercase tracking-widest text-[#3a5a7a]">אלוף הגביע</p>
-        <p className="text-sm font-bold text-[#2a4a6a]">טרם נקבע — ממתין לגמר</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-[#3a5a7a]">{t('אלוף הגביע')}</p>
+        <p className="text-sm font-bold text-[#2a4a6a]">{t('טרם נקבע — ממתין לגמר')}</p>
       </div>
     </div>
   );
@@ -197,12 +206,13 @@ function gridClassForCount(count: number): string {
 
 /* ── Main component ──────────────────────────────────────────────────── */
 export default function StageCardsBracket({ games, teamLogos }: { games: CupGame[]; teamLogos: Record<string, string> }) {
+  const { t } = useLang();
   if (games.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 space-y-4">
         <div className="text-6xl">🏆</div>
-        <h2 className="text-xl font-bold text-white">טורניר הגביע</h2>
-        <p className="text-[#5a7a9a] text-sm">הנתונים יופיעו לאחר סנכרון קובץ האקסל</p>
+        <h2 className="text-xl font-bold text-white">{t('טורניר הגביע')}</h2>
+        <p className="text-[#5a7a9a] text-sm">{t('הנתונים יופיעו לאחר סנכרון קובץ האקסל')}</p>
       </div>
     );
   }
