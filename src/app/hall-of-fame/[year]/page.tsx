@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getLang } from '@/lib/get-lang';
 
 /* ── page ────────────────────────────────────────────────────────────────── */
 export default async function SeasonDetailPage({
@@ -12,6 +13,8 @@ export default async function SeasonDetailPage({
 }) {
   const { year } = await params;
   const decodedYear = decodeURIComponent(year);
+  const lang = await getLang();
+  const en = lang === 'en';
 
   /* 1 — fetch the season record */
   const { data: season } = await supabaseAdmin
@@ -23,12 +26,12 @@ export default async function SeasonDetailPage({
   if (!season) notFound();
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white font-body" dir="rtl">
+    <div className="min-h-screen bg-slate-950 text-white font-body" dir={en ? 'ltr' : 'rtl'}>
       <div className="mx-auto max-w-3xl px-4 py-10 space-y-10">
 
         {/* Back */}
         <Link href="/hall-of-fame" className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-300 hover:text-orange-400 transition">
-          ← חזרה להיכל התהילה
+          {en ? '← Back to Hall of Fame' : '← חזרה להיכל התהילה'}
         </Link>
 
         {/* Season hero */}
@@ -44,14 +47,14 @@ export default async function SeasonDetailPage({
             {season.runner_up_name && (
               <p className="mb-4 flex items-center gap-1.5 text-sm font-bold text-slate-300">
                 <span>🥈</span>
-                <span className="text-slate-400">סגנית אלופה:</span>
+                <span className="text-slate-400">{en ? 'Runner-up:' : 'סגנית אלופה:'}</span>
                 <span className="text-white">{season.runner_up_name}</span>
               </p>
             )}
             <div className="flex flex-wrap gap-4 text-sm">
               {season.champion_captain && (
                 <span className="flex items-center gap-1.5 font-semibold text-white">
-                  <span className="text-orange-400">👤</span> קפטן: <strong>{season.champion_captain}</strong>
+                  <span className="text-orange-400">👤</span> {en ? 'Captain' : 'קפטן'}: <strong>{season.champion_captain}</strong>
                 </span>
               )}
               {season.mvp_name && (
@@ -71,7 +74,7 @@ export default async function SeasonDetailPage({
         {(season.final_score || season.final_date || season.final_location) && (
           <section className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 sm:p-8">
             <h2 className="font-heading text-2xl mb-6 flex items-center gap-2">
-              <span className="w-8 h-px bg-orange-500 inline-block" /> פרטי הגמר
+              <span className="w-8 h-px bg-orange-500 inline-block" /> {en ? 'Final Details' : 'פרטי הגמר'}
             </h2>
 
             {/* Big score banner */}
@@ -82,7 +85,7 @@ export default async function SeasonDetailPage({
                     {season.champion_name ?? '—'}
                   </p>
                   <p className="text-[11px] font-black uppercase tracking-[2px] text-orange-400 mt-1">
-                    אלופה
+                    {en ? 'Champion' : 'אלופה'}
                   </p>
                 </div>
                 <div className="font-stats text-4xl sm:text-5xl font-black text-orange-500 shrink-0" dir="ltr">
@@ -93,7 +96,7 @@ export default async function SeasonDetailPage({
                     {season.runner_up_name ?? '—'}
                   </p>
                   <p className="text-[11px] font-black uppercase tracking-[2px] text-slate-400 mt-1">
-                    סגנית
+                    {en ? 'Runner-up' : 'סגנית'}
                   </p>
                 </div>
               </div>
@@ -105,7 +108,7 @@ export default async function SeasonDetailPage({
                 <div className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
                   <span className="text-2xl">📅</span>
                   <div>
-                    <p className="text-[11px] font-black uppercase tracking-[2px] text-slate-400">תאריך / שעה</p>
+                    <p className="text-[11px] font-black uppercase tracking-[2px] text-slate-400">{en ? 'Date / Time' : 'תאריך / שעה'}</p>
                     <p className="font-bold text-white text-sm">{season.final_date}</p>
                   </div>
                 </div>
@@ -114,7 +117,7 @@ export default async function SeasonDetailPage({
                 <div className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
                   <span className="text-2xl">📍</span>
                   <div>
-                    <p className="text-[11px] font-black uppercase tracking-[2px] text-slate-400">מיקום</p>
+                    <p className="text-[11px] font-black uppercase tracking-[2px] text-slate-400">{en ? 'Location' : 'מיקום'}</p>
                     <p className="font-bold text-white text-sm">{season.final_location}</p>
                   </div>
                 </div>
@@ -123,7 +126,7 @@ export default async function SeasonDetailPage({
                 <div className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4 sm:col-span-2">
                   <span className="text-2xl">📋</span>
                   <div>
-                    <p className="text-[11px] font-black uppercase tracking-[2px] text-slate-400">תוצאה</p>
+                    <p className="text-[11px] font-black uppercase tracking-[2px] text-slate-400">{en ? 'Result' : 'תוצאה'}</p>
                     <p className="font-stats text-2xl font-black text-orange-400" dir="ltr">{season.final_score}</p>
                   </div>
                 </div>

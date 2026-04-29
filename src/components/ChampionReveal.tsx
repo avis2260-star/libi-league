@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import { useLang } from '@/components/TranslationProvider';
 
 interface Props {
   champion: string | null;       // null = no winner yet (plate is locked)
@@ -33,6 +34,7 @@ export default function ChampionReveal({
   logoUrl = null,
   season = '2025–2026',
 }: Props) {
+  const { lang } = useLang();
   const [flipped, setFlipped]   = useState(false);
   const [revealed, setRevealed] = useState(false);
   const canvasRef  = useRef<HTMLCanvasElement>(null);
@@ -121,7 +123,9 @@ export default function ChampionReveal({
       <div style={{ perspective: '1200px', display: 'inline-block', position: 'relative' }}>
         <div
           onClick={handleClick}
-          title={isLocked ? 'הגמר טרם שוחק' : 'לחץ לחשיפת האלוף'}
+          title={isLocked
+            ? (lang === 'en' ? 'Final not played yet' : 'הגמר טרם שוחק')
+            : (lang === 'en' ? 'Click to reveal champion' : 'לחץ לחשיפת האלוף')}
           style={{
             width: 220, height: 220, borderRadius: '50%',
             transformStyle: 'preserve-3d',
@@ -155,7 +159,7 @@ export default function ChampionReveal({
                   <div style={{ fontFamily: 'sans-serif', fontSize: 8, letterSpacing: 3, color: '#444', textTransform: 'uppercase' }}>League</div>
                   <div style={{ fontFamily: 'sans-serif', fontWeight: 900, fontSize: 17, color: '#222', letterSpacing: 2 }}>CHAMPIONS</div>
                   <div style={{ fontFamily: 'sans-serif', fontSize: 9, color: '#555', letterSpacing: 1 }}>{season}</div>
-                  <div style={{ fontFamily: 'sans-serif', fontSize: 9, color: '#666' }}>ליגת ליבי</div>
+                  <div style={{ fontFamily: 'sans-serif', fontSize: 9, color: '#666' }}>{lang === 'en' ? 'LIBI LEAGUE' : 'ליגת ליבי'}</div>
                 </>
               ) : (
                 /* Unlocked → mini championship plate */
@@ -193,7 +197,7 @@ export default function ChampionReveal({
                         </svg>
                       </div>
                       <span style={{ fontFamily: 'sans-serif', fontWeight: 900, fontSize: 8, color: '#3a2a00' }}>{season}</span>
-                      <span style={{ fontFamily: 'sans-serif', fontSize: 6, color: '#5a4500', letterSpacing: 1, textTransform: 'uppercase' }}>ליגת ליבי</span>
+                      <span style={{ fontFamily: 'sans-serif', fontSize: 6, color: '#5a4500', letterSpacing: 1, textTransform: 'uppercase' }}>{lang === 'en' ? 'LIBI LEAGUE' : 'ליגת ליבי'}</span>
                     </div>
                   </div>
                 </div>
@@ -232,7 +236,9 @@ export default function ChampionReveal({
           color: isLocked ? 'rgba(255,255,255,0.2)' : 'rgba(245,200,66,0.7)',
           whiteSpace: 'nowrap',
         }}>
-          {isLocked ? 'הגמר טרם שוחק' : 'לחץ לחשיפת האלוף ✨'}
+          {isLocked
+            ? (lang === 'en' ? 'Final not played yet' : 'הגמר טרם שוחק')
+            : (lang === 'en' ? 'Click to reveal champion ✨' : 'לחץ לחשיפת האלוף ✨')}
         </div>
       </div>
 
@@ -253,10 +259,10 @@ export default function ChampionReveal({
 
           <div style={{
             position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column',
-            alignItems: 'center', gap: 14, textAlign: 'center', direction: 'rtl',
+            alignItems: 'center', gap: 14, textAlign: 'center', direction: lang === 'en' ? 'ltr' : 'rtl',
           }}>
             <div style={{ fontFamily: 'sans-serif', fontSize: 10, letterSpacing: 5, color: '#F5C842', textTransform: 'uppercase' }}>
-              ליגת ליבי · {season}
+              {lang === 'en' ? 'LIBI LEAGUE' : 'ליגת ליבי'} · {season}
             </div>
 
             {/* spinning gold ring logo */}
@@ -279,7 +285,7 @@ export default function ChampionReveal({
               </div>
             </div>
 
-            <div style={{ fontFamily: 'sans-serif', fontSize: 9, letterSpacing: 5, color: '#C9962A', textTransform: 'uppercase' }}>אלוף הליגה</div>
+            <div style={{ fontFamily: 'sans-serif', fontSize: 9, letterSpacing: 5, color: '#C9962A', textTransform: 'uppercase' }}>{lang === 'en' ? 'League Champion' : 'אלוף הליגה'}</div>
             <div style={{
               fontFamily: 'sans-serif', fontWeight: 900, fontSize: 48, color: '#F5C842',
               letterSpacing: 2, lineHeight: 1, textShadow: '0 0 40px rgba(245,200,66,0.6)',
@@ -314,7 +320,7 @@ export default function ChampionReveal({
                 borderRadius: 12, padding: '12px 28px',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
               }}>
-                <div style={{ fontFamily: 'sans-serif', fontSize: 9, letterSpacing: 4, color: '#C9962A', textTransform: 'uppercase' }}>🏅 MVP גמר</div>
+                <div style={{ fontFamily: 'sans-serif', fontSize: 9, letterSpacing: 4, color: '#C9962A', textTransform: 'uppercase' }}>{lang === 'en' ? '🏅 Finals MVP' : '🏅 MVP גמר'}</div>
                 <div style={{ fontFamily: 'sans-serif', fontWeight: 900, fontSize: 20, color: '#f0eadc' }}>{mvpName}</div>
                 {mvpStats && <div style={{ fontFamily: 'sans-serif', fontSize: 11, color: '#F5C842', opacity: 0.8 }}>{mvpStats}</div>}
               </div>
@@ -322,7 +328,7 @@ export default function ChampionReveal({
 
             {date && (
               <div style={{ fontFamily: 'sans-serif', fontSize: 11, color: 'rgba(240,234,220,0.4)', letterSpacing: 2 }}>
-                📅 {date} · גמר העונה
+                📅 {date} · {lang === 'en' ? 'Season Final' : 'גמר העונה'}
               </div>
             )}
 
@@ -332,7 +338,7 @@ export default function ChampionReveal({
               color: '#F5C842', fontFamily: 'sans-serif', fontSize: 14,
               padding: '8px 24px', borderRadius: 30, cursor: 'pointer',
             }}>
-              ← חזור
+              {lang === 'en' ? '← Back' : '← חזור'}
             </button>
           </div>
         </div>

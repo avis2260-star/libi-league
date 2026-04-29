@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getLang } from '@/lib/get-lang';
 
 async function getTakanon() {
   const { data } = await supabaseAdmin
@@ -20,18 +21,19 @@ async function getTakanon() {
 }
 
 export default async function TakanonPage() {
-  const takanon = await getTakanon();
+  const [takanon, lang] = await Promise.all([getTakanon(), getLang()]);
+  const en = lang === 'en';
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6" dir={en ? 'ltr' : 'rtl'}>
       {/* Header */}
-      <div className="text-right">
-        <h1 className="text-3xl font-black text-white">תקנון הליגה</h1>
-        <p className="mt-1 text-sm text-gray-400">כללים ותקנות ליגת ליבי לכדורסל</p>
+      <div className={en ? 'text-left' : 'text-right'}>
+        <h1 className="text-3xl font-black text-white">{en ? 'League Rules' : 'תקנון הליגה'}</h1>
+        <p className="mt-1 text-sm text-gray-400">{en ? 'Libi Basketball League rules and regulations' : 'כללים ותקנות ליגת ליבי לכדורסל'}</p>
         {takanon.updated && (
           <p className="mt-0.5 text-xs text-gray-500">
-            עודכן לאחרונה:{' '}
-            {new Date(takanon.updated).toLocaleDateString('he-IL', {
+            {en ? 'Last updated:' : 'עודכן לאחרונה:'}{' '}
+            {new Date(takanon.updated).toLocaleDateString(en ? 'en-US' : 'he-IL', {
               day: '2-digit', month: '2-digit', year: 'numeric',
             })}
           </p>
@@ -41,7 +43,7 @@ export default async function TakanonPage() {
       {takanon.url ? (
         <div className="space-y-4">
           {/* Download button */}
-          <div className="flex justify-end">
+          <div className={`flex ${en ? 'justify-start' : 'justify-end'}`}>
             <a
               href={takanon.url}
               target="_blank"
@@ -49,7 +51,7 @@ export default async function TakanonPage() {
               download
               className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-orange-400 transition"
             >
-              ⬇ הורד תקנון
+              {en ? '⬇ Download Rules' : '⬇ הורד תקנון'}
             </a>
           </div>
 
@@ -63,23 +65,23 @@ export default async function TakanonPage() {
                     : `https://docs.google.com/viewer?url=${encodeURIComponent(takanon.url)}&embedded=true`
                 }
                 className="w-full h-[80vh] bg-white"
-                title="תקנון הליגה"
+                title={en ? 'League Rules' : 'תקנון הליגה'}
               />
             </div>
           )}
 
           {/* TXT fallback */}
           {takanon.type === 'txt' && (
-            <div className="rounded-xl border border-white/10 bg-gray-800/60 p-6 text-right text-sm leading-relaxed text-gray-200 whitespace-pre-wrap">
-              לחץ על &quot;הורד תקנון&quot; לצפייה בתוכן המלא
+            <div className={`rounded-xl border border-white/10 bg-gray-800/60 p-6 ${en ? 'text-left' : 'text-right'} text-sm leading-relaxed text-gray-200 whitespace-pre-wrap`}>
+              {en ? 'Click "Download Rules" to view the full content' : 'לחץ על "הורד תקנון" לצפייה בתוכן המלא'}
             </div>
           )}
         </div>
       ) : (
         <div className="rounded-xl border border-white/[0.07] bg-white/5 p-16 text-center">
           <div className="text-5xl mb-4">📋</div>
-          <p className="text-[#8aaac8] text-lg">התקנון טרם הועלה</p>
-          <p className="text-[#5a7a9a] text-sm mt-1">חזור מאוחר יותר</p>
+          <p className="text-[#8aaac8] text-lg">{en ? 'Rules have not been uploaded yet' : 'התקנון טרם הועלה'}</p>
+          <p className="text-[#5a7a9a] text-sm mt-1">{en ? 'Check back later' : 'חזור מאוחר יותר'}</p>
         </div>
       )}
     </div>
