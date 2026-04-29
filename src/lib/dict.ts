@@ -156,6 +156,7 @@ export const DICT: Record<string, string> = {
   'רבע גמר': 'Quarter Finals',
   'חצי גמר': 'Semi Finals',
   'גמר': 'Final',
+  'סדרה': 'Series',
   'הטוב מ-3': 'Best of 3',
   'ניצחונות': 'Wins',
   'טרם החל': 'Not Started',

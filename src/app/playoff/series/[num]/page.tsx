@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { NORTH_TABLE, SOUTH_TABLE } from '@/lib/league-data';
 import SeriesFlyerCard from '@/components/SeriesFlyerCard';
+import { getLang, st } from '@/lib/get-lang';
 
 interface Game {
   series_number: number; game_number: number;
@@ -29,6 +30,8 @@ export default async function SeriesFlyerPage({
 }: { params: Promise<{ num: string }> }) {
   const { num } = await params;
   const seriesNum = parseInt(num, 10);
+  const lang = await getLang();
+  const T = (he: string) => st(he, lang);
 
   const [{ data: seriesData }, { data: gamesData }, { data: teamsData }, { data: standingsData }] =
     await Promise.all([
@@ -102,26 +105,27 @@ export default async function SeriesFlyerPage({
     return { gameNumber: gNum, played, aScore, bScore, aWon };
   });
 
-  const roundLabel = seriesNum <= 4 ? 'רבע גמר' : seriesNum <= 6 ? 'חצי גמר' : 'גמר';
+  const roundLabel = seriesNum <= 4 ? T('רבע גמר') : seriesNum <= 6 ? T('חצי גמר') : T('גמר');
+  const waiting = lang === 'en' ? 'TBD' : 'ממתין';
 
   return (
     <div
       className="flex flex-col items-center px-4 py-6"
       style={{ background: 'radial-gradient(ellipse at 50% 0%, #1a3a5c 0%, #0b1520 60%)', minHeight: '100dvh' }}
-      dir="rtl"
+      dir={lang === 'en' ? 'ltr' : 'rtl'}
     >
       <Link
         href="/playoff"
         className="mb-8 self-start inline-flex items-center gap-1.5 text-sm text-[#5a7a9a] hover:text-orange-400 transition-colors"
       >
-        ← חזרה לפלייאוף
+        {lang === 'en' ? '← Back to Playoff' : '← חזרה לפלייאוף'}
       </Link>
 
       <SeriesFlyerCard
         roundLabel={roundLabel}
         seriesNum={seriesNum}
-        teamA={series.team_a || 'ממתין'}
-        teamB={series.team_b || 'ממתין'}
+        teamA={series.team_a || waiting}
+        teamB={series.team_b || waiting}
         logoA={logoA}
         logoB={logoB}
         winsA={winsA}

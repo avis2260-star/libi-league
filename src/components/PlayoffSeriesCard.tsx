@@ -34,13 +34,21 @@ function TeamLogo({ name, logos, size = 'md' }: { name: string; logos: Record<st
   );
 }
 
-function parseLabel(label: string) {
-  const isNorth = label.includes('צפון');
-  const isSouth = label.includes('דרום');
+function parseLabel(label: string, lang: 'he' | 'en' = 'he') {
+  const isNorth = label.includes('צפון') || /north/i.test(label);
+  const isSouth = label.includes('דרום') || /south/i.test(label);
   const hasEmoji = /[\u{1F300}-\u{1FFFF}]/u.test(label);
   const emoji = hasEmoji ? '' : (isNorth ? '🔵' : isSouth ? '🟠' : '');
-  const divName = isNorth ? 'צפון' : isSouth ? 'דרום' : '';
+  const divName = lang === 'en'
+    ? (isNorth ? 'North' : isSouth ? 'South' : '')
+    : (isNorth ? 'צפון' : isSouth ? 'דרום' : '');
   const seed = label.match(/#(\d+)/)?.[1] ?? '';
+  // Handle "winner of series N" pattern
+  const winnerOf = label.match(/נצח סדרה\s+(\d+)/);
+  if (winnerOf) {
+    return { emoji: '', divName: '', seed: '',
+      full: lang === 'en' ? `Winner Series ${winnerOf[1]}` : `נצח סדרה ${winnerOf[1]}` };
+  }
   return { emoji, divName, seed, full: `${emoji} ${divName}${seed ? ` #${seed}` : ''}`.trim() || label };
 }
 
@@ -117,20 +125,20 @@ export default function PlayoffSeriesCard({
   rosterB?: RosterPlayer[];
 }) {
   const [rosterOpen, setRosterOpen] = useState(false);
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const hasTeams = !!(series?.team_a?.trim()) && !!(series?.team_b?.trim());
   const hasRosters = rosterA.length > 0 || rosterB.length > 0;
 
   /* ── Placeholder (no teams yet) ── */
   if (!series || !hasTeams) {
-    const lA = series?.team_a_label ? parseLabel(series.team_a_label) : null;
-    const lB = series?.team_b_label ? parseLabel(series.team_b_label) : null;
+    const lA = series?.team_a_label ? parseLabel(series.team_a_label, lang) : null;
+    const lB = series?.team_b_label ? parseLabel(series.team_b_label, lang) : null;
     return (
       <div className={`rounded-2xl border overflow-hidden ${isFinal ? 'border-yellow-400/20 bg-[#0f1c2a]' : 'border-white/[0.08] bg-[#0c1825]'}`}>
         <div className={`flex items-center justify-between px-4 py-2.5 border-b ${isFinal ? 'border-yellow-400/10' : 'border-white/[0.05]'}`}>
           <span className={`text-[11px] font-black tracking-widest uppercase ${isFinal ? 'text-yellow-400' : 'text-[#4a6a8a]'}`}>{roundLabel}</span>
-          {series && <span className="text-[10px] text-[#2a4a6a] font-semibold">· סדרה {series.series_number}</span>}
-          <span className="rounded-full bg-white/[0.04] border border-white/[0.07] px-2.5 py-0.5 text-[10px] font-black text-[#3a5a7a]">טרם נקבע</span>
+          {series && <span className="text-[10px] text-[#2a4a6a] font-semibold">· {t('סדרה')} {series.series_number}</span>}
+          <span className="rounded-full bg-white/[0.04] border border-white/[0.07] px-2.5 py-0.5 text-[10px] font-black text-[#3a5a7a]">{t('טרם נקבע')}</span>
         </div>
         <div className="px-3 sm:px-6 py-4 sm:py-5 flex items-center gap-2 sm:gap-4">
           <div className="flex-1 min-w-0 flex flex-col items-center gap-2">
@@ -143,7 +151,7 @@ export default function PlayoffSeriesCard({
               <span className="text-base sm:text-lg text-[#1a2e45] font-black leading-none">:</span>
               <span className="text-3xl sm:text-5xl font-black text-[#1a2e45] tabular-nums leading-none">–</span>
             </div>
-            {!isFinal && <p className="text-[8px] sm:text-[9px] text-[#1e3a5f] tracking-widest uppercase font-bold mt-0.5">הטוב מ-3</p>}
+            {!isFinal && <p className="text-[8px] sm:text-[9px] text-[#1e3a5f] tracking-widest uppercase font-bold mt-0.5">{t('הטוב מ-3')}</p>}
           </div>
           <div className="flex-1 min-w-0 flex flex-col items-center gap-2">
             <div className="h-11 w-11 rounded-full bg-[#1a2e45] border-2 border-white/[0.07] flex items-center justify-center text-[#2a4a6a] text-lg font-black">?</div>
@@ -158,8 +166,8 @@ export default function PlayoffSeriesCard({
   const aWon = winner === series.team_a;
   const bWon = winner === series.team_b;
   const started = winsA > 0 || winsB > 0;
-  const lA = parseLabel(series.team_a_label);
-  const lB = parseLabel(series.team_b_label);
+  const lA = parseLabel(series.team_a_label, lang);
+  const lB = parseLabel(series.team_b_label, lang);
 
   return (
     <div className={`rounded-2xl border overflow-hidden shadow-lg ${
@@ -171,7 +179,7 @@ export default function PlayoffSeriesCard({
       <div className={`flex items-center justify-between px-4 py-2.5 border-b ${isFinal ? 'border-orange-500/15 bg-orange-500/[0.05]' : 'border-white/[0.05]'}`}>
         <div className="flex items-center gap-2">
           <span className={`text-[11px] font-black tracking-widest uppercase ${isFinal ? 'text-yellow-400' : 'text-[#4a6a8a]'}`}>{roundLabel}</span>
-          <span className="text-[10px] text-[#2a4a6a] font-semibold">· סדרה {series.series_number}</span>
+          <span className="text-[10px] text-[#2a4a6a] font-semibold">· {t('סדרה')} {series.series_number}</span>
         </div>
         <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black tracking-wide ${
           winner

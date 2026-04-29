@@ -1,5 +1,7 @@
 'use client';
 
+import { useLang } from '@/components/TranslationProvider';
+
 interface GameData {
   gameNumber: number;
   played: boolean;
@@ -27,6 +29,8 @@ export default function SeriesFlyerCard({
   teamA, teamB, logoA, logoB,
   winsA, winsB, winner, games, hasTeams,
 }: Props) {
+  const { t, lang } = useLang();
+  const waitingLabel = lang === 'en' ? 'TBD' : 'ממתין';
   return (
     <div
       className="w-full max-w-xl overflow-hidden rounded-3xl relative animate-fade-in-scale animate-glow-pulse"
@@ -56,9 +60,9 @@ export default function SeriesFlyerCard({
         }}
       >
         <p className="text-[10px] font-black uppercase tracking-[4px] text-[#e0a030]">
-          🏀 ליגת ליבי פלייאוף 2025–2026
+          {lang === 'en' ? '🏀 LIBI LEAGUE PLAYOFF 2025–2026' : '🏀 ליגת ליבי פלייאוף 2025–2026'}
         </p>
-        <p className="mt-0.5 text-lg font-black text-white font-heading">{roundLabel} · סדרה <span className="font-stats">{seriesNum}</span></p>
+        <p className="mt-0.5 text-lg font-black text-white font-heading">{roundLabel} · {t('סדרה')} <span className="font-stats">{seriesNum}</span></p>
       </div>
 
       {/* Bouncing basketball */}
@@ -93,7 +97,7 @@ export default function SeriesFlyerCard({
             </div>
           )}
           <p className={`text-xs sm:text-sm font-black text-center leading-tight w-full px-1 font-heading ${winner === teamA ? 'text-orange-400' : 'text-white'}`}>
-            {hasTeams ? teamA : 'ממתין'}
+            {hasTeams ? teamA : waitingLabel}
           </p>
         </div>
 
@@ -116,7 +120,7 @@ export default function SeriesFlyerCard({
             </span>
           </div>
           <p className="text-[9px] font-black uppercase tracking-wide text-[#3a5a7a] text-center">
-            ניצחונות · הטוב מ-3
+            {t('ניצחונות')} · {t('הטוב מ-3')}
           </p>
         </div>
 
@@ -149,7 +153,7 @@ export default function SeriesFlyerCard({
             }}
           >
             <p className="text-[9px] font-black uppercase tracking-wide text-[#3a5a7a]">
-              משחק {g.gameNumber}
+              {lang === 'en' ? `Game ${g.gameNumber}` : `משחק ${g.gameNumber}`}
             </p>
 
             {g.played ? (
@@ -182,7 +186,7 @@ export default function SeriesFlyerCard({
                   <span className="text-xl font-black text-[#1a2e45]">–</span>
                 </div>
                 <div className="h-3 w-3 rounded-full border border-white/[0.08] bg-transparent" />
-                <p className="text-[9px] font-bold text-[#2a4a6a]">טרם שוחק</p>
+                <p className="text-[9px] font-bold text-[#2a4a6a]">{t('טרם שוחק')}</p>
               </>
             )}
           </div>
@@ -199,7 +203,9 @@ export default function SeriesFlyerCard({
             animationDelay: '0.6s',
           }}
         >
-          <p className="text-sm font-black text-green-400">🏆 {winner} ניצחו בסדרה!</p>
+          <p className="text-sm font-black text-green-400">
+            {lang === 'en' ? `🏆 ${winner} won the series!` : `🏆 ${winner} ניצחו בסדרה!`}
+          </p>
         </div>
       )}
 
