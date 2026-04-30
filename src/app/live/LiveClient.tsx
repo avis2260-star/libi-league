@@ -10,6 +10,7 @@ const SCOREBOARD_URL = 'https://game-scoreboard-libi.vercel.app';
 // ── helpers ────────────────────────────────────────────────────────────────────
 
 function TeamLogo({ logo, name, size = 10 }: { logo: string | null; name: string; size?: number }) {
+  const { t } = useLang();
   const px = size * 4;
   return (
     <div
@@ -17,8 +18,8 @@ function TeamLogo({ logo, name, size = 10 }: { logo: string | null; name: string
       style={{ width: px, height: px }}
     >
       {logo
-        ? <img src={logo} alt={name} className="w-full h-full object-cover" />
-        : <span className="text-sm font-black text-[#4a6a8a]">{[...name].find(c => c.trim()) ?? '?'}</span>
+        ? <img src={logo} alt={t(name)} className="w-full h-full object-cover" />
+        : <span className="text-sm font-black text-[#4a6a8a]">{[...t(name)].find(c => c.trim()) ?? '?'}</span>
       }
     </div>
   );

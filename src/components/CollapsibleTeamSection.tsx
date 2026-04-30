@@ -60,7 +60,7 @@ export default function CollapsibleTeamSection({ teamName, teamLogo, players, de
           />
         ) : (
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.06] border border-white/10 text-sm font-bold text-[#8aaac8]">
-            {teamName.charAt(0)}
+            {t(teamName).charAt(0)}
           </span>
         )}
 

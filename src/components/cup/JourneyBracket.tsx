@@ -38,15 +38,16 @@ function sameTeam(a: string | null | undefined, b: string | null | undefined): b
 }
 
 function TeamLogo({ name, logos, size = 'sm' }: { name: string; logos: Record<string, string>; size?: 'sm' | 'md' | 'lg' }) {
+  const { t } = useLang();
   const url = findLogoUrl(name, logos);
   const cls = size === 'lg' ? 'h-10 w-10' : size === 'md' ? 'h-8 w-8' : 'h-6 w-6';
   if (url) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={url} alt={name} className={`${cls} shrink-0 rounded-full object-cover border border-white/10`} />;
+    return <img src={url} alt={t(name)} className={`${cls} shrink-0 rounded-full object-cover border border-white/10`} />;
   }
   return (
     <div className={`${cls} shrink-0 rounded-full bg-[#1a2e45] border border-white/10 flex items-center justify-center text-[10px] font-black text-[#3a5a7a]`}>
-      {[...name].find(c => /\S/.test(c)) ?? '?'}
+      {[...t(name)].find(c => /\S/.test(c)) ?? '?'}
     </div>
   );
 }
@@ -378,7 +379,7 @@ function JourneyPanel({
               <img src={logoUrl} alt={focusedTeam} className="h-14 w-14 rounded-full border-2 border-orange-500/50 object-cover shadow-lg shrink-0" />
             ) : (
               <div className="h-14 w-14 rounded-full bg-[#1a2e45] border-2 border-orange-500/50 flex items-center justify-center text-lg font-black text-[#5a7a9a]">
-                {[...focusedTeam].find(c => /\S/.test(c)) ?? '?'}
+                {[...t(focusedTeam)].find(c => /\S/.test(c)) ?? '?'}
               </div>
             )}
             <div className="flex-1 min-w-0">
@@ -497,7 +498,7 @@ function JourneyPanel({
                       <img src={opponentLogo} alt={step.opponent} className="h-7 w-7 rounded-full object-cover border border-white/10 shrink-0" />
                     ) : (
                       <div className="h-7 w-7 rounded-full bg-[#1a2e45] border border-white/10 flex items-center justify-center text-[11px] font-black text-[#3a5a7a] shrink-0">
-                        {[...step.opponent].find(c => /\S/.test(c)) ?? '?'}
+                        {[...t(step.opponent)].find(c => /\S/.test(c)) ?? '?'}
                       </div>
                     )}
                     <span className="flex-1 min-w-0 truncate text-sm font-bold text-white">

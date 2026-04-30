@@ -15,6 +15,19 @@ export default async function SeasonDetailPage({
   const decodedYear = decodeURIComponent(year);
   const lang = await getLang();
   const T = (he: string) => st(he, lang);
+
+  // Translate Hebrew weekday prefixes that may appear in admin-entered date strings
+  const HE_DAY_TO_EN: Record<string, string> = {
+    'יום ראשון': 'Sunday', 'יום שני': 'Monday', 'יום שלישי': 'Tuesday',
+    'יום רביעי': 'Wednesday', 'יום חמישי': 'Thursday', 'יום שישי': 'Friday', 'יום שבת': 'Saturday',
+  };
+  function transliterateDate(s: string | null | undefined): string {
+    if (!s) return '';
+    if (lang !== 'en') return s;
+    let out = s;
+    for (const [he, en] of Object.entries(HE_DAY_TO_EN)) out = out.replace(he, en);
+    return out;
+  }
   const en = lang === 'en';
 
   /* 1 — fetch the season record */
@@ -110,7 +123,7 @@ export default async function SeasonDetailPage({
                   <span className="text-2xl">📅</span>
                   <div>
                     <p className="text-[11px] font-black uppercase tracking-[2px] text-slate-400">{en ? 'Date / Time' : 'תאריך / שעה'}</p>
-                    <p className="font-bold text-white text-sm">{season.final_date}</p>
+                    <p className="font-bold text-white text-sm whitespace-pre-line">{transliterateDate(season.final_date)}</p>
                   </div>
                 </div>
               )}

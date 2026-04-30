@@ -28,15 +28,16 @@ function findLogoUrl(name: string, logos: Record<string, string>): string | unde
 }
 
 function TeamLogo({ name, logos, size = 'sm' }: { name: string; logos: Record<string, string>; size?: 'sm' | 'md' | 'lg' }) {
+  const { t } = useLang();
   const url = findLogoUrl(name, logos);
   const cls = size === 'lg' ? 'h-12 w-12' : size === 'md' ? 'h-9 w-9' : 'h-7 w-7';
   if (url) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={url} alt={name} className={`${cls} shrink-0 rounded-full object-cover border border-white/10`} />;
+    return <img src={url} alt={t(name)} className={`${cls} shrink-0 rounded-full object-cover border border-white/10`} />;
   }
   return (
     <div className={`${cls} shrink-0 rounded-full bg-[#1a2e45] border border-white/10 flex items-center justify-center text-[11px] font-black text-[#3a5a7a]`}>
-      {[...name].find(c => /\S/.test(c)) ?? '?'}
+      {[...t(name)].find(c => /\S/.test(c)) ?? '?'}
     </div>
   );
 }

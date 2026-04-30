@@ -61,18 +61,19 @@ function findLogo(name: string, logos: Record<string, string>) {
 }
 
 function TeamLogo({
-  name, logos, size = 'md',
-}: { name: string; logos: Record<string, string>; size?: 'sm' | 'md' | 'lg' }) {
+  name, logos, size = 'md', displayName,
+}: { name: string; logos: Record<string, string>; size?: 'sm' | 'md' | 'lg'; displayName?: string }) {
   const url = findLogo(name, logos);
   const sz  = size === 'lg' ? 'h-16 w-16 text-2xl' : size === 'sm' ? 'h-8 w-8 text-[10px]' : 'h-11 w-11 text-xs';
+  const label = displayName ?? name;
   if (url) return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={url} alt={name}
+    <img src={url} alt={label}
       className={`${sz} shrink-0 rounded-full object-cover border-2 border-white/10 shadow-md`} />
   );
   return (
     <div className={`${sz} shrink-0 rounded-full bg-[#1a2e45] border-2 border-white/10 flex items-center justify-center font-black text-[#3a5a7a]`}>
-      {[...name].find(c => /\S/.test(c)) ?? '?'}
+      {[...label].find(c => /\S/.test(c)) ?? '?'}
     </div>
   );
 }
@@ -488,7 +489,7 @@ export default async function PlayoffPage() {
             bg-gradient-to-b from-yellow-400/10 to-transparent p-10
             shadow-[0_0_80px_rgba(250,204,21,0.15)] max-w-lg mx-auto">
             <ChampionshipPlate year="2025–2026" />
-            <TeamLogo name={champion} logos={teamLogos} size="lg" />
+            <TeamLogo name={champion} displayName={T(champion)} logos={teamLogos} size="lg" />
             <p className="text-[11px] font-black uppercase tracking-[3px] text-[#a08020]">
               {lang === 'en' ? 'Playoff Champion 2025–2026' : 'אלוף הפלייאוף 2025–2026'}
             </p>

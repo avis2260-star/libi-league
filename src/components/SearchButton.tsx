@@ -286,7 +286,7 @@ export default function SearchButton() {
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={tm.logo_url} alt={tm.name} className="h-full w-full object-contain" />
                           ) : (
-                            <span className="text-xs font-black text-[#8aaac8]">{tm.name.charAt(0)}</span>
+                            <span className="text-xs font-black text-[#8aaac8]">{t(tm.name).charAt(0)}</span>
                           )}
                         </div>
                         <div className="flex-1 min-w-0">

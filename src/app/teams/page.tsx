@@ -41,14 +41,14 @@ function makeDivisionMap(standings: StandingRow[]): Record<string, 'צפון' | 
 }
 
 // ── Avatar ─────────────────────────────────────────────────────────────────────
-function Avatar({ name, logoUrl }: { name: string; logoUrl?: string | null }) {
+function Avatar({ name, displayName, logoUrl }: { name: string; displayName: string; logoUrl?: string | null }) {
   if (logoUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={logoUrl} alt={name} className="h-full w-full object-cover" />
+      <img src={logoUrl} alt={displayName} className="h-full w-full object-cover" />
     );
   }
-  const letter = [...name].find((c) => c.trim()) ?? '?';
+  const letter = [...displayName].find((c) => c.trim()) ?? [...name].find((c) => c.trim()) ?? '?';
   return (
     <span className="flex h-full w-full items-center justify-center text-2xl font-black text-[#4a6a8a]">
       {letter}
@@ -88,7 +88,7 @@ function TeamCard({
 
       {/* Avatar */}
       <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-white/[0.06]">
-        <Avatar name={team.name} logoUrl={team.logo_url} />
+        <Avatar name={team.name} displayName={T(team.name)} logoUrl={team.logo_url} />
       </div>
 
       {/* Info */}

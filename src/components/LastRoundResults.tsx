@@ -38,20 +38,20 @@ const isTechniScore = (sh: number, sa: number) =>
   (sh === 20 && sa === 0) || (sh === 0 && sa === 20);
 
 // ── Team logo bubble (same look as ResultsContent) ───────────────────────
-function TeamLogo({ name, url }: { name: string; url: string | null }) {
+function TeamLogo({ name, displayName, url }: { name: string; displayName: string; url: string | null }) {
   if (url) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={url}
-        alt={name}
+        alt={displayName}
         className="h-8 w-8 shrink-0 rounded-full border border-white/10 object-cover shadow-sm"
       />
     );
   }
   return (
     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#1a2e45] text-[10px] font-black text-[#3a5a7a]">
-      {[...name].find(c => /\S/.test(c)) ?? '?'}
+      {[...displayName].find(c => /\S/.test(c)) ?? [...name].find(c => /\S/.test(c)) ?? '?'}
     </div>
   );
 }
@@ -78,7 +78,7 @@ function GameCard({
         href={`/team/${encodeURIComponent(game.home_team)}`}
         className="group flex min-w-0 items-center justify-end gap-2"
       >
-        <TeamLogo name={game.home_team} url={findLogo(game.home_team, logos)} />
+        <TeamLogo name={game.home_team} displayName={T(game.home_team)} url={findLogo(game.home_team, logos)} />
         <div className="min-w-0 text-right">
           <p
             className={`truncate text-sm font-bold leading-tight transition-colors group-hover:text-orange-400 font-heading ${
@@ -134,7 +134,7 @@ function GameCard({
             <p className="mt-0.5 text-[10px] font-black text-red-400">{T('🔴 הפסד טכני')}</p>
           )}
         </div>
-        <TeamLogo name={game.away_team} url={findLogo(game.away_team, logos)} />
+        <TeamLogo name={game.away_team} displayName={T(game.away_team)} url={findLogo(game.away_team, logos)} />
       </Link>
     </div>
   );

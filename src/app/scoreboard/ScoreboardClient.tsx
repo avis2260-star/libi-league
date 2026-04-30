@@ -378,7 +378,7 @@ export default function ScoreboardClient({
             <div className="min-w-0">
               <p className="text-[11px] font-black uppercase tracking-widest leading-none">LIBIGAME</p>
               <p className="text-[9px] text-orange-400 leading-none truncate font-bold">
-                {selGame.home_name} vs {selGame.away_name}
+                {tt(selGame.home_name)} vs {tt(selGame.away_name)}
               </p>
             </div>
           </div>
@@ -394,7 +394,7 @@ export default function ScoreboardClient({
             <div className="p-4 space-y-4">
               <div className="flex flex-col items-center gap-2 pb-3 border-b border-white/[0.06]">
                 <Logo logo={selGame.home_logo} name={selGame.home_name} size={64} />
-                <p className="text-base font-black text-[#d4982a] uppercase tracking-wider text-center">{selGame.home_name}</p>
+                <p className="text-base font-black text-[#d4982a] uppercase tracking-wider text-center">{tt(selGame.home_name)}</p>
                 <span className="text-[10px] font-bold text-[#5a7a9a] bg-white/5 rounded px-2 py-0.5">HOME</span>
               </div>
               <PlayerList side="home" list={hAll} checked={homeChecked} />
@@ -404,7 +404,7 @@ export default function ScoreboardClient({
             <div className="p-4 space-y-4">
               <div className="flex flex-col items-center gap-2 pb-3 border-b border-white/[0.06]">
                 <Logo logo={selGame.away_logo} name={selGame.away_name} size={64} />
-                <p className="text-base font-black text-[#4a9fd4] uppercase tracking-wider text-center">{selGame.away_name}</p>
+                <p className="text-base font-black text-[#4a9fd4] uppercase tracking-wider text-center">{tt(selGame.away_name)}</p>
                 <span className="text-[10px] font-bold text-[#5a7a9a] bg-white/5 rounded px-2 py-0.5">AWAY</span>
               </div>
               <PlayerList side="away" list={aAll} checked={awayChecked} />

@@ -193,7 +193,7 @@ function TeamListView({
           >
             {/* Team logo placeholder */}
             <div className="h-12 w-12 shrink-0 rounded-full bg-[#0f1e30] border-2 border-white/10 flex items-center justify-center text-lg font-black text-[#3a5a7a]">
-              {[...team.name].find(c => /\S/.test(c)) ?? '?'}
+              {[...t(team.name)].find(c => /\S/.test(c)) ?? '?'}
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-black text-white text-sm truncate group-hover:text-orange-400 transition-colors">{t(team.name)}</p>

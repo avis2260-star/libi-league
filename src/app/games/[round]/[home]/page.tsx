@@ -152,8 +152,8 @@ export default async function GamePreviewPage({
             )}
             <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full border-2 border-white/10 bg-white/[0.05] overflow-hidden flex items-center justify-center shadow-lg group-hover/team:border-orange-500/40 transition-colors">
               {homeLogo
-                ? <img src={homeLogo} alt={game.homeTeam} className="h-full w-full object-cover" />
-                : <span className="text-3xl font-black text-[#4a6a8a]">{[...game.homeTeam].find(c => c.trim()) ?? '?'}</span>
+                ? <img src={homeLogo} alt={T(game.homeTeam)} className="h-full w-full object-cover" />
+                : <span className="text-3xl font-black text-[#4a6a8a]">{[...T(game.homeTeam)].find(c => c.trim()) ?? '?'}</span>
               }
             </div>
             <div className="text-center">
@@ -173,8 +173,8 @@ export default async function GamePreviewPage({
             )}
             <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full border-2 border-white/10 bg-white/[0.05] overflow-hidden flex items-center justify-center shadow-lg group-hover/team:border-orange-500/40 transition-colors">
               {awayLogo
-                ? <img src={awayLogo} alt={game.awayTeam} className="h-full w-full object-cover" />
-                : <span className="text-3xl font-black text-[#4a6a8a]">{[...game.awayTeam].find(c => c.trim()) ?? '?'}</span>
+                ? <img src={awayLogo} alt={T(game.awayTeam)} className="h-full w-full object-cover" />
+                : <span className="text-3xl font-black text-[#4a6a8a]">{[...T(game.awayTeam)].find(c => c.trim()) ?? '?'}</span>
               }
             </div>
             <div className="text-center">

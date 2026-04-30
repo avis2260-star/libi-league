@@ -17,12 +17,13 @@ type Game = {
 type RosterEntry = { name: string; jersey_number: number | null };
 
 function TeamLogo({ logo, name, size = 'sm' }: { logo: string | null; name: string; size?: 'sm' | 'md' }) {
+  const { t } = useLang();
   const cls = size === 'md' ? 'h-12 w-12 text-sm' : 'h-7 w-7 text-[10px]';
   return (
     <div className={`${cls} shrink-0 rounded-full border border-white/10 bg-white/[0.05] overflow-hidden flex items-center justify-center`}>
       {logo
-        ? <img src={logo} alt={name} className="h-full w-full object-cover" />
-        : <span className="font-black text-[#4a6a8a]">{[...name].find(c => c.trim()) ?? '?'}</span>
+        ? <img src={logo} alt={t(name)} className="h-full w-full object-cover" />
+        : <span className="font-black text-[#4a6a8a]">{[...t(name)].find(c => c.trim()) ?? '?'}</span>
       }
     </div>
   );

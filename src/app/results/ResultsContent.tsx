@@ -13,15 +13,16 @@ function findLogo(name: string, logos: Record<string, string>) {
 }
 
 function TeamLogo({ name, logos }: { name: string; logos: Record<string, string> }) {
+  const { t } = useLang();
   const url = findLogo(name, logos);
   if (url) return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={url} alt={name}
+    <img src={url} alt={t(name)}
       className="h-7 w-7 shrink-0 rounded-full object-cover border border-white/10 shadow-sm" />
   );
   return (
     <div className="h-7 w-7 shrink-0 rounded-full bg-[#1a2e45] border border-white/10 flex items-center justify-center text-[9px] font-black text-[#3a5a7a]">
-      {[...name].find(c => /\S/.test(c)) ?? '?'}
+      {[...t(name)].find(c => /\S/.test(c)) ?? '?'}
     </div>
   );
 }

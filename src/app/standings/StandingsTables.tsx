@@ -40,14 +40,15 @@ function findLogo(name: string, logos: Record<string, string>): string | undefin
 }
 
 function TeamLogo({ name, logos }: { name: string; logos: Record<string, string> }) {
+  const { t } = useLang();
   const url = findLogo(name, logos);
   if (url) return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={url} alt={name} className="h-5 w-5 sm:h-6 sm:w-6 shrink-0 rounded-full object-cover border border-white/10" />
+    <img src={url} alt={t(name)} className="h-5 w-5 sm:h-6 sm:w-6 shrink-0 rounded-full object-cover border border-white/10" />
   );
   return (
     <div className="h-5 w-5 sm:h-6 sm:w-6 shrink-0 rounded-full bg-[#1a2e45] border border-white/10 flex items-center justify-center text-[9px] font-black text-[#3a5a7a]">
-      {[...name].find(c => /\S/.test(c)) ?? '?'}
+      {[...t(name)].find(c => /\S/.test(c)) ?? '?'}
     </div>
   );
 }
