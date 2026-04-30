@@ -83,6 +83,7 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
       .from('games')
       .select('game_date, game_time, location, status, home_team_id, away_team_id, home_team:teams!games_home_team_id_fkey(name), away_team:teams!games_away_team_id_fkey(name)')
       .neq('status', 'Finished')
+      .gte('game_date', new Date().toISOString().slice(0, 10))
       .order('game_date', { ascending: true }),
     getLang(),
   ]);
