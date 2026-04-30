@@ -201,6 +201,7 @@ export const DICT: Record<string, string> = {
   'כל הזכויות שמורות': 'All rights reserved',
   'נבנה באהבה לקהילה': 'Built with love for the community',
   'עונה 2025–2026': 'Season 2025–2026',
+  'עונת 2025–2026': 'Season 2025–2026',
   'ליגת ליבי · כדורסל קהילתי': 'Libi League · Community Basketball',
 
   // About page
