@@ -42,7 +42,7 @@ function GameCard({ game, logos, t }: { game: GameResult; logos: Record<string, 
         <TeamLogo name={game.home} logos={logos} />
         <div className="text-right min-w-0">
           <p className={`text-sm font-bold leading-tight truncate group-hover:text-orange-400 transition-colors ${homeWins ? 'text-white' : 'text-[#8aaac8]'}`}>
-            {game.home}
+            {t(game.home)}
           </p>
           {techniOnHome && <p className="mt-0.5 text-[10px] font-black text-red-400">{t('🔴 הפסד טכני')}</p>}
         </div>
@@ -62,7 +62,7 @@ function GameCard({ game, logos, t }: { game: GameResult; logos: Record<string, 
       <Link href={`/team/${encodeURIComponent(game.away)}`} className="flex items-center justify-start gap-2 min-w-0 group">
         <div className="text-left min-w-0">
           <p className={`text-sm font-bold leading-tight truncate group-hover:text-orange-400 transition-colors ${!homeWins ? 'text-white' : 'text-[#8aaac8]'}`}>
-            {game.away}
+            {t(game.away)}
           </p>
           {techniOnAway && <p className="mt-0.5 text-[10px] font-black text-red-400">{t('🔴 הפסד טכני')}</p>}
         </div>

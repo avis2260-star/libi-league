@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { Position } from '@/types';
+import { useLang } from '@/components/TranslationProvider';
 
 const POSITION_LABELS: Record<Position, string> = {
   PG: 'Point Guard',
@@ -38,6 +39,8 @@ interface Props {
 
 export default function CollapsibleTeamSection({ teamName, teamLogo, players, defaultOpen = false }: Props) {
   const [open, setOpen] = useState(defaultOpen);
+  const { t, lang } = useLang();
+  const en = lang === 'en';
 
   return (
     <div className="overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.02]">
@@ -62,8 +65,8 @@ export default function CollapsibleTeamSection({ teamName, teamLogo, players, de
         )}
 
         {/* Name + count */}
-        <span className="flex-1 text-right font-bold text-white">{teamName}</span>
-        <span className="text-sm text-[#5a7a9a]">{players.length} שחקנים</span>
+        <span className="flex-1 text-right font-bold text-white">{t(teamName)}</span>
+        <span className="text-sm text-[#5a7a9a]">{players.length} {en ? 'players' : 'שחקנים'}</span>
 
         {/* Chevron */}
         <svg

@@ -451,7 +451,7 @@ export default async function HomePage() {
           <div key={label} className="rounded-2xl border border-white/[0.07] bg-white/[0.04]" style={{ borderTop: '3px solid #e0c97a' }}>
             <div className="p-5">
               <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-[#8aaac8] font-body">{label}</p>
-              <Link href={`/team/${encodeURIComponent(team.name)}`} className="text-xl font-black text-[#e0c97a] hover:underline underline-offset-2 transition-colors font-heading">{team.name}</Link>
+              <Link href={`/team/${encodeURIComponent(team.name)}`} className="text-xl font-black text-[#e0c97a] hover:underline underline-offset-2 transition-colors font-heading">{T(team.name)}</Link>
               <p className="mt-1 text-sm font-bold text-[#8aaac8] font-body">
                 {lang === 'en' ? `${team.wins}W / ${team.losses}L · ` : `${team.wins}נ / ${team.losses}ה · `}
                 <span className="font-bold text-orange-400 font-stats">{team.pts} {lang === 'en' ? 'pts' : 'נקודות'}</span>
@@ -468,13 +468,13 @@ export default async function HomePage() {
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <RecordCard icon="🏀" label={T('שיא סלים במשחק')} value={String(highScore.score)}
-            sub={`${highScore.team} ${lang === 'en' ? 'vs' : 'נגד'} ${highScore.opp}`}
+            sub={`${T(highScore.team)} ${lang === 'en' ? 'vs' : 'נגד'} ${T(highScore.opp)}`}
             detail={`${T('מחזור')} ${highScore.round} · ${highScore.date}`} color="#FF6B1A" />
           <RecordCard icon="🔢" label={T('שיא סלים משני הצדדים')} value={String(highCombined.sh + highCombined.sa)}
-            sub={`${highCombined.home} ${highCombined.sh} – ${highCombined.sa} ${highCombined.away}`}
+            sub={`${T(highCombined.home)} ${highCombined.sh} – ${highCombined.sa} ${T(highCombined.away)}`}
             detail={`${T('מחזור')} ${highCombined.round} · ${highCombined.date}`} color="#e0c97a" />
           <RecordCard icon="💥" label={T('הפרש גדול ביותר')} value={`+${biggestMargin}`}
-            sub={`${biggestWinner} ${lang === 'en' ? 'vs' : 'נגד'} ${biggestLoser}`}
+            sub={`${T(biggestWinner)} ${lang === 'en' ? 'vs' : 'נגד'} ${T(biggestLoser)}`}
             detail={`${T('מחזור')} ${biggestWin.round} · ${biggestWin.date}`} color="#4ec97a" />
           <a href="/games?filter=close" className="block hover:opacity-80 transition-opacity">
             <RecordCard icon="📉" label={T('משחקים שהוכרעו ב-3 נקודות או פחות')} value={String(closestCount)}
@@ -539,7 +539,7 @@ export default async function HomePage() {
                         <span className="text-[10px] font-bold text-orange-400/70 shrink-0 font-stats">#{p.jersey_number}</span>
                       )}
                       {p.team_name && (
-                        <span className="truncate text-[11px] font-bold text-[#8aaac8] font-body">{p.team_name}</span>
+                        <span className="truncate text-[11px] font-bold text-[#8aaac8] font-body">{T(p.team_name)}</span>
                       )}
                     </div>
                     <div className="mt-1 h-0.5 w-full rounded-full bg-white/[0.06]">
@@ -600,13 +600,13 @@ export default async function HomePage() {
               <>
                 <p className="text-base font-black text-[#e0c97a] transition-colors group-hover:text-yellow-300 font-heading">
                   {cupFinal.played && cupFinal.home_score !== null
-                    ? <><span className="font-heading">{cupFinal.home_team}</span> <span className="font-stats">{cupFinal.home_score}–{cupFinal.away_score}</span> <span className="font-heading">{cupFinal.away_team}</span></>
+                    ? <><span className="font-heading">{T(cupFinal.home_team)}</span> <span className="font-stats">{cupFinal.home_score}–{cupFinal.away_score}</span> <span className="font-heading">{T(cupFinal.away_team)}</span></>
                     : cupFinal.date || '—'}
                 </p>
                 <p className="text-sm font-bold text-[#8aaac8] font-body">
                   {cupFinal.played
                     ? (lang === 'en' ? 'Final result' : `${cupFinal.date}`)
-                    : `${cupFinal.home_team} vs ${cupFinal.away_team}`}
+                    : `${T(cupFinal.home_team)} vs ${T(cupFinal.away_team)}`}
                 </p>
               </>
             ) : (

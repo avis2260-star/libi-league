@@ -94,7 +94,7 @@ function TeamCard({
       {/* Info */}
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <p className="truncate text-base font-bold text-white font-heading">{team.name}</p>
+          <p className="truncate text-base font-bold text-white font-heading">{T(team.name)}</p>
           {division && (
             <span className={`shrink-0 rounded-lg px-2 py-0.5 text-[10px] font-bold ${
               division === 'צפון'

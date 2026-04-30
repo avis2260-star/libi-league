@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useLang } from '@/components/TranslationProvider';
 
 export default function TeamLink({
   name,
@@ -9,12 +12,13 @@ export default function TeamLink({
   className?: string;
   children?: React.ReactNode;
 }) {
+  const { t } = useLang();
   return (
     <Link
       href={`/team/${encodeURIComponent(name)}`}
       className={`hover:text-orange-400 hover:underline underline-offset-2 transition-colors cursor-pointer ${className}`}
     >
-      {children ?? name}
+      {children ?? t(name)}
     </Link>
   );
 }

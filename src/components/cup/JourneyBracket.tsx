@@ -96,7 +96,7 @@ function MatchCard({
         <span className={`flex-1 min-w-0 truncate font-bold ${isFinal ? 'text-sm' : 'text-xs'} ${
           homeOnPath ? 'text-orange-300' : homeWin ? 'text-orange-400' : game.played ? 'text-[#5a7a9a]' : 'text-white'
         }`}>
-          {game.home_team}
+          {t(game.home_team)}
         </span>
         {game.played && game.home_score !== null && (
           <span className={`shrink-0 font-black tabular-nums ${isFinal ? 'text-base' : 'text-sm'} ${
@@ -127,7 +127,7 @@ function MatchCard({
         <span className={`flex-1 min-w-0 truncate font-bold ${isFinal ? 'text-sm' : 'text-xs'} ${
           awayOnPath ? 'text-orange-300' : awayWin ? 'text-orange-400' : game.played ? 'text-[#5a7a9a]' : 'text-white'
         }`}>
-          {game.away_team}
+          {t(game.away_team)}
         </span>
         {game.played && game.away_score !== null && (
           <span className={`shrink-0 font-black tabular-nums ${isFinal ? 'text-base' : 'text-sm'} ${
@@ -268,7 +268,7 @@ function ChampionBanner({ teamName, teamLogos, dimmed }: { teamName: string; tea
       )}
       <div className="flex flex-col items-start">
         <p className="text-[10px] font-black uppercase tracking-widest text-[#a08020]">{t('אלוף הגביע 2025–2026')}</p>
-        <p className="text-lg font-black text-yellow-400">{teamName}</p>
+        <p className="text-lg font-black text-yellow-400">{t(teamName)}</p>
       </div>
     </div>
   );
@@ -383,7 +383,7 @@ function JourneyPanel({
             )}
             <div className="flex-1 min-w-0">
               <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">{t('מסע בגביע')}</p>
-              <h3 className="text-lg font-black text-white truncate">{focusedTeam}</h3>
+              <h3 className="text-lg font-black text-white truncate">{t(focusedTeam)}</h3>
               <p className="text-[11px] text-[#8aaac8] mt-0.5">{headline}</p>
             </div>
             <button
@@ -502,7 +502,7 @@ function JourneyPanel({
                     )}
                     <span className="flex-1 min-w-0 truncate text-sm font-bold text-white">
                       {step.outcome === 'upcoming' ? t('תפגוש את ') : t('מול ')}
-                      {step.opponent}
+                      {t(step.opponent)}
                     </span>
                     {step.outcome !== 'upcoming' && step.teamScore !== null && step.oppScore !== null && (
                       <span className="shrink-0 font-black tabular-nums text-sm" dir="ltr">

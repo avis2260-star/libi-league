@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getPlayersByTeam, getTeams } from '@/lib/supabase';
+import { getLang, st } from '@/lib/get-lang';
 import type { Player, Team } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -12,9 +13,9 @@ const POSITION_LABELS: Record<string, string> = {
 
 // ── Trading Card ──────────────────────────────────────────────────────────────
 
-function PlayerCard({ player }: { player: Player & { team?: Team } }) {
+function PlayerCard({ player, T }: { player: Player & { team?: Team }; T: (he: string) => string }) {
   const position = player.position ? POSITION_LABELS[player.position] ?? player.position : null;
-  const teamName = player.team?.name ?? '';
+  const teamName = T(player.team?.name ?? '');
   const isInactive = player.is_active === false;
 
   return (
@@ -112,10 +113,12 @@ function PlayerCard({ player }: { player: Player & { team?: Team } }) {
 
 export default async function TeamPlayersPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [players, teams] = await Promise.all([
+  const [players, teams, lang] = await Promise.all([
     getPlayersByTeam(id),
     getTeams(),
+    getLang(),
   ]);
+  const T = (he: string) => st(he, lang);
 
   const team = teams.find((t) => t.id === id);
   if (!team) notFound();
@@ -127,7 +130,7 @@ export default async function TeamPlayersPage({ params }: { params: Promise<{ id
         <Link href="/teams" className="mb-4 inline-flex items-center gap-1.5 text-sm text-[#5a7a9a] hover:text-white transition-colors">
           ← חזרה לקבוצות
         </Link>
-        <h1 className="text-3xl font-black text-white">{team.name}</h1>
+        <h1 className="text-3xl font-black text-white">{T(team.name)}</h1>
         <p className="mt-1 text-sm text-[#5a7a9a]">
           {players.length > 0 ? `${players.length} שחקנים רשומים · עונת 2025–2026` : 'אין שחקנים רשומים עדיין'}
         </p>
@@ -149,7 +152,7 @@ export default async function TeamPlayersPage({ params }: { params: Promise<{ id
           )}
         </div>
         <div className="flex-1">
-          <p className="font-bold text-white group-hover:text-orange-400 transition-colors">{team.name}</p>
+          <p className="font-bold text-white group-hover:text-orange-400 transition-colors">{T(team.name)}</p>
           {team.captain_name && team.captain_name !== 'TBD' && (
             <p className="text-sm text-[#5a7a9a]">קפטן: <span className="text-[#8aaac8]">{team.captain_name}</span></p>
           )}
@@ -173,7 +176,7 @@ export default async function TeamPlayersPage({ params }: { params: Promise<{ id
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {players.map((player) => (
-            <PlayerCard key={player.id} player={player} />
+            <PlayerCard key={player.id} player={player} T={T} />
           ))}
         </div>
       )}

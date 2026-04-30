@@ -221,11 +221,11 @@ export default function GamesContent({
               <div key={i} className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.04] px-4 py-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-bold text-white truncate">{g.home_team}</span>
+                    <span className="text-sm font-bold text-white truncate">{t(g.home_team)}</span>
                     <span className="text-base font-black text-orange-400 tabular-nums shrink-0">{g.home_score}</span>
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-1">
-                    <span className="text-sm font-bold text-white truncate">{g.away_team}</span>
+                    <span className="text-sm font-bold text-white truncate">{t(g.away_team)}</span>
                     <span className="text-base font-black text-orange-400 tabular-nums shrink-0">{g.away_score}</span>
                   </div>
                 </div>

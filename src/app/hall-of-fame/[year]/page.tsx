@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { getLang } from '@/lib/get-lang';
+import { getLang, st } from '@/lib/get-lang';
 
 /* ── page ────────────────────────────────────────────────────────────────── */
 export default async function SeasonDetailPage({
@@ -14,6 +14,7 @@ export default async function SeasonDetailPage({
   const { year } = await params;
   const decodedYear = decodeURIComponent(year);
   const lang = await getLang();
+  const T = (he: string) => st(he, lang);
   const en = lang === 'en';
 
   /* 1 — fetch the season record */
@@ -42,13 +43,13 @@ export default async function SeasonDetailPage({
           <div className="relative">
             <p className="font-stats text-3xl text-orange-500 mb-1">{season.year}</p>
             <h1 className="font-heading font-black text-4xl sm:text-5xl mb-2 leading-tight">
-              {season.champion_name ?? '—'}
+              {season.champion_name ? T(season.champion_name) : '—'}
             </h1>
             {season.runner_up_name && (
               <p className="mb-4 flex items-center gap-1.5 text-sm font-bold text-slate-300">
                 <span>🥈</span>
                 <span className="text-slate-400">{en ? 'Runner-up:' : 'סגנית אלופה:'}</span>
-                <span className="text-white">{season.runner_up_name}</span>
+                <span className="text-white">{T(season.runner_up_name)}</span>
               </p>
             )}
             <div className="flex flex-wrap gap-4 text-sm">
@@ -82,7 +83,7 @@ export default async function SeasonDetailPage({
               <div className="mb-6 flex items-center justify-center gap-6 rounded-2xl bg-gradient-to-r from-orange-500/10 via-slate-900 to-slate-900 border border-orange-500/20 p-6">
                 <div className="flex-1 text-center">
                   <p className="font-heading font-black text-lg sm:text-xl text-white">
-                    {season.champion_name ?? '—'}
+                    {season.champion_name ? T(season.champion_name) : '—'}
                   </p>
                   <p className="text-[11px] font-black uppercase tracking-[2px] text-orange-400 mt-1">
                     {en ? 'Champion' : 'אלופה'}
@@ -93,7 +94,7 @@ export default async function SeasonDetailPage({
                 </div>
                 <div className="flex-1 text-center">
                   <p className="font-heading font-black text-lg sm:text-xl text-slate-200">
-                    {season.runner_up_name ?? '—'}
+                    {season.runner_up_name ? T(season.runner_up_name) : '—'}
                   </p>
                   <p className="text-[11px] font-black uppercase tracking-[2px] text-slate-400 mt-1">
                     {en ? 'Runner-up' : 'סגנית'}

@@ -97,7 +97,7 @@ export default function SeriesFlyerCard({
             </div>
           )}
           <p className={`text-xs sm:text-sm font-black text-center leading-tight w-full px-1 font-heading ${winner === teamA ? 'text-orange-400' : 'text-white'}`}>
-            {hasTeams ? teamA : waitingLabel}
+            {hasTeams ? t(teamA) : waitingLabel}
           </p>
         </div>
 
@@ -135,7 +135,7 @@ export default function SeriesFlyerCard({
             </div>
           )}
           <p className={`text-xs sm:text-sm font-black text-center leading-tight w-full px-1 font-heading ${winner === teamB ? 'text-orange-400' : 'text-white'}`}>
-            {hasTeams ? teamB : 'ממתין'}
+            {hasTeams ? t(teamB) : waitingLabel}
           </p>
         </div>
       </div>
@@ -175,7 +175,7 @@ export default function SeriesFlyerCard({
                   }}
                 />
                 <p className={`text-[9px] font-bold text-center leading-tight ${g.aWon ? 'text-orange-400' : 'text-[#5a7a9a]'}`}>
-                  {g.aWon ? (hasTeams ? teamA : 'A') : (hasTeams ? teamB : 'B')}
+                  {g.aWon ? (hasTeams ? t(teamA) : 'A') : (hasTeams ? t(teamB) : 'B')}
                 </p>
               </>
             ) : (
@@ -204,7 +204,7 @@ export default function SeriesFlyerCard({
           }}
         >
           <p className="text-sm font-black text-green-400">
-            {lang === 'en' ? `🏆 ${winner} won the series!` : `🏆 ${winner} ניצחו בסדרה!`}
+            {lang === 'en' ? `🏆 ${t(winner)} won the series!` : `🏆 ${winner} ניצחו בסדרה!`}
           </p>
         </div>
       )}

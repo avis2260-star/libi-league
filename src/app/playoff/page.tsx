@@ -492,7 +492,7 @@ export default async function PlayoffPage() {
             <p className="text-[11px] font-black uppercase tracking-[3px] text-[#a08020]">
               {lang === 'en' ? 'Playoff Champion 2025–2026' : 'אלוף הפלייאוף 2025–2026'}
             </p>
-            <p className="text-3xl font-black text-yellow-400 text-center font-heading">{champion}</p>
+            <p className="text-3xl font-black text-yellow-400 text-center font-heading">{T(champion)}</p>
           </div>
         )}
 

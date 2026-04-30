@@ -34,7 +34,7 @@ export default function ChampionReveal({
   logoUrl = null,
   season = '2025–2026',
 }: Props) {
-  const { lang } = useLang();
+  const { t, lang } = useLang();
   const [flipped, setFlipped]   = useState(false);
   const [revealed, setRevealed] = useState(false);
   const canvasRef  = useRef<HTMLCanvasElement>(null);
@@ -215,7 +215,7 @@ export default function ChampionReveal({
             opacity: flipped ? 1 : 0, transition: 'opacity 0.4s 0.6s',
           }}>
             <div style={{ fontSize: 26 }}>🏆</div>
-            <div style={{ fontWeight: 900, fontSize: 16, color: '#F5C842', fontFamily: 'sans-serif', lineHeight: 1.2 }}>{champion}</div>
+            <div style={{ fontWeight: 900, fontSize: 16, color: '#F5C842', fontFamily: 'sans-serif', lineHeight: 1.2 }}>{t(champion ?? '')}</div>
             {scoreWinner !== null && scoreLoser !== null && (
               <div style={{ fontSize: 11, color: '#f0eadc', fontFamily: 'sans-serif' }}>
                 {scoreWinner} – {scoreLoser}
@@ -290,7 +290,7 @@ export default function ChampionReveal({
               fontFamily: 'sans-serif', fontWeight: 900, fontSize: 48, color: '#F5C842',
               letterSpacing: 2, lineHeight: 1, textShadow: '0 0 40px rgba(245,200,66,0.6)',
             }}>
-              {champion}
+              {t(champion ?? '')}
             </div>
             {division && (
               <div style={{ fontFamily: 'sans-serif', fontSize: 13, color: 'rgba(240,234,220,0.5)' }}>{division}</div>
@@ -302,12 +302,12 @@ export default function ChampionReveal({
             {scoreWinner !== null && scoreLoser !== null && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 20, direction: 'ltr' }}>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontFamily: 'sans-serif', fontSize: 12, color: 'rgba(240,234,220,0.6)', maxWidth: 100 }}>{champion}</div>
+                  <div style={{ fontFamily: 'sans-serif', fontSize: 12, color: 'rgba(240,234,220,0.6)', maxWidth: 100 }}>{t(champion ?? '')}</div>
                   <div style={{ fontFamily: 'sans-serif', fontWeight: 900, fontSize: 48, color: '#F5C842', lineHeight: 1 }}>{scoreWinner}</div>
                 </div>
                 <div style={{ fontFamily: 'sans-serif', fontSize: 32, color: 'rgba(240,234,220,0.3)' }}>:</div>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontFamily: 'sans-serif', fontSize: 12, color: 'rgba(240,234,220,0.6)', maxWidth: 100 }}>{opponentName}</div>
+                  <div style={{ fontFamily: 'sans-serif', fontSize: 12, color: 'rgba(240,234,220,0.6)', maxWidth: 100 }}>{t(opponentName ?? '')}</div>
                   <div style={{ fontFamily: 'sans-serif', fontWeight: 900, fontSize: 48, color: '#f0eadc', lineHeight: 1 }}>{scoreLoser}</div>
                 </div>
               </div>

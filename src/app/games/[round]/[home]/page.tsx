@@ -157,7 +157,7 @@ export default async function GamePreviewPage({
               }
             </div>
             <div className="text-center">
-              <p className="text-base font-black text-white leading-tight group-hover/team:text-orange-400 transition-colors">{game.homeTeam}</p>
+              <p className="text-base font-black text-white leading-tight group-hover/team:text-orange-400 transition-colors">{T(game.homeTeam)}</p>
               <p className="mt-0.5 text-xs text-[#5a7a9a]">{en ? 'Home Team' : 'קבוצת בית'}</p>
             </div>
           </Link>
@@ -178,7 +178,7 @@ export default async function GamePreviewPage({
               }
             </div>
             <div className="text-center">
-              <p className="text-base font-black text-white leading-tight group-hover/team:text-orange-400 transition-colors">{game.awayTeam}</p>
+              <p className="text-base font-black text-white leading-tight group-hover/team:text-orange-400 transition-colors">{T(game.awayTeam)}</p>
               <p className="mt-0.5 text-xs text-[#5a7a9a]">{en ? 'Away Team' : 'קבוצת חוץ'}</p>
             </div>
           </Link>
@@ -217,9 +217,9 @@ export default async function GamePreviewPage({
 
           {/* Column headers */}
           <div className="grid grid-cols-3 border-b border-white/[0.05] px-5 py-2 text-[10px] font-bold uppercase tracking-widest text-[#4a6a8a]">
-            <span className={en ? 'text-left' : 'text-right'}>{game.homeTeam}</span>
+            <span className={en ? 'text-left' : 'text-right'}>{T(game.homeTeam)}</span>
             <span className="text-center">{en ? 'Stat' : 'סטט'}</span>
-            <span className={en ? 'text-right' : 'text-left'}>{game.awayTeam}</span>
+            <span className={en ? 'text-right' : 'text-left'}>{T(game.awayTeam)}</span>
           </div>
 
           {[

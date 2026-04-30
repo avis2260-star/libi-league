@@ -97,7 +97,7 @@ function PlayerCard({ player }: { player: EnrichedPlayer }) {
         <p className="font-heading font-black text-white text-base leading-tight">{player.name}</p>
 
         {player.team && (
-          <p className="text-sm font-bold text-[#8aaac8]">{player.team.name}</p>
+          <p className="text-sm font-bold text-[#8aaac8]">{t(player.team.name)}</p>
         )}
 
         {(() => {
@@ -196,7 +196,7 @@ function TeamListView({
               {[...team.name].find(c => /\S/.test(c)) ?? '?'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-black text-white text-sm truncate group-hover:text-orange-400 transition-colors">{team.name}</p>
+              <p className="font-black text-white text-sm truncate group-hover:text-orange-400 transition-colors">{t(team.name)}</p>
               <div className="flex items-center gap-3 mt-1">
                 <span className="text-xs font-bold text-green-400">{active} {t('פעילים')}</span>
                 {total > active && (

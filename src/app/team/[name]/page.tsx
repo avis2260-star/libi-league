@@ -184,7 +184,7 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
           </div>
         )}
         <div className="min-w-0">
-          <h1 className="text-2xl font-black text-white leading-tight font-heading">{teamName}</h1>
+          <h1 className="text-2xl font-black text-white leading-tight font-heading">{T(teamName)}</h1>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             {division && (
               <span className={`rounded-lg px-2 py-0.5 text-[11px] font-bold ${
@@ -257,7 +257,7 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
                 }`}>{g.won ? (lang === 'en' ? 'W' : 'נ') : (lang === 'en' ? 'L' : 'ה')}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-white truncate">
-                    {g.isHome ? T('בית') : T('חוץ')} {T('נגד')} {g.oppName}
+                    {g.isHome ? T('בית') : T('חוץ')} {T('נגד')} {T(g.oppName)}
                   </p>
                   <p className="text-sm font-black text-[#8aaac8]">{T('מחזור')} {g.round} · {g.date}</p>
                 </div>
@@ -294,7 +294,7 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
                     won ? 'bg-green-500/20 text-green-400' : 'bg-red-500/15 text-red-400'
                   }`}>{!isPlayed ? '?' : won ? (lang === 'en' ? 'W' : 'נ') : (lang === 'en' ? 'L' : 'ה')}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-white truncate">{T('גביע')} — {g.round} {T('נגד')} {oppName}</p>
+                    <p className="text-sm font-bold text-white truncate">{T('גביע')} — {T(g.round)} {T('נגד')} {T(oppName)}</p>
                   </div>
                   {hasScores ? (
                     <div dir="ltr" className="shrink-0">
@@ -330,7 +330,7 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-white truncate">
-                      {g.isHome ? T('בית') : T('חוץ')} {T('נגד')} {g.opponent}
+                      {g.isHome ? T('בית') : T('חוץ')} {T('נגד')} {T(g.opponent)}
                     </p>
                     <p className="text-xs font-bold text-[#8aaac8] mt-0.5">
                       <span dir="ltr">{g.game_date}</span>
@@ -357,7 +357,7 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
         <a href="/teams" className="text-sm font-bold text-[#8aaac8] hover:text-orange-400 transition block">{T('← חזרה לרשימת הקבוצות')}</a>
         {teamInfo?.id && (
           <a href={`/teams/${teamInfo.id}/players`} className="text-sm text-orange-400/70 hover:text-orange-400 transition block">
-            🃏 {lang === 'en' ? `Player cards for ${teamName}` : `כרטיסי שחקנים של ${teamName}`}
+            🃏 {en ? `Player cards for ${T(teamName)}` : `כרטיסי שחקנים של ${teamName}`}
           </a>
         )}
       </div>

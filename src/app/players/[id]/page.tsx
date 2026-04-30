@@ -193,7 +193,7 @@ export default async function PlayerProfilePage({
 
             {/* Team */}
             {player.team && (
-              <p className="mt-1 text-sm text-[#8aaac8] font-heading">{player.team.name}</p>
+              <p className="mt-1 text-sm text-[#8aaac8] font-heading">{T(player.team.name)}</p>
             )}
           </div>
         </div>
@@ -271,7 +271,7 @@ export default async function PlayerProfilePage({
                         <td className="whitespace-nowrap px-4 py-3 text-[#8aaac8]">{dateStr}</td>
                         <td className="px-4 py-3 font-medium text-[#e8edf5] font-heading">
                           <span className="text-[#5a7a9a] text-xs ml-1 font-body">{isHome ? T('נגד') : '@'}</span>
-                          {opp.name}
+                          {T(opp.name)}
                         </td>
                         <td className="px-4 py-3 text-center tabular-nums text-[#8aaac8] font-stats">
                           {stat.game.status === 'Finished'

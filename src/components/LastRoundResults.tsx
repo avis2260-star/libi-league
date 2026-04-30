@@ -85,7 +85,7 @@ function GameCard({
               homeWins ? 'text-white' : 'text-[#8aaac8]'
             }`}
           >
-            {game.home_team}
+            {T(game.home_team)}
           </p>
           {techniOnHome && (
             <p className="mt-0.5 text-[10px] font-black text-red-400">{T('🔴 הפסד טכני')}</p>
@@ -128,7 +128,7 @@ function GameCard({
               !homeWins ? 'text-white' : 'text-[#8aaac8]'
             }`}
           >
-            {game.away_team}
+            {T(game.away_team)}
           </p>
           {techniOnAway && (
             <p className="mt-0.5 text-[10px] font-black text-red-400">{T('🔴 הפסד טכני')}</p>

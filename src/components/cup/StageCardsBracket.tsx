@@ -64,7 +64,7 @@ function MatchCard({ game, teamLogos }: { game: CupGame; teamLogos: Record<strin
       </span>
       <TeamLogo name={name} logos={teamLogos} />
       <span className={`flex-1 min-w-0 truncate text-xs font-bold ${isWinner ? 'text-orange-400' : placeholder ? 'text-[#5a7a9a]' : 'text-white'}`}>
-        {name}
+        {t(name)}
       </span>
       {score !== null && (
         <span className={`shrink-0 font-black tabular-nums text-sm ${isWinner ? 'text-orange-400' : 'text-[#5a7a9a]'}`}>
@@ -104,7 +104,7 @@ function FinalCard({ game, teamLogos }: { game: CupGame; teamLogos: Record<strin
             don't show a בית/חוץ badge here. */}
         <div className={`flex flex-col items-center gap-2 ${homeWin ? 'text-orange-400' : 'text-white'}`}>
           <TeamLogo name={game.home_team} logos={teamLogos} size="lg" />
-          <span className="text-sm font-black text-center">{game.home_team}</span>
+          <span className="text-sm font-black text-center">{t(game.home_team)}</span>
           {homeWin && <span className="text-[10px] font-bold text-orange-400">🏆 {t('אלוף')}</span>}
         </div>
 
@@ -124,7 +124,7 @@ function FinalCard({ game, teamLogos }: { game: CupGame; teamLogos: Record<strin
         {/* Away team (left in RTL). Neutral-court final — no בית/חוץ badge. */}
         <div className={`flex flex-col items-center gap-2 ${awayWin ? 'text-orange-400' : 'text-white'}`}>
           <TeamLogo name={game.away_team} logos={teamLogos} size="lg" />
-          <span className="text-sm font-black text-center">{game.away_team}</span>
+          <span className="text-sm font-black text-center">{t(game.away_team)}</span>
           {awayWin && <span className="text-[10px] font-bold text-orange-400">🏆 {t('אלוף')}</span>}
         </div>
       </div>
@@ -177,7 +177,7 @@ function ChampionBanner({ teamName, teamLogos }: { teamName: string; teamLogos: 
       )}
       <div className="flex flex-col items-start">
         <p className="text-[10px] font-black uppercase tracking-widest text-[#a08020]">{t('אלוף הגביע 2025–2026')}</p>
-        <p className="text-lg font-black text-yellow-400">{teamName}</p>
+        <p className="text-lg font-black text-yellow-400">{t(teamName)}</p>
       </div>
     </div>
   );

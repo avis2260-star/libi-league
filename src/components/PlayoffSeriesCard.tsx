@@ -188,7 +188,7 @@ export default function PlayoffSeriesCard({
             : winsA === winsB ? 'bg-yellow-400/10 border border-yellow-400/25 text-yellow-400'
             : 'bg-blue-500/10 border border-blue-500/20 text-blue-400'
         }`}>
-          {winner ? 'FINAL' : !started ? t('טרם החל') : winsA === winsB ? t('שוויון') : `${t('מוביל')}: ${winsA > winsB ? series.team_a : series.team_b}`}
+          {winner ? 'FINAL' : !started ? t('טרם החל') : winsA === winsB ? t('שוויון') : `${t('מוביל')}: ${t(winsA > winsB ? series.team_a : series.team_b)}`}
         </span>
       </div>
 
@@ -199,7 +199,7 @@ export default function PlayoffSeriesCard({
           <div className={`flex-1 min-w-0 flex flex-col items-center gap-1.5 transition-opacity ${bWon ? 'opacity-35' : ''}`}>
             <TeamLogo name={series.team_a} logos={teamLogos} size="md" />
             <div className="text-center w-full px-1">
-              <p className={`text-xs sm:text-sm font-black leading-tight break-words font-heading ${aWon ? 'text-orange-400' : 'text-white'}`}>{series.team_a}</p>
+              <p className={`text-xs sm:text-sm font-black leading-tight break-words font-heading ${aWon ? 'text-orange-400' : 'text-white'}`}>{t(series.team_a)}</p>
               <p className="text-[9px] text-[#4a6a8a] mt-0.5 font-semibold font-body">{lA.full}</p>
             </div>
           </div>
@@ -225,7 +225,7 @@ export default function PlayoffSeriesCard({
           <div className={`flex-1 min-w-0 flex flex-col items-center gap-1.5 transition-opacity ${aWon ? 'opacity-35' : ''}`}>
             <TeamLogo name={series.team_b} logos={teamLogos} size="md" />
             <div className="text-center w-full px-1">
-              <p className={`text-xs sm:text-sm font-black leading-tight break-words font-heading ${bWon ? 'text-orange-400' : 'text-white'}`}>{series.team_b}</p>
+              <p className={`text-xs sm:text-sm font-black leading-tight break-words font-heading ${bWon ? 'text-orange-400' : 'text-white'}`}>{t(series.team_b)}</p>
               <p className="text-[9px] text-[#4a6a8a] mt-0.5 font-semibold font-body">{lB.full}</p>
             </div>
           </div>
@@ -234,7 +234,7 @@ export default function PlayoffSeriesCard({
         {/* Winner strip */}
         {winner && (
           <div className="border-t border-green-500/15 bg-green-500/[0.05] px-4 py-2 text-center">
-            <span className="text-[11px] font-black text-green-400">🏆 {winner} {t('ניצח בסדרה')}</span>
+            <span className="text-[11px] font-black text-green-400">🏆 {t(winner)} {t('ניצח בסדרה')}</span>
           </div>
         )}
       </Link>
@@ -256,14 +256,14 @@ export default function PlayoffSeriesCard({
                 {/* Team A roster */}
                 <div className="pr-4">
                   <p className="text-[9px] font-black uppercase tracking-widest text-[#3a5a7a] mb-2">
-                    {series.team_a}
+                    {t(series.team_a)}
                   </p>
                   <RosterList roster={rosterA} teamName={series.team_a} />
                 </div>
                 {/* Team B roster */}
                 <div className="pl-4">
                   <p className="text-[9px] font-black uppercase tracking-widest text-[#3a5a7a] mb-2">
-                    {series.team_b}
+                    {t(series.team_b)}
                   </p>
                   <RosterList roster={rosterB} teamName={series.team_b} />
                 </div>

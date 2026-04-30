@@ -84,6 +84,7 @@ function TrophyCard({
   title,
   subtitle,
   team,
+  teamLabel,
   logo,
   badge,
   icon,
@@ -91,6 +92,7 @@ function TrophyCard({
   title: string;
   subtitle: string;
   team: string;
+  teamLabel: string;
   logo: string | null;
   badge: string;
   icon: string;
@@ -122,7 +124,7 @@ function TrophyCard({
               {subtitle}
             </p>
             <h3 className="font-heading font-black text-4xl sm:text-5xl text-yellow-400 mb-3">
-              {team}
+              {teamLabel}
             </h3>
           </div>
           <div className="bg-yellow-400 text-black px-4 py-1.5 rounded-full text-xs font-black font-heading tracking-wider shrink-0">
@@ -211,6 +213,7 @@ export default async function HallOfFamePage() {
               title={T('אלופת הליגה')}
               subtitle={T('אלופת הפלייאוף · 2025–2026')}
               team={leagueChampion}
+              teamLabel={T(leagueChampion)}
               logo={leagueChampionLogo}
               badge="CHAMPION"
               icon="🏆"
@@ -221,6 +224,7 @@ export default async function HallOfFamePage() {
               title={T('מחזיקת הגביע')}
               subtitle={T('אלופת הגביע · 2025–2026')}
               team={cupHolder}
+              teamLabel={T(cupHolder)}
               logo={cupHolderLogo}
               badge="CUP HOLDER"
               icon="🥇"
@@ -250,13 +254,13 @@ export default async function HallOfFamePage() {
                 </div>
 
                 <p className="font-stats text-2xl text-orange-500">{season.year}</p>
-                <h3 className="font-heading font-black text-3xl mb-2">{season.champion_name ?? '—'}</h3>
+                <h3 className="font-heading font-black text-3xl mb-2">{season.champion_name ? T(season.champion_name) : '—'}</h3>
 
                 {season.runner_up_name && (
                   <p className="mb-4 flex items-center gap-1.5 text-sm font-bold text-slate-300">
                     <span className="text-slate-400">🥈</span>
                     <span className="text-slate-400">{T('סגנית אלופה:')}</span>
-                    <span className="text-white">{season.runner_up_name}</span>
+                    <span className="text-white">{T(season.runner_up_name)}</span>
                   </p>
                 )}
 
@@ -299,12 +303,12 @@ export default async function HallOfFamePage() {
                 </div>
 
                 <p className="font-stats text-2xl text-yellow-400">{season.year}</p>
-                <h3 className="font-heading font-black text-3xl mb-4">{season.cup_holder_name}</h3>
+                <h3 className="font-heading font-black text-3xl mb-4">{season.cup_holder_name ? T(season.cup_holder_name) : ''}</h3>
 
                 <div className="flex justify-between items-end border-t border-slate-800 pt-4">
                   <div>
                     <p className="text-xs font-black text-slate-300 uppercase font-body">{T('מחזיקת הגביע')}</p>
-                    <p className="font-heading font-black text-white">🥇 {season.cup_holder_name}</p>
+                    <p className="font-heading font-black text-white">🥇 {season.cup_holder_name ? T(season.cup_holder_name) : ''}</p>
                   </div>
                   <div className="bg-yellow-400 text-black px-3 py-1 rounded-full text-xs font-black font-heading">
                     CUP HOLDER
