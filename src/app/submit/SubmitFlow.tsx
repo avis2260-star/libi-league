@@ -498,9 +498,9 @@ export default function SubmitFlow({
                 <option value="" style={{ backgroundColor: '#0f1e30', color: 'white' }}>
                   {en ? '-- Select team --' : '-- בחר קבוצה --'}
                 </option>
-                {teams.map(t => (
-                  <option key={t.id} value={t.id} style={{ backgroundColor: '#0f1e30', color: 'white' }}>
-                    {t.name}
+                {teams.map(team => (
+                  <option key={team.id} value={team.id} style={{ backgroundColor: '#0f1e30', color: 'white' }}>
+                    {t(team.name)}
                   </option>
                 ))}
               </select>
@@ -527,7 +527,7 @@ export default function SubmitFlow({
                     disabled={g.is_locked}
                     style={{ backgroundColor: '#0f1e30', color: g.is_locked ? '#5a7a9a' : 'white' }}
                   >
-                    {g.home_name} {en ? 'vs' : 'נגד'} {g.away_name} · {g.game_date}{g.is_locked ? (en ? ' 🔒 already submitted' : ' 🔒 כבר הוגש') : ''}
+                    {t(g.home_name)} {en ? 'vs' : 'נגד'} {t(g.away_name)} · {g.game_date}{g.is_locked ? (en ? ' 🔒 already submitted' : ' 🔒 כבר הוגש') : ''}
                   </option>
                 ))}
               </select>
@@ -566,7 +566,7 @@ export default function SubmitFlow({
             <div className="text-center space-y-2">
               <div className="text-5xl mb-2">📋</div>
               <h2 className="text-xl font-black text-white">{en ? 'Submission Instructions' : 'הוראות הגשה'}</h2>
-              <p className="text-sm text-[#5a7a9a]">{selectedGame?.home_name} {en ? 'vs' : 'נגד'} {selectedGame?.away_name}</p>
+              <p className="text-sm text-[#5a7a9a]">{selectedGame ? t(selectedGame.home_name) : ''} {en ? 'vs' : 'נגד'} {selectedGame ? t(selectedGame.away_name) : ''}</p>
             </div>
 
             <div className={`rounded-2xl border border-orange-500/25 bg-orange-500/[0.06] p-5 space-y-4 ${en ? 'text-left' : 'text-right'}`}>
@@ -631,7 +631,7 @@ export default function SubmitFlow({
           <div className="space-y-5">
             <div className="text-center">
               <p className="text-sm text-[#8aaac8]">
-                {selectedGame?.home_name} {en ? 'vs' : 'נגד'} {selectedGame?.away_name}
+                {selectedGame ? t(selectedGame.home_name) : ''} {en ? 'vs' : 'נגד'} {selectedGame ? t(selectedGame.away_name) : ''}
               </p>
             </div>
 
@@ -748,7 +748,7 @@ export default function SubmitFlow({
               <p className="text-xs font-bold text-[#8aaac8] uppercase tracking-wide">{en ? 'Game Result' : 'תוצאת המשחק'}</p>
               <div className="flex items-center gap-3">
                 <div className="flex-1 text-center">
-                  <p className="text-xs text-[#5a7a9a] mb-1">{selectedGame.home_name}</p>
+                  <p className="text-xs text-[#5a7a9a] mb-1">{t(selectedGame.home_name)}</p>
                   <input
                     type="number"
                     value={editedData.home_score}
@@ -758,7 +758,7 @@ export default function SubmitFlow({
                 </div>
                 <span className="text-[#4a6a8a] font-bold text-xl">:</span>
                 <div className="flex-1 text-center">
-                  <p className="text-xs text-[#5a7a9a] mb-1">{selectedGame.away_name}</p>
+                  <p className="text-xs text-[#5a7a9a] mb-1">{t(selectedGame.away_name)}</p>
                   <input
                     type="number"
                     value={editedData.away_score}

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useLang } from '@/components/TranslationProvider';
 
 type Game = {
   home: string;
@@ -45,6 +46,8 @@ function GameModal({
   awayRoster: RosterEntry[];
   onClose: () => void;
 }) {
+  const { t, lang } = useLang();
+  const en = lang === 'en';
   return (
     <>
       {/* Backdrop */}
@@ -57,16 +60,16 @@ function GameModal({
       <div
         className="animate-modal-in fixed inset-x-4 z-[200] max-w-lg mx-auto rounded-2xl border border-white/[0.1] bg-[#0d1a28] shadow-2xl overflow-y-auto"
         style={{ top: '8vh', maxHeight: '84vh' }}
-        dir="rtl"
+        dir={en ? 'ltr' : 'rtl'}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.07] bg-[#0f1e30]">
           <div>
             <span className={`text-[10px] font-bold ${game.div === 'North' ? 'text-blue-400' : 'text-orange-400'}`}>
-              {game.div === 'North' ? '🔵 מחוז צפון' : '🟠 מחוז דרום'}
+              {game.div === 'North' ? (en ? '🔵 North Division' : '🔵 מחוז צפון') : (en ? '🟠 South Division' : '🟠 מחוז דרום')}
             </span>
             <p className="text-base font-black text-white mt-0.5 font-body">{heDay} · {nextDate}</p>
-            <p className="text-sm font-black text-[#8aaac8] font-body">מחזור <span className="font-stats">{nextRound}</span></p>
+            <p className="text-sm font-black text-[#8aaac8] font-body">{t('מחזור')} <span className="font-stats">{nextRound}</span></p>
           </div>
           <button
             onClick={onClose}
@@ -104,9 +107,9 @@ function GameModal({
               onClick={onClose}
               className="text-sm font-black text-white text-center leading-tight hover:text-orange-400 transition-colors font-heading"
             >
-              {game.home}
+              {t(game.home)}
             </Link>
-            <span className="text-[10px] text-[#4a6a8a] font-semibold font-body">בית</span>
+            <span className="text-[10px] text-[#4a6a8a] font-semibold font-body">{t('בית')}</span>
           </div>
 
           {/* VS */}
@@ -122,9 +125,9 @@ function GameModal({
               onClick={onClose}
               className="text-sm font-black text-white text-center leading-tight hover:text-orange-400 transition-colors font-heading"
             >
-              {game.away}
+              {t(game.away)}
             </Link>
-            <span className="text-[10px] text-[#4a6a8a] font-semibold font-body">חוץ</span>
+            <span className="text-[10px] text-[#4a6a8a] font-semibold font-body">{t('חוץ')}</span>
           </div>
         </div>
 
@@ -134,9 +137,9 @@ function GameModal({
             <div className="grid grid-cols-2 divide-x divide-x-reverse divide-white/[0.05]">
               {/* Home roster */}
               <div className="p-4">
-                <p className="text-[10px] font-black uppercase tracking-widest text-[#4a6a8a] mb-3">סגל {game.home}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#4a6a8a] mb-3">{t('סגל')} {t(game.home)}</p>
                 {homeRoster.length === 0 ? (
-                  <p className="text-xs text-[#3a5a7a]">לא נמצאו שחקנים</p>
+                  <p className="text-xs text-[#3a5a7a]">{t('לא נמצאו שחקנים')}</p>
                 ) : (
                   <ul className="space-y-1.5">
                     {homeRoster.map((p, i) => (
@@ -153,9 +156,9 @@ function GameModal({
 
               {/* Away roster */}
               <div className="p-4">
-                <p className="text-[10px] font-black uppercase tracking-widest text-[#4a6a8a] mb-3">סגל {game.away}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#4a6a8a] mb-3">{t('סגל')} {t(game.away)}</p>
                 {awayRoster.length === 0 ? (
-                  <p className="text-xs text-[#3a5a7a]">לא נמצאו שחקנים</p>
+                  <p className="text-xs text-[#3a5a7a]">{t('לא נמצאו שחקנים')}</p>
                 ) : (
                   <ul className="space-y-1.5">
                     {awayRoster.map((p, i) => (
@@ -180,13 +183,13 @@ function GameModal({
             onClick={onClose}
             className="text-xs text-orange-400 hover:text-orange-300 transition-colors"
           >
-            ← כל משחקי המחזור
+            {t('← כל משחקי המחזור')}
           </Link>
           <button
             onClick={onClose}
             className="text-xs text-[#4a6a8a] hover:text-white transition-colors"
           >
-            סגור
+            {t('סגור')}
           </button>
         </div>
       </div>
@@ -208,6 +211,8 @@ export default function ScoreboardStrip({
   heDay: string;
   teamRosters?: Record<string, RosterEntry[]>;
 }) {
+  const { t, lang } = useLang();
+  const en = lang === 'en';
   const [activeGame, setActiveGame] = useState<Game | null>(null);
   const scrollRef = { current: null as HTMLDivElement | null };
 
@@ -242,7 +247,7 @@ export default function ScoreboardStrip({
               <div className="h-6 w-px bg-white/[0.06] shrink-0" />
             </>
           )}
-          <p className="flex-1 text-sm font-black text-[#8aaac8] font-body">מחזור <span className="font-stats">{nextRound}</span> · משחקים קרובים</p>
+          <p className="flex-1 text-sm font-black text-[#8aaac8] font-body">{t('מחזור')} <span className="font-stats">{nextRound}</span> · {t('משחקים קרובים')}</p>
 
           {/* Scroll arrows */}
           <button
@@ -264,7 +269,7 @@ export default function ScoreboardStrip({
             href={`/games#round-${nextRound}`}
             className="shrink-0 text-[11px] font-bold text-orange-400 hover:text-orange-300 transition-colors pr-1"
           >
-            ← כל המשחקים
+            {en ? '← All Games' : '← כל המשחקים'}
           </Link>
         </div>
 
@@ -287,14 +292,14 @@ export default function ScoreboardStrip({
                 g.div === 'North' ? 'text-blue-400' : 'text-orange-400'
               }`}>
                 <span className={`h-1.5 w-1.5 rounded-full ${g.div === 'North' ? 'bg-blue-400' : 'bg-orange-400'}`} />
-                {g.div === 'North' ? 'מחוז צפון' : 'מחוז דרום'}
+                {g.div === 'North' ? (en ? 'North Division' : 'מחוז צפון') : (en ? 'South Division' : 'מחוז דרום')}
               </div>
 
               {/* Home team */}
               <div className="flex items-center gap-2 mb-1">
                 <TeamLogo logo={g.homeLogo} name={g.home} />
                 <p className="truncate text-xs font-black text-[#e8edf5] group-hover:text-orange-400 transition-colors leading-snug flex-1 font-heading">
-                  {g.home}
+                  {t(g.home)}
                 </p>
               </div>
 
@@ -309,14 +314,14 @@ export default function ScoreboardStrip({
               <div className="flex items-center gap-2">
                 <TeamLogo logo={g.awayLogo} name={g.away} />
                 <p className="truncate text-xs font-black text-[#e8edf5] group-hover:text-orange-400 transition-colors leading-snug flex-1 font-heading">
-                  {g.away}
+                  {t(g.away)}
                 </p>
               </div>
 
               <p className="mt-2 text-xs font-black text-[#8aaac8] font-body">
                 <span className="font-stats text-[#c8d8e8]">{nextDate}</span>
                 <span className="mx-1 text-[#3a5a7a]">·</span>
-                <span className="text-orange-400/90 group-hover:text-orange-400 transition-colors">לחץ לפרטים</span>
+                <span className="text-orange-400/90 group-hover:text-orange-400 transition-colors">{t('לחץ לפרטים')}</span>
               </p>
             </button>
           ))}

@@ -184,6 +184,7 @@ export const DICT: Record<string, string> = {
 
   // Footer
   'עמוד הבית': 'Home',
+  'לוח משחקים': 'Game Schedule',
   'טבלת הליגה': 'Standings',
   'לוח תוצאות חי': 'Live Scoreboard',
   'תקנון הליגה': 'League Rules',
@@ -429,9 +430,10 @@ export const DICT: Record<string, string> = {
   'קריית מלאכי': 'Kiryat Malakhi',
   'ק. מלאכי': 'Kiryat Malakhi',
   'אוריה ירושלים': 'Oria Jerusalem',
-  'ראשון "גפן" לציון': 'Rishon "Geffen" LeZion',
-  'ראשון “גפן” לציון': 'Rishon "Geffen" LeZion',
-  'ראשון ‟גפן‟ לציון': 'Rishon "Geffen" LeZion',
+  'ראשון "גפן" לציון': 'Rishon Geffen LeZion',
+  'ראשון “גפן” לציון': 'Rishon Geffen LeZion',
+  'ראשון ‟גפן‟ לציון': 'Rishon Geffen LeZion',
+  'ראשון גפן לציון': 'Rishon Geffen LeZion',
   'בני מוצקין': 'Bnei Motzkin',
   'אופק רחובות': 'Ofek Rehovot',
   'א.ט. ק.גת': 'A.T. Kiryat Gat',

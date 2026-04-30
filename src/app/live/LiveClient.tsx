@@ -294,7 +294,7 @@ export default function LiveClient({
                             {/* Home */}
                             <div className="flex items-center gap-2 flex-1 justify-end">
                               <span className={`text-sm font-black truncate font-heading ${isSelected ? 'text-orange-300' : 'text-white'}`}>
-                                {game.home_name}
+                                {t(game.home_name)}
                               </span>
                               <TeamLogo logo={game.home_logo} name={game.home_name} size={8} />
                             </div>
@@ -308,7 +308,7 @@ export default function LiveClient({
                             <div className="flex items-center gap-2 flex-1">
                               <TeamLogo logo={game.away_logo} name={game.away_name} size={8} />
                               <span className={`text-sm font-black truncate font-heading ${isSelected ? 'text-orange-300' : 'text-white'}`}>
-                                {game.away_name}
+                                {t(game.away_name)}
                               </span>
                             </div>
 
@@ -325,7 +325,7 @@ export default function LiveClient({
                                 <div>
                                   <div className="flex items-center gap-1.5 mb-2">
                                     <TeamLogo logo={game.home_logo} name={game.home_name} size={6} />
-                                    <p className="text-[10px] font-black text-orange-400 truncate font-heading">{game.home_name}</p>
+                                    <p className="text-[10px] font-black text-orange-400 truncate font-heading">{t(game.home_name)}</p>
                                   </div>
                                   {hPlayers.length === 0
                                     ? <p className="text-[10px] text-[#3a5a7a]">{lang === 'en' ? 'No players' : 'אין שחקנים'}</p>
@@ -344,7 +344,7 @@ export default function LiveClient({
                                 <div>
                                   <div className="flex items-center gap-1.5 mb-2">
                                     <TeamLogo logo={game.away_logo} name={game.away_name} size={6} />
-                                    <p className="text-[10px] font-black text-orange-400 truncate font-heading">{game.away_name}</p>
+                                    <p className="text-[10px] font-black text-orange-400 truncate font-heading">{t(game.away_name)}</p>
                                   </div>
                                   {aPlayers.length === 0
                                     ? <p className="text-[10px] text-[#3a5a7a]">{lang === 'en' ? 'No players' : 'אין שחקנים'}</p>

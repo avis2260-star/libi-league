@@ -49,12 +49,13 @@ function TeamLogo({ name, logos }: { name: string; logos: Record<string, string>
 
 // ── Upcoming game row ─────────────────────────────────────────────────────────
 function UpcomingRow({ home, away, logos, date }: { home: string; away: string; logos: Record<string, string>; date?: string }) {
+  const { t } = useLang();
   return (
     <div className="flex items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5">
       {/* Home — logo left, name right */}
       <Link href={`/team/${encodeURIComponent(home)}`} className="flex flex-1 items-center justify-end gap-2 min-w-0 group">
         <TeamLogo name={home} logos={logos} />
-        <span className="truncate text-sm font-semibold text-white group-hover:text-orange-400 transition-colors">{home}</span>
+        <span className="truncate text-sm font-semibold text-white group-hover:text-orange-400 transition-colors">{t(home)}</span>
       </Link>
 
       <div className="shrink-0 flex flex-col items-center gap-0.5">
@@ -64,7 +65,7 @@ function UpcomingRow({ home, away, logos, date }: { home: string; away: string; 
 
       {/* Away — name inner (near VS), logo outer-right */}
       <Link href={`/team/${encodeURIComponent(away)}`} className="flex flex-1 items-center justify-start gap-2 min-w-0 group">
-        <span className="truncate text-sm font-semibold text-white group-hover:text-orange-400 transition-colors">{away}</span>
+        <span className="truncate text-sm font-semibold text-white group-hover:text-orange-400 transition-colors">{t(away)}</span>
         <TeamLogo name={away} logos={logos} />
       </Link>
     </div>

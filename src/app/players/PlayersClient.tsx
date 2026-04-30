@@ -330,7 +330,7 @@ function PlayerGridView({
         >
           <option value="">{t('כל הקבוצות')}</option>
           {teams.map(tm => (
-            <option key={tm.id} value={tm.id}>{tm.name}</option>
+            <option key={tm.id} value={tm.id}>{t(tm.name)}</option>
           ))}
         </select>
 

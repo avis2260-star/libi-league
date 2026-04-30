@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import type { ScoreboardGame, ScoreboardPlayer } from './page';
+import { DICT } from '@/lib/dict';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type PS  = { name: string; jersey: number | null; pts: number; fouls: number };
@@ -40,6 +41,7 @@ export default function ScoreboardClient({
 }: { games: ScoreboardGame[]; players: ScoreboardPlayer[]; currentRound: number; roundDate?: string; initialLang?: 'he' | 'en' }) {
 
   const lang = initialLang;
+  const tt = (s: string) => lang === 'en' ? (DICT[s] ?? s) : s;
 
   // ── Step tracking ──────────────────────────────────────────────────────────
   const [phase,   setPhase]   = useState<Phase>('pick');
@@ -267,7 +269,7 @@ export default function ScoreboardClient({
                         className="w-full flex items-center gap-3 bg-[#0f1923] hover:bg-[#162030] border border-white/[0.07] hover:border-orange-500/30 rounded-2xl px-5 py-4 transition-all group">
                         {/* Home */}
                         <div className="flex items-center gap-3 flex-1 justify-end">
-                          <span className="text-base font-black text-white group-hover:text-orange-300 transition-colors font-heading">{g.home_name}</span>
+                          <span className="text-base font-black text-white group-hover:text-orange-300 transition-colors font-heading">{tt(g.home_name)}</span>
                           <Logo logo={g.home_logo} name={g.home_name} size={44} />
                         </div>
                         {/* VS */}
@@ -277,7 +279,7 @@ export default function ScoreboardClient({
                         {/* Away */}
                         <div className="flex items-center gap-3 flex-1">
                           <Logo logo={g.away_logo} name={g.away_name} size={44} />
-                          <span className="text-base font-black text-white group-hover:text-orange-300 transition-colors font-heading">{g.away_name}</span>
+                          <span className="text-base font-black text-white group-hover:text-orange-300 transition-colors font-heading">{tt(g.away_name)}</span>
                         </div>
                         {/* Arrow */}
                         <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-[#2a4a6a] group-hover:text-orange-400 transition-colors shrink-0">
@@ -446,7 +448,7 @@ export default function ScoreboardClient({
           <div className="flex items-center gap-3 mb-2">
             <Logo logo={t.logo} name={t.name} size={40} />
             <div className="min-w-0">
-              <p className="text-[11px] font-black uppercase tracking-wider truncate font-heading" style={{ color: accent }}>{t.name}</p>
+              <p className="text-[11px] font-black uppercase tracking-wider truncate font-heading" style={{ color: accent }}>{tt(t.name)}</p>
               <p className="text-4xl font-black text-white leading-none font-stats">{t.score}</p>
             </div>
           </div>
@@ -535,7 +537,7 @@ export default function ScoreboardClient({
           <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">LIBIGAME</span>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] text-orange-400 font-bold truncate">{home.name} vs {away.name}</p>
+          <p className="text-[10px] text-orange-400 font-bold truncate">{tt(home.name)} vs {tt(away.name)}</p>
         </div>
 
         {/* Control buttons */}
@@ -657,18 +659,18 @@ export default function ScoreboardClient({
           <div className="flex items-center gap-6">
             <div className="text-center">
               <Logo logo={home.logo} name={home.name} size={56} />
-              <p className="text-[#d4982a] font-black text-sm mt-2 font-heading">{home.name}</p>
+              <p className="text-[#d4982a] font-black text-sm mt-2 font-heading">{tt(home.name)}</p>
               <p className="text-5xl font-black text-white mt-1 font-stats">{home.score}</p>
             </div>
             <p className="text-3xl font-black text-[#3a5a7a]">—</p>
             <div className="text-center">
               <Logo logo={away.logo} name={away.name} size={56} />
-              <p className="text-[#4a9fd4] font-black text-sm mt-2 font-heading">{away.name}</p>
+              <p className="text-[#4a9fd4] font-black text-sm mt-2 font-heading">{tt(away.name)}</p>
               <p className="text-5xl font-black text-white mt-1 font-stats">{away.score}</p>
             </div>
           </div>
           <p className="text-lg font-black text-orange-400">
-            {home.score > away.score ? `${home.name} WIN!` : home.score < away.score ? `${away.name} WIN!` : 'TIE!'}
+            {home.score > away.score ? `${tt(home.name)} WIN!` : home.score < away.score ? `${tt(away.name)} WIN!` : 'TIE!'}
           </p>
           <div className="flex gap-3">
             <button onClick={exportCSV}

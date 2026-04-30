@@ -369,7 +369,9 @@ export default async function HomePage() {
   ];
   const nextDateRaw = LIBI_SCHEDULE.find(g => g.round === nextRound)?.date ?? '';
   const heDay = nextDateRaw
-    ? ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'][new Date(nextDateRaw).getDay()]
+    ? (lang === 'en'
+        ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(nextDateRaw).getDay()]
+        : ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'][new Date(nextDateRaw).getDay()])
     : '';
 
   // Fetch rosters for teams playing next round
@@ -585,7 +587,7 @@ export default async function HomePage() {
           <div className="p-5">
             <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">{T('מוביל סלים בליגה')}</p>
             <Link href={`/team/${encodeURIComponent(leagueTopScorer.name)}`} className="text-base font-black text-green-400 hover:underline underline-offset-2 transition-colors font-heading">
-              {leagueTopScorer.name}
+              {T(leagueTopScorer.name)}
             </Link>
             <p className="text-sm font-bold text-[#8aaac8] font-stats">
               {leagueTopScorer.pf ?? 0} <span className="font-body">{T('סלים')}</span>

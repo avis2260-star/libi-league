@@ -290,7 +290,7 @@ export default function SearchButton() {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="truncate text-sm font-bold text-white">{tm.name}</p>
+                          <p className="truncate text-sm font-bold text-white">{t(tm.name)}</p>
                           <p className="truncate text-xs font-semibold text-[#8aaac8]">{t('קבוצה')}</p>
                         </div>
                       </Row>
@@ -323,7 +323,7 @@ export default function SearchButton() {
                               <span className="text-[10px] font-bold text-[#8aaac8] shrink-0">{t('· לא פעיל')}</span>
                             )}
                           </p>
-                          <p className="truncate text-xs font-semibold text-[#8aaac8]">{p.team_name ?? t('שחקן')}</p>
+                          <p className="truncate text-xs font-semibold text-[#8aaac8]">{p.team_name ? t(p.team_name) : t('שחקן')}</p>
                         </div>
                       </Row>
                     );
