@@ -5,13 +5,16 @@ import { getLang } from '@/lib/get-lang';
 export const dynamic = 'force-dynamic';
 
 export default async function SubmitPage() {
-  // Only fetch finished/played games — submissions are for games that already happened
+  // Submissions are for games that already happened. Filter by date instead
+  // of status — admins don't always flip status to 'Finished' after a game,
+  // and submissions should be possible for any past game.
+  const today = new Date().toISOString().slice(0, 10);
   const { data: games } = await supabaseAdmin
     .from('games')
     .select(
       'id, game_date, game_time, status, home_team:teams!games_home_team_id_fkey(name), away_team:teams!games_away_team_id_fkey(name)',
     )
-    .eq('status', 'Finished')
+    .lte('game_date', today)
     .order('game_date', { ascending: false });
 
   // Fetch locked game IDs — games that already have an active submission
