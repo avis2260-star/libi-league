@@ -109,8 +109,9 @@ function FinalCard({ game, teamLogos }: { game: CupGame; teamLogos: Record<strin
           {homeWin && <span className="text-[10px] font-bold text-orange-400">🏆 {t('אלוף')}</span>}
         </div>
 
-        {/* Score / vs */}
-        <div className="flex flex-col items-center gap-1 shrink-0" dir="ltr">
+        {/* Score / vs — no dir override so home_score sits next to home_team
+           in both RTL and LTR layouts. */}
+        <div className="flex flex-col items-center gap-1 shrink-0">
           {game.played && game.home_score !== null && game.away_score !== null ? (
             <div className="flex items-center gap-2 font-stats">
               <span className={`text-2xl font-black tabular-nums ${homeWin ? 'text-orange-400' : 'text-[#5a7a9a]'}`}>{game.home_score}</span>

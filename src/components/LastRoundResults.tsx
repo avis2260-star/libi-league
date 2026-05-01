@@ -93,9 +93,10 @@ function GameCard({
         </div>
       </Link>
 
-      {/* Score */}
+      {/* Score — no dir override: in RTL the home_score sits next to the
+         home team (right side); in LTR it sits next to home team (left). */}
       <div className="min-w-[72px] shrink-0 rounded-lg bg-black/40 px-2.5 py-2 text-center">
-        <div className="flex items-center justify-center gap-1.5" dir="ltr">
+        <div className="flex items-center justify-center gap-1.5">
           <span
             className={`font-stats text-2xl font-black tabular-nums ${
               homeWins ? 'text-orange-400' : 'text-[#8aaac8]'
