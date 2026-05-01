@@ -79,14 +79,7 @@ export default async function Footer() {
       {/* Disclaimer */}
       <div className="px-4 pt-4 pb-3 flex items-start gap-2 text-xs font-semibold text-[#8aaac8] leading-relaxed">
         <span className="text-[#8aaac8] mt-0.5 shrink-0">ⓘ</span>
-        <p>
-          {T('הנתונים באתר הינם לידיעה בלבד.')}{' '}
-          {T('נמצאה טעות?')}{' '}
-          <Link href="/about" className="text-orange-400/70 hover:text-orange-400 underline underline-offset-2">
-            {T('פנו אלינו')}
-          </Link>
-          .
-        </p>
+        <p>{T('הנתונים באתר הינם לידיעה בלבד.')}</p>
       </div>
 
       {/* Links row */}
@@ -214,14 +207,7 @@ export default async function Footer() {
       <div className="border-t border-white/[0.04] bg-white/[0.015]">
         <div className="mx-auto max-w-7xl px-6 py-3 flex items-start gap-2 text-xs font-semibold text-[#8aaac8] leading-relaxed">
           <span className="text-[#8aaac8] mt-0.5 shrink-0">ⓘ</span>
-          <p>
-            {T('הנתונים באתר הינם לידיעה בלבד.')}{' '}
-            {T('נמצאה טעות?')}{' '}
-            <Link href="/about" className="text-orange-400/70 hover:text-orange-400 underline underline-offset-2 transition-colors">
-              {T('פנו אלינו')}
-            </Link>
-            .
-          </p>
+          <p>{T('הנתונים באתר הינם לידיעה בלבד.')}</p>
         </div>
       </div>
 

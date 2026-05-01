@@ -18,6 +18,7 @@ import AppRotationProvider from '@/components/AppRotationProvider';
 import RotationShell from '@/components/RotationShell';
 import Footer from '@/components/Footer';
 import BackButton from '@/components/BackButton';
+import ReportErrorButton from '@/components/ReportErrorButton';
 import { getLang, st } from '@/lib/get-lang';
 
 const heebo     = Heebo({ subsets: ['hebrew', 'latin'], weight: ['300','400','500','600','700','800','900'], variable: '--font-heebo' });
@@ -101,6 +102,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
           {/* ── Mobile bottom nav ─────────────────────────────────────────── */}
           <BottomNav />
+
+          {/* ── Floating error report button ──────────────────────────────── */}
+          <ReportErrorButton />
 
         </ThemeProvider>
         </TranslationProvider>

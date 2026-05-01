@@ -79,19 +79,6 @@ export default async function TermsPage() {
         </div>
       )}
 
-      {/* Disclaimer */}
-      <div className="rounded-2xl border border-white/[0.06] bg-orange-500/[0.04] px-5 py-4 flex items-start gap-3">
-        <span className="text-orange-400 text-lg shrink-0">ⓘ</span>
-        <p className="text-sm text-[#8aaac8] leading-relaxed">
-          {en
-            ? 'Site data is for information purposes only. Photos are published with player consent. Found a mistake? '
-            : 'הנתונים באתר הינם לידיעה בלבד. התמונות מועלות באישור השחקנים. נמצאה טעות? '}
-          <Link href="/about" className="text-orange-400 hover:underline underline-offset-2">
-            {en ? 'Contact us' : 'פנו אלינו'}
-          </Link>.
-        </p>
-      </div>
-
     </div>
   );
 }
