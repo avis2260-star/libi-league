@@ -67,9 +67,12 @@ function GameCard({
   T: (he: string) => string;
 }) {
   const homeWins     = game.home_score > game.away_score;
+  const awayWins     = game.away_score > game.home_score;
   const techni       = !!game.techni || isTechniScore(game.home_score, game.away_score);
+  // Badge shows on each team that didn't win — covers single-side forfeit
+  // (one badge) AND double forfeit / tied techni (badge on both).
   const techniOnHome = techni && !homeWins;
-  const techniOnAway = techni && homeWins;
+  const techniOnAway = techni && !awayWins;
 
   return (
     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 transition hover:-translate-y-0.5 hover:border-orange-500/30">
