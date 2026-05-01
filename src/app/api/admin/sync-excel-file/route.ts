@@ -1,6 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
+/* ── Team-name normalization for fuzzy matching across tables ──────────── */
+function normalizeTeamName(s: string): string {
+  return s
+    .replace(/["“”„‟״'`]/g, '')   // strip all quote/apostrophe variants
+    .replace(/[‘’]/g, '')         // smart apostrophes
+    .replace(/-/g, ' ')           // hyphens to spaces
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+/* Aliases — Excel results may use a shortened form vs the teams table */
+const TEAM_ALIASES: Record<string, string> = {
+  'אריות ק גת':      'אריות קריית גת',
+  'אס ק גת':         'אריות קריית גת',
+  'אט ק גת':         'אריות קריית גת',
+  'הה גדרה':         "החבר'ה הטובים גדרה",
+  'החברה הטובים':    "החבר'ה הטובים גדרה",
+  'החברה הטובים גדרה': "החבר'ה הטובים גדרה",
+};
+
+function resolveTeamId(name: string, teamMap: Map<string, string>): string | null {
+  const norm = normalizeTeamName(name);
+  // Direct hit
+  if (teamMap.has(norm)) return teamMap.get(norm)!;
+  // Alias lookup
+  const aliased = TEAM_ALIASES[norm];
+  if (aliased && teamMap.has(normalizeTeamName(aliased))) {
+    return teamMap.get(normalizeTeamName(aliased))!;
+  }
+  return null;
+}
+
+/* Convert Excel date "DD.M.YY" or "DD.MM.YY" to ISO "YYYY-MM-DD" */
+function toIsoDate(excelDate: string): string | null {
+  const m = excelDate.match(/^(\d{1,2})[./](\d{1,2})[./](\d{2,4})$/);
+  if (!m) return null;
+  const day   = m[1].padStart(2, '0');
+  const month = m[2].padStart(2, '0');
+  let year    = m[3];
+  if (year.length === 2) year = `20${year}`;
+  return `${year}-${month}-${day}`;
+}
+
 const NORTH_NAMES = new Set([
   'ידרסל חדרה', 'חולון', 'בני נתניה', 'גוטלמן השרון',
   'בני מוצקין', 'כ.ע. בת-ים', 'גלי בת-ים',
@@ -459,6 +503,89 @@ export async function POST(req: NextRequest) {
       resultsCount = results.length;
     }
 
+    // ── Auto-upsert games table from results ───────────────────────────
+    // The `games` table holds the schedule (used by /submit, scoreboard,
+    // upcoming games, etc.). Admins don't always pre-schedule rounds — but
+    // if a result was synced for a date, the game should exist as a
+    // 'Finished' record so users can submit stats for it.
+    let gamesCreated = 0;
+    let gamesUpdated = 0;
+    try {
+      const { data: teamsList } = await supabaseAdmin
+        .from('teams')
+        .select('id, name');
+
+      if (teamsList && teamsList.length > 0 && results.length > 0) {
+        // Build name → id map (normalized)
+        const teamMap = new Map<string, string>();
+        for (const t of teamsList) teamMap.set(normalizeTeamName(t.name), t.id);
+
+        // Load existing games once
+        const { data: existingGames } = await supabaseAdmin
+          .from('games')
+          .select('id, home_team_id, away_team_id, game_date, status, home_score, away_score');
+
+        const existingByKey = new Map<string, { id: string; status: string; home_score: number; away_score: number }>();
+        for (const g of existingGames ?? []) {
+          existingByKey.set(`${g.home_team_id}|${g.away_team_id}|${g.game_date}`, {
+            id: g.id, status: g.status, home_score: g.home_score, away_score: g.away_score,
+          });
+        }
+
+        const toInsert: {
+          home_team_id: string; away_team_id: string;
+          game_date: string; game_time: string; location: string;
+          home_score: number; away_score: number; status: string;
+        }[] = [];
+        const toUpdate: { id: string; home_score: number; away_score: number; status: string }[] = [];
+
+        for (const r of results) {
+          const homeId = resolveTeamId(r.home_team, teamMap);
+          const awayId = resolveTeamId(r.away_team, teamMap);
+          const isoDate = toIsoDate(r.date);
+          if (!homeId || !awayId || !isoDate) continue;
+
+          const key = `${homeId}|${awayId}|${isoDate}`;
+          const existing = existingByKey.get(key);
+
+          if (!existing) {
+            toInsert.push({
+              home_team_id: homeId, away_team_id: awayId,
+              game_date: isoDate, game_time: '19:00:00', location: 'TBD',
+              home_score: r.home_score, away_score: r.away_score,
+              status: 'Finished',
+            });
+          } else if (
+            existing.status !== 'Finished' ||
+            existing.home_score !== r.home_score ||
+            existing.away_score !== r.away_score
+          ) {
+            toUpdate.push({
+              id: existing.id,
+              home_score: r.home_score,
+              away_score: r.away_score,
+              status: 'Finished',
+            });
+          }
+        }
+
+        if (toInsert.length > 0) {
+          const { error: insErr } = await supabaseAdmin.from('games').insert(toInsert);
+          if (!insErr) gamesCreated = toInsert.length;
+        }
+        for (const u of toUpdate) {
+          const { error: updErr } = await supabaseAdmin
+            .from('games')
+            .update({ home_score: u.home_score, away_score: u.away_score, status: u.status })
+            .eq('id', u.id);
+          if (!updErr) gamesUpdated++;
+        }
+      }
+    } catch (e) {
+      console.error('auto-upsert games failed:', e);
+      // Don't fail the whole sync — auto-create is a nice-to-have
+    }
+
     // Replace cup games (silently skip if table doesn't exist yet)
     try {
       await supabaseAdmin.from('cup_games').delete().neq('round', '');
@@ -484,6 +611,8 @@ export async function POST(req: NextRequest) {
     if (south.length > 0) parts.push(`${south.length} קבוצות דרום`);
     if (resultsCount > 0) parts.push(`${resultsCount} תוצאות משחקים`);
     if (cupGames.length > 0) parts.push(`${cupGames.length} משחקי גביע`);
+    if (gamesCreated > 0) parts.push(`${gamesCreated} משחקים נוצרו אוטומטית`);
+    if (gamesUpdated > 0) parts.push(`${gamesUpdated} משחקים עודכנו`);
 
     return NextResponse.json({
       success: true,
