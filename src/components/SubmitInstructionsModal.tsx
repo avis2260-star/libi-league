@@ -4,7 +4,10 @@ import { useEffect, useState } from 'react';
 
 const STORAGE_KEY = 'submit-instructions-dismissed';
 
-const DESKTOP_CONTENT = {
+type Point = { label?: string; text: string };
+type Content = { title: string; intro: string; points: Point[]; warning: string };
+
+const DESKTOP_CONTENT: Content = {
   title: '🏀 דגשים קריטיים לעדכון סטטיסטיקה',
   intro: 'לפני שמתחילים, ודאו שטופס המשחק מולכם מולא לפי ההנחיות הבאות:',
   points: [
@@ -28,7 +31,7 @@ const DESKTOP_CONTENT = {
   warning: '⚠️ שימו לב: נתונים מטופס לא קריא או חסר – לא יועלו לאתר.',
 };
 
-const MOBILE_CONTENT = {
+const MOBILE_CONTENT: Content = {
   title: '🏀 דגשים להזנת נתונים',
   intro: 'ודאו שבטופס המצולם:',
   points: [
