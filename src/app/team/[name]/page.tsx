@@ -107,9 +107,14 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
 
   /* Filter games */
   const allGames = (resultsData ?? []) as GameRow[];
+  // A double-loss (both teams forfeit, stored as techni+0:0) must appear in the
+  // game log so that round numbers are not skipped in the streak history.
+  // Only exclude single-side techni games (one team wins 20:0).
+  const isDoubleLoss = (g: GameRow) =>
+    g.techni && g.home_score === 0 && g.away_score === 0;
   const teamGames = allGames.filter(g =>
-    !g.techni &&
-    (matchTeam(g.home_team, teamName) || matchTeam(g.away_team, teamName))
+    (matchTeam(g.home_team, teamName) || matchTeam(g.away_team, teamName)) &&
+    (!g.techni || isDoubleLoss(g))
   );
 
   /* Cup games */

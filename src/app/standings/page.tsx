@@ -32,6 +32,7 @@ type GameResultRow = {
   away_team: string;
   home_score: number | null;
   away_score: number | null;
+  techni: boolean | null;
 };
 
 type TeamRow = { name: string; logo_url: string | null };
@@ -54,7 +55,7 @@ async function getStandings(): Promise<{
       // sort chronologically, but the round number does.
       supabaseAdmin
         .from('game_results')
-        .select('round, home_team, away_team, home_score, away_score')
+        .select('round, home_team, away_team, home_score, away_score, techni')
         .order('round', { ascending: false }),
     ]);
 
@@ -77,8 +78,23 @@ async function getStandings(): Promise<{
     const keyFor = (name: string) => normName(resolveAlias(name));
     for (const g of gameRows) {
       if (g.home_score == null || g.away_score == null) continue;
-      // skip unplayed rows (both scores 0 usually means not played yet)
-      if (g.home_score === 0 && g.away_score === 0) continue;
+      // Skip genuinely unplayed rows (0:0 with no techni flag).
+      // A double-loss (both teams forfeit) is stored as 0:0 WITH techni=true —
+      // that must NOT be skipped; both teams receive 'L'.
+      if (g.home_score === 0 && g.away_score === 0 && !g.techni) continue;
+
+      // Double-loss: both teams forfeit (techni, 0:0) → both get 'L'
+      if (g.home_score === 0 && g.away_score === 0 && g.techni) {
+        for (const teamName of [g.home_team, g.away_team]) {
+          if (!teamName) continue;
+          const k = keyFor(teamName);
+          const arr = byTeamResults.get(k) ?? [];
+          arr.push({ result: 'L', round: g.round });
+          byTeamResults.set(k, arr);
+        }
+        continue;
+      }
+
       const homeWon = g.home_score > g.away_score;
       if (g.home_team) {
         const result: 'W' | 'L' = homeWon ? 'W' : 'L';
