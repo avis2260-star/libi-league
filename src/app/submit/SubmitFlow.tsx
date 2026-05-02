@@ -6,6 +6,7 @@ import ImageQualityModal from '@/components/ImageQualityModal';
 import ImageCropper from '@/components/ImageCropper';
 import { submitGameResult } from '@/app/admin/actions';
 import { useLang } from '@/components/TranslationProvider';
+import SubmitInstructionsModal from '@/components/SubmitInstructionsModal';
 
 type Game = {
   id: string;
@@ -473,6 +474,7 @@ export default function SubmitFlow({
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-[60vh] flex items-start justify-center pt-8 px-4">
+      <SubmitInstructionsModal />
       <div className="w-full max-w-xl space-y-6">
 
         {/* ── Step 1 ── */}
