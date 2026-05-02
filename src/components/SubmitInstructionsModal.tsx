@@ -102,9 +102,9 @@ export default function SubmitInstructionsModal() {
                 {/* Orange bullet dot */}
                 <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-orange-500" />
                 <p className="text-sm text-[#c8d8e8] leading-relaxed">
-                  {'label' in point && point.label && (
-                    <span className="font-black text-white">{point.label} </span>
-                  )}
+                  {point.label ? (
+                    <><span className="font-black text-white">{point.label}</span>{' '}</>
+                  ) : null}
                   {point.text}
                 </p>
               </li>
