@@ -75,12 +75,12 @@ function GameCard({
   const techniOnAway = techni && !awayWins;
 
   return (
-    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 transition hover:-translate-y-0.5 hover:border-orange-500/30">
+    <Link
+      href={`/games/${game.round}/${encodeURIComponent(game.home_team)}`}
+      className="group grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 transition hover:-translate-y-0.5 hover:border-orange-500/40 hover:bg-orange-500/[0.04] cursor-pointer"
+    >
       {/* Home */}
-      <Link
-        href={`/team/${encodeURIComponent(game.home_team)}`}
-        className="group flex min-w-0 items-center justify-end gap-2"
-      >
+      <div className="flex min-w-0 items-center justify-end gap-2">
         <TeamLogo name={game.home_team} displayName={T(game.home_team)} url={findLogo(game.home_team, logos)} />
         <div className="min-w-0 text-right">
           <p
@@ -94,7 +94,7 @@ function GameCard({
             <p className="mt-0.5 text-[10px] font-black text-red-400">{T('🔴 הפסד טכני')}</p>
           )}
         </div>
-      </Link>
+      </div>
 
       {/* Score — no dir override: in RTL the home_score sits next to the
          home team (right side); in LTR it sits next to home team (left). */}
@@ -122,10 +122,7 @@ function GameCard({
       </div>
 
       {/* Away */}
-      <Link
-        href={`/team/${encodeURIComponent(game.away_team)}`}
-        className="group flex min-w-0 items-center justify-start gap-2"
-      >
+      <div className="flex min-w-0 items-center justify-start gap-2">
         <div className="min-w-0 text-left">
           <p
             className={`truncate text-sm font-bold leading-tight transition-colors group-hover:text-orange-400 font-heading ${
@@ -139,8 +136,8 @@ function GameCard({
           )}
         </div>
         <TeamLogo name={game.away_team} displayName={T(game.away_team)} url={findLogo(game.away_team, logos)} />
-      </Link>
-    </div>
+      </div>
+    </Link>
   );
 }
 

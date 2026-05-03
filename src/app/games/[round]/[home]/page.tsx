@@ -59,13 +59,17 @@ export default async function GamePreviewPage({
   // a date filter would silently miss the row and the time/location entered
   // in admin would never appear here. Instead we filter by team pair, which
   // is unique per matchup per round and survives date drifts.
-  const [teams, standingsRes, dbGamesRes] = await Promise.all([
+  const [teams, standingsRes, dbGamesRes, resultRes] = await Promise.all([
     getTeams(),
     supabaseAdmin.from('standings').select('name,rank,wins,losses,diff,pts,games,pf,pa').order('rank'),
     supabaseAdmin
       .from('games')
-      .select('game_time,location,game_date,home_team:teams!games_home_team_id_fkey(name),away_team:teams!games_away_team_id_fkey(name)')
+      .select('id,game_time,location,game_date,video_url,home_team:teams!games_home_team_id_fkey(name),away_team:teams!games_away_team_id_fkey(name)')
       .order('game_date', { ascending: false }),
+    supabaseAdmin
+      .from('game_results')
+      .select('round,home_team,away_team,home_score,away_score,techni')
+      .eq('round', round),
   ]);
 
   // Logo map
@@ -84,9 +88,13 @@ export default async function GamePreviewPage({
   // if (rarely) more than one row exists for the same matchup.
   let gameTime: string | null = null;
   let gameLocation: string | null = null;
+  let gameId: string | null = null;
+  let videoUrl: string | null = null;
   const dbGames = (dbGamesRes.data ?? []) as unknown as {
+    id: string;
     game_time: string;
     location: string;
+    video_url: string | null;
     home_team: { name: string } | null;
     away_team: { name: string } | null;
   }[];
@@ -96,10 +104,55 @@ export default async function GamePreviewPage({
       normalize(g.away_team?.name ?? '') === normalize(game.awayTeam)
   );
   if (dbMatch) {
+    gameId       = dbMatch.id;
     const t = dbMatch.game_time;
     gameTime     = (t && t !== '00:00:00') ? t : null;
     const l = dbMatch.location;
     gameLocation = (l && l !== 'TBD') ? l : null;
+    videoUrl     = dbMatch.video_url;
+  }
+
+  // Result from game_results (matched by round + team pair)
+  type ResultRow = {
+    round: number; home_team: string; away_team: string;
+    home_score: number; away_score: number; techni: boolean;
+  };
+  const resultRow = ((resultRes.data ?? []) as ResultRow[]).find(
+    r =>
+      normalize(r.home_team) === normalize(game.homeTeam) &&
+      normalize(r.away_team) === normalize(game.awayTeam)
+  );
+  const isPlayed = !!resultRow;
+  const homeScore = resultRow?.home_score ?? null;
+  const awayScore = resultRow?.away_score ?? null;
+  const techni = resultRow?.techni ?? false;
+  const homeWon = isPlayed && (homeScore as number) > (awayScore as number);
+  const awayWon = isPlayed && (awayScore as number) > (homeScore as number);
+
+  // Box score: per-player stats for this game
+  type BoxRow = {
+    player: { id: string; name: string; jersey_number: number | null } | null;
+    team_id: string;
+    points: number;
+    three_pointers: number;
+    fouls: number;
+  };
+  let homeBox: BoxRow[] = [];
+  let awayBox: BoxRow[] = [];
+  if (gameId) {
+    const { data: statsData } = await supabaseAdmin
+      .from('game_stats')
+      .select('points,three_pointers,fouls,team_id,player:players(id,name,jersey_number)')
+      .eq('game_id', gameId);
+    const allBox = (statsData ?? []) as unknown as BoxRow[];
+    const homeTeamObj = teams.find(t => normalize(t.name) === normalize(game.homeTeam));
+    const awayTeamObj = teams.find(t => normalize(t.name) === normalize(game.awayTeam));
+    if (homeTeamObj) homeBox = allBox.filter(s => s.team_id === homeTeamObj.id);
+    if (awayTeamObj) awayBox = allBox.filter(s => s.team_id === awayTeamObj.id);
+    // Sort by points desc within each team
+    const sortByPts = (a: BoxRow, b: BoxRow) => b.points - a.points;
+    homeBox.sort(sortByPts);
+    awayBox.sort(sortByPts);
   }
 
   const dateStr    = ROUND_DATES[round] ?? game.date;
@@ -137,8 +190,12 @@ export default async function GamePreviewPage({
             {dayOfWeek && <span className="font-black text-white">{en ? `${dayOfWeek} · ` : `יום ${dayOfWeek} · `}</span>}
             {dateStr}
           </p>
-          <span className="rounded-full bg-orange-500/10 border border-orange-500/20 px-3 py-0.5 text-xs font-bold text-orange-400">
-            {en ? 'Upcoming' : 'קרוב'}
+          <span className={`rounded-full border px-3 py-0.5 text-xs font-bold ${
+            isPlayed
+              ? 'bg-green-500/10 border-green-500/20 text-green-400'
+              : 'bg-orange-500/10 border-orange-500/20 text-orange-400'
+          }`}>
+            {isPlayed ? (en ? 'Final' : 'הסתיים') : (en ? 'Upcoming' : 'קרוב')}
           </span>
         </div>
 
@@ -157,12 +214,26 @@ export default async function GamePreviewPage({
               }
             </div>
             <div className="text-center">
-              <p className="text-base font-black text-white leading-tight group-hover/team:text-orange-400 transition-colors">{T(game.homeTeam)}</p>
+              <p className={`text-base font-black leading-tight group-hover/team:text-orange-400 transition-colors ${homeWon ? 'text-orange-400' : 'text-white'}`}>{T(game.homeTeam)}</p>
               <p className="mt-0.5 text-xs text-[#5a7a9a]">{en ? 'Home Team' : 'קבוצת בית'}</p>
             </div>
           </Link>
 
-          <span className="text-2xl font-black text-[#2a4a6a] shrink-0">VS</span>
+          {/* Final score or VS */}
+          {isPlayed ? (
+            <div className="shrink-0 flex flex-col items-center gap-1">
+              <div className="flex items-center gap-2">
+                <span className={`font-stats text-4xl sm:text-5xl font-black tabular-nums ${homeWon ? 'text-orange-400' : 'text-[#5a7a9a]'}`}>{homeScore}</span>
+                <span className="text-[#5a7a9a] font-black text-2xl">:</span>
+                <span className={`font-stats text-4xl sm:text-5xl font-black tabular-nums ${awayWon ? 'text-orange-400' : 'text-[#5a7a9a]'}`}>{awayScore}</span>
+              </div>
+              {techni && (
+                <p className="text-[10px] font-black tracking-wide text-red-400">🔴 {T('הפסד טכני')}</p>
+              )}
+            </div>
+          ) : (
+            <span className="text-2xl font-black text-[#2a4a6a] shrink-0">VS</span>
+          )}
 
           {/* Away team */}
           <Link href={`/team/${encodeURIComponent(game.awayTeam)}`} className="group/team flex flex-col items-center gap-3 flex-1 hover:opacity-90 transition-opacity">
@@ -178,7 +249,7 @@ export default async function GamePreviewPage({
               }
             </div>
             <div className="text-center">
-              <p className="text-base font-black text-white leading-tight group-hover/team:text-orange-400 transition-colors">{T(game.awayTeam)}</p>
+              <p className={`text-base font-black leading-tight group-hover/team:text-orange-400 transition-colors ${awayWon ? 'text-orange-400' : 'text-white'}`}>{T(game.awayTeam)}</p>
               <p className="mt-0.5 text-xs text-[#5a7a9a]">{en ? 'Away Team' : 'קבוצת חוץ'}</p>
             </div>
           </Link>
@@ -236,6 +307,133 @@ export default async function GamePreviewPage({
             </div>
           ))}
         </div>
+      )}
+
+      {/* Box score — per-player stats for finished games */}
+      {isPlayed && (
+        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] overflow-hidden">
+          <div className="border-b border-white/[0.06] px-5 py-3">
+            <h2 className="text-sm font-bold text-white">📋 {en ? 'Box Score' : 'גיליון סטטיסטיקה'}</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x md:divide-x-reverse divide-white/[0.05]">
+            {/* Home team box */}
+            <div className="p-4">
+              <div className="mb-3 flex items-center gap-2">
+                {homeLogo
+                  ? <img src={homeLogo} alt={T(game.homeTeam)} className="h-8 w-8 shrink-0 rounded-full border border-white/10 object-cover" />
+                  : <div className="h-8 w-8 shrink-0 rounded-full bg-[#1a2e45] border border-white/10 flex items-center justify-center text-[10px] font-black text-[#3a5a7a]">{[...T(game.homeTeam)].find(c => c.trim()) ?? '?'}</div>
+                }
+                <p className={`font-black ${homeWon ? 'text-orange-400' : 'text-white'}`}>{T(game.homeTeam)}</p>
+                <span className={`ml-auto font-stats text-2xl font-black tabular-nums ${homeWon ? 'text-orange-400' : 'text-[#8aaac8]'}`}>{homeScore}</span>
+              </div>
+              {homeBox.length === 0 ? (
+                <p className="text-xs text-[#5a7a9a] py-4 text-center">{en ? 'No player stats yet' : 'אין נתוני שחקנים'}</p>
+              ) : (
+                <table className="w-full">
+                  <thead>
+                    <tr className="text-[9px] font-bold uppercase tracking-widest text-[#5a7a9a] border-b border-white/[0.06]">
+                      <th className={`py-1.5 ${en ? 'text-left' : 'text-right'}`}>{en ? 'Player' : 'שחקן'}</th>
+                      <th className="py-1.5 text-center w-10">#</th>
+                      <th className="py-1.5 text-center w-10">{T('נק׳')}</th>
+                      <th className="py-1.5 text-center w-10">3PT</th>
+                      <th className="py-1.5 text-center w-10">{en ? 'F' : 'עב'}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {homeBox.map((row, i) => (
+                      <tr key={i} className="border-b border-white/[0.04] last:border-0">
+                        <td className={`py-1.5 text-xs font-bold text-white ${en ? 'text-left' : 'text-right'}`}>
+                          <Link href={row.player ? `/players/${row.player.id}` : '#'} className="hover:text-orange-400 transition-colors">
+                            {row.player?.name ?? '—'}
+                          </Link>
+                        </td>
+                        <td className="py-1.5 text-center text-[11px] text-[#5a7a9a] font-stats tabular-nums">{row.player?.jersey_number ?? '—'}</td>
+                        <td className="py-1.5 text-center font-stats text-sm font-black text-orange-400 tabular-nums">{row.points}</td>
+                        <td className="py-1.5 text-center font-stats text-xs font-bold text-[#e0c97a] tabular-nums">{row.three_pointers}</td>
+                        <td className="py-1.5 text-center font-stats text-xs font-bold text-red-400 tabular-nums">{row.fouls}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Away team box */}
+            <div className="p-4">
+              <div className="mb-3 flex items-center gap-2">
+                {awayLogo
+                  ? <img src={awayLogo} alt={T(game.awayTeam)} className="h-8 w-8 shrink-0 rounded-full border border-white/10 object-cover" />
+                  : <div className="h-8 w-8 shrink-0 rounded-full bg-[#1a2e45] border border-white/10 flex items-center justify-center text-[10px] font-black text-[#3a5a7a]">{[...T(game.awayTeam)].find(c => c.trim()) ?? '?'}</div>
+                }
+                <p className={`font-black ${awayWon ? 'text-orange-400' : 'text-white'}`}>{T(game.awayTeam)}</p>
+                <span className={`ml-auto font-stats text-2xl font-black tabular-nums ${awayWon ? 'text-orange-400' : 'text-[#8aaac8]'}`}>{awayScore}</span>
+              </div>
+              {awayBox.length === 0 ? (
+                <p className="text-xs text-[#5a7a9a] py-4 text-center">{en ? 'No player stats yet' : 'אין נתוני שחקנים'}</p>
+              ) : (
+                <table className="w-full">
+                  <thead>
+                    <tr className="text-[9px] font-bold uppercase tracking-widest text-[#5a7a9a] border-b border-white/[0.06]">
+                      <th className={`py-1.5 ${en ? 'text-left' : 'text-right'}`}>{en ? 'Player' : 'שחקן'}</th>
+                      <th className="py-1.5 text-center w-10">#</th>
+                      <th className="py-1.5 text-center w-10">{T('נק׳')}</th>
+                      <th className="py-1.5 text-center w-10">3PT</th>
+                      <th className="py-1.5 text-center w-10">{en ? 'F' : 'עב'}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {awayBox.map((row, i) => (
+                      <tr key={i} className="border-b border-white/[0.04] last:border-0">
+                        <td className={`py-1.5 text-xs font-bold text-white ${en ? 'text-left' : 'text-right'}`}>
+                          <Link href={row.player ? `/players/${row.player.id}` : '#'} className="hover:text-orange-400 transition-colors">
+                            {row.player?.name ?? '—'}
+                          </Link>
+                        </td>
+                        <td className="py-1.5 text-center text-[11px] text-[#5a7a9a] font-stats tabular-nums">{row.player?.jersey_number ?? '—'}</td>
+                        <td className="py-1.5 text-center font-stats text-sm font-black text-orange-400 tabular-nums">{row.points}</td>
+                        <td className="py-1.5 text-center font-stats text-xs font-bold text-[#e0c97a] tabular-nums">{row.three_pointers}</td>
+                        <td className="py-1.5 text-center font-stats text-xs font-bold text-red-400 tabular-nums">{row.fouls}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+
+          {/* Top scorer highlight */}
+          {(() => {
+            const all = [...homeBox.map(r => ({ ...r, side: 'home' as const })), ...awayBox.map(r => ({ ...r, side: 'away' as const }))];
+            const top = all.sort((a, b) => b.points - a.points)[0];
+            if (!top || top.points === 0 || !top.player) return null;
+            const teamName = top.side === 'home' ? game.homeTeam : game.awayTeam;
+            return (
+              <div className="border-t border-white/[0.06] bg-orange-500/[0.04] px-5 py-3 flex items-center gap-2 text-sm">
+                <span className="text-base">🏆</span>
+                <span className="font-bold text-[#8aaac8]">{en ? 'Top Scorer:' : 'מוביל הסלים:'}</span>
+                <Link href={`/players/${top.player.id}`} className="font-black text-white hover:text-orange-400 transition-colors">
+                  {top.player.name}
+                </Link>
+                <span className="text-[#5a7a9a]">·</span>
+                <span className="text-[#5a7a9a] text-xs">{T(teamName)}</span>
+                <span className="ml-auto font-stats font-black text-orange-400 text-lg">{top.points}</span>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* Video link */}
+      {videoUrl && (
+        <a
+          href={videoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-2 rounded-2xl border border-orange-500/30 bg-orange-500/10 px-5 py-3 text-sm font-bold text-orange-400 hover:bg-orange-500/20 transition-colors"
+        >
+          🎬 {en ? 'Watch Game Video' : 'צפה בסרטון המשחק'}
+        </a>
       )}
     </div>
   );

@@ -40,9 +40,12 @@ function GameCard({ game, logos, t }: { game: GameResult; logos: Record<string, 
   const techniOnAway = techni && !awayWins;
 
   return (
-    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 transition hover:-translate-y-0.5 hover:border-orange-500/30">
+    <Link
+      href={`/games/${game.round}/${encodeURIComponent(game.home)}`}
+      className="group grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 transition hover:-translate-y-0.5 hover:border-orange-500/40 hover:bg-orange-500/[0.04] cursor-pointer"
+    >
       {/* Home */}
-      <Link href={`/team/${encodeURIComponent(game.home)}`} className="flex items-center justify-end gap-2 min-w-0 group">
+      <div className="flex items-center justify-end gap-2 min-w-0">
         <TeamLogo name={game.home} logos={logos} />
         <div className="text-right min-w-0">
           <p className={`text-sm font-bold leading-tight truncate group-hover:text-orange-400 transition-colors ${homeWins ? 'text-white' : 'text-[#8aaac8]'}`}>
@@ -50,7 +53,7 @@ function GameCard({ game, logos, t }: { game: GameResult; logos: Record<string, 
           </p>
           {techniOnHome && <p className="mt-0.5 text-[10px] font-black text-red-400">{t('🔴 הפסד טכני')}</p>}
         </div>
-      </Link>
+      </div>
 
       {/* Score */}
       <div className="min-w-[68px] shrink-0 rounded-lg bg-black/40 px-2.5 py-2 text-center">
@@ -63,7 +66,7 @@ function GameCard({ game, logos, t }: { game: GameResult; logos: Record<string, 
       </div>
 
       {/* Away */}
-      <Link href={`/team/${encodeURIComponent(game.away)}`} className="flex items-center justify-start gap-2 min-w-0 group">
+      <div className="flex items-center justify-start gap-2 min-w-0">
         <div className="text-left min-w-0">
           <p className={`text-sm font-bold leading-tight truncate group-hover:text-orange-400 transition-colors ${!homeWins ? 'text-white' : 'text-[#8aaac8]'}`}>
             {t(game.away)}
@@ -71,8 +74,8 @@ function GameCard({ game, logos, t }: { game: GameResult; logos: Record<string, 
           {techniOnAway && <p className="mt-0.5 text-[10px] font-black text-red-400">{t('🔴 הפסד טכני')}</p>}
         </div>
         <TeamLogo name={game.away} logos={logos} />
-      </Link>
-    </div>
+      </div>
+    </Link>
   );
 }
 
