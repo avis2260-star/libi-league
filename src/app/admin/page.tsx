@@ -19,6 +19,7 @@ import SubmissionsTab, { type SubmissionRow } from '@/components/admin/Submissio
 import PlayerStatsTab, { type PlayerStatRow } from '@/components/admin/PlayerStatsTab';
 import MessagesTab, { type ContactMessage } from '@/components/admin/MessagesTab';
 import TermsTab from '@/components/admin/TermsTab';
+import AboutTab from '@/components/admin/AboutTab';
 import HallOfFameTab from '@/components/admin/HallOfFameTab';
 import type { GameWithTeams, Team } from '@/types';
 
@@ -180,6 +181,23 @@ export default async function AdminPage({
     privacyPolicy = p?.value ?? '';
   }
 
+  // About page tab
+  let aboutHeroSubtitle = '';
+  let aboutStory = '';
+  let aboutAssociation = '';
+  let aboutChairmanName = '';
+  if (tab === 'about') {
+    const { data } = await supabaseAdmin
+      .from('league_settings')
+      .select('key,value')
+      .in('key', ['about_hero_subtitle', 'about_story', 'about_association', 'about_chairman_name']);
+    const map = new Map<string, string>((data ?? []).map((r) => [r.key, r.value]));
+    aboutHeroSubtitle = map.get('about_hero_subtitle') ?? '';
+    aboutStory = map.get('about_story') ?? '';
+    aboutAssociation = map.get('about_association') ?? '';
+    aboutChairmanName = map.get('about_chairman_name') ?? '';
+  }
+
   // Contact messages tab
   let contactMessages: ContactMessage[] = [];
   if (tab === 'messages') {
@@ -253,6 +271,7 @@ export default async function AdminPage({
       {tab === 'playerstats'   && <PlayerStatsTab players={playerStats} />}
       {tab === 'messages'      && <MessagesTab messages={contactMessages} />}
       {tab === 'terms'         && <TermsTab termsOfUse={termsOfUse} privacyPolicy={privacyPolicy} />}
+      {tab === 'about'         && <AboutTab heroSubtitle={aboutHeroSubtitle} story={aboutStory} association={aboutAssociation} chairmanName={aboutChairmanName} />}
       {tab === 'halloffame'    && <HallOfFameTab seasons={hofSeasons} records={hofRecords} />}
     </>
   );

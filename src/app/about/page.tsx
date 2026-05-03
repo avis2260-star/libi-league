@@ -11,9 +11,54 @@ async function getLogoUrl() {
   } catch { return '/logo.png'; }
 }
 
+const DEFAULT_HERO_SUBTITLE =
+  'ליגה קהילתית לכדורסל הפועלת משנת 2012 המאגדת קבוצות מרחבי הארץ, עם שני מחוזות — צפון ודרום — ומערכת גביע ופלייאוף מרגשת.';
+
+const DEFAULT_STORY = [
+  'ליגת ליב"י — ליגת ביתא ישראל — היא ליגת כדורסל קהילתית שהוקמה לפני למעלה מ-13 שנים על ידי קבוצת חברים שמטרתם המשותפת הייתה פשוטה: לשחק את הכדורסל שהם כל כך אוהבים.',
+  'מה שהתחיל כמשחק שכונתי עם 5 קבוצות הפך לליגה ספורטיבית ומאתגרת המנוהלת על פי כללי כדורסל מקצועניים, ומונה כיום 15 קבוצות ומעל 200 שחקנים מרחבי הארץ.',
+  'חברי הליגה הם אנשים שעובדים בתפקידי מפתח בחברה הישראלית — אנשים שהחיים לא אפשרו להם לעסוק בספורט תחרותי. הגילאים נעים בין 18 ל-55, והמגוון האנושי הוא אחד מסימני ההיכר שלנו — שחקנים מעדות שונות, רקעים שונים, כולם על אותו מגרש.',
+].join('\n\n');
+
+const DEFAULT_ASSOCIATION = [
+  'הליגה מתנהלת תחת עמותת עוצמת ליב"י — עמותה ללא מטרת רווח, המושתת על תרבות הכדורסל תוך פתיחה לכל הגילאים, המגדרים והעדות.',
+  'שם העמותה טומן בחובו הנצחה לקהילת יהודי אתיופיה — ביתא ישראל — ומשקף את המהות, הקשר והזיקה לקהילה. שעריה פתוחים לכולם.',
+].join('\n\n');
+
+const DEFAULT_CHAIRMAN_NAME = 'יאיר טקה';
+
+async function getAboutContent() {
+  try {
+    const { data } = await supabaseAdmin
+      .from('league_settings')
+      .select('key,value')
+      .in('key', ['about_hero_subtitle', 'about_story', 'about_association', 'about_chairman_name']);
+    const map = new Map<string, string>((data ?? []).map((r) => [r.key, r.value]));
+    return {
+      heroSubtitle: map.get('about_hero_subtitle')?.trim() || DEFAULT_HERO_SUBTITLE,
+      story:        map.get('about_story')?.trim()         || DEFAULT_STORY,
+      association:  map.get('about_association')?.trim()   || DEFAULT_ASSOCIATION,
+      chairmanName: map.get('about_chairman_name')?.trim() || DEFAULT_CHAIRMAN_NAME,
+    };
+  } catch {
+    return {
+      heroSubtitle: DEFAULT_HERO_SUBTITLE,
+      story:        DEFAULT_STORY,
+      association:  DEFAULT_ASSOCIATION,
+      chairmanName: DEFAULT_CHAIRMAN_NAME,
+    };
+  }
+}
+
+function paragraphs(text: string): string[] {
+  return text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+}
+
 export default async function AboutPage() {
-  const [logoUrl, lang] = await Promise.all([getLogoUrl(), getLang()]);
+  const [logoUrl, lang, about] = await Promise.all([getLogoUrl(), getLang(), getAboutContent()]);
   const T = (he: string) => st(he, lang);
+  const storyParas = paragraphs(about.story);
+  const associationParas = paragraphs(about.association);
 
   return (
     <div className="max-w-3xl mx-auto space-y-10">
@@ -26,7 +71,7 @@ export default async function AboutPage() {
           <h1 className="text-4xl font-black text-white font-heading">{T('ליגת ליבי')}</h1>
         </div>
         <p className="text-[#c8d8e8] text-base font-semibold leading-relaxed max-w-xl">
-          {T('ליגה קהילתית לכדורסל הפועלת משנת 2012 המאגדת קבוצות מרחבי הארץ, עם שני מחוזות — צפון ודרום — ומערכת גביע ופלייאוף מרגשת.')}
+          {T(about.heroSubtitle)}
         </p>
       </div>
 
@@ -52,15 +97,9 @@ export default async function AboutPage() {
           <h2 className="text-base font-bold text-[#e0c97a] font-heading">📖 {T('הסיפור שלנו')}</h2>
         </div>
         <div className="px-5 py-5 space-y-4 text-sm font-semibold text-[#c8d8e8] leading-relaxed font-body">
-          <p>
-            {T('ליגת ליב"י — ליגת ביתא ישראל — היא ליגת כדורסל קהילתית שהוקמה לפני למעלה מ-13 שנים על ידי קבוצת חברים שמטרתם המשותפת הייתה פשוטה: לשחק את הכדורסל שהם כל כך אוהבים.')}
-          </p>
-          <p>
-            {T('מה שהתחיל כמשחק שכונתי עם 5 קבוצות הפך לליגה ספורטיבית ומאתגרת המנוהלת על פי כללי כדורסל מקצועניים, ומונה כיום 15 קבוצות ומעל 200 שחקנים מרחבי הארץ.')}
-          </p>
-          <p>
-            {T('חברי הליגה הם אנשים שעובדים בתפקידי מפתח בחברה הישראלית — אנשים שהחיים לא אפשרו להם לעסוק בספורט תחרותי. הגילאים נעים בין 18 ל-55, והמגוון האנושי הוא אחד מסימני ההיכר שלנו — שחקנים מעדות שונות, רקעים שונים, כולם על אותו מגרש.')}
-          </p>
+          {storyParas.map((p, i) => (
+            <p key={i}>{T(p)}</p>
+          ))}
         </div>
       </div>
 
@@ -93,15 +132,12 @@ export default async function AboutPage() {
           <h2 className="text-base font-bold text-[#e0c97a] font-heading">🏛️ {T('עמותת עוצמת ליב"י')}</h2>
         </div>
         <div className="px-5 py-5 space-y-4 text-sm font-semibold text-[#c8d8e8] leading-relaxed font-body">
-          <p>
-            {T('הליגה מתנהלת תחת עמותת עוצמת ליב"י — עמותה ללא מטרת רווח, המושתת על תרבות הכדורסל תוך פתיחה לכל הגילאים, המגדרים והעדות.')}
-          </p>
-          <p>
-            {T('שם העמותה טומן בחובו הנצחה לקהילת יהודי אתיופיה — ביתא ישראל — ומשקף את המהות, הקשר והזיקה לקהילה. שעריה פתוחים לכולם.')}
-          </p>
+          {associationParas.map((p, i) => (
+            <p key={i}>{T(p)}</p>
+          ))}
           <div className="mt-2 inline-flex items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.04] px-4 py-2">
             <span className="text-orange-400 font-black font-heading text-sm">{T('יו"ר העמותה:')}</span>
-            <span className="text-white font-bold font-body text-sm">{T('יאיר טקה')}</span>
+            <span className="text-white font-bold font-body text-sm">{T(about.chairmanName)}</span>
           </div>
         </div>
       </div>

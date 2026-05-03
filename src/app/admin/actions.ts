@@ -626,6 +626,27 @@ export async function saveTermsSetting(
   return {};
 }
 
+// ── About page text ───────────────────────────────────────────────────────────
+
+export type AboutSettingKey =
+  | 'about_hero_subtitle'
+  | 'about_story'
+  | 'about_association'
+  | 'about_chairman_name';
+
+export async function saveAboutSetting(
+  key: AboutSettingKey,
+  value: string,
+): Promise<ActionResult> {
+  const { error } = await supabaseAdmin
+    .from('league_settings')
+    .upsert({ key, value }, { onConflict: 'key' });
+
+  if (error) return { error: error.message };
+  revalidatePath('/about');
+  return {};
+}
+
 // ── Contact messages ─────────────────────────────────────────────────────────
 
 export async function markMessageRead(id: string): Promise<ActionResult> {
