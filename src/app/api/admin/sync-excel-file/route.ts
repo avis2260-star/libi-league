@@ -521,22 +521,32 @@ export async function POST(req: NextRequest) {
         const teamMap = new Map<string, string>();
         for (const t of teamsList) teamMap.set(normalizeTeamName(t.name), t.id);
 
-        // Load existing games once
+        // Load existing games once — INCLUDE game_time + location so we can
+        // preserve admin-filled values when migrating a rescheduled row.
         const { data: existingGames } = await supabaseAdmin
           .from('games')
-          .select('id, home_team_id, away_team_id, game_date, status, home_score, away_score');
+          .select('id, home_team_id, away_team_id, game_date, game_time, location, status, home_score, away_score');
 
-        const existingByKey = new Map<string, { id: string; status: string; home_score: number; away_score: number }>();
+        type ExistingGame = {
+          id: string; date: string; status: string;
+          home_score: number; away_score: number;
+          game_time: string; location: string;
+        };
+        const existingByKey = new Map<string, ExistingGame>();
         // Group by team-pair so we can detect stale duplicates from a
         // rescheduled fixture (same matchup, old date, still 'Scheduled').
-        const existingByPair = new Map<string, { id: string; date: string; status: string }[]>();
+        const existingByPair = new Map<string, ExistingGame[]>();
         for (const g of existingGames ?? []) {
-          existingByKey.set(`${g.home_team_id}|${g.away_team_id}|${g.game_date}`, {
-            id: g.id, status: g.status, home_score: g.home_score, away_score: g.away_score,
-          });
+          const row: ExistingGame = {
+            id: g.id, date: g.game_date, status: g.status,
+            home_score: g.home_score, away_score: g.away_score,
+            game_time: g.game_time ?? '00:00:00',
+            location: g.location ?? 'TBD',
+          };
+          existingByKey.set(`${g.home_team_id}|${g.away_team_id}|${g.game_date}`, row);
           const pairKey = `${g.home_team_id}|${g.away_team_id}`;
           if (!existingByPair.has(pairKey)) existingByPair.set(pairKey, []);
-          existingByPair.get(pairKey)!.push({ id: g.id, date: g.game_date, status: g.status });
+          existingByPair.get(pairKey)!.push(row);
         }
 
         const toInsert: {
@@ -545,7 +555,12 @@ export async function POST(req: NextRequest) {
           home_score: number; away_score: number; status: string;
         }[] = [];
         const toUpdate: { id: string; home_score: number; away_score: number; status: string }[] = [];
-        const staleIdsToDelete: string[] = [];
+        // For stale rescheduled rows we MIGRATE (update date) instead of
+        // delete-then-insert so admin-filled time/location aren't lost.
+        const toMigrate: {
+          id: string; new_date: string;
+          home_score: number; away_score: number;
+        }[] = [];
 
         for (const r of results) {
           const homeId = resolveTeamId(r.home_team, teamMap);
@@ -555,34 +570,48 @@ export async function POST(req: NextRequest) {
 
           const key = `${homeId}|${awayId}|${isoDate}`;
           const existing = existingByKey.get(key);
-
-          // Find stale duplicates: same team pair, different date, still
-          // 'Scheduled' (never played). These are leftovers from a
-          // rescheduled fixture and should be removed.
           const pairKey = `${homeId}|${awayId}`;
           const allForPair = existingByPair.get(pairKey) ?? [];
-          for (const candidate of allForPair) {
-            if (candidate.date !== isoDate && candidate.status !== 'Finished') {
-              staleIdsToDelete.push(candidate.id);
+
+          if (existing) {
+            // Exact-date match: update scores + status if changed
+            if (
+              existing.status !== 'Finished' ||
+              existing.home_score !== r.home_score ||
+              existing.away_score !== r.away_score
+            ) {
+              toUpdate.push({
+                id: existing.id,
+                home_score: r.home_score,
+                away_score: r.away_score,
+                status: 'Finished',
+              });
             }
+            continue;
           }
 
-          if (!existing) {
+          // No exact-date match. Look for a stale 'Scheduled' row on a
+          // different date — that's a rescheduled fixture from when the
+          // schedule sheet had a different date. Migrate it (preserve
+          // admin-filled time/location) instead of inserting fresh.
+          const staleScheduled = allForPair.find(
+            (c) => c.date !== isoDate && c.status !== 'Finished',
+          );
+          if (staleScheduled) {
+            toMigrate.push({
+              id: staleScheduled.id,
+              new_date: isoDate,
+              home_score: r.home_score,
+              away_score: r.away_score,
+            });
+            // Mark as consumed so a second result for the same pair doesn't
+            // also try to migrate it.
+            staleScheduled.status = 'Finished';
+          } else {
             toInsert.push({
               home_team_id: homeId, away_team_id: awayId,
               game_date: isoDate, game_time: '19:00:00', location: 'TBD',
               home_score: r.home_score, away_score: r.away_score,
-              status: 'Finished',
-            });
-          } else if (
-            existing.status !== 'Finished' ||
-            existing.home_score !== r.home_score ||
-            existing.away_score !== r.away_score
-          ) {
-            toUpdate.push({
-              id: existing.id,
-              home_score: r.home_score,
-              away_score: r.away_score,
               status: 'Finished',
             });
           }
@@ -599,14 +628,19 @@ export async function POST(req: NextRequest) {
             .eq('id', u.id);
           if (!updErr) gamesUpdated++;
         }
-        // Delete stale duplicates (same matchup, different date, never played)
-        const uniqueStaleIds = [...new Set(staleIdsToDelete)];
-        if (uniqueStaleIds.length > 0) {
-          const { error: delErr } = await supabaseAdmin
+        // Migrate rescheduled rows: update date + score + status, KEEP the
+        // existing game_time and location (admin may have filled them in).
+        for (const m of toMigrate) {
+          const { error: migErr } = await supabaseAdmin
             .from('games')
-            .delete()
-            .in('id', uniqueStaleIds);
-          if (!delErr) gamesDeleted = uniqueStaleIds.length;
+            .update({
+              game_date: m.new_date,
+              home_score: m.home_score,
+              away_score: m.away_score,
+              status: 'Finished',
+            })
+            .eq('id', m.id);
+          if (!migErr) gamesDeleted++; // reusing the counter for "moved" rows
         }
       }
     } catch (e) {
@@ -641,7 +675,7 @@ export async function POST(req: NextRequest) {
     if (cupGames.length > 0) parts.push(`${cupGames.length} משחקי גביע`);
     if (gamesCreated > 0) parts.push(`${gamesCreated} משחקים נוצרו אוטומטית`);
     if (gamesUpdated > 0) parts.push(`${gamesUpdated} משחקים עודכנו`);
-    if (gamesDeleted > 0) parts.push(`${gamesDeleted} כפילויות נמחקו`);
+    if (gamesDeleted > 0) parts.push(`${gamesDeleted} משחקים שמוקמו מחדש (שעה+מיקום נשמרו)`);
 
     return NextResponse.json({
       success: true,
