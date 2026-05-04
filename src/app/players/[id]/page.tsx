@@ -37,7 +37,9 @@ function getOpponent(stat: GameStatWithGame, teamId: string) {
 
 function getResult(stat: GameStatWithGame, teamId: string): 'W' | 'L' | 'D' | null {
   const { game } = stat;
-  if (game.status !== 'Finished') return null;
+  // Treat any game with non-zero scores as completed even if its status
+  // wasn't flipped to 'Finished' yet.
+  if (game.status !== 'Finished' && (game.home_score + game.away_score) === 0) return null;
   const isHome = game.home_team_id === teamId;
   const myScore = isHome ? game.home_score : game.away_score;
   const theirScore = isHome ? game.away_score : game.home_score;
@@ -64,8 +66,12 @@ export default async function PlayerProfilePage({
   if (!player) notFound();
 
   // ── Game count ────────────────────────────────────────────────────────────
-  // Primary: count finished game_stats rows (new submissions)
-  let gamesPlayed = gameStats.filter((s) => s.game.status === 'Finished').length;
+  // A player has "played" a game whenever there's a game_stats row for them,
+  // regardless of whether the parent game's status is still 'Scheduled'.
+  // Admins often forget to flip status to 'Finished' after entering scores;
+  // gating gamesPlayed on Finished caused averages to render as 0 even when
+  // the season totals (in the players table) showed real numbers.
+  let gamesPlayed = gameStats.length;
 
   // Fallback for old submissions approved before game_stats rows were written:
   // count approved submissions where this player appears in extracted_stats
@@ -113,8 +119,11 @@ export default async function PlayerProfilePage({
       date: s.game.game_date,
     }));
 
-  const chartData = gameStats
-    .filter((s) => s.game.status === 'Finished')
+  // Show every game the player has stats for, in chronological order. Don't
+  // require status='Finished' — admin scores often arrive while status is
+  // still 'Scheduled'.
+  const chartData = [...gameStats]
+    .sort((a, b) => a.game.game_date.localeCompare(b.game.game_date))
     .map((s, i) => ({
       game: `G${i + 1}`,
       opponent: getOpponent(s, player.team_id!).name,
@@ -274,7 +283,7 @@ export default async function PlayerProfilePage({
                           {T(opp.name)}
                         </td>
                         <td className="px-4 py-3 text-center tabular-nums text-[#8aaac8] font-stats">
-                          {stat.game.status === 'Finished'
+                          {(stat.game.status === 'Finished' || (myScore + theirScore > 0))
                             ? `${myScore}–${theirScore}`
                             : <span className="text-xs text-[#5a7a9a] font-body">{stat.game.status}</span>}
                         </td>
