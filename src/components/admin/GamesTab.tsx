@@ -113,18 +113,24 @@ export default function GamesTab({ games }: Props) {
     roundMap.get(r)!.push(g);
   }
 
-  // Find the "active" round: lowest round that has any non-Finished game
-  const allRounds = [...roundMap.keys()].sort((a, b) => a - b);
-  const activeRound = allRounds.find(r =>
-    roundMap.get(r)!.some(g => g.status !== 'Finished')
-  ) ?? allRounds[allRounds.length - 1] ?? 0;
+  const todayIso = new Date().toISOString().slice(0, 10);
 
-  // Display order: chronological ascending — last played at the top,
-  // then the next round, then the rest of the season. The active round
-  // stays at the start (it's the lowest non-Finished round, so it's
-  // already first in the ascending list); the visual "← הבא" badge is
-  // applied via the isActive prop on the section.
-  const displayRounds = [...allRounds].sort((a, b) => a - b);
+  // Split rounds into "upcoming/active" (any game still pending in the future)
+  // vs "past" (every game is Finished OR date is before today).
+  const allRounds = [...roundMap.keys()].sort((a, b) => a - b);
+  const upcomingRounds: number[] = [];
+  const pastRounds: number[] = [];
+  for (const r of allRounds) {
+    const roundGames = roundMap.get(r)!;
+    const hasUpcoming = roundGames.some(
+      (g) => g.status !== 'Finished' && g.game_date >= todayIso,
+    );
+    if (hasUpcoming) upcomingRounds.push(r);
+    else pastRounds.push(r);
+  }
+
+  // Active round = first upcoming round (the next one to play)
+  const activeRound = upcomingRounds[0] ?? 0;
 
   return (
     <div className="space-y-4">
@@ -134,17 +140,78 @@ export default function GamesTab({ games }: Props) {
 
       {games.length === 0 ? (
         <div className="py-12 text-center text-gray-500">
-          No active games found. Import the schedule above or add games manually.
+          No games found. Import the schedule above or add games manually.
         </div>
       ) : (
-        <div className="space-y-3">
-          {displayRounds.map(round => (
+        <>
+          {/* Upcoming rounds */}
+          {upcomingRounds.length > 0 && (
+            <div className="space-y-3">
+              {upcomingRounds.map((round) => (
+                <RoundSection
+                  key={round}
+                  round={round}
+                  games={roundMap.get(round)!}
+                  defaultOpen={false}
+                  isActive={round === activeRound}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Past rounds — collapsed by default in their own section */}
+          {pastRounds.length > 0 && (
+            <PastRoundsSection
+              rounds={pastRounds}
+              roundMap={roundMap}
+            />
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Past rounds wrapper — collapsible group ───────────────────────────────────
+function PastRoundsSection({
+  rounds,
+  roundMap,
+}: {
+  rounds: number[];
+  roundMap: Map<number, GameWithTeams[]>;
+}) {
+  const [open, setOpen] = useState(false);
+  // Newest played first within the past group
+  const ordered = [...rounds].sort((a, b) => b - a);
+  const totalGames = ordered.reduce((sum, r) => sum + (roundMap.get(r)?.length ?? 0), 0);
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-gray-800 bg-gray-900/30">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-right transition hover:bg-white/[0.03]"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-gray-700/60 text-gray-300 border border-gray-700">
+            ✓ {ordered.length}
+          </span>
+          <span className="text-xs font-bold text-gray-500">{totalGames} משחקים</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <p className="text-sm font-black text-gray-300">מחזורים קודמים</p>
+          <span className={`text-gray-500 transition-transform duration-200 text-xs ${open ? 'rotate-180' : ''}`}>▾</span>
+        </div>
+      </button>
+
+      {open && (
+        <div className="border-t border-gray-800/60 p-3 space-y-3">
+          {ordered.map((round) => (
             <RoundSection
               key={round}
               round={round}
               games={roundMap.get(round)!}
               defaultOpen={false}
-              isActive={round === activeRound}
+              isActive={false}
             />
           ))}
         </div>

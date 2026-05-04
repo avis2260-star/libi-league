@@ -44,16 +44,13 @@ export default async function AdminPage({
   const params = await searchParams;
   const tab = params.tab ?? 'games';
   const games = await getAllGames();
-  // "Active" = scheduled AND not in the past. After auto-create, finished
-  // games have status='Finished' and rescheduled-fixture stale rows can have
-  // game_date < today — neither needs to appear in the editable Games tab.
-  const todayIso = new Date().toISOString().slice(0, 10);
-  const activeGames = games
-    .filter((g) => g.status !== 'Finished' && g.game_date >= todayIso)
-    .sort((a, b) => {
-      const d = a.game_date.localeCompare(b.game_date);
-      return d !== 0 ? d : (a.game_time ?? '').localeCompare(b.game_time ?? '');
-    });
+  // Sort all games chronologically. The GamesTab itself groups them into
+  // "active" (status!=Finished AND date>=today) for the top section, and
+  // "past" (everything else) collapsed at the bottom.
+  const allGamesSorted = [...games].sort((a, b) => {
+    const d = a.game_date.localeCompare(b.game_date);
+    return d !== 0 ? d : (a.game_time ?? '').localeCompare(b.game_time ?? '');
+  });
 
   let teams: Team[] = [];
   let players: { id: string; name: string; jersey_number: number | null; position: string | null; team_id: string | null; photo_url: string | null; date_of_birth: string | null; is_active: boolean }[] = [];
@@ -257,7 +254,7 @@ export default async function AdminPage({
 
   return (
     <>
-      {tab === 'games'         && <GamesTab games={activeGames} />}
+      {tab === 'games'         && <GamesTab games={allGamesSorted} />}
       {tab === 'teams'         && <TeamsTab teams={teamsForTab} />}
       {tab === 'boxscore'      && <BoxScoreTab games={games} />}
       {tab === 'media'         && <MediaTab games={games} />}
