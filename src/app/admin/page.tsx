@@ -44,8 +44,12 @@ export default async function AdminPage({
   const params = await searchParams;
   const tab = params.tab ?? 'games';
   const games = await getAllGames();
+  // "Active" = scheduled AND not in the past. After auto-create, finished
+  // games have status='Finished' and rescheduled-fixture stale rows can have
+  // game_date < today — neither needs to appear in the editable Games tab.
+  const todayIso = new Date().toISOString().slice(0, 10);
   const activeGames = games
-    .filter((g) => g.status !== 'Finished')
+    .filter((g) => g.status !== 'Finished' && g.game_date >= todayIso)
     .sort((a, b) => {
       const d = a.game_date.localeCompare(b.game_date);
       return d !== 0 ? d : (a.game_time ?? '').localeCompare(b.game_time ?? '');

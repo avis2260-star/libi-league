@@ -510,6 +510,7 @@ export async function POST(req: NextRequest) {
     // 'Finished' record so users can submit stats for it.
     let gamesCreated = 0;
     let gamesUpdated = 0;
+    let gamesDeleted = 0;
     try {
       const { data: teamsList } = await supabaseAdmin
         .from('teams')
@@ -526,10 +527,16 @@ export async function POST(req: NextRequest) {
           .select('id, home_team_id, away_team_id, game_date, status, home_score, away_score');
 
         const existingByKey = new Map<string, { id: string; status: string; home_score: number; away_score: number }>();
+        // Group by team-pair so we can detect stale duplicates from a
+        // rescheduled fixture (same matchup, old date, still 'Scheduled').
+        const existingByPair = new Map<string, { id: string; date: string; status: string }[]>();
         for (const g of existingGames ?? []) {
           existingByKey.set(`${g.home_team_id}|${g.away_team_id}|${g.game_date}`, {
             id: g.id, status: g.status, home_score: g.home_score, away_score: g.away_score,
           });
+          const pairKey = `${g.home_team_id}|${g.away_team_id}`;
+          if (!existingByPair.has(pairKey)) existingByPair.set(pairKey, []);
+          existingByPair.get(pairKey)!.push({ id: g.id, date: g.game_date, status: g.status });
         }
 
         const toInsert: {
@@ -538,6 +545,7 @@ export async function POST(req: NextRequest) {
           home_score: number; away_score: number; status: string;
         }[] = [];
         const toUpdate: { id: string; home_score: number; away_score: number; status: string }[] = [];
+        const staleIdsToDelete: string[] = [];
 
         for (const r of results) {
           const homeId = resolveTeamId(r.home_team, teamMap);
@@ -547,6 +555,17 @@ export async function POST(req: NextRequest) {
 
           const key = `${homeId}|${awayId}|${isoDate}`;
           const existing = existingByKey.get(key);
+
+          // Find stale duplicates: same team pair, different date, still
+          // 'Scheduled' (never played). These are leftovers from a
+          // rescheduled fixture and should be removed.
+          const pairKey = `${homeId}|${awayId}`;
+          const allForPair = existingByPair.get(pairKey) ?? [];
+          for (const candidate of allForPair) {
+            if (candidate.date !== isoDate && candidate.status !== 'Finished') {
+              staleIdsToDelete.push(candidate.id);
+            }
+          }
 
           if (!existing) {
             toInsert.push({
@@ -579,6 +598,15 @@ export async function POST(req: NextRequest) {
             .update({ home_score: u.home_score, away_score: u.away_score, status: u.status })
             .eq('id', u.id);
           if (!updErr) gamesUpdated++;
+        }
+        // Delete stale duplicates (same matchup, different date, never played)
+        const uniqueStaleIds = [...new Set(staleIdsToDelete)];
+        if (uniqueStaleIds.length > 0) {
+          const { error: delErr } = await supabaseAdmin
+            .from('games')
+            .delete()
+            .in('id', uniqueStaleIds);
+          if (!delErr) gamesDeleted = uniqueStaleIds.length;
         }
       }
     } catch (e) {
@@ -613,6 +641,7 @@ export async function POST(req: NextRequest) {
     if (cupGames.length > 0) parts.push(`${cupGames.length} משחקי גביע`);
     if (gamesCreated > 0) parts.push(`${gamesCreated} משחקים נוצרו אוטומטית`);
     if (gamesUpdated > 0) parts.push(`${gamesUpdated} משחקים עודכנו`);
+    if (gamesDeleted > 0) parts.push(`${gamesDeleted} כפילויות נמחקו`);
 
     return NextResponse.json({
       success: true,

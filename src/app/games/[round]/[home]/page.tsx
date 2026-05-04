@@ -94,15 +94,21 @@ export default async function GamePreviewPage({
     id: string;
     game_time: string;
     location: string;
+    game_date: string;
     video_url: string | null;
     home_team: { name: string } | null;
     away_team: { name: string } | null;
   }[];
-  const dbMatch = dbGames.find(
+  // First, try to match by team pair AND the round's canonical date — handles
+  // the case where the same matchup recurs across rounds (home/away swap, or
+  // a rescheduled fixture leaves stale rows from earlier dates).
+  const teamPairMatches = dbGames.filter(
     g =>
       normalize(g.home_team?.name ?? '') === normalize(game.homeTeam) &&
       normalize(g.away_team?.name ?? '') === normalize(game.awayTeam)
   );
+  const dbMatch =
+    teamPairMatches.find(g => g.game_date === game.date) ?? teamPairMatches[0];
   if (dbMatch) {
     gameId       = dbMatch.id;
     const t = dbMatch.game_time;
