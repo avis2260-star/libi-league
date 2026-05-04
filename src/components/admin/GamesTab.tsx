@@ -14,21 +14,21 @@ const STATUS_COLORS: Record<GameStatus, string> = {
   Finished:  'bg-gray-800    text-gray-400',
 };
 
-// ── Round lookup: team-pair first, then fall back to date ───────────────────
-// Date alone is unreliable because the games table in the DB can lag the
-// schedule (the league sometimes reschedules a round but the games rows
-// keep their old game_date until the next Excel sync). Worse, when a
-// reschedule shifts dates around, an old round's date can collide with a
-// new round's date — e.g. round 14's old date "2026-04-24" is now round 9's
-// date, which would (incorrectly) bucket all stale round 14 games under
-// round 9. Team pairings, by contrast, are unique per round and never
-// change when dates shift, so they are the reliable signal.
-const TEAM_PAIR_TO_ROUND: Record<string, number> = {};
-function pairKey(a: string, b: string): string {
-  return [a, b].sort().join('|');
+// ── Round lookup: direction-aware (home, away) tuple → round ────────────
+// In a home-and-away league, the SAME team pair appears in TWO different
+// rounds (once with each side as home). Using a side-agnostic key would
+// collapse both rounds into one, causing >7 games to bucket under a single
+// round. Instead, key by the directional tuple (home, away) — that's
+// unique per fixture across the season.
+const TEAM_TUPLE_TO_ROUND: Record<string, number> = {};
+function normTeam(s: string): string {
+  return s.replace(/["“”„‟״'‘’`]/g, '').replace(/-/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+function tupleKey(home: string, away: string): string {
+  return `${normTeam(home)}>${normTeam(away)}`;
 }
 for (const g of LIBI_SCHEDULE) {
-  TEAM_PAIR_TO_ROUND[pairKey(g.homeTeam, g.awayTeam)] = g.round;
+  TEAM_TUPLE_TO_ROUND[tupleKey(g.homeTeam, g.awayTeam)] = g.round;
 }
 
 const DATE_TO_ROUND: Record<string, number> = {};
@@ -48,8 +48,11 @@ function getRoundForGame(game: GameWithTeams): number {
   const home = game.home_team?.name;
   const away = game.away_team?.name;
   if (home && away) {
-    const byPair = TEAM_PAIR_TO_ROUND[pairKey(home, away)];
-    if (byPair) return byPair;
+    // Direction-aware lookup. Same matchup appears twice in the season
+    // (once each as home/away), so swapping sides would collapse both
+    // rounds into one and produce >7 games per round.
+    const byTuple = TEAM_TUPLE_TO_ROUND[tupleKey(home, away)];
+    if (byTuple) return byTuple;
   }
   return DATE_TO_ROUND[game.game_date] ?? 0;
 }
@@ -113,6 +116,34 @@ export default function GamesTab({ games }: Props) {
     roundMap.get(r)!.push(g);
   }
 
+  // Within each round, deduplicate by (home, away) tuple. If multiple DB
+  // rows exist for the same fixture (e.g. a rescheduled-fixture leftover),
+  // keep the one whose game_date matches the round's canonical date; if no
+  // exact-date match, prefer Finished > Live > Scheduled, then most recent.
+  for (const [round, rgames] of roundMap) {
+    const canonicalDate = ROUND_TO_DATE[round];
+    const byFixture = new Map<string, GameWithTeams>();
+    for (const g of rgames) {
+      const key = `${g.home_team?.name ?? ''}>${g.away_team?.name ?? ''}`;
+      const existing = byFixture.get(key);
+      if (!existing) {
+        byFixture.set(key, g);
+        continue;
+      }
+      // Tiebreaker logic
+      const score = (row: GameWithTeams): number => {
+        let s = 0;
+        if (canonicalDate && row.game_date === canonicalDate) s += 100;
+        if (row.status === 'Finished') s += 10;
+        else if (row.status === 'Live') s += 5;
+        s += row.game_date.localeCompare('0000-00-00'); // newer date wins
+        return s;
+      };
+      if (score(g) > score(existing)) byFixture.set(key, g);
+    }
+    roundMap.set(round, Array.from(byFixture.values()));
+  }
+
   const todayIso = new Date().toISOString().slice(0, 10);
 
   // Split rounds into "upcoming/active" (any game still pending in the future)
@@ -144,6 +175,13 @@ export default function GamesTab({ games }: Props) {
         </div>
       ) : (
         <div className="space-y-3">
+          {upcomingRounds.length > 0 && (
+            <SectionHeader
+              label="מחזורים קרובים"
+              sublabel={`${upcomingRounds.length} מחזורים`}
+              accent="orange"
+            />
+          )}
           {/* Upcoming rounds first (ascending — next round at top) */}
           {upcomingRounds.map((round) => (
             <RoundSection
@@ -155,6 +193,13 @@ export default function GamesTab({ games }: Props) {
             />
           ))}
 
+          {pastRounds.length > 0 && (
+            <SectionHeader
+              label="מחזורים קודמים"
+              sublabel={`${pastRounds.length} מחזורים שהושלמו`}
+              accent="gray"
+            />
+          )}
           {/* Past rounds (descending — most recent at top, all collapsed) */}
           {[...pastRounds].sort((a, b) => b - a).map((round) => (
             <RoundSection
@@ -167,6 +212,30 @@ export default function GamesTab({ games }: Props) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Section divider header ───────────────────────────────────────────────────
+function SectionHeader({
+  label,
+  sublabel,
+  accent,
+}: {
+  label: string;
+  sublabel: string;
+  accent: 'orange' | 'gray';
+}) {
+  const lineCls = accent === 'orange' ? 'bg-orange-500/30' : 'bg-gray-700/40';
+  const labelCls = accent === 'orange' ? 'text-orange-400' : 'text-gray-400';
+  return (
+    <div className="flex items-center gap-3 pt-3 first:pt-0">
+      <div className={`h-px flex-1 ${lineCls}`} />
+      <div className="flex items-baseline gap-2 shrink-0">
+        <span className={`text-xs font-black uppercase tracking-widest ${labelCls}`}>{label}</span>
+        <span className="text-[10px] font-bold text-gray-500">· {sublabel}</span>
+      </div>
+      <div className={`h-px flex-1 ${lineCls}`} />
     </div>
   );
 }
