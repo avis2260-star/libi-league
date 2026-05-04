@@ -143,71 +143,22 @@ export default function GamesTab({ games }: Props) {
           No games found. Import the schedule above or add games manually.
         </div>
       ) : (
-        <>
-          {/* Upcoming rounds */}
-          {upcomingRounds.length > 0 && (
-            <div className="space-y-3">
-              {upcomingRounds.map((round) => (
-                <RoundSection
-                  key={round}
-                  round={round}
-                  games={roundMap.get(round)!}
-                  defaultOpen={false}
-                  isActive={round === activeRound}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Past rounds — collapsed by default in their own section */}
-          {pastRounds.length > 0 && (
-            <PastRoundsSection
-              rounds={pastRounds}
-              roundMap={roundMap}
-            />
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-// ── Past rounds wrapper — collapsible group ───────────────────────────────────
-function PastRoundsSection({
-  rounds,
-  roundMap,
-}: {
-  rounds: number[];
-  roundMap: Map<number, GameWithTeams[]>;
-}) {
-  const [open, setOpen] = useState(false);
-  // Newest played first within the past group
-  const ordered = [...rounds].sort((a, b) => b - a);
-  const totalGames = ordered.reduce((sum, r) => sum + (roundMap.get(r)?.length ?? 0), 0);
-
-  return (
-    <div className="overflow-hidden rounded-2xl border border-gray-800 bg-gray-900/30">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-right transition hover:bg-white/[0.03]"
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-gray-700/60 text-gray-300 border border-gray-700">
-            ✓ {ordered.length}
-          </span>
-          <span className="text-xs font-bold text-gray-500">{totalGames} משחקים</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <p className="text-sm font-black text-gray-300">מחזורים קודמים</p>
-          <span className={`text-gray-500 transition-transform duration-200 text-xs ${open ? 'rotate-180' : ''}`}>▾</span>
-        </div>
-      </button>
-
-      {open && (
-        <div className="border-t border-gray-800/60 p-3 space-y-3">
-          {ordered.map((round) => (
+        <div className="space-y-3">
+          {/* Upcoming rounds first (ascending — next round at top) */}
+          {upcomingRounds.map((round) => (
             <RoundSection
-              key={round}
+              key={`up-${round}`}
+              round={round}
+              games={roundMap.get(round)!}
+              defaultOpen={false}
+              isActive={round === activeRound}
+            />
+          ))}
+
+          {/* Past rounds (descending — most recent at top, all collapsed) */}
+          {[...pastRounds].sort((a, b) => b - a).map((round) => (
+            <RoundSection
+              key={`past-${round}`}
               round={round}
               games={roundMap.get(round)!}
               defaultOpen={false}
