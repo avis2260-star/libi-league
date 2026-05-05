@@ -135,30 +135,46 @@ export default async function GamePreviewPage({
   const homeWon = isPlayed && (homeScore as number) > (awayScore as number);
   const awayWon = isPlayed && (awayScore as number) > (homeScore as number);
 
-  // Box score: per-player stats for this game
+  // Box score: reads from players table so admin corrections via
+  // "עריכת סטטיסטיקת שחקנים" are immediately reflected everywhere.
   type BoxRow = {
-    player: { id: string; name: string; jersey_number: number | null } | null;
-    team_id: string;
+    player: { id: string; name: string; jersey_number: number | null };
     points: number;
     three_pointers: number;
     fouls: number;
   };
+  type PlayerRow = { id: string; name: string; jersey_number: number | null; points: number; three_pointers: number; fouls: number };
   let homeBox: BoxRow[] = [];
   let awayBox: BoxRow[] = [];
-  if (gameId) {
-    const { data: statsData } = await supabaseAdmin
-      .from('game_stats')
-      .select('points,three_pointers,fouls,team_id,player:players(id,name,jersey_number)')
-      .eq('game_id', gameId);
-    const allBox = (statsData ?? []) as unknown as BoxRow[];
+  if (isPlayed) {
     const homeTeamObj = teams.find(t => normalize(t.name) === normalize(game.homeTeam));
     const awayTeamObj = teams.find(t => normalize(t.name) === normalize(game.awayTeam));
-    if (homeTeamObj) homeBox = allBox.filter(s => s.team_id === homeTeamObj.id);
-    if (awayTeamObj) awayBox = allBox.filter(s => s.team_id === awayTeamObj.id);
-    // Sort by points desc within each team
-    const sortByPts = (a: BoxRow, b: BoxRow) => b.points - a.points;
-    homeBox.sort(sortByPts);
-    awayBox.sort(sortByPts);
+    const [homeRes, awayRes] = await Promise.all([
+      homeTeamObj
+        ? supabaseAdmin
+            .from('players')
+            .select('id,name,jersey_number,points,three_pointers,fouls')
+            .eq('team_id', homeTeamObj.id)
+            .or('points.gt.0,three_pointers.gt.0,fouls.gt.0')
+            .order('points', { ascending: false })
+        : { data: [] as PlayerRow[] },
+      awayTeamObj
+        ? supabaseAdmin
+            .from('players')
+            .select('id,name,jersey_number,points,three_pointers,fouls')
+            .eq('team_id', awayTeamObj.id)
+            .or('points.gt.0,three_pointers.gt.0,fouls.gt.0')
+            .order('points', { ascending: false })
+        : { data: [] as PlayerRow[] },
+    ]);
+    const toRow = (p: PlayerRow): BoxRow => ({
+      player: { id: p.id, name: p.name, jersey_number: p.jersey_number },
+      points: p.points ?? 0,
+      three_pointers: p.three_pointers ?? 0,
+      fouls: p.fouls ?? 0,
+    });
+    homeBox = ((homeRes.data ?? []) as PlayerRow[]).map(toRow);
+    awayBox = ((awayRes.data ?? []) as PlayerRow[]).map(toRow);
   }
 
   const dateStr    = ROUND_DATES[round] ?? game.date;
@@ -313,6 +329,16 @@ export default async function GamePreviewPage({
             </div>
           ))}
         </div>
+      )}
+
+      {/* Admin shortcut: jump to player stats editor */}
+      {isPlayed && (
+        <a
+          href="/admin?tab=playerstats"
+          className="flex items-center gap-2 rounded-2xl border border-white/[0.07] bg-white/[0.02] px-5 py-2.5 text-xs font-bold text-[#5a7a9a] hover:text-orange-400 hover:border-orange-500/30 transition-colors w-fit"
+        >
+          ✏️ {en ? 'Edit Player Stats (Admin)' : 'עריכת סטטיסטיקת שחקנים (מנהל)'}
+        </a>
       )}
 
       {/* Box score — per-player stats for finished games */}

@@ -39,10 +39,11 @@ async function getAllGames(): Promise<GameWithTeams[]> {
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; gameId?: string }>;
 }) {
   const params = await searchParams;
   const tab = params.tab ?? 'games';
+  const gameId = params.gameId ?? undefined;
   const games = await getAllGames();
   // Sort all games chronologically. The GamesTab itself groups them into
   // "active" (status!=Finished AND date>=today) for the top section, and
@@ -256,7 +257,7 @@ export default async function AdminPage({
     <>
       {tab === 'games'         && <GamesTab games={allGamesSorted} />}
       {tab === 'teams'         && <TeamsTab teams={teamsForTab} />}
-      {tab === 'boxscore'      && <BoxScoreTab games={games} />}
+      {tab === 'boxscore'      && <BoxScoreTab games={games} initialGameId={gameId} />}
       {tab === 'media'         && <MediaTab games={games} />}
       {tab === 'sync'          && <ExcelSyncTab />}
       {tab === 'players'       && <PlayersTab teams={teams} players={players} />}

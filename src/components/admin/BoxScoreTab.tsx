@@ -7,6 +7,7 @@ import type { GameWithTeams } from '@/types';
 
 interface Props {
   games: GameWithTeams[];
+  initialGameId?: string;
 }
 
 interface StatRow {
@@ -19,8 +20,8 @@ interface StatRow {
   fouls: number;
 }
 
-export default function BoxScoreTab({ games }: Props) {
-  const [selectedGameId, setSelectedGameId] = useState('');
+export default function BoxScoreTab({ games, initialGameId }: Props) {
+  const [selectedGameId, setSelectedGameId] = useState(initialGameId ?? '');
   const [selectedTeamSide, setSelectedTeamSide] = useState<'home' | 'away' | ''>('');
   const [stats, setStats] = useState<StatRow[]>([]);
   const [loadingPlayers, setLoadingPlayers] = useState(false);
