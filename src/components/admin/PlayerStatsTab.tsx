@@ -114,8 +114,8 @@ function Row({ p }: { p: PlayerStatRow }) {
   );
 }
 
-export default function PlayerStatsTab({ players }: { players: PlayerStatRow[] }) {
-  const [search,    setSearch]    = useState('');
+export default function PlayerStatsTab({ players, initialPlayer }: { players: PlayerStatRow[]; initialPlayer?: string }) {
+  const [search,    setSearch]    = useState(initialPlayer ?? '');
   const [teamFilter, setTeamFilter] = useState('');
   const [sort,      setSort]      = useState<'name' | 'points' | 'team'>('points');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
