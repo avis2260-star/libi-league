@@ -312,14 +312,8 @@ export default async function PlayerProfilePage({
 
         {/* ── No games yet ─────────────────────────────────────────────── */}
         {gameStats.length === 0 && (
-          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] py-16 text-center space-y-3 text-[#5a7a9a]">
-            <p>{lang === 'en' ? 'No game data yet for this player.' : 'אין נתוני משחק עדיין עבור שחקן זה.'}</p>
-            <a
-              href={`/admin?tab=playerstats&player=${encodeURIComponent(player.name)}`}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-orange-400/70 hover:text-orange-400 transition-colors"
-            >
-              ✏️ {lang === 'en' ? 'Update stats (Admin)' : 'עדכון סטטיסטיקה (מנהל)'}
-            </a>
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] py-16 text-center text-[#5a7a9a]">
+            {lang === 'en' ? 'No game data yet for this player.' : 'אין נתוני משחק עדיין עבור שחקן זה.'}
           </div>
         )}
 

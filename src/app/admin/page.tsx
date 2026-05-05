@@ -39,12 +39,11 @@ async function getAllGames(): Promise<GameWithTeams[]> {
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; gameId?: string; player?: string }>;
+  searchParams: Promise<{ tab?: string; gameId?: string }>;
 }) {
   const params = await searchParams;
   const tab = params.tab ?? 'games';
   const gameId = params.gameId ?? undefined;
-  const playerParam = params.player ?? undefined;
   const games = await getAllGames();
   // Sort all games chronologically. The GamesTab itself groups them into
   // "active" (status!=Finished AND date>=today) for the top section, and
@@ -271,7 +270,7 @@ export default async function AdminPage({
       {tab === 'takanon'       && <TakanonTab />}
       {tab === 'playoff'       && <PlayoffTab />}
       {tab === 'submissions'   && <SubmissionsTab submissions={submissions} />}
-      {tab === 'playerstats'   && <PlayerStatsTab players={playerStats} initialPlayer={playerParam} />}
+      {tab === 'playerstats'   && <PlayerStatsTab players={playerStats} />}
       {tab === 'messages'      && <MessagesTab messages={contactMessages} />}
       {tab === 'terms'         && <TermsTab termsOfUse={termsOfUse} privacyPolicy={privacyPolicy} />}
       {tab === 'about'         && <AboutTab heroSubtitle={aboutHeroSubtitle} story={aboutStory} association={aboutAssociation} chairmanName={aboutChairmanName} />}
