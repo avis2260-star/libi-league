@@ -331,16 +331,6 @@ export default async function GamePreviewPage({
         </div>
       )}
 
-      {/* Admin shortcut: jump to player stats editor */}
-      {isPlayed && (
-        <a
-          href="/admin?tab=playerstats"
-          className="flex items-center gap-2 rounded-2xl border border-white/[0.07] bg-white/[0.02] px-5 py-2.5 text-xs font-bold text-[#5a7a9a] hover:text-orange-400 hover:border-orange-500/30 transition-colors w-fit"
-        >
-          ✏️ {en ? 'Edit Player Stats (Admin)' : 'עריכת סטטיסטיקת שחקנים (מנהל)'}
-        </a>
-      )}
-
       {/* Box score — per-player stats for finished games */}
       {isPlayed && (
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] overflow-hidden">
