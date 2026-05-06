@@ -150,10 +150,12 @@ export async function updateGameDetails(
 // ── Reset ALL games time + location ──────────────────────────────────────────
 
 export async function resetAllGameDetails(): Promise<ActionResult> {
+  // Only reset games that have NOT yet been played — preserve location/time
+  // on finished games so the game-preview page can still display them.
   const { error } = await supabaseAdmin
     .from('games')
     .update({ game_time: '00:00:00', location: 'TBD' })
-    .neq('id', '00000000-0000-0000-0000-000000000000'); // matches all rows
+    .neq('status', 'Finished');
 
   if (error) return { error: error.message };
 
