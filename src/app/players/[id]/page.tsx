@@ -25,8 +25,8 @@ const POSITION_META: Record<
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function avg(total: number, games: number): string {
-  if (games === 0) return '—';
+function avg(total: number, games: number): string | null {
+  if (games === 0) return null;
   return (total / games).toFixed(1);
 }
 
@@ -65,49 +65,34 @@ export default async function PlayerProfilePage({
 
   if (!player) notFound();
 
-  // ── Game count ────────────────────────────────────────────────────────────
-  // A player has "played" a game whenever there's a game_stats row for them,
-  // regardless of whether the parent game's status is still 'Scheduled'.
-  // Admins often forget to flip status to 'Finished' after entering scores;
-  // gating gamesPlayed on Finished caused averages to render as 0 even when
-  // the season totals (in the players table) showed real numbers.
-  let gamesPlayed = gameStats.length;
+  // ── Season totals ─────────────────────────────────────────────────────────
+  // RULE: the admin "סטטיסטיקה" tab (which writes to players.points /
+  // three_pointers / fouls) is the single source of truth. We display these
+  // values as-is and never fall back to summing game_stats.
+  const totalPts   = player.points         ?? 0;
+  const total3pt   = player.three_pointers ?? 0;
+  const totalFouls = player.fouls          ?? 0;
 
-  // Fallback for old submissions approved before game_stats rows were written:
-  // count approved submissions where this player appears in extracted_stats
-  if (gamesPlayed === 0) {
-    const { data: subs } = await supabaseAdmin
-      .from('game_submissions')
-      .select('extracted_stats')
-      .eq('status', 'approved');
+  // Games played is still derived from game_stats (it's not editable in
+  // admin), used only for the "games" card and to compute averages below.
+  const gamesPlayed = gameStats.length;
 
-    gamesPlayed = (subs ?? []).filter((sub) => {
-      const s = sub.extracted_stats as {
-        home_players?: { name?: string }[];
-        away_players?: { name?: string }[];
-      } | null;
-      const all = [...(s?.home_players ?? []), ...(s?.away_players ?? [])];
-      return all.some(
-        (p) => p.name && p.name.trim().toLowerCase() === player.name.trim().toLowerCase(),
-      );
-    }).length;
-  }
+  const hasGames = gamesPlayed > 0;
 
-  // ── Season totals (players table is source of truth) ─────────────────────
-  const totalPts   = (player.points         > 0) ? player.points         : gameStats.reduce((n, s) => n + s.points, 0);
-  const total3pt   = (player.three_pointers  > 0) ? player.three_pointers  : gameStats.reduce((n, s) => n + s.three_pointers, 0);
-  const totalFouls = (player.fouls           > 0) ? player.fouls           : gameStats.reduce((n, s) => n + s.fouls, 0);
+  // Big numbers on the cards = the source-of-truth totals.
+  const ptsVal     = String(totalPts);
+  const threePtVal = String(total3pt);
+  const foulsVal   = String(totalFouls);
 
-  const hasTotals = totalPts > 0 || total3pt > 0 || totalFouls > 0;
-  const hasGames  = gamesPlayed > 0;
+  // Sublabels show the per-game average when we have a game count, otherwise
+  // a static label.
+  const ptsAvg     = avg(totalPts,   gamesPlayed);
+  const threePtAvg = avg(total3pt,   gamesPlayed);
+  const foulsAvg   = avg(totalFouls, gamesPlayed);
 
-  // Always show averages — fall back to 0 when no games played
-  const ptsVal     = hasGames ? avg(totalPts,   gamesPlayed) : '0';
-  const threePtVal = hasGames ? avg(total3pt,   gamesPlayed) : '0';
-  const foulsVal   = hasGames ? avg(totalFouls, gamesPlayed) : '0';
-  const ptsSub     = T('נקודות בממוצע');
-  const threePtSub = T('3נק׳ בממוצע');
-  const foulsSub   = T('עבירות בממוצע');
+  const ptsSub     = hasGames && ptsAvg     !== null ? `${T('ממוצע')} ${ptsAvg}`     : T('סה״כ נקודות');
+  const threePtSub = hasGames && threePtAvg !== null ? `${T('ממוצע')} ${threePtAvg}` : T('סה״כ 3נק׳');
+  const foulsSub   = hasGames && foulsAvg   !== null ? `${T('ממוצע')} ${foulsAvg}`   : T('סה״כ עבירות');
 
   const posMeta = player.position ? POSITION_META[player.position] : null;
 
@@ -213,29 +198,13 @@ export default async function PlayerProfilePage({
 
         {/* ── Stats dashboard ──────────────────────────────────────────── */}
         <section>
-          <SectionTitle>{T('ממוצעי עונה')}</SectionTitle>
+          <SectionTitle>{T('סטטיסטיקת עונה')}</SectionTitle>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <StatCard label={T('נק׳')}     value={ptsVal}              sublabel={ptsSub}     accent="orange" />
             <StatCard label={T('3נק׳')}    value={threePtVal}          sublabel={threePtSub} accent="sky" />
             <StatCard label={T('עבירות')}  value={foulsVal}            sublabel={foulsSub}   accent="rose" />
             <StatCard label={T('משחקים')}  value={String(gamesPlayed)} sublabel={T('משחקים שהשתתף')} accent="emerald" />
           </div>
-
-          {/* Season totals strip — shown when player has stats AND game count is known */}
-          {hasTotals && hasGames && (
-            <div className="mt-3 flex divide-x divide-x-reverse divide-white/[0.06] overflow-hidden rounded-xl border border-white/[0.07] bg-white/[0.03] text-center">
-              {[
-                { label: T('סה״כ נק׳'),    value: totalPts },
-                { label: T('סה״כ 3נק׳'),   value: total3pt },
-                { label: T('סה״כ עבירות'), value: totalFouls },
-              ].map(({ label, value }) => (
-                <div key={label} className="flex-1 py-3">
-                  <p className="text-lg font-bold text-[#e8edf5] font-stats">{value}</p>
-                  <p className="text-xs text-[#5a7a9a] font-body">{label}</p>
-                </div>
-              ))}
-            </div>
-          )}
         </section>
 
         {/* ── Performance chart ────────────────────────────────────────── */}

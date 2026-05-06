@@ -608,6 +608,7 @@ export async function updatePlayerStats(
 
   revalidatePath('/admin');
   revalidatePath('/players');
+  revalidatePath(`/players/${playerId}`);
   revalidatePath('/scorers');
   revalidatePath('/');
   return {};
