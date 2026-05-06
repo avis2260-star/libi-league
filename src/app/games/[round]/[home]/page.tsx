@@ -304,12 +304,12 @@ export default async function GamePreviewPage({
       {/* Stats comparison */}
       {(homeStats || awayStats) && (
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] overflow-hidden">
-          <div className="border-b border-white/[0.06] px-5 py-3">
-            <h2 className="text-sm font-bold text-white">📊 {en ? 'Team Comparison' : 'השוואת קבוצות'}</h2>
+          <div className="border-b border-white/[0.06] px-5 py-4">
+            <h2 className="text-base font-black text-white">📊 {en ? 'Team Comparison' : 'השוואת קבוצות'}</h2>
           </div>
 
           {/* Column headers */}
-          <div className="grid grid-cols-3 border-b border-white/[0.05] px-5 py-2 text-[10px] font-bold uppercase tracking-widest text-[#4a6a8a]">
+          <div className="grid grid-cols-3 border-b border-white/[0.05] px-5 py-2.5 text-xs font-black uppercase tracking-widest text-[#8aaac8]">
             <span className={en ? 'text-left' : 'text-right'}>{T(game.homeTeam)}</span>
             <span className="text-center">{en ? 'Stat' : 'סטט'}</span>
             <span className={en ? 'text-right' : 'text-left'}>{T(game.awayTeam)}</span>
@@ -322,10 +322,10 @@ export default async function GamePreviewPage({
             { label: en ? 'PPG' : 'ממוצע נק׳ למשחק', home: homeStats?.games ? (homeStats.pf / homeStats.games).toFixed(1) : '—', away: awayStats?.games ? (awayStats.pf / awayStats.games).toFixed(1) : '—' },
             { label: en ? 'OPP PPG' : 'ממוצע ספיגה', home: homeStats?.games ? (homeStats.pa / homeStats.games).toFixed(1) : '—', away: awayStats?.games ? (awayStats.pa / awayStats.games).toFixed(1) : '—' },
           ].map(({ label, home, away }) => (
-            <div key={label} className="grid grid-cols-3 border-b border-white/[0.04] px-5 py-3 text-sm last:border-0">
-              <span dir="ltr" className={`font-bold text-[#e8edf5] ${en ? 'text-left' : 'text-right'}`}>{home}</span>
-              <span className="text-center text-[10px] text-[#5a7a9a] self-center">{label}</span>
-              <span dir="ltr" className={`font-semibold text-[#8aaac8] ${en ? 'text-right' : 'text-left'}`}>{away}</span>
+            <div key={label} className="grid grid-cols-3 border-b border-white/[0.04] px-5 py-3.5 last:border-0">
+              <span dir="ltr" className={`text-base font-black text-white ${en ? 'text-left' : 'text-right'}`}>{home}</span>
+              <span className="text-center text-xs font-semibold text-[#5a7a9a] self-center">{label}</span>
+              <span dir="ltr" className={`text-base font-bold text-[#c8d8e8] ${en ? 'text-right' : 'text-left'}`}>{away}</span>
             </div>
           ))}
         </div>
@@ -344,8 +344,8 @@ export default async function GamePreviewPage({
       {/* Box score — per-player stats for finished games */}
       {isPlayed && (
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] overflow-hidden">
-          <div className="border-b border-white/[0.06] px-5 py-3">
-            <h2 className="text-sm font-bold text-white">📋 {en ? 'Box Score' : 'גיליון סטטיסטיקה'}</h2>
+          <div className="border-b border-white/[0.06] px-5 py-4">
+            <h2 className="text-base font-black text-white">📋 {en ? 'Box Score' : 'גיליון סטטיסטיקה'}</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x md:divide-x-reverse divide-white/[0.05]">
@@ -356,34 +356,34 @@ export default async function GamePreviewPage({
                   ? <img src={homeLogo} alt={T(game.homeTeam)} className="h-8 w-8 shrink-0 rounded-full border border-white/10 object-cover" />
                   : <div className="h-8 w-8 shrink-0 rounded-full bg-[#1a2e45] border border-white/10 flex items-center justify-center text-[10px] font-black text-[#3a5a7a]">{[...T(game.homeTeam)].find(c => c.trim()) ?? '?'}</div>
                 }
-                <p className={`font-black ${homeWon ? 'text-orange-400' : 'text-white'}`}>{T(game.homeTeam)}</p>
-                <span className={`ml-auto font-stats text-2xl font-black tabular-nums ${homeWon ? 'text-orange-400' : 'text-[#8aaac8]'}`}>{homeScore}</span>
+                <p className={`text-base font-black ${homeWon ? 'text-orange-400' : 'text-white'}`}>{T(game.homeTeam)}</p>
+                <span className={`ml-auto font-stats text-3xl font-black tabular-nums ${homeWon ? 'text-orange-400' : 'text-[#8aaac8]'}`}>{homeScore}</span>
               </div>
               {homeBox.length === 0 ? (
                 <p className="text-xs text-[#5a7a9a] py-4 text-center">{en ? 'No player stats yet' : 'אין נתוני שחקנים'}</p>
               ) : (
                 <table className="w-full">
                   <thead>
-                    <tr className="text-[9px] font-bold uppercase tracking-widest text-[#5a7a9a] border-b border-white/[0.06]">
-                      <th className={`py-1.5 ${en ? 'text-left' : 'text-right'}`}>{en ? 'Player' : 'שחקן'}</th>
-                      <th className="py-1.5 text-center w-10">#</th>
-                      <th className="py-1.5 text-center w-10">{T('נק׳')}</th>
-                      <th className="py-1.5 text-center w-10">3PT</th>
-                      <th className="py-1.5 text-center w-10">{en ? 'F' : 'עב'}</th>
+                    <tr className="text-xs font-black uppercase tracking-widest text-[#8aaac8] border-b border-white/[0.06]">
+                      <th className={`py-2 ${en ? 'text-left' : 'text-right'}`}>{en ? 'Player' : 'שחקן'}</th>
+                      <th className="py-2 text-center w-10">#</th>
+                      <th className="py-2 text-center w-10">{T('נק׳')}</th>
+                      <th className="py-2 text-center w-10">3PT</th>
+                      <th className="py-2 text-center w-10">{en ? 'F' : 'עב'}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {homeBox.map((row, i) => (
                       <tr key={i} className="border-b border-white/[0.04] last:border-0">
-                        <td className={`py-1.5 text-xs font-bold text-white ${en ? 'text-left' : 'text-right'}`}>
+                        <td className={`py-2 text-sm font-bold text-white ${en ? 'text-left' : 'text-right'}`}>
                           <Link href={row.player ? `/players/${row.player.id}` : '#'} className="hover:text-orange-400 transition-colors">
                             {row.player?.name ?? '—'}
                           </Link>
                         </td>
-                        <td className="py-1.5 text-center text-[11px] text-[#5a7a9a] font-stats tabular-nums">{row.player?.jersey_number ?? '—'}</td>
-                        <td className="py-1.5 text-center font-stats text-sm font-black text-orange-400 tabular-nums">{row.points}</td>
-                        <td className="py-1.5 text-center font-stats text-xs font-bold text-[#e0c97a] tabular-nums">{row.three_pointers}</td>
-                        <td className="py-1.5 text-center font-stats text-xs font-bold text-red-400 tabular-nums">{row.fouls}</td>
+                        <td className="py-2 text-center text-sm text-[#8aaac8] font-stats tabular-nums">{row.player?.jersey_number ?? '—'}</td>
+                        <td className="py-2 text-center font-stats text-base font-black text-orange-400 tabular-nums">{row.points}</td>
+                        <td className="py-2 text-center font-stats text-sm font-bold text-[#e0c97a] tabular-nums">{row.three_pointers}</td>
+                        <td className="py-2 text-center font-stats text-sm font-bold text-red-400 tabular-nums">{row.fouls}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -398,34 +398,34 @@ export default async function GamePreviewPage({
                   ? <img src={awayLogo} alt={T(game.awayTeam)} className="h-8 w-8 shrink-0 rounded-full border border-white/10 object-cover" />
                   : <div className="h-8 w-8 shrink-0 rounded-full bg-[#1a2e45] border border-white/10 flex items-center justify-center text-[10px] font-black text-[#3a5a7a]">{[...T(game.awayTeam)].find(c => c.trim()) ?? '?'}</div>
                 }
-                <p className={`font-black ${awayWon ? 'text-orange-400' : 'text-white'}`}>{T(game.awayTeam)}</p>
-                <span className={`ml-auto font-stats text-2xl font-black tabular-nums ${awayWon ? 'text-orange-400' : 'text-[#8aaac8]'}`}>{awayScore}</span>
+                <p className={`text-base font-black ${awayWon ? 'text-orange-400' : 'text-white'}`}>{T(game.awayTeam)}</p>
+                <span className={`ml-auto font-stats text-3xl font-black tabular-nums ${awayWon ? 'text-orange-400' : 'text-[#8aaac8]'}`}>{awayScore}</span>
               </div>
               {awayBox.length === 0 ? (
                 <p className="text-xs text-[#5a7a9a] py-4 text-center">{en ? 'No player stats yet' : 'אין נתוני שחקנים'}</p>
               ) : (
                 <table className="w-full">
                   <thead>
-                    <tr className="text-[9px] font-bold uppercase tracking-widest text-[#5a7a9a] border-b border-white/[0.06]">
-                      <th className={`py-1.5 ${en ? 'text-left' : 'text-right'}`}>{en ? 'Player' : 'שחקן'}</th>
-                      <th className="py-1.5 text-center w-10">#</th>
-                      <th className="py-1.5 text-center w-10">{T('נק׳')}</th>
-                      <th className="py-1.5 text-center w-10">3PT</th>
-                      <th className="py-1.5 text-center w-10">{en ? 'F' : 'עב'}</th>
+                    <tr className="text-xs font-black uppercase tracking-widest text-[#8aaac8] border-b border-white/[0.06]">
+                      <th className={`py-2 ${en ? 'text-left' : 'text-right'}`}>{en ? 'Player' : 'שחקן'}</th>
+                      <th className="py-2 text-center w-10">#</th>
+                      <th className="py-2 text-center w-10">{T('נק׳')}</th>
+                      <th className="py-2 text-center w-10">3PT</th>
+                      <th className="py-2 text-center w-10">{en ? 'F' : 'עב'}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {awayBox.map((row, i) => (
                       <tr key={i} className="border-b border-white/[0.04] last:border-0">
-                        <td className={`py-1.5 text-xs font-bold text-white ${en ? 'text-left' : 'text-right'}`}>
+                        <td className={`py-2 text-sm font-bold text-white ${en ? 'text-left' : 'text-right'}`}>
                           <Link href={row.player ? `/players/${row.player.id}` : '#'} className="hover:text-orange-400 transition-colors">
                             {row.player?.name ?? '—'}
                           </Link>
                         </td>
-                        <td className="py-1.5 text-center text-[11px] text-[#5a7a9a] font-stats tabular-nums">{row.player?.jersey_number ?? '—'}</td>
-                        <td className="py-1.5 text-center font-stats text-sm font-black text-orange-400 tabular-nums">{row.points}</td>
-                        <td className="py-1.5 text-center font-stats text-xs font-bold text-[#e0c97a] tabular-nums">{row.three_pointers}</td>
-                        <td className="py-1.5 text-center font-stats text-xs font-bold text-red-400 tabular-nums">{row.fouls}</td>
+                        <td className="py-2 text-center text-sm text-[#8aaac8] font-stats tabular-nums">{row.player?.jersey_number ?? '—'}</td>
+                        <td className="py-2 text-center font-stats text-base font-black text-orange-400 tabular-nums">{row.points}</td>
+                        <td className="py-2 text-center font-stats text-sm font-bold text-[#e0c97a] tabular-nums">{row.three_pointers}</td>
+                        <td className="py-2 text-center font-stats text-sm font-bold text-red-400 tabular-nums">{row.fouls}</td>
                       </tr>
                     ))}
                   </tbody>
