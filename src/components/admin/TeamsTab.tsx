@@ -16,6 +16,55 @@ export default function TeamsTab({ teams: initial }: { teams: TeamRow[] }) {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
+  // Inline name editing state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftName, setDraftName] = useState('');
+  const [savingName, setSavingName] = useState(false);
+
+  function startEditName(team: TeamRow) {
+    setEditingId(team.id);
+    setDraftName(team.name);
+    setMsg(null);
+  }
+
+  function cancelEditName() {
+    setEditingId(null);
+    setDraftName('');
+  }
+
+  async function saveName(team: TeamRow) {
+    const trimmed = draftName.trim();
+    if (!trimmed) {
+      setMsg({ ok: false, text: 'שם הקבוצה לא יכול להיות ריק' });
+      return;
+    }
+    if (trimmed === team.name) {
+      cancelEditName();
+      return;
+    }
+    setSavingName(true);
+    setMsg(null);
+    try {
+      const res = await fetch('/api/admin/teams', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: team.id, name: trimmed }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'שגיאה בעדכון השם');
+
+      setTeams((prev) =>
+        prev.map((t) => (t.id === team.id ? { ...t, name: trimmed } : t)),
+      );
+      setMsg({ ok: true, text: `✅ שם הקבוצה עודכן ל-"${trimmed}"` });
+      cancelEditName();
+    } catch (err) {
+      setMsg({ ok: false, text: err instanceof Error ? err.message : 'שגיאה' });
+    } finally {
+      setSavingName(false);
+    }
+  }
+
   async function handleLogoUpload(team: TeamRow, file: File) {
     setUploading(team.id);
     setMsg(null);
@@ -89,7 +138,50 @@ export default function TeamsTab({ teams: initial }: { teams: TeamRow[] }) {
 
             {/* Info + upload */}
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-white truncate">{team.name}</p>
+              {editingId === team.id ? (
+                <div className="flex items-center gap-2 mb-1">
+                  <input
+                    type="text"
+                    value={draftName}
+                    onChange={(e) => setDraftName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter')  { e.preventDefault(); saveName(team); }
+                      if (e.key === 'Escape') { e.preventDefault(); cancelEditName(); }
+                    }}
+                    autoFocus
+                    disabled={savingName}
+                    maxLength={80}
+                    className="flex-1 min-w-0 rounded-md border border-orange-500/40 bg-gray-800 px-2 py-1 text-sm font-bold text-white focus:outline-none focus:border-orange-400"
+                  />
+                  <button
+                    onClick={() => saveName(team)}
+                    disabled={savingName || !draftName.trim()}
+                    className="rounded-md bg-green-600 px-2 py-1 text-xs font-bold text-white hover:bg-green-500 disabled:opacity-40 transition"
+                    title="שמור (Enter)"
+                  >
+                    {savingName ? '…' : '✓'}
+                  </button>
+                  <button
+                    onClick={cancelEditName}
+                    disabled={savingName}
+                    className="rounded-md border border-gray-600 px-2 py-1 text-xs font-bold text-gray-300 hover:bg-gray-700 transition"
+                    title="ביטול (Esc)"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 mb-1 min-w-0">
+                  <p className="font-bold text-white truncate">{team.name}</p>
+                  <button
+                    onClick={() => startEditName(team)}
+                    className="shrink-0 rounded-md border border-gray-600 px-1.5 py-0.5 text-[11px] text-gray-400 hover:text-white hover:border-orange-500/60 hover:bg-orange-500/10 transition"
+                    title="ערוך שם"
+                  >
+                    ✏️
+                  </button>
+                </div>
+              )}
               <p className="text-xs text-gray-500 mb-2">
                 {team.logo_url ? '✅ יש לוגו' : '❌ אין לוגו'}
               </p>
