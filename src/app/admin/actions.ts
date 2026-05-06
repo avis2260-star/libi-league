@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import type { GameStatus } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
+import { findPlayerForExtracted, type ExtractedPlayer } from '@/lib/match-player';
 
 type ActionResult = { error?: string };
 
@@ -327,46 +328,60 @@ export async function approveSubmission(submissionId: string): Promise<ActionRes
   if (gameErr) return { error: gameErr.message };
 
   // ── Upsert per-game player stats into game_stats ──────────────────────────
+  type ExtractedRow = {
+    name: string; jersey?: number | null;
+    points?: number; three_pointers?: number; fouls?: number;
+    played?: boolean;
+  };
   const stats = sub.extracted_stats as {
-    home_players?: { name: string; points?: number; three_pointers?: number; fouls?: number; played?: boolean }[];
-    away_players?: { name: string; points?: number; three_pointers?: number; fouls?: number; played?: boolean }[];
+    home_players?: ExtractedRow[];
+    away_players?: ExtractedRow[];
   } | null;
 
   if (stats) {
-    const allPlayers = [
-      ...(stats.home_players ?? []),
-      ...(stats.away_players ?? []),
+    // Need home/away team IDs to scope the matcher to the correct roster
+    const { data: gameRow } = await supabaseAdmin
+      .from('games')
+      .select('home_team_id, away_team_id')
+      .eq('id', sub.game_id)
+      .maybeSingle();
+
+    const homeTeamId = gameRow?.home_team_id ?? null;
+    const awayTeamId = gameRow?.away_team_id ?? null;
+
+    const tagged: { ep: ExtractedRow; teamId: string | null }[] = [
+      ...(stats.home_players ?? []).map((ep) => ({ ep, teamId: homeTeamId })),
+      ...(stats.away_players ?? []).map((ep) => ({ ep, teamId: awayTeamId })),
     ];
 
     const affectedPlayerIds: string[] = [];
 
-    for (const ep of allPlayers) {
+    for (const { ep, teamId } of tagged) {
       if (!ep.name || ep.name === '?') continue;
       // New behavior: if `played` is explicitly false, skip this player.
       // Backward compat: undefined `played` (older submissions) → treat as played.
       if (ep.played === false) continue;
 
-      // Find player by name (case-insensitive)
-      const { data: found } = await supabaseAdmin
-        .from('players')
-        .select('id, team_id')
-        .ilike('name', ep.name.trim())
-        .maybeSingle();
+      const result = await findPlayerForExtracted(
+        supabaseAdmin,
+        ep as ExtractedPlayer,
+        teamId,
+      );
 
-      if (found) {
+      if (result.player) {
         // Write per-game row so the player profile page shows this game
         await supabaseAdmin
           .from('game_stats')
           .upsert({
             game_id:        sub.game_id,
-            player_id:      found.id,
-            team_id:        found.team_id,
+            player_id:      result.player.id,
+            team_id:        result.player.team_id,
             points:         ep.points         ?? 0,
             three_pointers: ep.three_pointers ?? 0,
             fouls:          ep.fouls          ?? 0,
           }, { onConflict: 'game_id,player_id' });
 
-        affectedPlayerIds.push(found.id);
+        affectedPlayerIds.push(result.player.id);
       }
     }
 
@@ -624,6 +639,131 @@ export async function saveTermsSetting(
   if (error) return { error: error.message };
   revalidatePath('/terms');
   return {};
+}
+
+// ── Reprocess approved submissions ────────────────────────────────────────────
+//
+// Re-runs the player-name matcher against every approved submission and
+// rewrites the game_stats rows. Use this after improving the matcher (or
+// after correcting player names in the DB) to backfill stats for players
+// whose box scores were silently dropped because their name didn't match.
+
+export type ReprocessReport = {
+  submissionsProcessed: number;
+  gamesUpdated: number;
+  playersMatched: number;
+  unmatched: { submissionId: string; gameDate: string; teamSide: 'home' | 'away'; name: string; jersey: number | null }[];
+  error?: string;
+};
+
+export async function reprocessApprovedSubmissions(): Promise<ReprocessReport> {
+  const report: ReprocessReport = {
+    submissionsProcessed: 0,
+    gamesUpdated: 0,
+    playersMatched: 0,
+    unmatched: [],
+  };
+
+  type SubLite = {
+    id: string;
+    game_id: string;
+    extracted_stats: {
+      home_players?: { name?: string; jersey?: number | null; points?: number; three_pointers?: number; fouls?: number; played?: boolean }[];
+      away_players?: { name?: string; jersey?: number | null; points?: number; three_pointers?: number; fouls?: number; played?: boolean }[];
+    } | null;
+    game: { game_date: string; home_team_id: string | null; away_team_id: string | null } | null;
+  };
+
+  const { data: subs, error: fetchErr } = await supabaseAdmin
+    .from('game_submissions')
+    .select(`
+      id, game_id, extracted_stats,
+      game:games(game_date, home_team_id, away_team_id)
+    `)
+    .eq('status', 'approved');
+
+  if (fetchErr) {
+    report.error = fetchErr.message;
+    return report;
+  }
+
+  const allAffectedPlayerIds = new Set<string>();
+
+  for (const subRaw of (subs ?? []) as unknown as SubLite[]) {
+    report.submissionsProcessed++;
+
+    const stats = subRaw.extracted_stats;
+    if (!stats) continue;
+
+    const homeTeamId = subRaw.game?.home_team_id ?? null;
+    const awayTeamId = subRaw.game?.away_team_id ?? null;
+    const gameDate = subRaw.game?.game_date ?? '';
+
+    // Wipe existing game_stats for this game so we can rewrite cleanly
+    await supabaseAdmin.from('game_stats').delete().eq('game_id', subRaw.game_id);
+
+    type RawPlayer = { name?: string; jersey?: number | null; points?: number; three_pointers?: number; fouls?: number; played?: boolean };
+    const tagged: { ep: RawPlayer; teamId: string | null; side: 'home' | 'away' }[] = [
+      ...(stats.home_players ?? []).map((ep) => ({ ep: ep as RawPlayer, teamId: homeTeamId, side: 'home' as const })),
+      ...(stats.away_players ?? []).map((ep) => ({ ep: ep as RawPlayer, teamId: awayTeamId, side: 'away' as const })),
+    ];
+
+    let touched = false;
+
+    for (const { ep, teamId, side } of tagged) {
+      if (!ep.name || ep.name === '?') continue;
+      if (ep.played === false) continue;
+
+      const result = await findPlayerForExtracted(
+        supabaseAdmin,
+        ep as ExtractedPlayer,
+        teamId,
+      );
+
+      if (result.player) {
+        await supabaseAdmin.from('game_stats').upsert({
+          game_id:        subRaw.game_id,
+          player_id:      result.player.id,
+          team_id:        result.player.team_id,
+          points:         ep.points         ?? 0,
+          three_pointers: ep.three_pointers ?? 0,
+          fouls:          ep.fouls          ?? 0,
+        }, { onConflict: 'game_id,player_id' });
+
+        allAffectedPlayerIds.add(result.player.id);
+        report.playersMatched++;
+        touched = true;
+      } else {
+        report.unmatched.push({
+          submissionId: subRaw.id,
+          gameDate,
+          teamSide: side,
+          name: ep.name,
+          jersey: ep.jersey ?? null,
+        });
+      }
+    }
+
+    if (touched) report.gamesUpdated++;
+  }
+
+  // Recalculate season totals for every player we touched, plus zero out
+  // players whose stats came only from old (deleted) game_stats rows.
+  const allPlayerIds = new Set<string>(allAffectedPlayerIds);
+  // Also include any player who currently has non-zero totals so we re-derive
+  // their value from the new game_stats data instead of trusting stale numbers.
+  const { data: nonZero } = await supabaseAdmin
+    .from('players')
+    .select('id')
+    .or('points.gt.0,three_pointers.gt.0,fouls.gt.0');
+  for (const p of (nonZero ?? []) as { id: string }[]) allPlayerIds.add(p.id);
+
+  await recalcPlayerTotals([...allPlayerIds]);
+
+  revalidatePath('/players');
+  revalidatePath('/admin');
+  revalidatePath('/');
+  return report;
 }
 
 // ── About page text ───────────────────────────────────────────────────────────

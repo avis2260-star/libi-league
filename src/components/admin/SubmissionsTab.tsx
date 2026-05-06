@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { approveSubmission, rejectSubmission, clearSubmission, changeSubmissionStatus } from '@/app/admin/actions';
+import { approveSubmission, rejectSubmission, clearSubmission, changeSubmissionStatus, reprocessApprovedSubmissions, type ReprocessReport } from '@/app/admin/actions';
 
 type ExtractedPlayer = {
   name: string;
@@ -310,6 +310,111 @@ function SubmissionCard({ sub }: { sub: SubmissionRow }) {
 
 type Filter = 'all' | 'pending' | 'needs_review' | 'approved' | 'rejected';
 
+function ReprocessButton() {
+  const [isPending, startTransition] = useTransition();
+  const [report, setReport] = useState<ReprocessReport | null>(null);
+  const [error, setError] = useState('');
+  const [confirming, setConfirming] = useState(false);
+
+  function run() {
+    setError('');
+    setReport(null);
+    setConfirming(false);
+    startTransition(async () => {
+      const r = await reprocessApprovedSubmissions();
+      if (r.error) setError(r.error);
+      else setReport(r);
+    });
+  }
+
+  return (
+    <div className="rounded-2xl border border-orange-500/20 bg-orange-500/[0.04] p-4 space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-black text-orange-300">🔄 רענן סטטיסטיקות שחקנים</p>
+          <p className="text-xs text-[#8aaac8] mt-1 leading-relaxed">
+            מריץ מחדש את ההתאמה בין שמות שחקנים מהטפסים לבין הרשומות במערכת,
+            ומשלים סטטיסטיקות חסרות לכל שחקן. השתמש כשיש שחקן שלא מוצג עם נתונים.
+          </p>
+        </div>
+        {!confirming ? (
+          <button
+            onClick={() => setConfirming(true)}
+            disabled={isPending}
+            className="shrink-0 rounded-xl border border-orange-500/40 bg-orange-500/10 px-3 py-2 text-xs font-bold text-orange-300 hover:bg-orange-500/20 disabled:opacity-40 transition"
+          >
+            הפעל
+          </button>
+        ) : (
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={run}
+              disabled={isPending}
+              className="rounded-xl bg-orange-500 px-3 py-2 text-xs font-bold text-white hover:bg-orange-400 disabled:opacity-40 transition"
+            >
+              {isPending ? 'מעבד...' : 'אישור'}
+            </button>
+            <button
+              onClick={() => setConfirming(false)}
+              disabled={isPending}
+              className="rounded-xl border border-white/10 px-3 py-2 text-xs text-[#8aaac8] hover:text-white transition"
+            >
+              ביטול
+            </button>
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <p className="text-xs text-red-300 bg-red-500/10 rounded-lg p-2">⚠️ {error}</p>
+      )}
+
+      {report && (
+        <div className="text-xs space-y-2 border-t border-white/5 pt-3">
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-lg bg-white/[0.03] p-2 text-center">
+              <p className="text-[#5a7a9a]">הגשות</p>
+              <p className="text-base font-black text-white mt-0.5">{report.submissionsProcessed}</p>
+            </div>
+            <div className="rounded-lg bg-white/[0.03] p-2 text-center">
+              <p className="text-[#5a7a9a]">משחקים עודכנו</p>
+              <p className="text-base font-black text-emerald-400 mt-0.5">{report.gamesUpdated}</p>
+            </div>
+            <div className="rounded-lg bg-white/[0.03] p-2 text-center">
+              <p className="text-[#5a7a9a]">שחקנים הותאמו</p>
+              <p className="text-base font-black text-orange-400 mt-0.5">{report.playersMatched}</p>
+            </div>
+          </div>
+
+          {report.unmatched.length > 0 && (
+            <details className="rounded-lg bg-yellow-500/5 border border-yellow-500/20 p-2">
+              <summary className="cursor-pointer text-yellow-300 font-bold">
+                ⚠️ {report.unmatched.length} שמות שלא הותאמו (לחץ להצגה)
+              </summary>
+              <ul className="mt-2 space-y-1 max-h-48 overflow-auto">
+                {report.unmatched.map((u, i) => (
+                  <li key={i} className="text-[#c0d4e8]">
+                    <span className="text-[#5a7a9a]">{u.gameDate} · {u.teamSide === 'home' ? 'בית' : 'חוץ'} ·</span>{' '}
+                    <span className="font-medium">{u.name}</span>
+                    {u.jersey !== null && <span className="text-[#5a7a9a]"> (#{u.jersey})</span>}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-[10px] text-[#5a7a9a]">
+                תקן את שם השחקן בלשונית &quot;שחקנים&quot; כך שיתאים בדיוק לשם שמופיע בטופס, ואז הפעל שוב.
+              </p>
+            </details>
+          )}
+
+          {report.unmatched.length === 0 && report.playersMatched > 0 && (
+            <p className="text-emerald-400 text-center">✅ כל השמות הותאמו בהצלחה</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SubmissionsTab({ submissions }: { submissions: SubmissionRow[] }) {
   const [filter, setFilter] = useState<Filter>('all');
 
@@ -336,6 +441,9 @@ export default function SubmissionsTab({ submissions }: { submissions: Submissio
         <h2 className="text-xl font-black text-white">הגשות תוצאות</h2>
         <p className="text-sm text-[#5a7a9a] mt-0.5">טפסים שהוגשו על ידי משתמשים לאישור</p>
       </div>
+
+      {/* Reprocess utility */}
+      <ReprocessButton />
 
       {/* Filter tabs */}
       <div className="flex flex-wrap gap-2">
