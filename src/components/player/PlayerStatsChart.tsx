@@ -58,7 +58,7 @@ export default function PlayerStatsChart({ data }: Props) {
   if (data.length < 2) {
     return (
       <p className="py-8 text-center text-sm text-gray-500">
-        Not enough games to draw a chart yet.
+        אין מספיק משחקים להצגת הגרף עדיין.
       </p>
     );
   }
