@@ -20,6 +20,7 @@ import PlayerStatsTab, { type PlayerStatRow } from '@/components/admin/PlayerSta
 import MessagesTab, { type ContactMessage } from '@/components/admin/MessagesTab';
 import TermsTab from '@/components/admin/TermsTab';
 import AboutTab from '@/components/admin/AboutTab';
+import AccessibilityTab from '@/components/admin/AccessibilityTab';
 import HallOfFameTab from '@/components/admin/HallOfFameTab';
 import type { GameWithTeams, Team } from '@/types';
 
@@ -200,6 +201,25 @@ export default async function AdminPage({
     aboutChairmanName = map.get('about_chairman_name') ?? '';
   }
 
+  // Accessibility tab
+  let a11yCoordinatorName = '';
+  let a11yCoordinatorEmail = '';
+  let a11yUpdatedAt = '';
+  if (tab === 'accessibility') {
+    const { data } = await supabaseAdmin
+      .from('league_settings')
+      .select('key,value')
+      .in('key', [
+        'accessibility_coordinator_name',
+        'accessibility_coordinator_email',
+        'accessibility_updated_at',
+      ]);
+    const map = new Map<string, string>((data ?? []).map((r) => [r.key, r.value]));
+    a11yCoordinatorName  = map.get('accessibility_coordinator_name')  ?? '';
+    a11yCoordinatorEmail = map.get('accessibility_coordinator_email') ?? '';
+    a11yUpdatedAt        = map.get('accessibility_updated_at')        ?? '';
+  }
+
   // Contact messages tab
   let contactMessages: ContactMessage[] = [];
   if (tab === 'messages') {
@@ -274,6 +294,7 @@ export default async function AdminPage({
       {tab === 'messages'      && <MessagesTab messages={contactMessages} />}
       {tab === 'terms'         && <TermsTab termsOfUse={termsOfUse} privacyPolicy={privacyPolicy} />}
       {tab === 'about'         && <AboutTab heroSubtitle={aboutHeroSubtitle} story={aboutStory} association={aboutAssociation} chairmanName={aboutChairmanName} />}
+      {tab === 'accessibility' && <AccessibilityTab coordinatorName={a11yCoordinatorName} coordinatorEmail={a11yCoordinatorEmail} updatedAt={a11yUpdatedAt} />}
       {tab === 'halloffame'    && <HallOfFameTab seasons={hofSeasons} records={hofRecords} />}
     </>
   );

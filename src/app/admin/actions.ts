@@ -767,6 +767,26 @@ export async function reprocessApprovedSubmissions(): Promise<ReprocessReport> {
   return report;
 }
 
+// ── Accessibility statement ───────────────────────────────────────────────────
+
+export type AccessibilitySettingKey =
+  | 'accessibility_coordinator_name'
+  | 'accessibility_coordinator_email'
+  | 'accessibility_updated_at';
+
+export async function saveAccessibilitySetting(
+  key: AccessibilitySettingKey,
+  value: string,
+): Promise<ActionResult> {
+  const { error } = await supabaseAdmin
+    .from('league_settings')
+    .upsert({ key, value }, { onConflict: 'key' });
+
+  if (error) return { error: error.message };
+  revalidatePath('/accessibility');
+  return {};
+}
+
 // ── About page text ───────────────────────────────────────────────────────────
 
 export type AboutSettingKey =

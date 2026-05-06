@@ -13,10 +13,11 @@ const QUICK_LINKS = [
 ];
 
 const LEGAL_LINKS = [
-  { href: '/takanon', he: 'תקנון הליגה'              },
-  { href: '/terms',   he: 'תנאי שימוש ומדיניות פרטיות' },
-  { href: '/about',   he: 'אודות'                    },
-  { href: '/about',   he: 'צור קשר'                  },
+  { href: '/takanon',        he: 'תקנון הליגה'              },
+  { href: '/terms',          he: 'תנאי שימוש ומדיניות פרטיות' },
+  { href: '/accessibility',  he: 'הצהרת נגישות'             },
+  { href: '/about',          he: 'אודות'                    },
+  { href: '/about',          he: 'צור קשר'                  },
 ];
 
 // Social icon SVGs
@@ -54,10 +55,11 @@ function YoutubeIcon() {
 }
 
 const MOBILE_LINKS = [
-  { href: '/about',    he: 'אודות'       },
-  { href: '/about',    he: 'צור קשר'     },
-  { href: '/terms',    he: 'תנאי שימוש'  },
-  { href: '/takanon',  he: 'תקנון'       },
+  { href: '/about',          he: 'אודות'       },
+  { href: '/about',          he: 'צור קשר'     },
+  { href: '/terms',          he: 'תנאי שימוש'  },
+  { href: '/takanon',        he: 'תקנון'       },
+  { href: '/accessibility',  he: 'נגישות'      },
 ];
 
 export default async function Footer() {
