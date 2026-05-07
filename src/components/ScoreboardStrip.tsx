@@ -110,7 +110,7 @@ function GameModal({
             >
               {t(game.home)}
             </Link>
-            <span className="text-[10px] text-[#4a6a8a] font-semibold font-body">{t('בית')}</span>
+            <span className="text-sm font-black text-white font-heading">{t('בית')}</span>
           </div>
 
           {/* VS */}
@@ -128,7 +128,7 @@ function GameModal({
             >
               {t(game.away)}
             </Link>
-            <span className="text-[10px] text-[#4a6a8a] font-semibold font-body">{t('חוץ')}</span>
+            <span className="text-sm font-black text-white font-heading">{t('חוץ')}</span>
           </div>
         </div>
 
@@ -138,7 +138,7 @@ function GameModal({
             <div className="grid grid-cols-2 divide-x divide-x-reverse divide-white/[0.05]">
               {/* Home roster */}
               <div className="p-4">
-                <p className="text-[10px] font-black uppercase tracking-widest text-[#4a6a8a] mb-3">{t('סגל')} {t(game.home)}</p>
+                <p className="text-sm font-black text-white mb-3 font-heading">{t('סגל')} {t(game.home)}</p>
                 {homeRoster.length === 0 ? (
                   <p className="text-xs text-[#3a5a7a]">{t('לא נמצאו שחקנים')}</p>
                 ) : (
@@ -157,7 +157,7 @@ function GameModal({
 
               {/* Away roster */}
               <div className="p-4">
-                <p className="text-[10px] font-black uppercase tracking-widest text-[#4a6a8a] mb-3">{t('סגל')} {t(game.away)}</p>
+                <p className="text-sm font-black text-white mb-3 font-heading">{t('סגל')} {t(game.away)}</p>
                 {awayRoster.length === 0 ? (
                   <p className="text-xs text-[#3a5a7a]">{t('לא נמצאו שחקנים')}</p>
                 ) : (

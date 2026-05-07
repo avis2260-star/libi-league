@@ -61,21 +61,42 @@ type RosterEntry = { name: string; jersey_number: number | null };
 // old date until the next Excel sync). Keying by team pair only — which is
 // unique per matchup per round — survives those drifts so admin-entered
 // time/location still surfaces in the public UI.
+// Fuzzy team-name resolver: tries exact normalized match first, then
+// falls back to substring match in either direction. This is what allows
+// schedule names like "אדיס אשדוד" to resolve to DB team
+// "שועלי אדיס אשדוד" (or vice versa).
+function resolveTeamId(
+  name: string,
+  norm: (s: string) => string,
+  teams: { id: string; name: string }[],
+): string | null {
+  const target = norm(name);
+  if (!target) return null;
+  const exact = teams.find((t) => norm(t.name) === target);
+  if (exact) return exact.id;
+  const sub = teams.find((t) => {
+    const n = norm(t.name);
+    return n.includes(target) || target.includes(n);
+  });
+  return sub?.id ?? null;
+}
+
 async function getGameDetails(games: { home: string; away: string }[]): Promise<Record<string, { location: string; time: string }>> {
   if (!games.length) return {};
   try {
     const { data: teamsData } = await supabaseAdmin.from('teams').select('id, name');
     if (!teamsData) return {};
     function norm(s: string) { return s.replace(/["""''`״׳]/g, '').replace(/\s+/g, ' ').trim().toLowerCase(); }
-    const nameToId: Record<string, string> = {};
-    for (const t of teamsData) nameToId[norm(t.name)] = t.id;
 
     const ids = new Set<string>();
+    // Track which schedule name resolves to which DB team id so we can
+    // re-key the result back to the schedule name later.
+    const scheduleNameToId = new Map<string, string>();
     for (const g of games) {
-      const hId = nameToId[norm(g.home)];
-      const aId = nameToId[norm(g.away)];
-      if (hId) ids.add(hId);
-      if (aId) ids.add(aId);
+      const hId = resolveTeamId(g.home, norm, teamsData);
+      const aId = resolveTeamId(g.away, norm, teamsData);
+      if (hId) { ids.add(hId); scheduleNameToId.set(g.home, hId); }
+      if (aId) { ids.add(aId); scheduleNameToId.set(g.away, aId); }
     }
     if (!ids.size) return {};
 
@@ -86,17 +107,22 @@ async function getGameDetails(games: { home: string; away: string }[]): Promise<
       .in('away_team_id', [...ids])
       .order('game_date', { ascending: true });
 
-    const idToName: Record<string, string> = {};
-    for (const t of teamsData) idToName[t.id] = t.name;
+    // Build id → schedule-name lookup so the result keys match what the
+    // page builds with normKey(g.homeTeam)|normKey(g.awayTeam).
+    const idToScheduleName = new Map<string, string>();
+    for (const [scheduleName, id] of scheduleNameToId) {
+      idToScheduleName.set(id, scheduleName);
+    }
 
     const result: Record<string, { location: string; time: string }> = {};
     // Iterate in date-asc order so that, if two rows exist for the same
     // matchup (rare — only after a reschedule that left both rows behind),
     // the newer row's data wins by overwriting the older.
     for (const g of dbGames ?? []) {
-      const home = idToName[g.home_team_id] ?? '';
-      const away = idToName[g.away_team_id] ?? '';
-      const key  = `${norm(home)}|${norm(away)}`;
+      const homeScheduleName = idToScheduleName.get(g.home_team_id);
+      const awayScheduleName = idToScheduleName.get(g.away_team_id);
+      if (!homeScheduleName || !awayScheduleName) continue;
+      const key  = `${norm(homeScheduleName)}|${norm(awayScheduleName)}`;
       const loc  = (g.location && g.location !== 'TBD') ? g.location : '';
       const time = (g.game_time && g.game_time !== '00:00:00') ? g.game_time.slice(0, 5) : '';
       if (loc || time) result[key] = { location: loc, time };
@@ -113,31 +139,43 @@ async function getTeamRosters(teamNames: string[]): Promise<Record<string, Roste
       .select('id, name');
     if (!teamsData) return {};
 
-    // Normalize and build id → name map for requested teams
     function norm(s: string) { return s.replace(/["""''`״׳]/g, '').replace(/\s+/g, ' ').trim().toLowerCase(); }
-    const idToName: Record<string, string> = {};
-    const ids: string[] = [];
-    for (const t of teamsData) {
-      if (teamNames.some(tn => norm(tn) === norm(t.name))) {
-        idToName[t.id] = t.name;
-        ids.push(t.id);
+
+    // Map each requested schedule name to the matching DB team id, using
+    // exact-then-substring resolution so naming drift (e.g. schedule says
+    // "אדיס אשדוד", DB row is "שועלי אדיס אשדוד") doesn't drop the roster.
+    const scheduleNameToId = new Map<string, string>();
+    const ids = new Set<string>();
+    for (const tn of teamNames) {
+      const id = resolveTeamId(tn, norm, teamsData);
+      if (id) {
+        scheduleNameToId.set(tn, id);
+        ids.add(id);
       }
     }
-    if (!ids.length) return {};
+    if (!ids.size) return {};
 
     const { data: playersData } = await supabaseAdmin
       .from('players')
       .select('name, jersey_number, team_id')
       .eq('is_active', true)
-      .in('team_id', ids)
+      .in('team_id', [...ids])
       .order('jersey_number', { ascending: true });
+
+    // Reverse map: db team id → original schedule name(s). One DB team
+    // could potentially be matched by multiple schedule names; route
+    // players to every matching original key so all keys see the roster.
+    const idToScheduleNames = new Map<string, string[]>();
+    for (const [scheduleName, id] of scheduleNameToId) {
+      const arr = idToScheduleNames.get(id) ?? [];
+      arr.push(scheduleName);
+      idToScheduleNames.set(id, arr);
+    }
 
     const rosters: Record<string, RosterEntry[]> = {};
     for (const p of playersData ?? []) {
-      const teamName = idToName[p.team_id];
-      if (teamName) {
-        // Map back to the original team name from teamNames (handles alias differences)
-        const original = teamNames.find(tn => norm(tn) === norm(teamName)) ?? teamName;
+      const originals = idToScheduleNames.get(p.team_id) ?? [];
+      for (const original of originals) {
         if (!rosters[original]) rosters[original] = [];
         rosters[original].push({ name: p.name, jersey_number: p.jersey_number });
       }
