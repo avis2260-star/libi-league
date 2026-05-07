@@ -118,11 +118,11 @@ export default function LeagueSettingsTab({ settings: initial }: { settings: Set
 
       {/* ── League Logo Upload ──────────────────────────────────────────── */}
       <div className="rounded-xl border border-gray-700 bg-gray-900/60 overflow-hidden">
-        <div className="bg-gray-800/70 px-5 py-3 border-b border-gray-700">
+        <div className="bg-gray-800/70 px-4 py-3 border-b border-gray-700 sm:px-5">
           <h3 className="font-semibold text-orange-400">🏀 לוגו הליגה</h3>
         </div>
-        <div className="p-5">
-          <div className="flex items-center gap-6 flex-wrap">
+        <div className="p-4 sm:p-5">
+          <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-6">
             {/* Current logo preview */}
             <div className="relative h-24 w-24 shrink-0 rounded-full border-2 border-gray-600 bg-gray-800 overflow-hidden flex items-center justify-center">
               {(logoPreview ?? logoUrl) ? (
@@ -210,44 +210,52 @@ export default function LeagueSettingsTab({ settings: initial }: { settings: Set
 
       {CATEGORIES.map((cat) => (
         <div key={cat.label} className="rounded-xl border border-gray-700 bg-gray-900/60 overflow-hidden">
-          <div className="bg-gray-800/70 px-5 py-3 border-b border-gray-700">
+          <div className="bg-gray-800/70 px-4 py-3 border-b border-gray-700 sm:px-5">
             <h3 className="font-semibold text-orange-400">{cat.label}</h3>
           </div>
-          <div className="p-5 space-y-4">
+          <div className="p-4 space-y-5 sm:p-5 sm:space-y-4">
             {cat.keys.map((key) => (
-              <div key={key} className="flex items-center gap-3">
-                <label className="w-48 shrink-0 text-sm text-gray-300">
+              <div
+                key={key}
+                className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3"
+              >
+                {/* Label — full width on mobile, fixed width on desktop */}
+                <label className="text-sm text-gray-300 sm:w-48 sm:shrink-0">
                   {SETTING_LABELS[key] ?? key}
                 </label>
-                {key === 'tiebreaker' ? (
-                  <select
-                    value={values[key] ?? ''}
-                    onChange={(e) => setValues((prev) => ({ ...prev, [key]: e.target.value }))}
-                    className="flex-1 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
+
+                {/* Input + save button row — wraps together on mobile */}
+                <div className="flex items-center gap-2 sm:flex-1 sm:gap-3">
+                  {key === 'tiebreaker' ? (
+                    <select
+                      value={values[key] ?? ''}
+                      onChange={(e) => setValues((prev) => ({ ...prev, [key]: e.target.value }))}
+                      className="min-w-0 flex-1 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
+                    >
+                      <option value="head_to_head">יתרון ישיר (head_to_head)</option>
+                      <option value="point_differential">הפרש נקודות (point_differential)</option>
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={values[key] ?? ''}
+                      onChange={(e) => setValues((prev) => ({ ...prev, [key]: e.target.value }))}
+                      className="min-w-0 flex-1 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
+                    />
+                  )}
+                  <button
+                    onClick={() => handleSave(key)}
+                    disabled={saving[key]}
+                    className="shrink-0 rounded-lg bg-orange-500 px-3 py-2 text-xs font-bold text-white transition hover:bg-orange-600 disabled:opacity-50 sm:px-4"
                   >
-                    <option value="head_to_head">יתרון ישיר (head_to_head)</option>
-                    <option value="point_differential">הפרש נקודות (point_differential)</option>
-                  </select>
-                ) : (
-                  <input
-                    type="text"
-                    value={values[key] ?? ''}
-                    onChange={(e) => setValues((prev) => ({ ...prev, [key]: e.target.value }))}
-                    className="flex-1 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
-                  />
-                )}
-                <button
-                  onClick={() => handleSave(key)}
-                  disabled={saving[key]}
-                  className="rounded-lg bg-orange-500 px-4 py-2 text-xs font-bold text-white transition hover:bg-orange-600 disabled:opacity-50 whitespace-nowrap"
-                >
-                  {saving[key] ? '...' : 'שמור'}
-                </button>
-                {status[key] && (
-                  <span className={`text-xs font-medium whitespace-nowrap ${status[key]!.ok ? 'text-green-400' : 'text-red-400'}`}>
-                    {status[key]!.text}
-                  </span>
-                )}
+                    {saving[key] ? '...' : 'שמור'}
+                  </button>
+                  {status[key] && (
+                    <span className={`shrink-0 text-xs font-medium ${status[key]!.ok ? 'text-green-400' : 'text-red-400'}`}>
+                      {status[key]!.text}
+                    </span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
