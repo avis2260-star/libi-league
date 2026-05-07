@@ -140,8 +140,8 @@ export default function SeasonsTab({ seasons: initial }: { seasons: Season[] }) 
 
       {/* Seasons list */}
       {list.length > 0 && (
-        <div className="rounded-xl border border-gray-700 overflow-hidden">
-          <table className="w-full text-sm text-right">
+        <div className="rounded-xl border border-gray-700 overflow-hidden overflow-x-auto">
+          <table className="w-full text-sm text-right min-w-[640px]">
             <thead className="bg-gray-800/80 text-gray-400 text-xs uppercase tracking-wide">
               <tr>
                 <th className="px-4 py-3">שם</th>

@@ -512,7 +512,8 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
 
                 {/* Collapsible player table */}
                 {isOpen && (
-                  <table className="w-full text-sm text-right">
+                  <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-right min-w-[820px]">
                     <thead className="bg-gray-800/50 text-gray-400 text-xs uppercase tracking-wide">
                       <tr>
                         <th className="px-4 py-2 w-10 text-center">מס׳</th>
@@ -721,6 +722,7 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
                       })}
                     </tbody>
                   </table>
+                  </div>
                 )}
               </div>
             );

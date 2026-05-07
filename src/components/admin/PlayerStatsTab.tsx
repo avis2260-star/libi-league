@@ -237,7 +237,8 @@ export default function PlayerStatsTab({ players }: { players: PlayerStatRow[] }
               </button>
 
               {!isClosed && (
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[520px]">
                   <thead className="bg-white/[0.03] text-[11px] font-bold uppercase tracking-wide text-[#5a7a9a]">
                     <tr>
                       <th className="px-3 py-2 text-right">שחקן</th>
@@ -251,6 +252,7 @@ export default function PlayerStatsTab({ players }: { players: PlayerStatRow[] }
                     {rows.map(p => <Row key={p.id} p={p} />)}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
           );

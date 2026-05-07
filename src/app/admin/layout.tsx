@@ -52,8 +52,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <AdminNav />
       </Suspense>
 
-      {/* Page content */}
-      <main className="mx-auto max-w-4xl px-4 py-6 pb-24 sm:pb-6">{children}</main>
+      {/* Page content
+          - Mobile: tighter side padding + safe-area-aware bottom padding so
+            the fixed bottom nav (~56px + iPhone safe-area inset) never covers
+            the last row of any tab.
+          - Desktop (sm+): comfortable padding, max-w-5xl. */}
+      <main className="mx-auto w-full max-w-5xl px-3 py-6 pb-[max(7rem,calc(env(safe-area-inset-bottom)+5rem))] sm:px-6 sm:pb-6">
+        {children}
+      </main>
     </div>
   );
 }
