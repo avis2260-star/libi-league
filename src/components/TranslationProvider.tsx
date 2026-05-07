@@ -46,7 +46,10 @@ export default function TranslationProvider({
 
   const t = useCallback((he: string): string => {
     if (lang === 'he') return he;
-    return DICT[he] ?? he;
+    if (he == null) return he;
+    // Exact key first, then trimmed — so DB strings with stray whitespace
+    // still translate.
+    return DICT[he] ?? DICT[he.trim()] ?? he;
   }, [lang]);
 
   return (

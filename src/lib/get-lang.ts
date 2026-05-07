@@ -12,5 +12,8 @@ export async function getLang(): Promise<'he' | 'en'> {
 
 export function st(he: string, lang: 'he' | 'en'): string {
   if (lang === 'he') return he;
-  return DICT[he] ?? he;
+  if (he == null) return he;
+  // Exact key first, then trimmed — so admin-stored strings with stray
+  // whitespace still translate.
+  return DICT[he] ?? DICT[he.trim()] ?? he;
 }

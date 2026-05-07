@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useLang } from './TranslationProvider';
 
 const STORAGE_KEY = 'submit-instructions-dismissed';
 
 type Point = { label?: string; text: string };
 type Content = { title: string; intro: string; points: Point[]; warning: string };
 
-const DESKTOP_CONTENT: Content = {
+const DESKTOP_CONTENT_HE: Content = {
   title: '🏀 דגשים קריטיים לעדכון סטטיסטיקה',
   intro: 'לפני שמתחילים, ודאו שטופס המשחק מולכם מולא לפי ההנחיות הבאות:',
   points: [
@@ -31,7 +32,31 @@ const DESKTOP_CONTENT: Content = {
   warning: '⚠️ שימו לב: נתונים מטופס לא קריא או חסר – לא יועלו לאתר.',
 };
 
-const MOBILE_CONTENT: Content = {
+const DESKTOP_CONTENT_EN: Content = {
+  title: '🏀 Critical points for stat entry',
+  intro: 'Before you start, make sure the game scoresheet in front of you was filled out per the following:',
+  points: [
+    {
+      label: 'Clear writing:',
+      text: 'Player names and jersey numbers must be written clearly and legibly.',
+    },
+    {
+      label: 'Tracking points:',
+      text: 'In the running record, make sure the scoring player\'s number appears next to the updated score.',
+    },
+    {
+      label: 'Quarter and final summaries:',
+      text: 'Make sure quarter scores and the final score are summarized on the form.',
+    },
+    {
+      label: 'Per-player stats:',
+      text: 'Sum each player\'s total baskets separately (anywhere free on the form).',
+    },
+  ],
+  warning: '⚠️ Note: data from an illegible or incomplete form will not be uploaded to the site.',
+};
+
+const MOBILE_CONTENT_HE: Content = {
   title: '🏀 דגשים להזנת נתונים',
   intro: 'ודאו שבטופס המצולם:',
   points: [
@@ -42,7 +67,20 @@ const MOBILE_CONTENT: Content = {
   warning: '⚠️ שימו לב: נתונים לא ברורים לא יועלו לאתר.',
 };
 
+const MOBILE_CONTENT_EN: Content = {
+  title: '🏀 Stat entry essentials',
+  intro: 'Make sure the photographed form has:',
+  points: [
+    { text: 'Names and numbers written clearly.' },
+    { text: 'Player number next to every basket.' },
+    { text: 'Quarter summary, final score, and per-player points.' },
+  ],
+  warning: '⚠️ Note: unclear data will not be uploaded to the site.',
+};
+
 export default function SubmitInstructionsModal() {
+  const { lang } = useLang();
+  const en = lang === 'en';
   const [visible, setVisible]   = useState(false);
   const [dontShow, setDontShow] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -66,7 +104,9 @@ export default function SubmitInstructionsModal() {
 
   if (!visible) return null;
 
-  const content = isMobile ? MOBILE_CONTENT : DESKTOP_CONTENT;
+  const content = isMobile
+    ? (en ? MOBILE_CONTENT_EN  : MOBILE_CONTENT_HE)
+    : (en ? DESKTOP_CONTENT_EN : DESKTOP_CONTENT_HE);
 
   return (
     /* Overlay */
@@ -76,7 +116,7 @@ export default function SubmitInstructionsModal() {
     >
       {/* Card */}
       <div
-        dir="rtl"
+        dir={en ? 'ltr' : 'rtl'}
         className="relative w-full max-w-lg rounded-2xl border border-white/10 bg-[#0f1923] shadow-2xl overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
@@ -130,7 +170,7 @@ export default function SubmitInstructionsModal() {
               className="w-4 h-4 accent-orange-500 cursor-pointer shrink-0"
             />
             <span className="text-sm text-[#8aaac8] group-hover:text-white transition-colors">
-              אל תציג לי את ההוראות האלו שוב
+              {en ? "Don't show these instructions again" : 'אל תציג לי את ההוראות האלו שוב'}
             </span>
           </label>
 
@@ -139,7 +179,7 @@ export default function SubmitInstructionsModal() {
             onClick={handleConfirm}
             className="w-full rounded-xl bg-orange-500 py-3 text-sm font-black text-white shadow-lg hover:bg-orange-400 active:scale-[0.98] transition-all"
           >
-            הבנתי, בואו נתחיל 🏀
+            {en ? "Got it, let's start 🏀" : 'הבנתי, בואו נתחיל 🏀'}
           </button>
 
         </div>

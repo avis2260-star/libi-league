@@ -418,6 +418,8 @@ export const DICT: Record<string, string> = {
   'כ.ע. בת ים': 'Koach Ole Bat Yam',
   'גוטלמן השרון': 'Gottleman HaSharon',
   'אדיס אשדוד': 'Addis Ashdod',
+  'שועלי אדיס אשדוד': 'Foxes Addis Ashdod',
+  'אשקלון': 'Ashkelon',
   'החבר\'ה הטובים גדרה': 'The Good Guys Gedera',
   'החברה הטובים גדרה': 'The Good Guys Gedera',
   'החברה הטובים': 'The Good Guys Gedera',
@@ -453,4 +455,44 @@ export const DICT: Record<string, string> = {
     '— a 20:0 result due to no-show or disqualification.',
   'כל עונה עד כה': 'All season so far',
   'רשימת קלעי הליגה ←': 'League Scorers →',
+
+  // About page
+  'הסיפור שלנו': 'Our Story',
+  'הערכים שלנו': 'Our Values',
+  'עמותת עוצמת ליב"י': 'Otzmat Libi Association',
+  'עמותת עוצמת ליב״י': 'Otzmat Libi Association',
+  'ספורטיביות ואתיקה': 'Sportsmanship & Ethics',
+  'המגרש הוא מקום לכבוד הדדי. האתיקה הספורטיבית והתרבותית היא הבסיס לכל.':
+    'The court is a place of mutual respect. Sporting and cultural ethics are the foundation of everything.',
+  'העצמת הקהילה': 'Community Empowerment',
+  'יצירת דמויות מפתח לנוער, מודלים לחיקוי, והוצאת הדור הצעיר לפעילות ספורטיבית בריאה.':
+    'Creating key figures for the youth, role models, and getting the younger generation into healthy sporting activity.',
+  'התנדבות': 'Volunteering',
+  'שחקני הליגה מתנדבים בפעילויות הומניטריות — צביעת בתי ישישים, הפעלת ילדים ועוד.':
+    'League players volunteer in humanitarian activities — painting senior homes, running activities for kids, and more.',
+  'לכידות חברתית': 'Social Cohesion',
+  'המפגשים השבועיים בין השחקנים יוצרים רשת חברתית ברמה הארצית שמתקיימת גם מחוץ למגרש.':
+    'The weekly meetings between players create a nationwide social network that lives on off the court too.',
+  'יו"ר העמותה:': 'Association Chair:',
+  'יו״ר העמותה:': 'Association Chair:',
+  'יאיר טקה': 'Yair Taka',
+  'ליגת ליב"י — ליגת ביתא ישראל — היא ליגת כדורסל קהילתית שהוקמה לפני למעלה מ-13 שנים על ידי קבוצת חברים שמטרתם המשותפת הייתה פשוטה: לשחק את הכדורסל שהם כל כך אוהבים.':
+    'Ligat Libi — the Beta Israel League — is a community basketball league founded over 13 years ago by a group of friends with one shared goal: to play the basketball they love so much.',
+  'מה שהתחיל כמשחק שכונתי עם 5 קבוצות הפך לליגה ספורטיבית ומאתגרת המנוהלת על פי כללי כדורסל מקצועניים, ומונה כיום 15 קבוצות ומעל 200 שחקנים מרחבי הארץ.':
+    'What started as a neighborhood game with 5 teams has grown into a competitive, challenging league run on professional basketball rules, today comprising 15 teams and over 200 players from across the country.',
+  'חברי הליגה הם אנשים שעובדים בתפקידי מפתח בחברה הישראלית — אנשים שהחיים לא אפשרו להם לעסוק בספורט תחרותי. הגילאים נעים בין 18 ל-55, והמגוון האנושי הוא אחד מסימני ההיכר שלנו — שחקנים מעדות שונות, רקעים שונים, כולם על אותו מגרש.':
+    'League members work in key roles in Israeli society — people whose lives never gave them the chance to pursue competitive sport. Ages range from 18 to 55, and our diversity is one of our hallmarks — players from different ethnic groups and backgrounds, all on the same court.',
+  'הליגה מתנהלת תחת עמותת עוצמת ליב"י — עמותה ללא מטרת רווח, המושתת על תרבות הכדורסל תוך פתיחה לכל הגילאים, המגדרים והעדות.':
+    'The league is run by the Otzmat Libi Association — a non-profit founded on basketball culture, open to all ages, genders, and ethnic groups.',
+  'שם העמותה טומן בחובו הנצחה לקהילת יהודי אתיופיה — ביתא ישראל — ומשקף את המהות, הקשר והזיקה לקהילה. שעריה פתוחים לכולם.':
+    'The association\'s name commemorates the Ethiopian Jewish community — Beta Israel — and reflects its essence, connection, and ties to the community. Its doors are open to everyone.',
+
+  // Hall of fame
+  'סגנית אלופה': 'Runner-up',
+  'אלופה': 'Champion',
+  'סגנית': 'Runner-up',
+
+  // Footer
+  'הצהרת נגישות': 'Accessibility Statement',
+  'נגישות': 'Accessibility',
 };
