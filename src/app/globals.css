@@ -124,6 +124,41 @@ html.light [class*="bg-red-"]    { background-color: revert !important; }
 html.light [class*="bg-yellow-"] { background-color: revert !important; }
 html.light [class*="bg-blue-"]   { background-color: revert !important; }
 
+/* Tailwind slate tokens — same intent as the hex overrides above. The Hall of
+   Fame and a few other pages use bg-slate-900 / bg-slate-950 / bg-slate-800
+   directly, which the [class*="bg-[#0"] selector doesn't catch. Without this
+   the cards stay dark while text-white inside them flips to dark = invisible. */
+html.light [class*="bg-slate-9"] {
+  background-color: var(--bg-card) !important;
+  background-image: none !important;
+}
+html.light [class*="bg-slate-8"] {
+  background-color: #f8fafc !important;
+  background-image: none !important;
+}
+html.light [class*="border-slate-"] {
+  border-color: #e2e8f0 !important;
+}
+html.light [class*="text-slate-3"],
+html.light [class*="text-slate-4"] {
+  color: var(--text-3) !important;
+}
+html.light [class*="text-slate-2"] {
+  color: var(--text-2) !important;
+}
+
+/* Inline style backgrounds — used by the Submit form selects/options where
+   inline styles are needed to set <option> backgrounds. Without this they
+   remain dark navy on the light page background and the form is unreadable. */
+html.light [style*="#0f1e30"],
+html.light [style*="#0d1a28"],
+html.light [style*="#0b1520"],
+html.light [style*="#080f1a"],
+html.light [style*="#060810"] {
+  background-color: var(--bg-card) !important;
+  color: var(--text-1) !important;
+}
+
 /* Header / nav specifically */
 html.light header {
   background-color: #ffffff !important;

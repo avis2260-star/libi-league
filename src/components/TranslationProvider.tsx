@@ -20,6 +20,20 @@ export const useLang = () => useContext(LangContext);
 import { DICT } from '@/lib/dict';
 export { DICT };
 
+// Normalize for fuzzy dict lookup — see lib/get-lang.ts for the same logic.
+function normalizeForDict(s: string): string {
+  return s
+    .replace(/[‎‏‪-‮]/g, '')
+    .replace(/["“”„‟״'‘’`]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+const NORM_DICT: Record<string, string> = {};
+for (const [he, en] of Object.entries(DICT)) {
+  NORM_DICT[normalizeForDict(he)] = en;
+}
+
 export default function TranslationProvider({
   children,
   initialLang = 'he',
@@ -47,9 +61,8 @@ export default function TranslationProvider({
   const t = useCallback((he: string): string => {
     if (lang === 'he') return he;
     if (he == null) return he;
-    // Exact key first, then trimmed — so DB strings with stray whitespace
-    // still translate.
-    return DICT[he] ?? DICT[he.trim()] ?? he;
+    // 1. Exact match. 2. Trimmed. 3. Normalized (strip gereshim etc.)
+    return DICT[he] ?? DICT[he.trim()] ?? NORM_DICT[normalizeForDict(he)] ?? he;
   }, [lang]);
 
   return (
