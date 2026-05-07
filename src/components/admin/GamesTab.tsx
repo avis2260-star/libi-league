@@ -44,14 +44,31 @@ for (const g of LIBI_SCHEDULE) {
   if (!ROUND_TO_DATE[g.round]) ROUND_TO_DATE[g.round] = g.date;
 }
 
+// Substring-aware round lookup: handles the case where an admin
+// renamed a team in the DB ("אדיס אשדוד" → "שועלי אדיס אשדוד")
+// but the static LIBI_SCHEDULE still uses the old name. Without this
+// fallback the tuple lookup misses, the game falls into round 0 and
+// renders as the orphan "מחזור —" bucket.
+function tupleRoundFuzzy(home: string, away: string): number | null {
+  const exact = TEAM_TUPLE_TO_ROUND[tupleKey(home, away)];
+  if (exact) return exact;
+  const h = normTeam(home);
+  const a = normTeam(away);
+  for (const g of LIBI_SCHEDULE) {
+    const sh = normTeam(g.homeTeam);
+    const sa = normTeam(g.awayTeam);
+    const homeMatches = sh === h || sh.includes(h) || h.includes(sh);
+    const awayMatches = sa === a || sa.includes(a) || a.includes(sa);
+    if (homeMatches && awayMatches) return g.round;
+  }
+  return null;
+}
+
 function getRoundForGame(game: GameWithTeams): number {
   const home = game.home_team?.name;
   const away = game.away_team?.name;
   if (home && away) {
-    // Direction-aware lookup. Same matchup appears twice in the season
-    // (once each as home/away), so swapping sides would collapse both
-    // rounds into one and produce >7 games per round.
-    const byTuple = TEAM_TUPLE_TO_ROUND[tupleKey(home, away)];
+    const byTuple = tupleRoundFuzzy(home, away);
     if (byTuple) return byTuple;
   }
   return DATE_TO_ROUND[game.game_date] ?? 0;
@@ -145,6 +162,13 @@ export default function GamesTab({ games }: Props) {
   }
 
   const todayIso = new Date().toISOString().slice(0, 10);
+
+  // Skip the catch-all "round 0" bucket — those are orphan games whose
+  // team pair didn't match any LIBI_SCHEDULE entry (typically duplicates
+  // left behind after a reschedule, or rows with a corrupt date). Showing
+  // them as "מחזור —" creates noise; they should be cleaned up at the
+  // data layer instead of cluttering the admin UI.
+  roundMap.delete(0);
 
   // Split rounds into "upcoming/active" (any game still pending in the future)
   // vs "past" (every game is Finished OR date is before today).
