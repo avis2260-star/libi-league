@@ -117,12 +117,16 @@ html.light [class*="bg-black/"] {
   background-color: rgba(15,23,42,0.03) !important;
 }
 
-/* Keep orange / green / red / yellow / blue accent bgs */
-html.light [class*="bg-orange-"] { background-color: revert !important; }
-html.light [class*="bg-green-"]  { background-color: revert !important; }
-html.light [class*="bg-red-"]    { background-color: revert !important; }
-html.light [class*="bg-yellow-"] { background-color: revert !important; }
-html.light [class*="bg-blue-"]   { background-color: revert !important; }
+/* Keep orange / green / red / yellow / blue accent bgs.
+   Selectors require a leading space (or class start) before the token so
+   they don't accidentally match prefixed variants like hover:bg-orange-400 —
+   matching those would force `revert` always (not just on hover) and
+   double-revert the inherited dark color back to the browser default. */
+html.light [class^="bg-orange-"], html.light [class*=" bg-orange-"] { background-color: revert !important; }
+html.light [class^="bg-green-"],  html.light [class*=" bg-green-"]  { background-color: revert !important; }
+html.light [class^="bg-red-"],    html.light [class*=" bg-red-"]    { background-color: revert !important; }
+html.light [class^="bg-yellow-"], html.light [class*=" bg-yellow-"] { background-color: revert !important; }
+html.light [class^="bg-blue-"],   html.light [class*=" bg-blue-"]   { background-color: revert !important; }
 
 /* Tailwind slate tokens — same intent as the hex overrides above. The Hall of
    Fame and a few other pages use bg-slate-900 / bg-slate-950 / bg-slate-800
@@ -174,12 +178,12 @@ html.light [class*="divide-white/"] > * + * {
   border-color: #e2e8f0 !important;
 }
 
-/* Keep accent borders */
-html.light [class*="border-orange-"] { border-color: revert !important; }
-html.light [class*="border-green-"]  { border-color: revert !important; }
-html.light [class*="border-red-"]    { border-color: revert !important; }
-html.light [class*="border-yellow-"] { border-color: revert !important; }
-html.light [class*="border-blue-"]   { border-color: revert !important; }
+/* Keep accent borders — same word-boundary pattern as the bg rules above */
+html.light [class^="border-orange-"], html.light [class*=" border-orange-"] { border-color: revert !important; }
+html.light [class^="border-green-"],  html.light [class*=" border-green-"]  { border-color: revert !important; }
+html.light [class^="border-red-"],    html.light [class*=" border-red-"]    { border-color: revert !important; }
+html.light [class^="border-yellow-"], html.light [class*=" border-yellow-"] { border-color: revert !important; }
+html.light [class^="border-blue-"],   html.light [class*=" border-blue-"]   { border-color: revert !important; }
 
 /* ── Text ─────────────────────────────────────────────────────────────────── */
 
@@ -191,12 +195,17 @@ html.light .text-white {
   color: var(--text-1) !important;
 }
 
-/* Keep all accent text colors */
-html.light [class*="text-orange-"] { color: revert !important; }
-html.light [class*="text-green-"]  { color: revert !important; }
-html.light [class*="text-red-"]    { color: revert !important; }
-html.light [class*="text-yellow-"] { color: revert !important; }
-html.light [class*="text-blue-"]   { color: revert !important; }
+/* Keep all accent text colors. CRITICAL: must use word-boundary matchers,
+   not [class*="text-orange-"], because that broad form also matches
+   hover:text-orange-400 / focus:text-orange-300 etc. — making the link
+   `revert` its color always (not just on hover), which then falls back to
+   the browser default <a> color (bright blue). That was the team-name
+   blue-link bug on the standings page. */
+html.light [class^="text-orange-"], html.light [class*=" text-orange-"] { color: revert !important; }
+html.light [class^="text-green-"],  html.light [class*=" text-green-"]  { color: revert !important; }
+html.light [class^="text-red-"],    html.light [class*=" text-red-"]    { color: revert !important; }
+html.light [class^="text-yellow-"], html.light [class*=" text-yellow-"] { color: revert !important; }
+html.light [class^="text-blue-"],   html.light [class*=" text-blue-"]   { color: revert !important; }
 
 /* Headings */
 html.light h1, html.light h2, html.light h3 {
