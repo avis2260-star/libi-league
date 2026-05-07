@@ -11,23 +11,41 @@ async function getLogoUrl() {
   } catch { return '/logo.png'; }
 }
 
-const DEFAULT_HERO_SUBTITLE =
+const DEFAULT_HERO_SUBTITLE_HE =
   'ליגה קהילתית לכדורסל הפועלת משנת 2012 המאגדת קבוצות מרחבי הארץ, עם שני מחוזות — צפון ודרום — ומערכת גביע ופלייאוף מרגשת.';
+const DEFAULT_HERO_SUBTITLE_EN =
+  'A community basketball league running since 2012, with teams from across the country across two divisions — North and South — plus an exciting cup and playoff format.';
 
-const DEFAULT_STORY = [
+const DEFAULT_STORY_HE = [
   'ליגת ליב"י — ליגת ביתא ישראל — היא ליגת כדורסל קהילתית שהוקמה לפני למעלה מ-13 שנים על ידי קבוצת חברים שמטרתם המשותפת הייתה פשוטה: לשחק את הכדורסל שהם כל כך אוהבים.',
   'מה שהתחיל כמשחק שכונתי עם 5 קבוצות הפך לליגה ספורטיבית ומאתגרת המנוהלת על פי כללי כדורסל מקצועניים, ומונה כיום 15 קבוצות ומעל 200 שחקנים מרחבי הארץ.',
   'חברי הליגה הם אנשים שעובדים בתפקידי מפתח בחברה הישראלית — אנשים שהחיים לא אפשרו להם לעסוק בספורט תחרותי. הגילאים נעים בין 18 ל-55, והמגוון האנושי הוא אחד מסימני ההיכר שלנו — שחקנים מעדות שונות, רקעים שונים, כולם על אותו מגרש.',
 ].join('\n\n');
+const DEFAULT_STORY_EN = [
+  'Ligat Libi — the Beta Israel League — is a community basketball league founded over 13 years ago by a group of friends with one shared goal: to play the basketball they love so much.',
+  'What started as a neighborhood game with 5 teams has grown into a competitive, challenging league run on professional basketball rules, today comprising 15 teams and over 200 players from across the country.',
+  'League members work in key roles in Israeli society — people whose lives never gave them the chance to pursue competitive sport. Ages range from 18 to 55, and our diversity is one of our hallmarks — players from different ethnic groups and backgrounds, all on the same court.',
+].join('\n\n');
 
-const DEFAULT_ASSOCIATION = [
+const DEFAULT_ASSOCIATION_HE = [
   'הליגה מתנהלת תחת עמותת עוצמת ליב"י — עמותה ללא מטרת רווח, המושתת על תרבות הכדורסל תוך פתיחה לכל הגילאים, המגדרים והעדות.',
   'שם העמותה טומן בחובו הנצחה לקהילת יהודי אתיופיה — ביתא ישראל — ומשקף את המהות, הקשר והזיקה לקהילה. שעריה פתוחים לכולם.',
+].join('\n\n');
+const DEFAULT_ASSOCIATION_EN = [
+  'The league is run by the Otzmat Libi Association — a non-profit founded on basketball culture, open to all ages, genders, and ethnic groups.',
+  'The association\'s name commemorates the Ethiopian Jewish community — Beta Israel — and reflects its essence, connection, and ties to the community. Its doors are open to everyone.',
 ].join('\n\n');
 
 const DEFAULT_CHAIRMAN_NAME = 'יאיר טקה';
 
-async function getAboutContent() {
+async function getAboutContent(lang: 'he' | 'en') {
+  // Locale-appropriate fallbacks. Admin-saved DB values always win when
+  // present; otherwise we render the right language defaults instead of
+  // relying on dict matching for long, multi-paragraph text.
+  const dHero  = lang === 'en' ? DEFAULT_HERO_SUBTITLE_EN : DEFAULT_HERO_SUBTITLE_HE;
+  const dStory = lang === 'en' ? DEFAULT_STORY_EN         : DEFAULT_STORY_HE;
+  const dAssoc = lang === 'en' ? DEFAULT_ASSOCIATION_EN   : DEFAULT_ASSOCIATION_HE;
+
   try {
     const { data } = await supabaseAdmin
       .from('league_settings')
@@ -35,16 +53,16 @@ async function getAboutContent() {
       .in('key', ['about_hero_subtitle', 'about_story', 'about_association', 'about_chairman_name']);
     const map = new Map<string, string>((data ?? []).map((r) => [r.key, r.value]));
     return {
-      heroSubtitle: map.get('about_hero_subtitle')?.trim() || DEFAULT_HERO_SUBTITLE,
-      story:        map.get('about_story')?.trim()         || DEFAULT_STORY,
-      association:  map.get('about_association')?.trim()   || DEFAULT_ASSOCIATION,
+      heroSubtitle: map.get('about_hero_subtitle')?.trim() || dHero,
+      story:        map.get('about_story')?.trim()         || dStory,
+      association:  map.get('about_association')?.trim()   || dAssoc,
       chairmanName: map.get('about_chairman_name')?.trim() || DEFAULT_CHAIRMAN_NAME,
     };
   } catch {
     return {
-      heroSubtitle: DEFAULT_HERO_SUBTITLE,
-      story:        DEFAULT_STORY,
-      association:  DEFAULT_ASSOCIATION,
+      heroSubtitle: dHero,
+      story:        dStory,
+      association:  dAssoc,
       chairmanName: DEFAULT_CHAIRMAN_NAME,
     };
   }
@@ -55,7 +73,8 @@ function paragraphs(text: string): string[] {
 }
 
 export default async function AboutPage() {
-  const [logoUrl, lang, about] = await Promise.all([getLogoUrl(), getLang(), getAboutContent()]);
+  const [logoUrl, lang] = await Promise.all([getLogoUrl(), getLang()]);
+  const about = await getAboutContent(lang);
   const T = (he: string) => st(he, lang);
   const storyParas = paragraphs(about.story);
   const associationParas = paragraphs(about.association);
