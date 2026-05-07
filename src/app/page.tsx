@@ -512,7 +512,7 @@ export default async function HomePage() {
                 <a
                   key={p.id}
                   href={`/players/${p.id}`}
-                  className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] transition-colors group"
+                  className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] transition-colors group"
                 >
                   {/* Rank */}
                   <span className={`w-6 shrink-0 text-center text-sm font-black ${rankColors[i] ?? 'text-[#5a7a9a]'}`}>
@@ -552,18 +552,20 @@ export default async function HomePage() {
                     </div>
                   </div>
 
-                  {/* Points — always visible */}
-                  <div className="w-12 shrink-0 text-center">
+                  {/* Points */}
+                  <div className="w-10 sm:w-12 shrink-0 text-center">
                     <p className="text-base font-black text-orange-400 font-stats">{p.points}</p>
                     <p className="text-[10px] font-bold text-[#8aaac8] font-body">{T('נק׳')}</p>
                   </div>
 
-                  {/* 3PT + Fouls — hidden on small screens */}
-                  <div className="hidden sm:block w-12 shrink-0 text-center">
+                  {/* 3PT */}
+                  <div className="w-10 sm:w-12 shrink-0 text-center">
                     <p className="text-sm font-black text-sky-400 font-stats">{p.three_pointers}</p>
                     <p className="text-[10px] font-bold text-[#8aaac8] font-body">{T('3נק׳')}</p>
                   </div>
-                  <div className="hidden sm:block w-12 shrink-0 text-center">
+
+                  {/* Fouls */}
+                  <div className="w-10 sm:w-12 shrink-0 text-center">
                     <p className="text-sm font-black text-rose-400 font-stats">{p.fouls}</p>
                     <p className="text-[10px] font-bold text-[#8aaac8] font-body">{T('פאולים')}</p>
                   </div>
