@@ -370,6 +370,23 @@ export default async function HomePage() {
   const logoMap: Record<string, string | null> = {};
   for (const t of teams) logoMap[norm(t.name)] = t.logo_url;
 
+  // Resolve a schedule team name to its current DB name. The admin "קבוצות"
+  // tab is the single source of truth for display names — anything the
+  // admin renames must show on the public UI. Falls back to exact-then-
+  // substring match against the teams table.
+  function dbDisplayName(scheduleName: string): string {
+    function nm(s: string) { return s.replace(/["""''`״׳]/g, '').replace(/\s+/g, ' ').trim().toLowerCase(); }
+    const target = nm(scheduleName);
+    if (!target) return scheduleName;
+    const exact = teams.find((t) => nm(t.name) === target);
+    if (exact) return exact.name;
+    const sub = teams.find((t) => {
+      const n = nm(t.name);
+      return n.includes(target) || target.includes(n);
+    });
+    return sub?.name ?? scheduleName;
+  }
+
   const {
     northLeader, southLeader,
     southTopScorer, northTopScorer,
@@ -389,19 +406,27 @@ export default async function HomePage() {
   const nextRound = currentRound + 1;
   const nextDate  = ROUND_DATES_MERGED[nextRound] ?? '';
 
-  // Scoreboard strip — all games for next round combined, with DB location/time
+  // Scoreboard strip — all games for next round combined, with DB location/time.
+  // Team names are resolved through the DB so admin renames (Teams tab) take
+  // effect on the public UI immediately.
   function normKey(s: string) { return s.replace(/["""''`״׳]/g, '').replace(/\s+/g, ' ').trim().toLowerCase(); }
   const allNextGames: { home: string; away: string; div: 'North' | 'South'; homeLogo: string | null; awayLogo: string | null; location?: string; time?: string }[] = [
     ...LIBI_SCHEDULE.filter((g) => g.round === nextRound && g.division === 'South').map(g => {
+      const home = dbDisplayName(g.homeTeam);
+      const away = dbDisplayName(g.awayTeam);
       const det = gameDetails[`${normKey(g.homeTeam)}|${normKey(g.awayTeam)}`];
-      return { home: g.homeTeam, away: g.awayTeam, div: 'South' as const,
-        homeLogo: logoMap[norm(g.homeTeam)] ?? null, awayLogo: logoMap[norm(g.awayTeam)] ?? null,
+      return { home, away, div: 'South' as const,
+        homeLogo: logoMap[norm(home)] ?? logoMap[norm(g.homeTeam)] ?? null,
+        awayLogo: logoMap[norm(away)] ?? logoMap[norm(g.awayTeam)] ?? null,
         location: det?.location, time: det?.time };
     }),
     ...LIBI_SCHEDULE.filter((g) => g.round === nextRound && g.division === 'North').map(g => {
+      const home = dbDisplayName(g.homeTeam);
+      const away = dbDisplayName(g.awayTeam);
       const det = gameDetails[`${normKey(g.homeTeam)}|${normKey(g.awayTeam)}`];
-      return { home: g.homeTeam, away: g.awayTeam, div: 'North' as const,
-        homeLogo: logoMap[norm(g.homeTeam)] ?? null, awayLogo: logoMap[norm(g.awayTeam)] ?? null,
+      return { home, away, div: 'North' as const,
+        homeLogo: logoMap[norm(home)] ?? logoMap[norm(g.homeTeam)] ?? null,
+        awayLogo: logoMap[norm(away)] ?? logoMap[norm(g.awayTeam)] ?? null,
         location: det?.location, time: det?.time };
     }),
   ];
