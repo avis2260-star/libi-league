@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { NORTH_TABLE, SOUTH_TABLE } from '@/lib/league-data';
 import { notFound } from 'next/navigation';
 import { getLang, st } from '@/lib/get-lang';
+import { makeNameResolver } from '@/lib/team-name-resolver';
 
 /* ── Types ─────────────────────────────────────────────────────────────────── */
 type Standing = {
@@ -145,13 +146,18 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
         })
     : [];
 
+  /* Resolver: opponent names cached in game_results may be stale after
+     an admin rename — pipe them through the live teams table so the
+     team page always shows the canonical name. */
+  const resolveName = makeNameResolver((teamsData ?? []).map(t => ({ id: t.id, name: t.name })));
+
   /* Compute per-game stats */
   let totalPts = 0, totalAllowed = 0, wins = 0, losses = 0;
   const gameDetails = teamGames.map(g => {
     const isHome = matchTeam(g.home_team, teamName);
     const myScore  = isHome ? g.home_score : g.away_score;
     const oppScore = isHome ? g.away_score : g.home_score;
-    const oppName  = isHome ? g.away_team : g.home_team;
+    const oppName  = resolveName(isHome ? g.away_team : g.home_team);
     const won = myScore > oppScore;
     if (won) wins++; else losses++;
     totalPts += myScore;
@@ -289,7 +295,7 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
               const isHome = matchTeam(g.home_team, teamName);
               const myScore  = isHome ? g.home_score : g.away_score;
               const oppScore = isHome ? g.away_score : g.home_score;
-              const oppName  = isHome ? g.away_team : g.home_team;
+              const oppName  = resolveName(isHome ? g.away_team : g.home_team);
               const hasScores = myScore !== null && oppScore !== null;
               const won = hasScores && (myScore as number) > (oppScore as number);
               const isPlayed = g.played || hasScores;

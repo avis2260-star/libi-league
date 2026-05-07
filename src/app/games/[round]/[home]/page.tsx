@@ -6,6 +6,7 @@ import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import { getTeams } from '@/lib/supabase';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getLang, st } from '@/lib/get-lang';
+import { makeNameResolver } from '@/lib/team-name-resolver';
 
 const ROUND_DATES: Record<number, string> = {
   1: '01.11.25', 2: '08.11.25', 3: '29.11.25', 4: '20.12.25',
@@ -75,8 +76,16 @@ export default async function GamePreviewPage({
   // Logo map
   const logoMap: Record<string, string | null> = {};
   for (const t of teams) logoMap[normalize(t.name)] = t.logo_url;
-  const homeLogo = logoMap[normalize(game.homeTeam)] ?? null;
-  const awayLogo = logoMap[normalize(game.awayTeam)] ?? null;
+
+  // Resolve schedule names to the canonical admin Teams tab name (and use
+  // those for display + logo lookup). Matching against game_results /
+  // games tables stays on the schedule name, since those rows still hold
+  // the cached text — the resolver only affects what users see.
+  const resolveName = makeNameResolver(teams.map(t => ({ id: t.id, name: t.name })));
+  const homeDisplayName = resolveName(game.homeTeam);
+  const awayDisplayName = resolveName(game.awayTeam);
+  const homeLogo = logoMap[normalize(homeDisplayName)] ?? logoMap[normalize(game.homeTeam)] ?? null;
+  const awayLogo = logoMap[normalize(awayDisplayName)] ?? logoMap[normalize(game.awayTeam)] ?? null;
 
   // Standings
   const standings = (standingsRes.data ?? []) as StandingRow[];
@@ -223,7 +232,7 @@ export default async function GamePreviewPage({
 
         <div className="flex items-center justify-between gap-4 px-6 py-10 sm:py-12">
           {/* Home team */}
-          <Link href={`/team/${encodeURIComponent(game.homeTeam)}`} className="group/team flex flex-col items-center gap-3 flex-1 hover:opacity-90 transition-opacity">
+          <Link href={`/team/${encodeURIComponent(homeDisplayName)}`} className="group/team flex flex-col items-center gap-3 flex-1 hover:opacity-90 transition-opacity">
             {homeStats?.rank && (
               <span className="text-xs font-black" style={{ color: rankColor(homeStats.rank) }}>
                 #{homeStats.rank}
@@ -231,12 +240,12 @@ export default async function GamePreviewPage({
             )}
             <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full border-2 border-white/10 bg-white/[0.05] overflow-hidden flex items-center justify-center shadow-lg group-hover/team:border-orange-500/40 transition-colors">
               {homeLogo
-                ? <img src={homeLogo} alt={T(game.homeTeam)} className="h-full w-full object-cover" />
+                ? <img src={homeLogo} alt={T(homeDisplayName)} className="h-full w-full object-cover" />
                 : <span className="text-3xl font-black text-[#4a6a8a]">{[...T(game.homeTeam)].find(c => c.trim()) ?? '?'}</span>
               }
             </div>
             <div className="text-center">
-              <p className={`text-base font-black leading-tight group-hover/team:text-orange-400 transition-colors ${homeWon ? 'text-orange-400' : 'text-white'}`}>{T(game.homeTeam)}</p>
+              <p className={`text-base font-black leading-tight group-hover/team:text-orange-400 transition-colors ${homeWon ? 'text-orange-400' : 'text-white'}`}>{T(homeDisplayName)}</p>
               <p className="mt-0.5 text-xs text-[#5a7a9a]">{en ? 'Home Team' : 'קבוצת בית'}</p>
             </div>
           </Link>
@@ -258,7 +267,7 @@ export default async function GamePreviewPage({
           )}
 
           {/* Away team */}
-          <Link href={`/team/${encodeURIComponent(game.awayTeam)}`} className="group/team flex flex-col items-center gap-3 flex-1 hover:opacity-90 transition-opacity">
+          <Link href={`/team/${encodeURIComponent(awayDisplayName)}`} className="group/team flex flex-col items-center gap-3 flex-1 hover:opacity-90 transition-opacity">
             {awayStats?.rank && (
               <span className="text-xs font-black" style={{ color: rankColor(awayStats.rank) }}>
                 #{awayStats.rank}
@@ -266,12 +275,12 @@ export default async function GamePreviewPage({
             )}
             <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full border-2 border-white/10 bg-white/[0.05] overflow-hidden flex items-center justify-center shadow-lg group-hover/team:border-orange-500/40 transition-colors">
               {awayLogo
-                ? <img src={awayLogo} alt={T(game.awayTeam)} className="h-full w-full object-cover" />
+                ? <img src={awayLogo} alt={T(awayDisplayName)} className="h-full w-full object-cover" />
                 : <span className="text-3xl font-black text-[#4a6a8a]">{[...T(game.awayTeam)].find(c => c.trim()) ?? '?'}</span>
               }
             </div>
             <div className="text-center">
-              <p className={`text-base font-black leading-tight group-hover/team:text-orange-400 transition-colors ${awayWon ? 'text-orange-400' : 'text-white'}`}>{T(game.awayTeam)}</p>
+              <p className={`text-base font-black leading-tight group-hover/team:text-orange-400 transition-colors ${awayWon ? 'text-orange-400' : 'text-white'}`}>{T(awayDisplayName)}</p>
               <p className="mt-0.5 text-xs text-[#5a7a9a]">{en ? 'Away Team' : 'קבוצת חוץ'}</p>
             </div>
           </Link>
@@ -310,9 +319,9 @@ export default async function GamePreviewPage({
 
           {/* Column headers */}
           <div className="grid grid-cols-3 border-b border-white/[0.05] px-5 py-2.5 text-xs font-black uppercase tracking-widest text-[#8aaac8]">
-            <span className={en ? 'text-left' : 'text-right'}>{T(game.homeTeam)}</span>
+            <span className={en ? 'text-left' : 'text-right'}>{T(homeDisplayName)}</span>
             <span className="text-center">{en ? 'Stat' : 'סטט'}</span>
-            <span className={en ? 'text-right' : 'text-left'}>{T(game.awayTeam)}</span>
+            <span className={en ? 'text-right' : 'text-left'}>{T(awayDisplayName)}</span>
           </div>
 
           {[
@@ -343,10 +352,10 @@ export default async function GamePreviewPage({
             <div className="p-4">
               <div className="mb-3 flex items-center gap-2">
                 {homeLogo
-                  ? <img src={homeLogo} alt={T(game.homeTeam)} className="h-8 w-8 shrink-0 rounded-full border border-white/10 object-cover" />
+                  ? <img src={homeLogo} alt={T(homeDisplayName)} className="h-8 w-8 shrink-0 rounded-full border border-white/10 object-cover" />
                   : <div className="h-8 w-8 shrink-0 rounded-full bg-[#1a2e45] border border-white/10 flex items-center justify-center text-[10px] font-black text-[#3a5a7a]">{[...T(game.homeTeam)].find(c => c.trim()) ?? '?'}</div>
                 }
-                <p className={`text-base font-black ${homeWon ? 'text-orange-400' : 'text-white'}`}>{T(game.homeTeam)}</p>
+                <p className={`text-base font-black ${homeWon ? 'text-orange-400' : 'text-white'}`}>{T(homeDisplayName)}</p>
                 <span className={`ml-auto font-stats text-3xl font-black tabular-nums ${homeWon ? 'text-orange-400' : 'text-[#8aaac8]'}`}>{homeScore}</span>
               </div>
               {homeBox.length === 0 ? (
@@ -385,10 +394,10 @@ export default async function GamePreviewPage({
             <div className="p-4">
               <div className="mb-3 flex items-center gap-2">
                 {awayLogo
-                  ? <img src={awayLogo} alt={T(game.awayTeam)} className="h-8 w-8 shrink-0 rounded-full border border-white/10 object-cover" />
+                  ? <img src={awayLogo} alt={T(awayDisplayName)} className="h-8 w-8 shrink-0 rounded-full border border-white/10 object-cover" />
                   : <div className="h-8 w-8 shrink-0 rounded-full bg-[#1a2e45] border border-white/10 flex items-center justify-center text-[10px] font-black text-[#3a5a7a]">{[...T(game.awayTeam)].find(c => c.trim()) ?? '?'}</div>
                 }
-                <p className={`text-base font-black ${awayWon ? 'text-orange-400' : 'text-white'}`}>{T(game.awayTeam)}</p>
+                <p className={`text-base font-black ${awayWon ? 'text-orange-400' : 'text-white'}`}>{T(awayDisplayName)}</p>
                 <span className={`ml-auto font-stats text-3xl font-black tabular-nums ${awayWon ? 'text-orange-400' : 'text-[#8aaac8]'}`}>{awayScore}</span>
               </div>
               {awayBox.length === 0 ? (

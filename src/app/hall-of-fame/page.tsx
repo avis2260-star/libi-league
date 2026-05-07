@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getLang, st } from '@/lib/get-lang';
+import { makeNameResolver } from '@/lib/team-name-resolver';
 
 type Season = {
   id: string;
@@ -170,6 +171,8 @@ export default async function HallOfFamePage() {
     const teamList = (teams ?? []) as { name: string; logo_url: string | null }[];
     const findLogo = (name: string) =>
       teamList.find(t => normName(t.name) === normName(name))?.logo_url ?? null;
+    // Resolve cached cup_games / playoff team strings to the current admin name.
+    const resolveName = makeNameResolver(teamList.map(t => ({ id: t.name, name: t.name })));
 
     /* ── League champion: ONLY the live winner of the playoff finals
        (playoff_series #7). Nothing shown until the finals are decided. ── */
@@ -180,8 +183,8 @@ export default async function HallOfFamePage() {
     if (finalSeries) {
       const winner = playoffSeriesWinner(finalSeries, (playoffGames ?? []) as PlayoffGame[]);
       if (winner) {
-        leagueChampion = winner;
-        leagueChampionLogo = findLogo(winner);
+        leagueChampion = resolveName(winner);
+        leagueChampionLogo = findLogo(leagueChampion) ?? findLogo(winner);
       }
     }
 
@@ -189,8 +192,8 @@ export default async function HallOfFamePage() {
        Nothing shown until the final is played. ── */
     const cupWinner = cupFinalWinner((cupGames ?? []) as CupGame[]);
     if (cupWinner) {
-      cupHolder = cupWinner;
-      cupHolderLogo = findLogo(cupWinner);
+      cupHolder = resolveName(cupWinner);
+      cupHolderLogo = findLogo(cupHolder) ?? findLogo(cupWinner);
     }
   } catch {
     seasons = [];
