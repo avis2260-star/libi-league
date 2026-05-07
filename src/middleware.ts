@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
+import { getAal, getClientIp, isTrustedIp } from '@/lib/mfa';
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -48,9 +49,27 @@ export async function middleware(request: NextRequest) {
       .map((e) => e.trim().toLowerCase())
       .filter(Boolean);
 
-    if (adminEmails.length > 0 && !adminEmails.includes(user.email?.toLowerCase() ?? '')) {
-      // Authenticated but not an admin → 403 page
+    if (
+      adminEmails.length > 0 &&
+      !adminEmails.includes(user.email?.toLowerCase() ?? '')
+    ) {
       return NextResponse.redirect(new URL('/403', request.url));
+    }
+
+    // MFA gate: required when request is from an untrusted IP.
+    // /admin/mfa-recovery is exempt — that's how you regain access after
+    // losing your authenticator (you arrive via emailed magic link).
+    if (pathname !== '/admin/mfa-recovery') {
+      const trusted = isTrustedIp(getClientIp(request));
+      if (!trusted) {
+        const aal = await getAal(supabase);
+        if (aal !== 'aal2') {
+          const url = request.nextUrl.clone();
+          url.pathname = '/login/mfa';
+          url.searchParams.set('next', pathname);
+          return NextResponse.redirect(url);
+        }
+      }
     }
   }
 
@@ -59,9 +78,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/admin', request.url));
   }
 
+  // ── Skip /login/mfa if already at aal2 from a trusted IP path ──────────────
+  if (pathname === '/login/mfa' && user) {
+    const trusted = isTrustedIp(getClientIp(request));
+    const aal = await getAal(supabase);
+    if (trusted || aal === 'aal2') {
+      return NextResponse.redirect(new URL('/admin', request.url));
+    }
+  }
+
   return supabaseResponse;
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/login'],
+  matcher: ['/admin/:path*', '/login/:path*'],
 };
