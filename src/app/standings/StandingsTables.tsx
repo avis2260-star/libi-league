@@ -246,11 +246,15 @@ function StandingsTable({
 
         <tbody>
           {data.map((team, i) => {
+            // Ranks 1-3 keep their podium colors (gold/silver/bronze).
+            // Ranks 4+ now use the page's primary accent (orange) instead of
+            // the previous washed-out blue-gray, so the standings has a single
+            // consistent accent color throughout.
             const rankColor =
               team.rank === 1 ? '#e0c97a'
               : team.rank === 2 ? '#b0b8c8'
               : team.rank === 3 ? '#c87d3a'
-              : '#4a6a8a';
+              : '#f97316';
 
             const hasTechni    = team.techni > 0;
             const hasPenalty   = team.penalty < 0;
@@ -260,7 +264,7 @@ function StandingsTable({
               team.rank === 1 ? 'rgba(224,201,122,0.07)'
               : team.rank === 2 ? 'rgba(176,184,200,0.06)'
               : team.rank === 3 ? 'rgba(200,125,58,0.07)'
-              : team.rank === 4 ? 'rgba(74,106,138,0.08)'
+              : team.rank === 4 ? 'rgba(249,115,22,0.06)'
               : i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)';
 
             return (
