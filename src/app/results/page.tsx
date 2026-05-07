@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { GAME_RESULTS, type GameResult } from '@/lib/league-data';
 import ResultsContent from './ResultsContent';
+import { makeNameResolver } from '@/lib/team-name-resolver';
 
 async function getResults(): Promise<GameResult[]> {
   try {
@@ -41,6 +42,20 @@ async function getTeamLogos(): Promise<Record<string, string>> {
 }
 
 export default async function ResultsPage() {
-  const [games, logos] = await Promise.all([getResults(), getTeamLogos()]);
-  return <ResultsContent games={games} logos={logos} />;
+  const [games, logos, { data: teamRows }] = await Promise.all([
+    getResults(),
+    getTeamLogos(),
+    supabaseAdmin.from('teams').select('id, name'),
+  ]);
+
+  // Resolve every cached game_results row name through the admin Teams
+  // tab so renames there propagate to the Results page immediately.
+  const resolveName = makeNameResolver((teamRows ?? []) as { id: string; name: string }[]);
+  const gamesResolved: GameResult[] = games.map((g) => ({
+    ...g,
+    home: resolveName(g.home),
+    away: resolveName(g.away),
+  }));
+
+  return <ResultsContent games={gamesResolved} logos={logos} />;
 }

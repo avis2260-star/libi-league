@@ -8,6 +8,7 @@ import { getTeams } from '@/lib/supabase';
 import ScoreboardStrip from '@/components/ScoreboardStrip';
 import LastRoundResults from '@/components/LastRoundResults';
 import { getLang, st } from '@/lib/get-lang';
+import { makeNameResolver } from '@/lib/team-name-resolver';
 
 const ROUND_DATES: Record<number, string> = {
   1: '01.11.25', 2: '08.11.25', 3: '29.11.25', 4:  '20.12.25',
@@ -370,22 +371,11 @@ export default async function HomePage() {
   const logoMap: Record<string, string | null> = {};
   for (const t of teams) logoMap[norm(t.name)] = t.logo_url;
 
-  // Resolve a schedule team name to its current DB name. The admin "קבוצות"
-  // tab is the single source of truth for display names — anything the
-  // admin renames must show on the public UI. Falls back to exact-then-
-  // substring match against the teams table.
-  function dbDisplayName(scheduleName: string): string {
-    function nm(s: string) { return s.replace(/["""''`״׳]/g, '').replace(/\s+/g, ' ').trim().toLowerCase(); }
-    const target = nm(scheduleName);
-    if (!target) return scheduleName;
-    const exact = teams.find((t) => nm(t.name) === target);
-    if (exact) return exact.name;
-    const sub = teams.find((t) => {
-      const n = nm(t.name);
-      return n.includes(target) || target.includes(n);
-    });
-    return sub?.name ?? scheduleName;
-  }
+  // Single source of truth for team display names: the admin "קבוצות" tab.
+  // Every team string we render on this page goes through this resolver,
+  // so a rename in admin propagates to scoreboard, records, standings, etc.
+  const resolveTeam = makeNameResolver(teams.map(t => ({ id: t.id, name: t.name })));
+  const dbDisplayName = (s: string) => resolveTeam(s);
 
   const {
     northLeader, southLeader,
@@ -516,7 +506,7 @@ export default async function HomePage() {
           <div key={label} className="rounded-2xl border border-white/[0.07] bg-white/[0.04]" style={{ borderTop: '3px solid #e0c97a' }}>
             <div className="p-5">
               <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-[#8aaac8] font-body">{label}</p>
-              <Link href={`/team/${encodeURIComponent(team.name)}`} className="text-xl font-black text-[#e0c97a] hover:underline underline-offset-2 transition-colors font-heading">{T(team.name)}</Link>
+              <Link href={`/team/${encodeURIComponent(dbDisplayName(team.name))}`} className="text-xl font-black text-[#e0c97a] hover:underline underline-offset-2 transition-colors font-heading">{T(dbDisplayName(team.name))}</Link>
               <p className="mt-1 text-sm font-bold text-[#8aaac8] font-body">
                 {lang === 'en' ? `${team.wins}W / ${team.losses}L · ` : `${team.wins}נ / ${team.losses}ה · `}
                 <span className="font-bold text-orange-400 font-stats">{team.pts} {lang === 'en' ? 'pts' : 'נקודות'}</span>
@@ -533,13 +523,13 @@ export default async function HomePage() {
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <RecordCard icon="🏀" label={T('שיא סלים במשחק')} value={String(highScore.score)}
-            sub={`${T(highScore.team)} ${lang === 'en' ? 'vs' : 'נגד'} ${T(highScore.opp)}`}
+            sub={`${T(dbDisplayName(highScore.team))} ${lang === 'en' ? 'vs' : 'נגד'} ${T(dbDisplayName(highScore.opp))}`}
             detail={`${T('מחזור')} ${highScore.round} · ${highScore.date}`} color="#FF6B1A" />
           <RecordCard icon="🔢" label={T('שיא סלים משני הצדדים')} value={String(highCombined.sh + highCombined.sa)}
-            sub={`${T(highCombined.home)} ${highCombined.sh} – ${highCombined.sa} ${T(highCombined.away)}`}
+            sub={`${T(dbDisplayName(highCombined.home))} ${highCombined.sh} – ${highCombined.sa} ${T(dbDisplayName(highCombined.away))}`}
             detail={`${T('מחזור')} ${highCombined.round} · ${highCombined.date}`} color="#e0c97a" />
           <RecordCard icon="💥" label={T('הפרש גדול ביותר')} value={`+${biggestMargin}`}
-            sub={`${T(biggestWinner)} ${lang === 'en' ? 'vs' : 'נגד'} ${T(biggestLoser)}`}
+            sub={`${T(dbDisplayName(biggestWinner))} ${lang === 'en' ? 'vs' : 'נגד'} ${T(dbDisplayName(biggestLoser))}`}
             detail={`${T('מחזור')} ${biggestWin.round} · ${biggestWin.date}`} color="#4ec97a" />
           <a href="/games?filter=close" className="block hover:opacity-80 transition-opacity">
             <RecordCard icon="📉" label={T('משחקים שהוכרעו ב-3 נקודות או פחות')} value={String(closestCount)}
@@ -651,8 +641,8 @@ export default async function HomePage() {
         <div className="grid grid-cols-1 divide-y divide-white/[0.05] sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:divide-x-reverse">
           <div className="p-5">
             <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">{T('מוביל סלים בליגה')}</p>
-            <Link href={`/team/${encodeURIComponent(leagueTopScorer.name)}`} className="text-base font-black text-green-400 hover:underline underline-offset-2 transition-colors font-heading">
-              {T(leagueTopScorer.name)}
+            <Link href={`/team/${encodeURIComponent(dbDisplayName(leagueTopScorer.name))}`} className="text-base font-black text-green-400 hover:underline underline-offset-2 transition-colors font-heading">
+              {T(dbDisplayName(leagueTopScorer.name))}
             </Link>
             <p className="text-sm font-bold text-[#8aaac8] font-stats">
               {leagueTopScorer.pf ?? 0} <span className="font-body">{T('סלים')}</span>

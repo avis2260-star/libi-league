@@ -4,6 +4,8 @@ import { Suspense } from 'react';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import GamesContent from './GamesContent';
 import { getLang, st } from '@/lib/get-lang';
+import { makeNameResolver } from '@/lib/team-name-resolver';
+import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 
 async function getCurrentRound(): Promise<number> {
   try {
@@ -64,13 +66,33 @@ export default async function GamesPage() {
 
   type CloseGame = { round: number; date: string; home_team: string; away_team: string; home_score: number; away_score: number };
 
+  // Re-render every team name through the admin Teams tab — that's the
+  // canonical source for display names, so renames there propagate here.
+  const { data: teamRows } = await supabaseAdmin.from('teams').select('id, name');
+  const resolveName = makeNameResolver((teamRows ?? []) as { id: string; name: string }[]);
+  const closeGamesResolved = (closeGamesData as CloseGame[]).map((g) => ({
+    ...g,
+    home_team: resolveName(g.home_team),
+    away_team: resolveName(g.away_team),
+  }));
+
+  // Build a lookup from every schedule team name → its current admin name
+  // so the round listings (which key off LIBI_SCHEDULE) can render the
+  // canonical name without re-running the resolver per row.
+  const scheduleTeamNames = Array.from(new Set(
+    LIBI_SCHEDULE.flatMap((g) => [g.homeTeam, g.awayTeam]),
+  ));
+  const displayNames: Record<string, string> = {};
+  for (const n of scheduleTeamNames) displayNames[n] = resolveName(n);
+
   return (
     <Suspense fallback={<div className="py-16 text-center text-[#5a7a9a]">{T('טוען...')}</div>}>
       <GamesContent
         currentRound={currentRound}
         logos={logos}
-        closeGames={closeGamesData as CloseGame[]}
+        closeGames={closeGamesResolved}
         roundDates={roundDatesData}
+        displayNames={displayNames}
       />
     </Suspense>
   );

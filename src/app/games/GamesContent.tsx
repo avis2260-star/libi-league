@@ -49,14 +49,18 @@ function TeamLogo({ name, logos }: { name: string; logos: Record<string, string>
 }
 
 // ── Upcoming game row ─────────────────────────────────────────────────────────
-function UpcomingRow({ home, away, logos, date }: { home: string; away: string; logos: Record<string, string>; date?: string }) {
+function UpcomingRow({ home, away, logos, date, displayNames = {} }: { home: string; away: string; logos: Record<string, string>; date?: string; displayNames?: Record<string, string> }) {
   const { t } = useLang();
+  // Resolve schedule name → admin/DB display name. Logos still keyed by
+  // either the original or resolved name, whichever the lookup hits first.
+  const homeDisplay = displayNames[home] ?? home;
+  const awayDisplay = displayNames[away] ?? away;
   return (
     <div className="flex items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5">
       {/* Home — logo left, name right */}
-      <Link href={`/team/${encodeURIComponent(home)}`} className="flex flex-1 items-center justify-end gap-2 min-w-0 group">
-        <TeamLogo name={home} logos={logos} />
-        <span className="truncate text-sm font-semibold text-white group-hover:text-orange-400 transition-colors">{t(home)}</span>
+      <Link href={`/team/${encodeURIComponent(homeDisplay)}`} className="flex flex-1 items-center justify-end gap-2 min-w-0 group">
+        <TeamLogo name={homeDisplay} logos={logos} />
+        <span className="truncate text-sm font-semibold text-white group-hover:text-orange-400 transition-colors">{t(homeDisplay)}</span>
       </Link>
 
       <div className="shrink-0 flex flex-col items-center gap-0.5">
@@ -65,9 +69,9 @@ function UpcomingRow({ home, away, logos, date }: { home: string; away: string; 
       </div>
 
       {/* Away — name inner (near VS), logo outer-right */}
-      <Link href={`/team/${encodeURIComponent(away)}`} className="flex flex-1 items-center justify-start gap-2 min-w-0 group">
-        <span className="truncate text-sm font-semibold text-white group-hover:text-orange-400 transition-colors">{t(away)}</span>
-        <TeamLogo name={away} logos={logos} />
+      <Link href={`/team/${encodeURIComponent(awayDisplay)}`} className="flex flex-1 items-center justify-start gap-2 min-w-0 group">
+        <span className="truncate text-sm font-semibold text-white group-hover:text-orange-400 transition-colors">{t(awayDisplay)}</span>
+        <TeamLogo name={awayDisplay} logos={logos} />
       </Link>
     </div>
   );
@@ -97,11 +101,13 @@ export default function GamesContent({
   logos,
   closeGames = [],
   roundDates = {},
+  displayNames = {},
 }: {
   currentRound: number;
   logos: Record<string, string>;
   closeGames?: CloseGame[];
   roundDates?: Record<number, string>;
+  displayNames?: Record<string, string>;
 }) {
   const { t, lang } = useLang();
   const DATES = { ...ALL_ROUND_DATES, ...roundDates };
@@ -188,7 +194,7 @@ export default function GamesContent({
                       <span className="h-2 w-2 rounded-full bg-orange-400" /> {t('מחוז דרום')}
                     </h3>
                     {southGames.map((g, i) => (
-                      <UpcomingRow key={i} home={g.homeTeam} away={g.awayTeam} logos={logos} date={date} />
+                      <UpcomingRow key={i} home={g.homeTeam} away={g.awayTeam} logos={logos} date={date} displayNames={displayNames} />
                     ))}
                   </div>
                   <div className="space-y-2">
@@ -196,7 +202,7 @@ export default function GamesContent({
                       <span className="h-2 w-2 rounded-full bg-blue-400" /> {t('מחוז צפון')}
                     </h3>
                     {northGames.map((g, i) => (
-                      <UpcomingRow key={i} home={g.homeTeam} away={g.awayTeam} logos={logos} date={date} />
+                      <UpcomingRow key={i} home={g.homeTeam} away={g.awayTeam} logos={logos} date={date} displayNames={displayNames} />
                     ))}
                   </div>
                 </div>

@@ -4,6 +4,7 @@ import { NORTH_TABLE, SOUTH_TABLE, type Standing } from '@/lib/league-data';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import StandingsTables, { type StandingWithStreak } from './StandingsTables';
 import { getLang, st } from '@/lib/get-lang';
+import { makeNameResolver } from '@/lib/team-name-resolver';
 
 /* ── Team name normalizer ─────────────────────────────────────────────── */
 function normName(s: string) {
@@ -70,6 +71,11 @@ async function getStandings(): Promise<{
       if (t.name && t.logo_url) logos[t.name] = t.logo_url;
     }
 
+    // Admin Teams tab is the canonical source for display names; rewrite
+    // every row's name through it so standings always reflects the latest
+    // rename (e.g. "אדיס אשדוד" → "שועלי אדיס אשדוד").
+    const resolveName = makeNameResolver(teamRows.map(t => ({ id: t.name, name: t.name })));
+
     // per-team results, newest first (keyed by normalized team name).
     // We key by the alias-resolved canonical name so that a team called
     // "א.ס. ק. גת" in game_results matches "אריות קריית גת" in standings.
@@ -124,7 +130,7 @@ async function getStandings(): Promise<{
         }
         streak = `${kind}${n}`;
       }
-      return { ...s, streak, form };
+      return { ...s, name: resolveName(s.name), streak, form };
     }
 
     const rows = data as (Standing & { division: string })[];

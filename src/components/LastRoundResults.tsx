@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getTeams } from '@/lib/supabase';
 import { getLang, st } from '@/lib/get-lang';
+import { makeNameResolver } from '@/lib/team-name-resolver';
 
 type ResultRow = {
   round: number;
@@ -61,10 +62,12 @@ function GameCard({
   game,
   logos,
   T,
+  resolveName,
 }: {
   game: ResultRow;
   logos: Record<string, string | null>;
   T: (he: string) => string;
+  resolveName: (s: string) => string;
 }) {
   const homeWins     = game.home_score > game.away_score;
   const awayWins     = game.away_score > game.home_score;
@@ -74,21 +77,24 @@ function GameCard({
   const techniOnHome = techni && !homeWins;
   const techniOnAway = techni && !awayWins;
 
+  const homeName = resolveName(game.home_team);
+  const awayName = resolveName(game.away_team);
+
   return (
     <Link
-      href={`/games/${game.round}/${encodeURIComponent(game.home_team)}`}
+      href={`/games/${game.round}/${encodeURIComponent(homeName)}`}
       className="group grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 transition hover:-translate-y-0.5 hover:border-orange-500/40 hover:bg-orange-500/[0.04] cursor-pointer"
     >
       {/* Home */}
       <div className="flex min-w-0 items-center justify-end gap-2">
-        <TeamLogo name={game.home_team} displayName={T(game.home_team)} url={findLogo(game.home_team, logos)} />
+        <TeamLogo name={homeName} displayName={T(homeName)} url={findLogo(homeName, logos) ?? findLogo(game.home_team, logos)} />
         <div className="min-w-0 text-right">
           <p
             className={`truncate text-sm font-bold leading-tight transition-colors group-hover:text-orange-400 font-heading ${
               homeWins ? 'text-white' : 'text-[#8aaac8]'
             }`}
           >
-            {T(game.home_team)}
+            {T(homeName)}
           </p>
           {techniOnHome && (
             <p className="mt-0.5 text-[10px] font-black text-red-400">{T('🔴 הפסד טכני')}</p>
@@ -129,13 +135,13 @@ function GameCard({
               !homeWins ? 'text-white' : 'text-[#8aaac8]'
             }`}
           >
-            {T(game.away_team)}
+            {T(awayName)}
           </p>
           {techniOnAway && (
             <p className="mt-0.5 text-[10px] font-black text-red-400">{T('🔴 הפסד טכני')}</p>
           )}
         </div>
-        <TeamLogo name={game.away_team} displayName={T(game.away_team)} url={findLogo(game.away_team, logos)} />
+        <TeamLogo name={awayName} displayName={T(awayName)} url={findLogo(awayName, logos) ?? findLogo(game.away_team, logos)} />
       </div>
     </Link>
   );
@@ -169,6 +175,9 @@ export default async function LastRoundResults() {
   const logos: Record<string, string | null> = {};
   for (const t of teams) logos[norm(t.name)] = t.logo_url;
 
+  // Team-name resolver — admin Teams tab is the single source of truth
+  const resolveName = makeNameResolver(teams.map(t => ({ id: t.id, name: t.name })));
+
   const date = roundGames[0]?.date ?? '';
 
   return (
@@ -196,7 +205,7 @@ export default async function LastRoundResults() {
               <span className="h-2 w-2 rounded-full bg-orange-400" /> {T('מחוז דרום')}
             </h3>
             {south.map((g, i) => (
-              <GameCard key={`s-${i}`} game={g} logos={logos} T={T} />
+              <GameCard key={`s-${i}`} game={g} logos={logos} T={T} resolveName={resolveName} />
             ))}
           </div>
         )}
@@ -206,14 +215,14 @@ export default async function LastRoundResults() {
               <span className="h-2 w-2 rounded-full bg-blue-400" /> {T('מחוז צפון')}
             </h3>
             {north.map((g, i) => (
-              <GameCard key={`n-${i}`} game={g} logos={logos} T={T} />
+              <GameCard key={`n-${i}`} game={g} logos={logos} T={T} resolveName={resolveName} />
             ))}
           </div>
         )}
         {other.length > 0 && (
           <div className="space-y-2 lg:col-span-2">
             {other.map((g, i) => (
-              <GameCard key={`o-${i}`} game={g} logos={logos} T={T} />
+              <GameCard key={`o-${i}`} game={g} logos={logos} T={T} resolveName={resolveName} />
             ))}
           </div>
         )}
