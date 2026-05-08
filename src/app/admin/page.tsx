@@ -272,16 +272,20 @@ export default async function AdminPage({
         .eq('is_active', true)
         .order('name'),
       supabaseAdmin
-        .from('player_game_stats')
+        .from('game_stats')
         .select('player_id,game_id,points,three_pointers,fouls'),
       supabaseAdmin.from('teams').select('id,name'),
     ]);
 
     // Resolver maps any name variant (LIBI_SCHEDULE, alias, abbreviation)
-    // to the canonical team name in the teams table — so the team-pair
-    // key matches whether the schedule says "החברה הטובים גדרה" and the
-    // DB stores "ה.ה. גדרה" (or vice versa).
+    // to the canonical team name — so we can build a name→team_id map
+    // even after the admin renames a team (e.g. "אדיס אשדוד" → "שועלי
+    // אדיס אשדוד" or "החברה הטובים גדרה" → "ה.ה. גדרה").
     const resolveName = makeNameResolver((teamsList ?? []) as { id: string; name: string }[]);
+    const teamIdByName = new Map<string, string>();
+    for (const t of (teamsList ?? []) as { id: string; name: string }[]) {
+      teamIdByName.set(t.name, t.id);
+    }
 
     // Build roster map: team_id → players
     const playersByTeam = new Map<string, { id: string; name: string; jersey_number: number | null }[]>();
@@ -295,36 +299,41 @@ export default async function AdminPage({
     // Helpers
     const teamObj = (t: GameRow['home_team']) =>
       Array.isArray(t) ? (t[0] ?? null) : t;
-    const norm = (s: string) => s.replace(/["""''`״׳]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 
-    // Index DB games by team-pair so we can pick the best match per
-    // LIBI_SCHEDULE entry. Key = "homeName|awayName" (normalized).
-    // The `games` table can contain multiple rows for the same matchup
-    // (Excel re-syncs, reschedules) — we dedupe by preferring the row
-    // whose game_date matches the canonical schedule date, falling back
-    // to the most recent game_date.
+    // Resolve a LIBI_SCHEDULE name to a team_id by going through the
+    // alias-resolving name resolver (canonical name) → teams map.
+    function nameToTeamId(name: string): string | null {
+      const canonical = resolveName(name);
+      return teamIdByName.get(canonical) ?? null;
+    }
+
+    // Index DB games by team-id pair (rename-proof — IDs are stable even
+    // when names change in the admin "קבוצות" tab). The games table can
+    // contain multiple rows for the same matchup (Excel re-syncs,
+    // reschedules) — we dedupe per LIBI_SCHEDULE entry by preferring the
+    // row whose game_date matches the canonical schedule date, falling
+    // back to the most recent.
     type Indexed = { row: GameRow; home: { id: string; name: string }; away: { id: string; name: string } };
-    const dbByPair = new Map<string, Indexed[]>();
+    const dbByIdPair = new Map<string, Indexed[]>();
     for (const g of (gamesRows ?? []) as GameRow[]) {
       const home = teamObj(g.home_team);
       const away = teamObj(g.away_team);
       if (!home || !away) continue;
-      // Use the alias-resolving resolver so e.g. "ה.ה. גדרה" matches
-      // LIBI_SCHEDULE's "החברה הטובים גדרה".
-      const key = `${norm(resolveName(home.name))}|${norm(resolveName(away.name))}`;
-      const arr = dbByPair.get(key) ?? [];
+      const key = `${home.id}|${away.id}`;
+      const arr = dbByIdPair.get(key) ?? [];
       arr.push({ row: g, home, away });
-      dbByPair.set(key, arr);
+      dbByIdPair.set(key, arr);
     }
 
     // Iterate LIBI_SCHEDULE (the canonical source of truth) so we get
     // exactly ONE entry per scheduled matchup per round.
     perGameInfos = LIBI_SCHEDULE
       .map(entry => {
-        const matches = dbByPair.get(`${norm(resolveName(entry.homeTeam))}|${norm(resolveName(entry.awayTeam))}`);
+        const homeId = nameToTeamId(entry.homeTeam);
+        const awayId = nameToTeamId(entry.awayTeam);
+        if (!homeId || !awayId) return null; // team not in DB — skip
+        const matches = dbByIdPair.get(`${homeId}|${awayId}`);
         if (!matches || matches.length === 0) return null;
-        // Prefer the row whose game_date matches the schedule, else the
-        // most recent (matches array is in DB-fetch order — sort by date desc).
         const sorted = [...matches].sort((a, b) =>
           (b.row.game_date ?? '').localeCompare(a.row.game_date ?? ''),
         );

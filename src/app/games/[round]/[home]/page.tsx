@@ -165,7 +165,7 @@ export default async function GamePreviewPage({
              | null;
     };
     const { data: pgs } = await supabaseAdmin
-      .from('player_game_stats')
+      .from('game_stats')
       .select('points,three_pointers,fouls,player:players(id,name,jersey_number,team_id)')
       .eq('game_id', gameId)
       .or('points.gt.0,three_pointers.gt.0,fouls.gt.0');
