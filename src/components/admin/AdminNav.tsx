@@ -22,7 +22,7 @@ const GROUPS = [
     shortLabel: 'אנשים',
     tabs: [
       { href: '/admin?tab=players',     label: '👤 שחקנים' },
-      { href: '/admin?tab=playerstats', label: '📊 סטטיסטיקה' },
+      { href: '/admin?tab=gamestats',   label: '🏀 סטטיסטיקה לפי משחק' },
       { href: '/admin?tab=officials', label: '🦺 שופטים' },
       { href: '/admin?tab=teams',     label: '🛡️ קבוצות' },
     ],

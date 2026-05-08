@@ -16,7 +16,8 @@ import TeamsTab from '@/components/admin/TeamsTab';
 import TakanonTab from '@/components/admin/TakanonTab';
 import PlayoffTab from '@/components/admin/PlayoffTab';
 import SubmissionsTab, { type SubmissionRow } from '@/components/admin/SubmissionsTab';
-import PlayerStatsTab, { type PlayerStatRow } from '@/components/admin/PlayerStatsTab';
+import PerGameStatsTab, { type PerGameInfo, type PerGameStatRow } from '@/components/admin/PerGameStatsTab';
+import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import MessagesTab, { type ContactMessage } from '@/components/admin/MessagesTab';
 import TermsTab from '@/components/admin/TermsTab';
 import AboutTab from '@/components/admin/AboutTab';
@@ -230,26 +231,6 @@ export default async function AdminPage({
     contactMessages = (data ?? []) as ContactMessage[];
   }
 
-  // Player stats tab
-  let playerStats: PlayerStatRow[] = [];
-  if (tab === 'playerstats') {
-    const { data } = await supabaseAdmin
-      .from('players')
-      .select('id,name,jersey_number,points,three_pointers,fouls,team:teams(name)')
-      .eq('is_active', true)
-      .order('name');
-    type Raw = { id: string; name: string; jersey_number: number | null; points: number | null; three_pointers: number | null; fouls: number | null; team: { name: string } | { name: string }[] | null };
-    playerStats = ((data ?? []) as Raw[]).map((p) => ({
-      id: p.id,
-      name: p.name,
-      jersey_number: p.jersey_number,
-      team_name: Array.isArray(p.team) ? (p.team[0]?.name ?? null) : (p.team?.name ?? null),
-      points: p.points ?? 0,
-      three_pointers: p.three_pointers ?? 0,
-      fouls: p.fouls ?? 0,
-    }));
-  }
-
   // Hall of Fame tab
   let hofSeasons: { id: string; year: string; champion_name: string | null; champion_captain: string | null; runner_up_name: string | null; cup_holder_name: string | null; mvp_name: string | null; mvp_stats: string | null; final_score: string | null; final_date: string | null; final_location: string | null }[] = [];
   let hofRecords: { id: string; title: string; holder: string | null; value: string | null }[] = [];
@@ -260,6 +241,89 @@ export default async function AdminPage({
     ]);
     hofSeasons = (s ?? []) as typeof hofSeasons;
     hofRecords = (r ?? []) as typeof hofRecords;
+  }
+
+  // Per-game stats tab (round → games → team rosters)
+  let perGameInfos: PerGameInfo[] = [];
+  let perGameExisting: PerGameStatRow[] = [];
+  let perGameInitialRound = 1;
+  if (tab === 'gamestats') {
+    type GameRow = {
+      id: string;
+      game_date: string;
+      home_team_id: string | null;
+      away_team_id: string | null;
+      home_score: number | null;
+      away_score: number | null;
+      home_team: { id: string; name: string } | { id: string; name: string }[] | null;
+      away_team: { id: string; name: string } | { id: string; name: string }[] | null;
+    };
+    type PRow = { id: string; name: string; jersey_number: number | null; team_id: string | null };
+
+    const [{ data: gamesRows }, { data: playersRows }, { data: pgsRows }] = await Promise.all([
+      supabaseAdmin
+        .from('games')
+        .select('id,game_date,home_team_id,away_team_id,home_score,away_score,home_team:teams!games_home_team_id_fkey(id,name),away_team:teams!games_away_team_id_fkey(id,name)')
+        .order('game_date'),
+      supabaseAdmin
+        .from('players')
+        .select('id,name,jersey_number,team_id')
+        .eq('is_active', true)
+        .order('name'),
+      supabaseAdmin
+        .from('player_game_stats')
+        .select('player_id,game_id,points,three_pointers,fouls'),
+    ]);
+
+    // Build roster map: team_id → players
+    const playersByTeam = new Map<string, { id: string; name: string; jersey_number: number | null }[]>();
+    for (const p of (playersRows ?? []) as PRow[]) {
+      if (!p.team_id) continue;
+      const arr = playersByTeam.get(p.team_id) ?? [];
+      arr.push({ id: p.id, name: p.name, jersey_number: p.jersey_number });
+      playersByTeam.set(p.team_id, arr);
+    }
+
+    // Helpers
+    const teamObj = (t: GameRow['home_team']) =>
+      Array.isArray(t) ? (t[0] ?? null) : t;
+    const norm = (s: string) => s.replace(/["""''`״׳]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+
+    // Build round lookup from LIBI_SCHEDULE keyed by team-pair (regardless of date drift)
+    const roundByPair = new Map<string, number>();
+    for (const e of LIBI_SCHEDULE) {
+      roundByPair.set(`${norm(e.homeTeam)}|${norm(e.awayTeam)}`, e.round);
+    }
+
+    perGameInfos = ((gamesRows ?? []) as GameRow[])
+      .map(g => {
+        const home = teamObj(g.home_team);
+        const away = teamObj(g.away_team);
+        if (!home || !away) return null;
+        const round = roundByPair.get(`${norm(home.name)}|${norm(away.name)}`);
+        if (round == null) return null; // game not in canonical schedule — skip
+        return {
+          id: g.id,
+          round,
+          date: g.game_date,
+          homeTeamName: home.name,
+          awayTeamName: away.name,
+          homeScore: g.home_score,
+          awayScore: g.away_score,
+          homePlayers: playersByTeam.get(home.id) ?? [],
+          awayPlayers: playersByTeam.get(away.id) ?? [],
+        } as PerGameInfo;
+      })
+      .filter((g): g is PerGameInfo => g !== null)
+      .sort((a, b) => a.round - b.round || a.date.localeCompare(b.date));
+
+    perGameExisting = (pgsRows ?? []) as PerGameStatRow[];
+
+    // Default to the most recently played round if any, else round 1
+    const playedRounds = perGameInfos
+      .filter(g => g.homeScore != null && g.awayScore != null)
+      .map(g => g.round);
+    perGameInitialRound = playedRounds.length ? Math.max(...playedRounds) : 1;
   }
 
   // Sync log tab
@@ -290,7 +354,7 @@ export default async function AdminPage({
       {tab === 'takanon'       && <TakanonTab />}
       {tab === 'playoff'       && <PlayoffTab />}
       {tab === 'submissions'   && <SubmissionsTab submissions={submissions} />}
-      {tab === 'playerstats'   && <PlayerStatsTab players={playerStats} />}
+      {tab === 'gamestats'     && <PerGameStatsTab games={perGameInfos} existingStats={perGameExisting} initialRound={perGameInitialRound} />}
       {tab === 'messages'      && <MessagesTab messages={contactMessages} />}
       {tab === 'terms'         && <TermsTab termsOfUse={termsOfUse} privacyPolicy={privacyPolicy} />}
       {tab === 'about'         && <AboutTab heroSubtitle={aboutHeroSubtitle} story={aboutStory} association={aboutAssociation} chairmanName={aboutChairmanName} />}

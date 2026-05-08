@@ -582,35 +582,89 @@ export async function changeSubmissionStatus(
   return {};
 }
 
-// ── Admin: directly edit a player's season stats ─────────────────────────────
+// ── Admin: per-game per-player stats ─────────────────────────────────────────
+//
+// Upserts a row in player_game_stats and adjusts the player's cumulative
+// totals (players.points/three_pointers/fouls) by the delta so the rest of
+// the site (scorers, leaderboards, team page, etc.) stays accurate.
+//
+// Delta strategy:
+//   • new row inserted → cumulative += new value
+//   • existing row updated → cumulative += (new - old)
+//   • zero-out (still UPSERT to 0) → cumulative -= old value
 
-export async function updatePlayerStats(
-  playerId: string,
-  points: number,
-  threePointers: number,
-  fouls: number,
-): Promise<ActionResult> {
-  if (!playerId) return { error: 'Player ID required' };
-
-  const clean = {
-    points:         Math.max(0, Math.floor(points)),
-    three_pointers: Math.max(0, Math.floor(threePointers)),
-    fouls:          Math.max(0, Math.floor(fouls)),
+export async function upsertPlayerGameStat(input: {
+  playerId: string;
+  gameId: string;
+  points: number;
+  threePointers: number;
+  fouls: number;
+}): Promise<ActionResult> {
+  if (!input.playerId || !input.gameId) {
+    return { error: 'player + game required' };
+  }
+  const next = {
+    points:         Math.max(0, Math.floor(input.points         || 0)),
+    three_pointers: Math.max(0, Math.floor(input.threePointers  || 0)),
+    fouls:          Math.max(0, Math.floor(input.fouls          || 0)),
   };
 
-  const { error } = await supabaseAdmin
-    .from('players')
-    .update(clean)
-    .eq('id', playerId);
+  // 1) Read the existing per-game row (if any) to compute the delta.
+  const { data: existing, error: readErr } = await supabaseAdmin
+    .from('player_game_stats')
+    .select('points,three_pointers,fouls')
+    .eq('player_id', input.playerId)
+    .eq('game_id',   input.gameId)
+    .maybeSingle();
+  if (readErr) {
+    console.error('[upsertPlayerGameStat] read failed:', readErr);
+    return { error: readErr.message };
+  }
+  const prev = existing ?? { points: 0, three_pointers: 0, fouls: 0 };
 
-  if (error) {
-    console.error('[updatePlayerStats] failed:', error);
-    return { error: error.message };
+  // 2) Upsert the per-game row.
+  const { error: upErr } = await supabaseAdmin
+    .from('player_game_stats')
+    .upsert(
+      { player_id: input.playerId, game_id: input.gameId, ...next },
+      { onConflict: 'player_id,game_id' },
+    );
+  if (upErr) {
+    console.error('[upsertPlayerGameStat] upsert failed:', upErr);
+    return { error: upErr.message };
+  }
+
+  // 3) Apply the delta to the player's cumulative season totals.
+  const dPts  = next.points         - prev.points;
+  const d3pt  = next.three_pointers - prev.three_pointers;
+  const dFls  = next.fouls          - prev.fouls;
+  if (dPts !== 0 || d3pt !== 0 || dFls !== 0) {
+    const { data: cur, error: pErr } = await supabaseAdmin
+      .from('players')
+      .select('points,three_pointers,fouls')
+      .eq('id', input.playerId)
+      .maybeSingle();
+    if (pErr || !cur) {
+      console.error('[upsertPlayerGameStat] read player failed:', pErr);
+      return { error: pErr?.message ?? 'player not found' };
+    }
+    const { error: updErr } = await supabaseAdmin
+      .from('players')
+      .update({
+        points:         Math.max(0, (cur.points         ?? 0) + dPts),
+        three_pointers: Math.max(0, (cur.three_pointers ?? 0) + d3pt),
+        fouls:          Math.max(0, (cur.fouls          ?? 0) + dFls),
+      })
+      .eq('id', input.playerId);
+    if (updErr) {
+      console.error('[upsertPlayerGameStat] update player failed:', updErr);
+      return { error: updErr.message };
+    }
   }
 
   revalidatePath('/admin');
   revalidatePath('/players');
-  revalidatePath(`/players/${playerId}`);
+  revalidatePath(`/players/${input.playerId}`);
   revalidatePath('/scorers');
   revalidatePath('/');
   return {};
