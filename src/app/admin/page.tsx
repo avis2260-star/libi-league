@@ -18,6 +18,7 @@ import PlayoffTab from '@/components/admin/PlayoffTab';
 import SubmissionsTab, { type SubmissionRow } from '@/components/admin/SubmissionsTab';
 import PerGameStatsTab, { type PerGameInfo, type PerGameStatRow } from '@/components/admin/PerGameStatsTab';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
+import { makeNameResolver } from '@/lib/team-name-resolver';
 import MessagesTab, { type ContactMessage } from '@/components/admin/MessagesTab';
 import TermsTab from '@/components/admin/TermsTab';
 import AboutTab from '@/components/admin/AboutTab';
@@ -260,7 +261,7 @@ export default async function AdminPage({
     };
     type PRow = { id: string; name: string; jersey_number: number | null; team_id: string | null };
 
-    const [{ data: gamesRows }, { data: playersRows }, { data: pgsRows }] = await Promise.all([
+    const [{ data: gamesRows }, { data: playersRows }, { data: pgsRows }, { data: teamsList }] = await Promise.all([
       supabaseAdmin
         .from('games')
         .select('id,game_date,home_team_id,away_team_id,home_score,away_score,home_team:teams!games_home_team_id_fkey(id,name),away_team:teams!games_away_team_id_fkey(id,name)')
@@ -273,7 +274,14 @@ export default async function AdminPage({
       supabaseAdmin
         .from('player_game_stats')
         .select('player_id,game_id,points,three_pointers,fouls'),
+      supabaseAdmin.from('teams').select('id,name'),
     ]);
+
+    // Resolver maps any name variant (LIBI_SCHEDULE, alias, abbreviation)
+    // to the canonical team name in the teams table — so the team-pair
+    // key matches whether the schedule says "החברה הטובים גדרה" and the
+    // DB stores "ה.ה. גדרה" (or vice versa).
+    const resolveName = makeNameResolver((teamsList ?? []) as { id: string; name: string }[]);
 
     // Build roster map: team_id → players
     const playersByTeam = new Map<string, { id: string; name: string; jersey_number: number | null }[]>();
@@ -301,7 +309,9 @@ export default async function AdminPage({
       const home = teamObj(g.home_team);
       const away = teamObj(g.away_team);
       if (!home || !away) continue;
-      const key = `${norm(home.name)}|${norm(away.name)}`;
+      // Use the alias-resolving resolver so e.g. "ה.ה. גדרה" matches
+      // LIBI_SCHEDULE's "החברה הטובים גדרה".
+      const key = `${norm(resolveName(home.name))}|${norm(resolveName(away.name))}`;
       const arr = dbByPair.get(key) ?? [];
       arr.push({ row: g, home, away });
       dbByPair.set(key, arr);
@@ -311,7 +321,7 @@ export default async function AdminPage({
     // exactly ONE entry per scheduled matchup per round.
     perGameInfos = LIBI_SCHEDULE
       .map(entry => {
-        const matches = dbByPair.get(`${norm(entry.homeTeam)}|${norm(entry.awayTeam)}`);
+        const matches = dbByPair.get(`${norm(resolveName(entry.homeTeam))}|${norm(resolveName(entry.awayTeam))}`);
         if (!matches || matches.length === 0) return null;
         // Prefer the row whose game_date matches the schedule, else the
         // most recent (matches array is in DB-fetch order — sort by date desc).
