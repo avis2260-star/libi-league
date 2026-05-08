@@ -14,6 +14,7 @@ import LangToggle from '@/components/LangToggle';
 import SearchButton from '@/components/SearchButton';
 import CourtBackground from '@/components/CourtBackground';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import { Analytics } from '@vercel/analytics/next';
 import AppRotationProvider from '@/components/AppRotationProvider';
 import RotationShell from '@/components/RotationShell';
 import Footer from '@/components/Footer';
@@ -111,6 +112,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         </RotationShell>
         </AppRotationProvider>
         <SpeedInsights />
+        <Analytics />
       </body>
     </html>
   );
