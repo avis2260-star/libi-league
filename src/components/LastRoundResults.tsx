@@ -63,11 +63,13 @@ function GameCard({
   logos,
   T,
   resolveName,
+  videoUrl,
 }: {
   game: ResultRow;
   logos: Record<string, string | null>;
   T: (he: string) => string;
   resolveName: (s: string) => string;
+  videoUrl?: string | null;
 }) {
   const homeWins     = game.home_score > game.away_score;
   const awayWins     = game.away_score > game.home_score;
@@ -81,6 +83,28 @@ function GameCard({
   const awayName = resolveName(game.away_team);
 
   return (
+    <div className="relative">
+      {/* YouTube indicator — clickable, opens the video in a new tab.
+         Sits OUTSIDE the card's <Link> so we don't nest <a> elements.
+         On mobile: small tab centered on the top edge (avoids overlap with
+         the team logos which are tight to the card edges on narrow screens).
+         On desktop (sm+): top-left corner like the original design. */}
+      {videoUrl && (
+        <a
+          href={videoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={T('קיים סרטון משחק')}
+          title={T('קיים סרטון משחק')}
+          className="absolute z-10 flex items-center justify-center bg-red-600 shadow-md ring-1 ring-black/40 transition-transform hover:scale-110 hover:bg-red-500
+            top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 h-4 w-6 rounded-md
+            sm:top-1.5 sm:left-1.5 sm:translate-x-0 sm:translate-y-0 sm:h-5 sm:w-7 sm:rounded-[5px] sm:ring-black/30"
+        >
+          <svg viewBox="0 0 24 24" className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-white" fill="currentColor" aria-hidden="true">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        </a>
+      )}
     <Link
       href={`/games/${game.round}/${encodeURIComponent(homeName)}`}
       className="group grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 transition hover:-translate-y-0.5 hover:border-orange-500/40 hover:bg-orange-500/[0.04] cursor-pointer"
@@ -144,16 +168,24 @@ function GameCard({
         <TeamLogo name={awayName} displayName={T(awayName)} url={findLogo(awayName, logos) ?? findLogo(game.away_team, logos)} />
       </div>
     </Link>
+    </div>
   );
 }
 
 // ── Section ──────────────────────────────────────────────────────────────
 export default async function LastRoundResults() {
-  const [{ data: results }, teams, lang] = await Promise.all([
+  const [{ data: results }, { data: gamesWithVideos }, teams, lang] = await Promise.all([
     supabaseAdmin
       .from('game_results')
       .select('round,date,home_team,away_team,home_score,away_score,techni,division')
       .order('round', { ascending: false }),
+    // Pull every games row that has a video URL set — we'll match by team
+    // pair to mark the corresponding result card with a YouTube indicator.
+    supabaseAdmin
+      .from('games')
+      .select('video_url,game_date,home_team:teams!games_home_team_id_fkey(name),away_team:teams!games_away_team_id_fkey(name)')
+      .not('video_url', 'is', null)
+      .order('game_date', { ascending: false }),
     getTeams(),
     getLang(),
   ]);
@@ -177,6 +209,33 @@ export default async function LastRoundResults() {
 
   // Team-name resolver — admin Teams tab is the single source of truth
   const resolveName = makeNameResolver(teams.map(t => ({ id: t.id, name: t.name })));
+
+  // ── Video lookup: norm(home)|norm(away) → has video? ──────────────────
+  // Iterating newest-first (rows already ordered by game_date desc) so that
+  // if a team pair has multiple historical games, the most recent one wins.
+  type GameVideoRow = {
+    video_url: string | null;
+    home_team: { name: string } | { name: string }[] | null;
+    away_team: { name: string } | { name: string }[] | null;
+  };
+  const teamNameOf = (t: GameVideoRow['home_team']): string => {
+    if (!t) return '';
+    if (Array.isArray(t)) return t[0]?.name ?? '';
+    return t.name ?? '';
+  };
+  const videoByPair = new Map<string, string>();
+  for (const g of (gamesWithVideos ?? []) as GameVideoRow[]) {
+    if (!g.video_url) continue;
+    const home = lcNorm(teamNameOf(g.home_team));
+    const away = lcNorm(teamNameOf(g.away_team));
+    if (!home || !away) continue;
+    // Newest-first ordering: keep the first url we see for any given pair
+    if (!videoByPair.has(`${home}|${away}`)) videoByPair.set(`${home}|${away}`, g.video_url);
+  }
+  const videoUrlFor = (g: ResultRow): string | null =>
+    videoByPair.get(`${lcNorm(resolveName(g.home_team))}|${lcNorm(resolveName(g.away_team))}`) ??
+    videoByPair.get(`${lcNorm(g.home_team)}|${lcNorm(g.away_team)}`) ??
+    null;
 
   const date = roundGames[0]?.date ?? '';
 
@@ -205,7 +264,7 @@ export default async function LastRoundResults() {
               <span className="h-2 w-2 rounded-full bg-orange-400" /> {T('מחוז דרום')}
             </h3>
             {south.map((g, i) => (
-              <GameCard key={`s-${i}`} game={g} logos={logos} T={T} resolveName={resolveName} />
+              <GameCard key={`s-${i}`} game={g} logos={logos} T={T} resolveName={resolveName} videoUrl={videoUrlFor(g)} />
             ))}
           </div>
         )}
@@ -215,14 +274,14 @@ export default async function LastRoundResults() {
               <span className="h-2 w-2 rounded-full bg-blue-400" /> {T('מחוז צפון')}
             </h3>
             {north.map((g, i) => (
-              <GameCard key={`n-${i}`} game={g} logos={logos} T={T} resolveName={resolveName} />
+              <GameCard key={`n-${i}`} game={g} logos={logos} T={T} resolveName={resolveName} videoUrl={videoUrlFor(g)} />
             ))}
           </div>
         )}
         {other.length > 0 && (
           <div className="space-y-2 lg:col-span-2">
             {other.map((g, i) => (
-              <GameCard key={`o-${i}`} game={g} logos={logos} T={T} resolveName={resolveName} />
+              <GameCard key={`o-${i}`} game={g} logos={logos} T={T} resolveName={resolveName} videoUrl={videoUrlFor(g)} />
             ))}
           </div>
         )}

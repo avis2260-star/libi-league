@@ -198,6 +198,7 @@ export const DICT: Record<string, string> = {
   'הנתונים באתר הינם לידיעה בלבד.': 'Site data is for information purposes only.',
   'נמצאה טעות?': 'Found a mistake?',
   'פנו אלינו': 'Contact us',
+  'קיים סרטון משחק': 'Game video available',
   'כל הזכויות שמורות': 'All rights reserved',
   'נבנה באהבה לקהילה': 'Built with love for the community',
   'עונה 2025–2026': 'Season 2025–2026',
