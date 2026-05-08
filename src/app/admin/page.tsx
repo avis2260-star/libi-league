@@ -289,29 +289,46 @@ export default async function AdminPage({
       Array.isArray(t) ? (t[0] ?? null) : t;
     const norm = (s: string) => s.replace(/["""''`״׳]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 
-    // Build round lookup from LIBI_SCHEDULE keyed by team-pair (regardless of date drift)
-    const roundByPair = new Map<string, number>();
-    for (const e of LIBI_SCHEDULE) {
-      roundByPair.set(`${norm(e.homeTeam)}|${norm(e.awayTeam)}`, e.round);
+    // Index DB games by team-pair so we can pick the best match per
+    // LIBI_SCHEDULE entry. Key = "homeName|awayName" (normalized).
+    // The `games` table can contain multiple rows for the same matchup
+    // (Excel re-syncs, reschedules) — we dedupe by preferring the row
+    // whose game_date matches the canonical schedule date, falling back
+    // to the most recent game_date.
+    type Indexed = { row: GameRow; home: { id: string; name: string }; away: { id: string; name: string } };
+    const dbByPair = new Map<string, Indexed[]>();
+    for (const g of (gamesRows ?? []) as GameRow[]) {
+      const home = teamObj(g.home_team);
+      const away = teamObj(g.away_team);
+      if (!home || !away) continue;
+      const key = `${norm(home.name)}|${norm(away.name)}`;
+      const arr = dbByPair.get(key) ?? [];
+      arr.push({ row: g, home, away });
+      dbByPair.set(key, arr);
     }
 
-    perGameInfos = ((gamesRows ?? []) as GameRow[])
-      .map(g => {
-        const home = teamObj(g.home_team);
-        const away = teamObj(g.away_team);
-        if (!home || !away) return null;
-        const round = roundByPair.get(`${norm(home.name)}|${norm(away.name)}`);
-        if (round == null) return null; // game not in canonical schedule — skip
+    // Iterate LIBI_SCHEDULE (the canonical source of truth) so we get
+    // exactly ONE entry per scheduled matchup per round.
+    perGameInfos = LIBI_SCHEDULE
+      .map(entry => {
+        const matches = dbByPair.get(`${norm(entry.homeTeam)}|${norm(entry.awayTeam)}`);
+        if (!matches || matches.length === 0) return null;
+        // Prefer the row whose game_date matches the schedule, else the
+        // most recent (matches array is in DB-fetch order — sort by date desc).
+        const sorted = [...matches].sort((a, b) =>
+          (b.row.game_date ?? '').localeCompare(a.row.game_date ?? ''),
+        );
+        const best = sorted.find(m => m.row.game_date === entry.date) ?? sorted[0];
         return {
-          id: g.id,
-          round,
-          date: g.game_date,
-          homeTeamName: home.name,
-          awayTeamName: away.name,
-          homeScore: g.home_score,
-          awayScore: g.away_score,
-          homePlayers: playersByTeam.get(home.id) ?? [],
-          awayPlayers: playersByTeam.get(away.id) ?? [],
+          id: best.row.id,
+          round: entry.round,
+          date: best.row.game_date,
+          homeTeamName: best.home.name,
+          awayTeamName: best.away.name,
+          homeScore: best.row.home_score,
+          awayScore: best.row.away_score,
+          homePlayers: playersByTeam.get(best.home.id) ?? [],
+          awayPlayers: playersByTeam.get(best.away.id) ?? [],
         } as PerGameInfo;
       })
       .filter((g): g is PerGameInfo => g !== null)

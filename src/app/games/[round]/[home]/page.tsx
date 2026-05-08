@@ -144,46 +144,52 @@ export default async function GamePreviewPage({
   const homeWon = isPlayed && (homeScore as number) > (awayScore as number);
   const awayWon = isPlayed && (awayScore as number) > (homeScore as number);
 
-  // Box score: reads from players table so admin corrections via
-  // "עריכת סטטיסטיקת שחקנים" are immediately reflected everywhere.
+  // Box score: per-game stats for THIS specific game (game_id=dbMatch.id).
+  // Reads from player_game_stats so each row is the player's stats for
+  // THIS game only — never the cumulative season total.
   type BoxRow = {
     player: { id: string; name: string; jersey_number: number | null };
     points: number;
     three_pointers: number;
     fouls: number;
   };
-  type PlayerRow = { id: string; name: string; jersey_number: number | null; points: number; three_pointers: number; fouls: number };
   let homeBox: BoxRow[] = [];
   let awayBox: BoxRow[] = [];
-  if (isPlayed) {
+  if (isPlayed && gameId) {
     const homeTeamObj = teams.find(t => normalize(t.name) === normalize(game.homeTeam));
     const awayTeamObj = teams.find(t => normalize(t.name) === normalize(game.awayTeam));
-    const [homeRes, awayRes] = await Promise.all([
-      homeTeamObj
-        ? supabaseAdmin
-            .from('players')
-            .select('id,name,jersey_number,points,three_pointers,fouls')
-            .eq('team_id', homeTeamObj.id)
-            .or('points.gt.0,three_pointers.gt.0,fouls.gt.0')
-            .order('points', { ascending: false })
-        : { data: [] as PlayerRow[] },
-      awayTeamObj
-        ? supabaseAdmin
-            .from('players')
-            .select('id,name,jersey_number,points,three_pointers,fouls')
-            .eq('team_id', awayTeamObj.id)
-            .or('points.gt.0,three_pointers.gt.0,fouls.gt.0')
-            .order('points', { ascending: false })
-        : { data: [] as PlayerRow[] },
-    ]);
-    const toRow = (p: PlayerRow): BoxRow => ({
-      player: { id: p.id, name: p.name, jersey_number: p.jersey_number },
-      points: p.points ?? 0,
-      three_pointers: p.three_pointers ?? 0,
-      fouls: p.fouls ?? 0,
+    type PgsRow = {
+      points: number; three_pointers: number; fouls: number;
+      player: { id: string; name: string; jersey_number: number | null; team_id: string | null }
+             | { id: string; name: string; jersey_number: number | null; team_id: string | null }[]
+             | null;
+    };
+    const { data: pgs } = await supabaseAdmin
+      .from('player_game_stats')
+      .select('points,three_pointers,fouls,player:players(id,name,jersey_number,team_id)')
+      .eq('game_id', gameId)
+      .or('points.gt.0,three_pointers.gt.0,fouls.gt.0');
+
+    const playerOf = (p: PgsRow['player']) =>
+      Array.isArray(p) ? (p[0] ?? null) : p;
+
+    const rows: { row: PgsRow; player: { id: string; name: string; jersey_number: number | null; team_id: string | null } }[] = [];
+    for (const r of (pgs ?? []) as PgsRow[]) {
+      const pl = playerOf(r.player);
+      if (!pl) continue;
+      rows.push({ row: r, player: pl });
+    }
+    rows.sort((a, b) => (b.row.points ?? 0) - (a.row.points ?? 0));
+
+    const toBox = (r: typeof rows[number]): BoxRow => ({
+      player: { id: r.player.id, name: r.player.name, jersey_number: r.player.jersey_number },
+      points: r.row.points ?? 0,
+      three_pointers: r.row.three_pointers ?? 0,
+      fouls: r.row.fouls ?? 0,
     });
-    homeBox = ((homeRes.data ?? []) as PlayerRow[]).map(toRow);
-    awayBox = ((awayRes.data ?? []) as PlayerRow[]).map(toRow);
+
+    if (homeTeamObj) homeBox = rows.filter(r => r.player.team_id === homeTeamObj.id).map(toBox);
+    if (awayTeamObj) awayBox = rows.filter(r => r.player.team_id === awayTeamObj.id).map(toBox);
   }
 
   const dateStr    = ROUND_DATES[round] ?? game.date;
