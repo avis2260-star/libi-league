@@ -185,16 +185,24 @@ export default async function GamePreviewPage({
       player: { id: string; name: string; jersey_number: number | null; team_id: string | null }
              | { id: string; name: string; jersey_number: number | null; team_id: string | null }[]
              | null;
-      game: { home_team_id: string; away_team_id: string }
-          | { home_team_id: string; away_team_id: string }[]
-          | null;
     };
-    const { data: pgs } = await supabaseAdmin
-      .from('game_stats')
-      .select('points,three_pointers,fouls,player:players(id,name,jersey_number,team_id),game:games!inner(home_team_id,away_team_id)')
-      .eq('game.home_team_id', homeTeamObj.id)
-      .eq('game.away_team_id', awayTeamObj.id)
-      .or('points.gt.0,three_pointers.gt.0,fouls.gt.0');
+
+    // Find every games row for this matchup (covers Excel-sync duplicates).
+    const { data: matchingGames } = await supabaseAdmin
+      .from('games')
+      .select('id')
+      .eq('home_team_id', homeTeamObj.id)
+      .eq('away_team_id', awayTeamObj.id);
+    const gameIds = ((matchingGames ?? []) as { id: string }[]).map(g => g.id);
+
+    // Then pull game_stats for any of those games, in one query.
+    const { data: pgs } = gameIds.length
+      ? await supabaseAdmin
+          .from('game_stats')
+          .select('points,three_pointers,fouls,player:players(id,name,jersey_number,team_id)')
+          .in('game_id', gameIds)
+          .or('points.gt.0,three_pointers.gt.0,fouls.gt.0')
+      : { data: [] as PgsRow[] };
 
     const playerOf = (p: PgsRow['player']) =>
       Array.isArray(p) ? (p[0] ?? null) : p;
