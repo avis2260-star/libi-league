@@ -47,8 +47,15 @@ export default async function GamePreviewPage({
   const T = (he: string) => st(he, lang);
   const en = lang === 'en';
 
+  // Fetch teams up-front so we can resolve the URL home-team name to its
+  // canonical form. This lets the lookup survive admin renames — e.g. the
+  // URL says "שועלי אדיס אשדוד" but LIBI_SCHEDULE still has "אדיס אשדוד".
+  const teams = await getTeams();
+  const resolveTeamName = makeNameResolver(teams.map(t => ({ id: t.id, name: t.name })));
+  const canonicalHome = resolveTeamName(homeTeam);
+
   const game = LIBI_SCHEDULE.find(
-    (g) => g.round === round && normalize(g.homeTeam) === normalize(homeTeam)
+    (g) => g.round === round && normalize(resolveTeamName(g.homeTeam)) === normalize(canonicalHome),
   );
   if (!game) notFound();
 
@@ -60,8 +67,7 @@ export default async function GamePreviewPage({
   // a date filter would silently miss the row and the time/location entered
   // in admin would never appear here. Instead we filter by team pair, which
   // is unique per matchup per round and survives date drifts.
-  const [teams, standingsRes, dbGamesRes, resultRes] = await Promise.all([
-    getTeams(),
+  const [standingsRes, dbGamesRes, resultRes] = await Promise.all([
     supabaseAdmin.from('standings').select('name,rank,wins,losses,diff,pts,games,pf,pa').order('rank'),
     supabaseAdmin
       .from('games')
