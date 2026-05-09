@@ -159,9 +159,13 @@ export default async function GamePreviewPage({
   const homeWon = isPlayed && (homeScore as number) > (awayScore as number);
   const awayWon = isPlayed && (awayScore as number) > (homeScore as number);
 
-  // Box score: per-game stats for THIS specific game (game_id=dbMatch.id).
-  // Reads from player_game_stats so each row is the player's stats for
-  // THIS game only — never the cumulative season total.
+  // Box score: per-game stats for THIS specific matchup. We query by
+  // team-pair (home/away team_ids) rather than a single game_id so that
+  // stats land regardless of which duplicate games row they were saved
+  // against (Excel re-syncs leave behind multiple rows for the same
+  // matchup; the admin tab and game preview can pick different ones).
+  // If the same player has rows on multiple duplicate games rows, we
+  // dedupe by player_id keeping the row with the highest total stats.
   type BoxRow = {
     player: { id: string; name: string; jersey_number: number | null };
     points: number;
@@ -170,31 +174,44 @@ export default async function GamePreviewPage({
   };
   let homeBox: BoxRow[] = [];
   let awayBox: BoxRow[] = [];
-  if (isPlayed && gameId) {
-    const homeTeamObj = teams.find(t => normalize(t.name) === normalize(game.homeTeam));
-    const awayTeamObj = teams.find(t => normalize(t.name) === normalize(game.awayTeam));
+  // Resolve via canonical name so renames don't break the team_id lookup.
+  const homeTeamObj = teams.find(t => normalize(t.name) === normalize(homeDisplayName))
+    ?? teams.find(t => normalize(t.name) === normalize(game.homeTeam));
+  const awayTeamObj = teams.find(t => normalize(t.name) === normalize(awayDisplayName))
+    ?? teams.find(t => normalize(t.name) === normalize(game.awayTeam));
+  if (isPlayed && homeTeamObj && awayTeamObj) {
     type PgsRow = {
       points: number; three_pointers: number; fouls: number;
       player: { id: string; name: string; jersey_number: number | null; team_id: string | null }
              | { id: string; name: string; jersey_number: number | null; team_id: string | null }[]
              | null;
+      game: { home_team_id: string; away_team_id: string }
+          | { home_team_id: string; away_team_id: string }[]
+          | null;
     };
     const { data: pgs } = await supabaseAdmin
       .from('game_stats')
-      .select('points,three_pointers,fouls,player:players(id,name,jersey_number,team_id)')
-      .eq('game_id', gameId)
+      .select('points,three_pointers,fouls,player:players(id,name,jersey_number,team_id),game:games!inner(home_team_id,away_team_id)')
+      .eq('game.home_team_id', homeTeamObj.id)
+      .eq('game.away_team_id', awayTeamObj.id)
       .or('points.gt.0,three_pointers.gt.0,fouls.gt.0');
 
     const playerOf = (p: PgsRow['player']) =>
       Array.isArray(p) ? (p[0] ?? null) : p;
 
-    const rows: { row: PgsRow; player: { id: string; name: string; jersey_number: number | null; team_id: string | null } }[] = [];
+    // Dedupe by player_id, keep the row with highest total stats
+    const bestByPlayer = new Map<string, { row: PgsRow; player: { id: string; name: string; jersey_number: number | null; team_id: string | null }; total: number }>();
     for (const r of (pgs ?? []) as PgsRow[]) {
       const pl = playerOf(r.player);
       if (!pl) continue;
-      rows.push({ row: r, player: pl });
+      const total = (r.points ?? 0) + (r.three_pointers ?? 0) + (r.fouls ?? 0);
+      const existing = bestByPlayer.get(pl.id);
+      if (!existing || total > existing.total) {
+        bestByPlayer.set(pl.id, { row: r, player: pl, total });
+      }
     }
-    rows.sort((a, b) => (b.row.points ?? 0) - (a.row.points ?? 0));
+    const rows = Array.from(bestByPlayer.values())
+      .sort((a, b) => (b.row.points ?? 0) - (a.row.points ?? 0));
 
     const toBox = (r: typeof rows[number]): BoxRow => ({
       player: { id: r.player.id, name: r.player.name, jersey_number: r.player.jersey_number },
@@ -203,8 +220,8 @@ export default async function GamePreviewPage({
       fouls: r.row.fouls ?? 0,
     });
 
-    if (homeTeamObj) homeBox = rows.filter(r => r.player.team_id === homeTeamObj.id).map(toBox);
-    if (awayTeamObj) awayBox = rows.filter(r => r.player.team_id === awayTeamObj.id).map(toBox);
+    homeBox = rows.filter(r => r.player.team_id === homeTeamObj.id).map(toBox);
+    awayBox = rows.filter(r => r.player.team_id === awayTeamObj.id).map(toBox);
   }
 
   const dateStr    = ROUND_DATES[round] ?? game.date;
