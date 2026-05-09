@@ -28,38 +28,9 @@ type UpcomingGameRow = {
   away_team: { name: string } | { name: string }[] | null;
 };
 
-/* ── Team name aliases (same team, different names across tables) ──────────── */
-const TEAM_ALIASES: [string, string][] = [
-  ['אריות קריית גת', 'א.ס. ק. גת'],
-  ['אריות קריית גת', 'א.ט. ק. גת'],
-  ['אריות קריית גת', 'אריות ק. גת'],
-  ['ה.ה. גדרה',      'החברה הטובים גדרה'],
-  ['ה.ה. גדרה',      'החברה הטובים'],
-];
-
 /* ── Helpers ────────────────────────────────────────────────────────────────── */
 function normName(s: string) {
   return s.replace(/["""״'']/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
-}
-function resolveAlias(name: string): string {
-  const norm = normName(name);
-  for (const [canonical, alias] of TEAM_ALIASES) {
-    if (normName(alias) === norm) return canonical;
-    if (normName(canonical) === norm) return canonical;
-  }
-  return name;
-}
-function matchTeam(a: string, b: string) {
-  if (a === b || normName(a) === normName(b)) return true;
-  return resolveAlias(a) === resolveAlias(b);
-}
-function findLogo(name: string, logos: Record<string, string>): string | undefined {
-  if (logos[name]) return logos[name];
-  const resolved = resolveAlias(name);
-  for (const [k, v] of Object.entries(logos)) {
-    if (normName(k) === normName(name) || resolveAlias(k) === resolved) return v;
-  }
-  return undefined;
 }
 
 /* ── Page ───────────────────────────────────────────────────────────────────── */
@@ -91,6 +62,22 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
   const T = (he: string) => st(he, lang);
   const en = lang === 'en';
 
+  /* Dynamic name resolver — derives canonicalization from the live teams
+     table so renaming a team in admin propagates to this page automatically. */
+  const teamRows = (teamsData ?? []) as { id: string; name: string; logo_url: string | null; captain_name: string | null; contact_info: string | null }[];
+  const resolveName = makeNameResolver(teamRows.map(t => ({ id: t.id, name: t.name })));
+  const matchTeam = (a: string, b: string) =>
+    a === b || normName(a) === normName(b) || resolveName(a) === resolveName(b);
+  const findLogo = (name: string): string | undefined => {
+    const resolved = resolveName(name);
+    if (resolved && teamRows) {
+      const match = teamRows.find(t => t.name === resolved);
+      if (match?.logo_url) return match.logo_url;
+    }
+    const direct = teamRows.find(t => normName(t.name) === normName(name));
+    return direct?.logo_url ?? undefined;
+  };
+
   const allStandings: Standing[] = (standingsData ?? [
     ...NORTH_TABLE.map(t => ({ ...t, division: 'North' })),
     ...SOUTH_TABLE.map(t => ({ ...t, division: 'South' })),
@@ -98,13 +85,8 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
 
   const standing = allStandings.find(s => matchTeam(s.name, teamName));
 
-  /* Build logo map */
-  const logos: Record<string, string> = {};
-  for (const t of teamsData ?? []) {
-    if (t.name && t.logo_url) logos[t.name] = t.logo_url;
-  }
-  const logoUrl = findLogo(teamName, logos);
-  const teamInfo = (teamsData ?? []).find(t => matchTeam(t.name, teamName));
+  const logoUrl = findLogo(teamName);
+  const teamInfo = teamRows.find(t => matchTeam(t.name, teamName));
 
   /* Filter games */
   const allGames = (resultsData ?? []) as GameRow[];
@@ -145,11 +127,6 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
           };
         })
     : [];
-
-  /* Resolver: opponent names cached in game_results may be stale after
-     an admin rename — pipe them through the live teams table so the
-     team page always shows the canonical name. */
-  const resolveName = makeNameResolver((teamsData ?? []).map(t => ({ id: t.id, name: t.name })));
 
   /* Compute per-game stats */
   let totalPts = 0, totalAllowed = 0, wins = 0, losses = 0;
