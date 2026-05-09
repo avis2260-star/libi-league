@@ -85,36 +85,19 @@ export default async function PlayerProfilePage({
     if (hId && aId) canonicalDateByPair.set(`${hId}|${aId}`, e.date);
   }
 
-  // ── Dedupe game_stats by matchup ──────────────────────────────────────
-  // The games table can contain multiple rows for the same matchup (Excel
-  // re-syncs leave behind stale Scheduled rows). game_stats may have a row
-  // for each, so a single matchup ends up listed twice in the player's
-  // history. Keep one row per (home_team_id|away_team_id), preferring the
-  // row whose game is Finished, then the row with actual stats. Different
-  // rounds with the same teams use reversed home/away, so they remain
-  // distinct keys (round 2 home=A vs round 8 home=B).
-  const dedupedStats = (() => {
-    const byPair = new Map<string, typeof gameStats[number][]>();
-    for (const s of gameStats) {
-      const key = `${s.game.home_team_id}|${s.game.away_team_id}`;
-      const arr = byPair.get(key) ?? [];
-      arr.push(s);
-      byPair.set(key, arr);
-    }
-    const out: typeof gameStats = [];
-    for (const arr of byPair.values()) {
-      arr.sort((a, b) => {
-        const af = a.game.status === 'Finished' ? 1 : 0;
-        const bf = b.game.status === 'Finished' ? 1 : 0;
-        if (af !== bf) return bf - af; // Finished first
-        const at = (a.points ?? 0) + (a.three_pointers ?? 0) + (a.fouls ?? 0);
-        const bt = (b.points ?? 0) + (b.three_pointers ?? 0) + (b.fouls ?? 0);
-        return bt - at; // then richer stats first
-      });
-      out.push(arr[0]);
-    }
-    return out;
-  })();
+  // ── Filter out noise rows ─────────────────────────────────────────────
+  // Some game_stats rows can end up empty (admin set inputs to 0 then saved,
+  // or stats were carried over from a no-longer-relevant Scheduled duplicate).
+  // We hide rows whose game is NOT Finished AND has no recorded stats —
+  // a Finished game with all-zeros is preserved (player participated but
+  // didn't score / foul). We do NOT dedupe by team-pair because that
+  // collapses real second meetings (round 1 vs round X) when the underlying
+  // games table happens to store both with the same orientation.
+  const dedupedStats = gameStats.filter(s => {
+    const isFinished = s.game.status === 'Finished';
+    const total = (s.points ?? 0) + (s.three_pointers ?? 0) + (s.fouls ?? 0);
+    return isFinished || total > 0;
+  });
 
   // ── Season totals ─────────────────────────────────────────────────────────
   // RULE: the admin "סטטיסטיקה" tab (which writes to players.points /

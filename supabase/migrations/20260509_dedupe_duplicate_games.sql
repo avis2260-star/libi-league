@@ -50,22 +50,40 @@ BEGIN
 END $$;
 
 -- ── game_stats ────────────────────────────────────────────────────────────
--- Drop game_stats rows from duplicates where the keeper already has the
--- same player (UNIQUE(game_id,player_id) would otherwise reject the move).
+-- For each (keeper, player) we want to end up with the BEST stats across
+-- all duplicate rows for that player. Otherwise simply "keeping the keeper"
+-- can lose data when the keeper had 0/0/0 and a duplicate had real numbers.
+--
+-- Strategy: take the max value across all duplicate rows + the keeper's
+-- own existing row, write that into the keeper, then delete the loser
+-- rows.
+
+-- 1. Pick best stats per (keeper_id, player_id) across keeper + losers
+CREATE TEMP TABLE _best_stats AS
+SELECT
+  d.keeper_id            AS game_id,
+  gs.player_id,
+  MAX(gs.team_id)        AS team_id,
+  MAX(gs.points)         AS points,
+  MAX(gs.three_pointers) AS three_pointers,
+  MAX(gs.fouls)          AS fouls
+FROM game_stats gs
+JOIN _dup_games d
+  ON gs.game_id = d.duplicate_id OR gs.game_id = d.keeper_id
+GROUP BY d.keeper_id, gs.player_id;
+
+-- 2. Delete every duplicate-and-keeper game_stats row for the affected pairs
+--    (we'll re-insert from _best_stats next, with the merged values).
 DELETE FROM game_stats gs
 USING _dup_games d
-WHERE gs.game_id = d.duplicate_id
-  AND EXISTS (
-    SELECT 1 FROM game_stats k
-    WHERE k.game_id = d.keeper_id
-      AND k.player_id = gs.player_id
-  );
+WHERE gs.game_id IN (d.duplicate_id, d.keeper_id);
 
--- Reassign the rest to the keeper
-UPDATE game_stats gs
-SET game_id = d.keeper_id
-FROM _dup_games d
-WHERE gs.game_id = d.duplicate_id;
+-- 3. Re-insert the merged stats onto the keeper game
+INSERT INTO game_stats (game_id, player_id, team_id, points, three_pointers, fouls)
+SELECT game_id, player_id, team_id, points, three_pointers, fouls
+FROM _best_stats;
+
+DROP TABLE _best_stats;
 
 -- ── game_submissions ─────────────────────────────────────────────────────
 -- Best-effort reassignment. If your game_submissions table has a UNIQUE

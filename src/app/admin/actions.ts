@@ -639,21 +639,40 @@ export async function upsertPlayerGameStat(input: {
   }
   const prev = existing ?? { points: 0, three_pointers: 0, fouls: 0 };
 
-  // 3) Upsert the per-game row.
-  const { error: upErr } = await supabaseAdmin
-    .from('game_stats')
-    .upsert(
-      {
-        player_id: input.playerId,
-        game_id:   input.gameId,
-        team_id:   playerRow.team_id,
-        ...next,
-      },
-      { onConflict: 'game_id,player_id' },
-    );
-  if (upErr) {
-    console.error('[upsertPlayerGameStat] upsert failed:', upErr);
-    return { error: upErr.message };
+  // 3) Write the per-game row.
+  //    • If everything is zero AND no row exists → no-op (don't create noise rows)
+  //    • If everything is zero AND a row exists  → DELETE it (cleaner than upserting 0/0/0)
+  //    • Otherwise → upsert the values
+  const allZero = next.points === 0 && next.three_pointers === 0 && next.fouls === 0;
+  if (allZero && !existing) {
+    // Nothing to record. Skip so we don't add a phantom "game played"
+    // entry in the player profile when stats stay at 0.
+  } else if (allZero && existing) {
+    const { error: delErr } = await supabaseAdmin
+      .from('game_stats')
+      .delete()
+      .eq('player_id', input.playerId)
+      .eq('game_id',   input.gameId);
+    if (delErr) {
+      console.error('[upsertPlayerGameStat] delete failed:', delErr);
+      return { error: delErr.message };
+    }
+  } else {
+    const { error: upErr } = await supabaseAdmin
+      .from('game_stats')
+      .upsert(
+        {
+          player_id: input.playerId,
+          game_id:   input.gameId,
+          team_id:   playerRow.team_id,
+          ...next,
+        },
+        { onConflict: 'game_id,player_id' },
+      );
+    if (upErr) {
+      console.error('[upsertPlayerGameStat] upsert failed:', upErr);
+      return { error: upErr.message };
+    }
   }
 
   // 4) Apply the delta to the player's cumulative season totals.
