@@ -93,10 +93,14 @@ export default async function GamePreviewPage({
   const homeLogo = logoMap[normalize(homeDisplayName)] ?? logoMap[normalize(game.homeTeam)] ?? null;
   const awayLogo = logoMap[normalize(awayDisplayName)] ?? logoMap[normalize(game.awayTeam)] ?? null;
 
-  // Standings
+  // Standings — look up by canonical name so a renamed team's row is found
+  // whether the schedule still uses the old name or the standings cache
+  // uses the new one.
   const standings = (standingsRes.data ?? []) as StandingRow[];
-  const homeStats = findStat(standings, game.homeTeam);
-  const awayStats = findStat(standings, game.awayTeam);
+  const homeStats =
+    findStat(standings, homeDisplayName) ?? findStat(standings, game.homeTeam);
+  const awayStats =
+    findStat(standings, awayDisplayName) ?? findStat(standings, game.awayTeam);
 
   // Time + location from Supabase games table — match by team pair.
   // Rows are ordered by game_date desc, so .find() picks the newest row
@@ -117,10 +121,15 @@ export default async function GamePreviewPage({
   // First, try to match by team pair AND the round's canonical date — handles
   // the case where the same matchup recurs across rounds (home/away swap, or
   // a rescheduled fixture leaves stale rows from earlier dates).
+  // Names are compared in canonical form (resolver) so an admin rename
+  // doesn't break the lookup (e.g. games row says "שועלי אדיס אשדוד" but
+  // schedule still has "אדיס אשדוד" — both canonicalize to the same value).
+  const canonicalHomeForMatch = normalize(resolveName(game.homeTeam));
+  const canonicalAwayForMatch = normalize(resolveName(game.awayTeam));
   const teamPairMatches = dbGames.filter(
     g =>
-      normalize(g.home_team?.name ?? '') === normalize(game.homeTeam) &&
-      normalize(g.away_team?.name ?? '') === normalize(game.awayTeam)
+      normalize(resolveName(g.home_team?.name ?? '')) === canonicalHomeForMatch &&
+      normalize(resolveName(g.away_team?.name ?? '')) === canonicalAwayForMatch
   );
   const dbMatch =
     teamPairMatches.find(g => g.game_date === game.date) ?? teamPairMatches[0];
@@ -140,8 +149,8 @@ export default async function GamePreviewPage({
   };
   const resultRow = ((resultRes.data ?? []) as ResultRow[]).find(
     r =>
-      normalize(r.home_team) === normalize(game.homeTeam) &&
-      normalize(r.away_team) === normalize(game.awayTeam)
+      normalize(resolveName(r.home_team)) === canonicalHomeForMatch &&
+      normalize(resolveName(r.away_team)) === canonicalAwayForMatch
   );
   const isPlayed = !!resultRow;
   const homeScore = resultRow?.home_score ?? null;
