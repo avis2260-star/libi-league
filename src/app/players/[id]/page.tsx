@@ -85,6 +85,37 @@ export default async function PlayerProfilePage({
     if (hId && aId) canonicalDateByPair.set(`${hId}|${aId}`, e.date);
   }
 
+  // ── Dedupe game_stats by matchup ──────────────────────────────────────
+  // The games table can contain multiple rows for the same matchup (Excel
+  // re-syncs leave behind stale Scheduled rows). game_stats may have a row
+  // for each, so a single matchup ends up listed twice in the player's
+  // history. Keep one row per (home_team_id|away_team_id), preferring the
+  // row whose game is Finished, then the row with actual stats. Different
+  // rounds with the same teams use reversed home/away, so they remain
+  // distinct keys (round 2 home=A vs round 8 home=B).
+  const dedupedStats = (() => {
+    const byPair = new Map<string, typeof gameStats[number][]>();
+    for (const s of gameStats) {
+      const key = `${s.game.home_team_id}|${s.game.away_team_id}`;
+      const arr = byPair.get(key) ?? [];
+      arr.push(s);
+      byPair.set(key, arr);
+    }
+    const out: typeof gameStats = [];
+    for (const arr of byPair.values()) {
+      arr.sort((a, b) => {
+        const af = a.game.status === 'Finished' ? 1 : 0;
+        const bf = b.game.status === 'Finished' ? 1 : 0;
+        if (af !== bf) return bf - af; // Finished first
+        const at = (a.points ?? 0) + (a.three_pointers ?? 0) + (a.fouls ?? 0);
+        const bt = (b.points ?? 0) + (b.three_pointers ?? 0) + (b.fouls ?? 0);
+        return bt - at; // then richer stats first
+      });
+      out.push(arr[0]);
+    }
+    return out;
+  })();
+
   // ── Season totals ─────────────────────────────────────────────────────────
   // RULE: the admin "סטטיסטיקה" tab (which writes to players.points /
   // three_pointers / fouls) is the single source of truth. We display these
@@ -93,9 +124,9 @@ export default async function PlayerProfilePage({
   const total3pt   = player.three_pointers ?? 0;
   const totalFouls = player.fouls          ?? 0;
 
-  // Games played is still derived from game_stats (it's not editable in
-  // admin), used only for the "games" card and to compute averages below.
-  const gamesPlayed = gameStats.length;
+  // Games played derived from the deduped list so duplicate-matchup rows
+  // don't inflate the count.
+  const gamesPlayed = dedupedStats.length;
 
   const hasGames = gamesPlayed > 0;
 
@@ -116,7 +147,7 @@ export default async function PlayerProfilePage({
 
   const posMeta = player.position ? POSITION_META[player.position] : null;
 
-  const videos = gameStats
+  const videos = dedupedStats
     .filter((s) => s.game.video_url)
     .map((s) => ({
       url: s.game.video_url!,
@@ -127,7 +158,7 @@ export default async function PlayerProfilePage({
   // Show every game the player has stats for, in chronological order. Don't
   // require status='Finished' — admin scores often arrive while status is
   // still 'Scheduled'.
-  const chartData = [...gameStats]
+  const chartData = [...dedupedStats]
     .sort((a, b) => a.game.game_date.localeCompare(b.game.game_date))
     .map((s, i) => ({
       game: `G${i + 1}`,
@@ -238,7 +269,7 @@ export default async function PlayerProfilePage({
         )}
 
         {/* ── Game history table ───────────────────────────────────────── */}
-        {gameStats.length > 0 && (
+        {dedupedStats.length > 0 && (
           <section>
             <SectionTitle>{T('היסטוריית משחקים')}</SectionTitle>
             <div className="overflow-x-auto rounded-2xl border border-white/[0.07] bg-white/[0.03]">
@@ -255,7 +286,7 @@ export default async function PlayerProfilePage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.05]">
-                  {gameStats.map((stat) => {
+                  {dedupedStats.map((stat) => {
                     const opp = getOpponent(stat, player.team_id!);
                     const result = getResult(stat, player.team_id!);
                     const isHome = stat.game.home_team_id === player.team_id;
@@ -305,7 +336,7 @@ export default async function PlayerProfilePage({
         )}
 
         {/* ── No games yet ─────────────────────────────────────────────── */}
-        {gameStats.length === 0 && (
+        {dedupedStats.length === 0 && (
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] py-16 text-center text-[#5a7a9a]">
             {lang === 'en' ? 'No game data yet for this player.' : 'אין נתוני משחק עדיין עבור שחקן זה.'}
           </div>
