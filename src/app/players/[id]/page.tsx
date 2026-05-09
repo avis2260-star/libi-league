@@ -9,6 +9,8 @@ import type { GameStatWithGame, Position } from '@/types';
 import VideoGallery from '@/components/player/VideoGallery';
 import PlayerStatsChart from '@/components/player/PlayerStatsChart';
 import { getLang, st } from '@/lib/get-lang';
+import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
+import { makeNameResolver } from '@/lib/team-name-resolver';
 
 // ── Position metadata ─────────────────────────────────────────────────────────
 
@@ -56,14 +58,32 @@ export default async function PlayerProfilePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [player, gameStats, lang] = await Promise.all([
+  const [player, gameStats, lang, { data: teamsData }] = await Promise.all([
     getPlayerById(id),
     getPlayerGameStats(id),
     getLang(),
+    supabaseAdmin.from('teams').select('id,name'),
   ]);
   const T = (he: string) => st(he, lang);
 
   if (!player) notFound();
+
+  // ── Canonical date lookup ──────────────────────────────────────────────
+  // The games table's game_date can drift from the canonical schedule
+  // (Excel sync, manual reschedules). For the player profile date column
+  // we always prefer the LIBI_SCHEDULE date so the user sees the round's
+  // real date rather than a drifted DB value.
+  // Keyed by team-id pair, so it's immune to team renames.
+  const teamsList = (teamsData ?? []) as { id: string; name: string }[];
+  const resolveTeamName = makeNameResolver(teamsList);
+  const teamIdByName = new Map<string, string>();
+  for (const t of teamsList) teamIdByName.set(t.name, t.id);
+  const canonicalDateByPair = new Map<string, string>();
+  for (const e of LIBI_SCHEDULE) {
+    const hId = teamIdByName.get(resolveTeamName(e.homeTeam));
+    const aId = teamIdByName.get(resolveTeamName(e.awayTeam));
+    if (hId && aId) canonicalDateByPair.set(`${hId}|${aId}`, e.date);
+  }
 
   // ── Season totals ─────────────────────────────────────────────────────────
   // RULE: the admin "סטטיסטיקה" tab (which writes to players.points /
@@ -241,7 +261,12 @@ export default async function PlayerProfilePage({
                     const isHome = stat.game.home_team_id === player.team_id;
                     const myScore = isHome ? stat.game.home_score : stat.game.away_score;
                     const theirScore = isHome ? stat.game.away_score : stat.game.home_score;
-                    const dateStr = new Date(stat.game.game_date).toLocaleDateString(lang === 'en' ? 'en-US' : 'he-IL', {
+                    // Prefer canonical schedule date (rename-proof, drift-proof)
+                    // over the DB game_date which can drift after re-syncs.
+                    const canonicalDate = canonicalDateByPair.get(
+                      `${stat.game.home_team_id}|${stat.game.away_team_id}`,
+                    );
+                    const dateStr = new Date(canonicalDate ?? stat.game.game_date).toLocaleDateString(lang === 'en' ? 'en-US' : 'he-IL', {
                       day: 'numeric', month: 'numeric', year: '2-digit',
                     });
                     return (
