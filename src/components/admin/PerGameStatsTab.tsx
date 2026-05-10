@@ -37,35 +37,48 @@ function PlayerRow({
   player,
   gameId,
   existing,
+  onSaved,
 }: {
   player: PerGamePlayer;
   gameId: string;
   existing: { points: number; three_pointers: number; fouls: number } | undefined;
+  onSaved: (values: { points: number; three_pointers: number; fouls: number }) => void;
 }) {
   const init = existing ?? { points: 0, three_pointers: 0, fouls: 0 };
   const [points,   setPoints]   = useState(String(init.points));
   const [threePt,  setThreePt]  = useState(String(init.three_pointers));
   const [fouls,    setFouls]    = useState(String(init.fouls));
+  const [savedSnapshot, setSavedSnapshot] = useState(init);
   const [msg,      setMsg]      = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
 
   const dirty =
-    points  !== String(init.points) ||
-    threePt !== String(init.three_pointers) ||
-    fouls   !== String(init.fouls);
+    points  !== String(savedSnapshot.points) ||
+    threePt !== String(savedSnapshot.three_pointers) ||
+    fouls   !== String(savedSnapshot.fouls);
 
   function save() {
     setMsg(null);
+    const next = {
+      points:         parseInt(points  || '0', 10),
+      three_pointers: parseInt(threePt || '0', 10),
+      fouls:          parseInt(fouls   || '0', 10),
+    };
     startTransition(async () => {
       const res = await upsertPlayerGameStat({
         playerId:      player.id,
         gameId,
-        points:        parseInt(points  || '0', 10),
-        threePointers: parseInt(threePt || '0', 10),
-        fouls:         parseInt(fouls   || '0', 10),
+        points:        next.points,
+        threePointers: next.three_pointers,
+        fouls:         next.fouls,
       });
-      if (res.error) setMsg({ ok: false, text: res.error });
-      else           setMsg({ ok: true,  text: '✓ נשמר' });
+      if (res.error) {
+        setMsg({ ok: false, text: res.error });
+      } else {
+        setMsg({ ok: true, text: '✓ נשמר' });
+        setSavedSnapshot(next);
+        onSaved(next);
+      }
     });
   }
 
@@ -131,11 +144,13 @@ function RosterTable({
   players,
   gameId,
   statsByKey,
+  onPlayerSaved,
 }: {
   teamName: string;
   players: PerGamePlayer[];
   gameId: string;
   statsByKey: Record<string, { points: number; three_pointers: number; fouls: number }>;
+  onPlayerSaved: (playerId: string, values: { points: number; three_pointers: number; fouls: number }) => void;
 }) {
   return (
     <div className="rounded-xl border border-white/[0.06] bg-black/20 overflow-hidden">
@@ -163,6 +178,7 @@ function RosterTable({
                   player={p}
                   gameId={gameId}
                   existing={statsByKey[`${gameId}|${p.id}`]}
+                  onSaved={values => onPlayerSaved(p.id, values)}
                 />
               ))}
             </tbody>
@@ -187,6 +203,27 @@ function GameCard({
   onToggle: () => void;
 }) {
   const played = game.homeScore != null && game.awayScore != null;
+
+  // Live per-player points map for this game — initialized from saved stats,
+  // updated when a row saves successfully. Used to show running team totals.
+  const [livePoints, setLivePoints] = useState<Record<string, number>>(() => {
+    const m: Record<string, number> = {};
+    for (const p of [...game.homePlayers, ...game.awayPlayers]) {
+      m[p.id] = statsByKey[`${game.id}|${p.id}`]?.points ?? 0;
+    }
+    return m;
+  });
+
+  function handlePlayerSaved(playerId: string, values: { points: number; three_pointers: number; fouls: number }) {
+    setLivePoints(prev => ({ ...prev, [playerId]: values.points }));
+  }
+
+  const homeTotal = game.homePlayers.reduce((s, p) => s + (livePoints[p.id] ?? 0), 0);
+  const awayTotal = game.awayPlayers.reduce((s, p) => s + (livePoints[p.id] ?? 0), 0);
+
+  const homeMatch = game.homeScore != null ? homeTotal === game.homeScore : null;
+  const awayMatch = game.awayScore != null ? awayTotal === game.awayScore : null;
+
   return (
     <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden">
       <button
@@ -213,20 +250,90 @@ function GameCard({
       </button>
 
       {open && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 p-3">
+        <div className="p-3 space-y-3">
+          <ScoreboardSummary
+            homeTeamName={game.homeTeamName}
+            awayTeamName={game.awayTeamName}
+            homeTotal={homeTotal}
+            awayTotal={awayTotal}
+            officialHome={game.homeScore}
+            officialAway={game.awayScore}
+            homeMatch={homeMatch}
+            awayMatch={awayMatch}
+          />
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           <RosterTable
             teamName={game.homeTeamName}
             players={game.homePlayers}
             gameId={game.id}
             statsByKey={statsByKey}
+            onPlayerSaved={handlePlayerSaved}
           />
           <RosterTable
             teamName={game.awayTeamName}
             players={game.awayPlayers}
             gameId={game.id}
             statsByKey={statsByKey}
+            onPlayerSaved={handlePlayerSaved}
           />
+          </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ── Scoreboard summary: derived from saved player points ─────────────────────
+
+function ScoreboardSummary({
+  homeTeamName,
+  awayTeamName,
+  homeTotal,
+  awayTotal,
+  officialHome,
+  officialAway,
+  homeMatch,
+  awayMatch,
+}: {
+  homeTeamName: string;
+  awayTeamName: string;
+  homeTotal: number;
+  awayTotal: number;
+  officialHome: number | null;
+  officialAway: number | null;
+  homeMatch: boolean | null;
+  awayMatch: boolean | null;
+}) {
+  const hasOfficial = officialHome != null && officialAway != null;
+  const allMatch = homeMatch === true && awayMatch === true;
+
+  return (
+    <div dir="rtl" className="rounded-xl border border-orange-500/15 bg-orange-500/[0.03] px-3 py-3 space-y-2">
+      <div className="flex items-center justify-center gap-3 text-base font-black">
+        <span className="truncate text-white">{homeTeamName}</span>
+        <span className={`font-stats text-2xl tabular-nums ${homeMatch === false ? 'text-red-400' : 'text-orange-400'}`}>
+          {homeTotal}
+        </span>
+        <span className="text-[#5a7a9a]">:</span>
+        <span className={`font-stats text-2xl tabular-nums ${awayMatch === false ? 'text-red-400' : 'text-orange-400'}`}>
+          {awayTotal}
+        </span>
+        <span className="truncate text-white">{awayTeamName}</span>
+      </div>
+
+      {hasOfficial ? (
+        <div className="flex items-center justify-center gap-2 text-[11px] font-bold">
+          <span className="text-[#8aaac8]">תוצאה רשמית:</span>
+          <span className="font-stats text-[#c8d8e8] tabular-nums">{officialHome} : {officialAway}</span>
+          <span className={allMatch ? 'text-green-400' : 'text-red-400'}>
+            {allMatch ? '✓ תואם' : '✗ לא תואם'}
+          </span>
+        </div>
+      ) : (
+        <p className="text-center text-[11px] font-bold text-[#5a7a9a]">
+          סכום הנקודות של השחקנים מתעדכן עם כל שמירה
+        </p>
       )}
     </div>
   );
