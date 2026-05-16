@@ -5,6 +5,18 @@ import { NORTH_TABLE, SOUTH_TABLE } from '@/lib/league-data';
 import { notFound } from 'next/navigation';
 import { getLang, st } from '@/lib/get-lang';
 import { makeNameResolver } from '@/lib/team-name-resolver';
+import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
+
+/* Canonical round → date map (DD.M.YY), used when game_results has no date. */
+const ROUND_DATE_BY_NUM: Record<number, string> = (() => {
+  const m: Record<number, string> = {};
+  for (const e of LIBI_SCHEDULE) {
+    if (m[e.round]) continue;
+    const [y, mo, d] = e.date.split('-');
+    m[e.round] = `${parseInt(d, 10)}.${parseInt(mo, 10)}.${y.slice(2)}`;
+  }
+  return m;
+})();
 
 /* ── Types ─────────────────────────────────────────────────────────────────── */
 type Standing = {
@@ -248,7 +260,7 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
                   <p className="text-sm font-semibold text-white truncate">
                     {g.isHome ? T('בית') : T('חוץ')} {T('נגד')} {T(g.oppName)}
                   </p>
-                  <p className="text-sm font-black text-[#8aaac8]">{T('מחזור')} {g.round} · {g.date}</p>
+                  <p className="text-sm font-black text-[#8aaac8]">{T('מחזור')} {g.round} · {g.date || ROUND_DATE_BY_NUM[g.round] || ''}</p>
                 </div>
                 <div dir="ltr" className="shrink-0 text-right">
                   <span className={`text-lg font-black font-stats ${g.won ? 'text-green-400' : 'text-red-400'}`}>{g.myScore}</span>
@@ -310,8 +322,13 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
           </div>
           <div className="divide-y divide-white/[0.04]">
             {upcomingGames.map((g, i) => {
-              const time = (g.game_time && g.game_time !== '00:00:00') ? g.game_time.slice(0, 5) : '';
-              const loc  = (g.location && g.location !== 'TBD') ? g.location : '';
+              // 19:00 is the seed default written by the schedule importer and
+              // is treated as "not yet scheduled" until an admin sets a real
+              // time. Anything else displays as-is.
+              const rawTime = g.game_time ?? '';
+              const isPlaceholderTime = !rawTime || rawTime === '00:00:00' || rawTime.startsWith('19:00');
+              const timeLabel = isPlaceholderTime ? T('טרם נקבע') : rawTime.slice(0, 5);
+              const loc = (g.location && g.location !== 'TBD') ? g.location : '';
               return (
                 <div key={i} className="flex items-center gap-3 px-4 py-3">
                   <span className="shrink-0 rounded-full w-6 h-6 flex items-center justify-center text-[10px] font-black bg-orange-500/15 text-orange-400 ring-1 ring-orange-500/25">
@@ -323,7 +340,12 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
                     </p>
                     <p className="text-xs font-bold text-[#8aaac8] mt-0.5">
                       <span dir="ltr">{g.game_date}</span>
-                      {time && <> · <span dir="ltr">{time}</span></>}
+                      {' · '}
+                      {isPlaceholderTime ? (
+                        <span>{timeLabel}</span>
+                      ) : (
+                        <span dir="ltr">{timeLabel}</span>
+                      )}
                       {loc && <> · 📍 {loc}</>}
                     </p>
                   </div>
