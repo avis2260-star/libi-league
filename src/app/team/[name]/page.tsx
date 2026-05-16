@@ -102,14 +102,11 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
 
   /* Filter games */
   const allGames = (resultsData ?? []) as GameRow[];
-  // A double-loss (both teams forfeit, stored as techni+0:0) must appear in the
-  // game log so that round numbers are not skipped in the streak history.
-  // Only exclude single-side techni games (one team wins 20:0).
-  const isDoubleLoss = (g: GameRow) =>
-    g.techni && g.home_score === 0 && g.away_score === 0;
+  // Include every game this team played, technis included. We mark techni
+  // rows so they can be badged in the log and excluded from averages (a
+  // 20:0 forfeit would otherwise skew "points per game" dramatically).
   const teamGames = allGames.filter(g =>
-    (matchTeam(g.home_team, teamName) || matchTeam(g.away_team, teamName)) &&
-    (!g.techni || isDoubleLoss(g))
+    matchTeam(g.home_team, teamName) || matchTeam(g.away_team, teamName),
   );
 
   /* Cup games */
@@ -140,22 +137,31 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
         })
     : [];
 
-  /* Compute per-game stats */
+  /* Compute per-game stats — technis are kept for the log but excluded
+     from averages so a 20:0 forfeit does not skew points-per-game. */
   let totalPts = 0, totalAllowed = 0, wins = 0, losses = 0;
+  let nonTechniGames = 0;
   const gameDetails = teamGames.map(g => {
     const isHome = matchTeam(g.home_team, teamName);
     const myScore  = isHome ? g.home_score : g.away_score;
     const oppScore = isHome ? g.away_score : g.home_score;
     const oppName  = resolveName(isHome ? g.away_team : g.home_team);
-    const won = myScore > oppScore;
+    const isDoubleLoss = g.techni && g.home_score === 0 && g.away_score === 0;
+    const won = isDoubleLoss ? false : myScore > oppScore;
     if (won) wins++; else losses++;
-    totalPts += myScore;
-    totalAllowed += oppScore;
-    return { round: g.round, date: g.date, isHome, myScore, oppScore, oppName, won };
+    if (!g.techni) {
+      totalPts += myScore;
+      totalAllowed += oppScore;
+      nonTechniGames++;
+    }
+    return {
+      round: g.round, date: g.date, isHome, myScore, oppScore, oppName, won,
+      techni: g.techni, isDoubleLoss,
+    };
   });
 
-  const avgPts     = teamGames.length ? (totalPts / teamGames.length).toFixed(1) : '–';
-  const avgAllowed = teamGames.length ? (totalAllowed / teamGames.length).toFixed(1) : '–';
+  const avgPts     = nonTechniGames ? (totalPts / nonTechniGames).toFixed(1) : '–';
+  const avgAllowed = nonTechniGames ? (totalAllowed / nonTechniGames).toFixed(1) : '–';
   const winPct     = teamGames.length ? Math.round((wins / teamGames.length) * 100) : 0;
 
   const division = standing
@@ -257,8 +263,13 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
                   g.won ? 'bg-green-500/20 text-green-400' : 'bg-red-500/15 text-red-400'
                 }`}>{g.won ? (lang === 'en' ? 'W' : 'נ') : (lang === 'en' ? 'L' : 'ה')}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">
-                    {g.isHome ? T('בית') : T('חוץ')} {T('נגד')} {T(g.oppName)}
+                  <p className="text-sm font-semibold text-white truncate flex items-center gap-2">
+                    <span className="truncate">{g.isHome ? T('בית') : T('חוץ')} {T('נגד')} {T(g.oppName)}</span>
+                    {g.techni && (
+                      <span className="shrink-0 rounded-md bg-yellow-400/15 text-yellow-300 text-[10px] font-black px-1.5 py-0.5 ring-1 ring-yellow-400/30">
+                        {g.isDoubleLoss ? T('הפסד טכני הדדי') : (g.won ? T('ניצחון טכני') : T('הפסד טכני'))}
+                      </span>
+                    )}
                   </p>
                   <p className="text-sm font-black text-[#8aaac8]">{T('מחזור')} {g.round} · {g.date || ROUND_DATE_BY_NUM[g.round] || ''}</p>
                 </div>
