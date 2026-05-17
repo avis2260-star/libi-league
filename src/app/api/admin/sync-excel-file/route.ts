@@ -45,15 +45,32 @@ function toIsoDate(excelDate: string): string | null {
   return `${year}-${month}-${day}`;
 }
 
-const NORTH_NAMES = new Set([
+// Canonical team rosters per division. The Excel parser identifies
+// standings rows by checking each cell against these lists with a
+// substring-tolerant comparison (`loosely` below), so a rename in
+// libi.xlsx that keeps the old name as a substring (e.g. "אדיס אשדוד"
+// → "שועלי אדיס אשדוד") is still recognized without a code change.
+const NORTH_NAMES: string[] = [
   'ידרסל חדרה', 'חולון', 'בני נתניה', 'גוטלמן השרון',
   'בני מוצקין', 'כ.ע. בת-ים', 'גלי בת-ים',
-]);
-const SOUTH_NAMES = new Set([
+];
+const SOUTH_NAMES: string[] = [
   'ראשון "גפן" לציון', 'אחים קריית משה', 'קריית מלאכי',
   'אוריה ירושלים', 'אופק רחובות', 'אריות קריית גת',
-  'אדיס אשדוד', "החבר'ה הטובים גדרה",
-]);
+  'שועלי אדיס אשדוד', "החבר'ה הטובים גדרה",
+];
+
+// Substring-tolerant team-list membership. Used for division detection
+// when parsing standings — see comment on NORTH_NAMES/SOUTH_NAMES.
+function looselyInList(list: string[], cell: string): boolean {
+  const target = normalizeTeamName(cell);
+  if (!target) return false;
+  for (const name of list) {
+    const n = normalizeTeamName(name);
+    if (n === target || n.includes(target) || target.includes(n)) return true;
+  }
+  return false;
+}
 
 type StandingRow = {
   rank: number; name: string; games: number; wins: number; losses: number;
@@ -86,8 +103,8 @@ function parseStandings(rows: unknown[][]): { north: StandingRow[]; south: Stand
   for (const row of rows) {
     for (let i = 0; i < row.length; i++) {
       const cell = String(row[i] ?? '').trim();
-      const inNorth = NORTH_NAMES.has(cell);
-      const inSouth = SOUTH_NAMES.has(cell);
+      const inNorth = looselyInList(NORTH_NAMES, cell);
+      const inSouth = looselyInList(SOUTH_NAMES, cell);
       if (!inNorth && !inSouth) continue;
 
       const nums = (row.slice(i + 1) as unknown[])
