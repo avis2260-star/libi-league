@@ -3,19 +3,24 @@
 @tailwind utilities;
 
 /* ── Ticker marquee (used via inline style so must live here, not tailwind.config) ──
-   Content is rendered TWICE inside a `flex w-max` container, so the inner
-   container is exactly 2× the width of a single copy. translateX from
-   -50% → 0% shifts the strip rightward by exactly one copy's worth, so
-   in RTL the text reads naturally from left to right across the viewport
-   and the loop is pixel-perfectly seamless: at translateX(-50%) the
-   second copy occupies exactly the position the first copy ends at, so
-   the restart from translateX(0) → translateX(-50%) is invisible. The
-   inner copies use `pe-16` (logical inline-end padding) so the gap lands
-   at the SEAM between copies in both LTR and RTL — using physical `pr-16`
-   would put the gap at the wrong edge in RTL, creating an empty stretch
-   that reads as a visible "pause" in the cycle. */
+   The ticker renders the content N=6 times inside a `flex w-max` container.
+   Each cycle shifts the strip by exactly ONE copy's width — calc(-100% / 6)
+   — so when the animation restarts, the next copy occupies the spot the
+   previous one just left and the loop is invisible. The direction is
+   translateX(-1/6) → translateX(0) so the content slides LEFT-TO-RIGHT
+   across the viewport.
+
+   Why 6 copies instead of 2?  With only 2 copies the container is 2W wide
+   and translateX(-50%) shifts by exactly W. If a single copy W is NARROWER
+   than the viewport V, the shifted container exposes (V - W) pixels of
+   EMPTY space at the right edge for the entire cycle — that blank band
+   reads as the ticker "pausing / disappearing" each loop. With 6 copies,
+   the container is 6W and the shift is still just W, so 5 copies always
+   stay in the viewport — no exposed blank band regardless of how short
+   the content is. The inner copies use `pe-16` so the gap at every seam
+   matches the inter-item gap in both LTR and RTL. */
 @keyframes marquee {
-  0%   { transform: translateX(-50%); }
+  0%   { transform: translateX(calc(-100% / 6)); }
   100% { transform: translateX(0%); }
 }
 
