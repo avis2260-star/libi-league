@@ -11,31 +11,42 @@ type PlayerRow = {
   name: string;
   jersey_number: number | null;
   position: string | null;
+  staff_role: string | null;
   team_id: string | null;
   photo_url: string | null;
   date_of_birth?: string | null;
   is_active?: boolean;
 };
 
-// On-court basketball positions.
+// On-court basketball positions — backed by a CHECK constraint on
+// players.position in the DB. Writing anything not in this set will be
+// rejected by Postgres.
 const POSITIONS = ['PG', 'SG', 'SF', 'PF', 'C'];
 
-// Coaching / staff roles — stored in the same `position` column as the
-// playing positions, separated visually by an <optgroup> in the dropdown.
-// The schedule / stats logic ignores any value not in POSITIONS, so a
-// coach row never accidentally shows up on the court.
-const STAFF_ROLES = [
-  { value: 'COACH',     label: 'מאמן' },
+// Coaching / staff roles — stored in the SEPARATE players.staff_role
+// column with its own CHECK constraint. A player can have both a
+// playing position and a staff role at the same time (e.g. an SG who
+// is also the assistant coach).
+const STAFF_ROLES: { value: string; label: string }[] = [
+  { value: 'COACH',      label: 'מאמן' },
   { value: 'ASST_COACH', label: 'עוזר מאמן' },
   { value: 'MANAGER',    label: 'מנהל קבוצה' },
 ];
 
-// Display label for any role (playing or staff). Falls back to the raw
-// value (so existing 'PG' / 'SG' rows render unchanged).
-function roleLabel(role: string | null | undefined): string {
-  if (!role) return '—';
-  const staff = STAFF_ROLES.find((r) => r.value === role);
-  return staff ? staff.label : role;
+// Hebrew label for a staff_role code.
+function staffRoleLabel(role: string | null | undefined): string {
+  if (!role) return '';
+  return STAFF_ROLES.find((r) => r.value === role)?.label ?? role;
+}
+
+// Combined "תפקיד" cell for the players table — shows position and/or
+// staff role separated by a "·" so a player+assistant-coach shows up as
+// "SG · עוזר מאמן".
+function rolesCell(pos: string | null, staff: string | null): string {
+  const parts: string[] = [];
+  if (pos) parts.push(pos);
+  if (staff) parts.push(staffRoleLabel(staff));
+  return parts.length === 0 ? '—' : parts.join(' · ');
 }
 
 export default function PlayersTab({ teams, players }: { teams: Team[]; players: PlayerRow[] }) {
@@ -44,6 +55,7 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
   const [teamId, setTeamId]       = useState('');
   const [jersey, setJersey]       = useState('');
   const [position, setPosition]   = useState('');
+  const [staffRole, setStaffRole] = useState('');
   const [dob, setDob]             = useState('');
   const [saving, setSaving]       = useState(false);
   const [msg, setMsg]             = useState<{ ok: boolean; text: string } | null>(null);
@@ -62,19 +74,20 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
   const [editTarget, setEditTarget] = useState<PlayerRow | null>(null);
 
   // Inline edit state
-  type EditDraft = { name: string; jersey: string; position: string; team_id: string; dob: string };
+  type EditDraft = { name: string; jersey: string; position: string; staff_role: string; team_id: string; dob: string };
   const [editingId, setEditingId]   = useState<string | null>(null);
-  const [editDraft, setEditDraft]   = useState<EditDraft>({ name: '', jersey: '', position: '', team_id: '', dob: '' });
+  const [editDraft, setEditDraft]   = useState<EditDraft>({ name: '', jersey: '', position: '', staff_role: '', team_id: '', dob: '' });
   const [editSaving, setEditSaving] = useState(false);
 
   function startEdit(p: PlayerRow) {
     setEditingId(p.id);
     setEditDraft({
-      name:     p.name,
-      jersey:   p.jersey_number != null ? String(p.jersey_number) : '',
-      position: p.position ?? '',
-      team_id:  p.team_id ?? '',
-      dob:      p.date_of_birth ?? '',
+      name:       p.name,
+      jersey:     p.jersey_number != null ? String(p.jersey_number) : '',
+      position:   p.position ?? '',
+      staff_role: p.staff_role ?? '',
+      team_id:    p.team_id ?? '',
+      dob:        p.date_of_birth ?? '',
     });
   }
 
@@ -91,17 +104,24 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
           name:           editDraft.name.trim() || undefined,
           jersey_number:  editDraft.jersey !== '' ? parseInt(editDraft.jersey) : null,
           position:       editDraft.position || null,
+          staff_role:     editDraft.staff_role || null,
           team_id:        editDraft.team_id || undefined,
           date_of_birth:  editDraft.dob || null,
         }),
       });
-      if (!res.ok) throw new Error('עדכון נכשל');
+      // Surface the real API error text instead of a blank "עדכון נכשל"
+      // so DB CHECK violations etc. are visible to the admin.
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || `עדכון נכשל (${res.status})`);
+      }
       setList((prev) => prev.map((p) =>
         p.id !== id ? p : {
           ...p,
           name:           editDraft.name.trim() || p.name,
           jersey_number:  editDraft.jersey !== '' ? parseInt(editDraft.jersey) : null,
           position:       editDraft.position || null,
+          staff_role:     editDraft.staff_role || null,
           team_id:        editDraft.team_id || p.team_id,
           date_of_birth:  editDraft.dob || null,
         },
@@ -167,7 +187,17 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !teamId) return;
+    // Validate name + team explicitly so the user gets feedback instead
+    // of a silent no-op (previous behavior — was the "nothing happens
+    // when I press save" bug for incomplete forms).
+    if (!name.trim()) {
+      setMsg({ ok: false, text: '⛔ חובה להזין שם' });
+      return;
+    }
+    if (!teamId) {
+      setMsg({ ok: false, text: '⛔ חובה לבחור קבוצה' });
+      return;
+    }
     if (dob && isUnder16(dob)) {
       setMsg({ ok: false, text: '⛔ לא ניתן להוסיף שחקן מתחת לגיל 16' });
       return;
@@ -184,6 +214,7 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
           team_id: teamId,
           jersey_number: jersey ? parseInt(jersey) : null,
           position: position || null,
+          staff_role: staffRole || null,
           date_of_birth: dob || null,
           photo_url,
         }),
@@ -192,7 +223,7 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
       if (!res.ok) throw new Error(data.error ?? 'שגיאה');
       setList((prev) => [...prev, data.player]);
       setOpenTeams((prev) => new Set(prev).add(teamId));
-      setName(''); setJersey(''); setPosition(''); setDob('');
+      setName(''); setJersey(''); setPosition(''); setStaffRole(''); setDob('');
       setPhotoFile(null); setPhotoPreview(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       setMsg({ ok: true, text: `✅ השחקן ${data.player.name} נוסף בהצלחה` });
@@ -424,18 +455,23 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-gray-400">תפקיד</label>
+            <label className="mb-1 block text-xs text-gray-400">פוזיציה</label>
             <select
               value={position} onChange={(e) => setPosition(e.target.value)}
               className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
             >
-              <option value="">— בחר תפקיד —</option>
-              <optgroup label="פוזיציות מגרש">
-                {POSITIONS.map((p) => <option key={p} value={p}>{p}</option>)}
-              </optgroup>
-              <optgroup label="צוות אימון">
-                {STAFF_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-              </optgroup>
+              <option value="">— בחר פוזיציה —</option>
+              {POSITIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-400">תפקיד צוות (אופציונלי)</label>
+            <select
+              value={staffRole} onChange={(e) => setStaffRole(e.target.value)}
+              className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
+            >
+              <option value="">— ללא —</option>
+              {STAFF_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
           </div>
           <div>
@@ -585,19 +621,26 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
                             </td>
                             {/* Position */}
                             <td className="px-2 py-1.5">
-                              <select
-                                value={editDraft.position}
-                                onChange={(e) => setEditDraft((d) => ({ ...d, position: e.target.value }))}
-                                className="w-full rounded border border-gray-600 bg-gray-900 px-1 py-1 text-sm text-white focus:border-orange-500 focus:outline-none"
-                              >
-                                <option value="">—</option>
-                                <optgroup label="פוזיציות מגרש">
+                              <div className="flex flex-col gap-1">
+                                <select
+                                  value={editDraft.position}
+                                  onChange={(e) => setEditDraft((d) => ({ ...d, position: e.target.value }))}
+                                  className="w-full rounded border border-gray-600 bg-gray-900 px-1 py-1 text-xs text-white focus:border-orange-500 focus:outline-none"
+                                  title="פוזיציה"
+                                >
+                                  <option value="">— פוזיציה —</option>
                                   {POSITIONS.map((pos) => <option key={pos} value={pos}>{pos}</option>)}
-                                </optgroup>
-                                <optgroup label="צוות אימון">
+                                </select>
+                                <select
+                                  value={editDraft.staff_role}
+                                  onChange={(e) => setEditDraft((d) => ({ ...d, staff_role: e.target.value }))}
+                                  className="w-full rounded border border-gray-600 bg-gray-900 px-1 py-1 text-xs text-white focus:border-orange-500 focus:outline-none"
+                                  title="תפקיד צוות"
+                                >
+                                  <option value="">— תפקיד צוות —</option>
                                   {STAFF_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-                                </optgroup>
-                              </select>
+                                </select>
+                              </div>
                             </td>
                             {/* Date of Birth */}
                             <td className="px-2 py-1.5 w-36">
@@ -680,7 +723,7 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
                           </td>
                           <td className="px-4 py-2 font-medium text-white">{p.name}</td>
                           <td className="px-4 py-2 text-center text-gray-400">{p.jersey_number ?? '—'}</td>
-                          <td className="px-4 py-2 text-center text-gray-400">{roleLabel(p.position)}</td>
+                          <td className="px-4 py-2 text-center text-gray-400 text-xs">{rolesCell(p.position, p.staff_role)}</td>
                           <td className="px-4 py-2 text-center text-gray-400 text-xs">
                             {p.date_of_birth
                               ? new Date(p.date_of_birth).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' })
