@@ -4,14 +4,19 @@
 
 /* ── Ticker marquee (used via inline style so must live here, not tailwind.config) ──
    Content is rendered TWICE inside a `flex w-max` container, so the inner
-   container is exactly 2× the width of a single copy. Animating
-   translateX from 0 → -50% shifts the whole strip leftward by exactly one
-   copy's worth, at which point the second copy occupies the position the
-   first copy started in — making the loop pixel-perfectly seamless when
-   the animation restarts. */
+   container is exactly 2× the width of a single copy. translateX from
+   -50% → 0% shifts the strip rightward by exactly one copy's worth, so
+   in RTL the text reads naturally from left to right across the viewport
+   and the loop is pixel-perfectly seamless: at translateX(-50%) the
+   second copy occupies exactly the position the first copy ends at, so
+   the restart from translateX(0) → translateX(-50%) is invisible. The
+   inner copies use `pe-16` (logical inline-end padding) so the gap lands
+   at the SEAM between copies in both LTR and RTL — using physical `pr-16`
+   would put the gap at the wrong edge in RTL, creating an empty stretch
+   that reads as a visible "pause" in the cycle. */
 @keyframes marquee {
-  0%   { transform: translateX(0%); }
-  100% { transform: translateX(-50%); }
+  0%   { transform: translateX(-50%); }
+  100% { transform: translateX(0%); }
 }
 
 /* ── Basketball flyer animations ─────────────────────────────────────────── */

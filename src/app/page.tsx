@@ -449,13 +449,16 @@ export default async function HomePage() {
       {/* Tickers */}
       {tickers.length > 0 && (
         <div className="overflow-hidden rounded-lg bg-[#0d1a28] border border-white/[0.07] py-2">
-          {/* Two identical groups — pr-16 on each ensures seam gap == inter-item gap */}
+          {/* Two identical groups — pe-16 (logical inline-end padding) on each
+             ensures the seam-gap matches the inter-item gap in BOTH LTR and
+             RTL. Using physical pr-16 would land the gap at the wrong edge
+             in RTL and produce a visible empty stretch every loop. */}
           <div
             className="flex w-max"
             style={{ animation: `marquee ${tickerSpeed}s linear infinite` }}
           >
             {[0, 1].map(copy => (
-              <div key={copy} className="flex items-center gap-16 pr-16">
+              <div key={copy} className="flex items-center gap-16 pe-16">
                 {tickers.map(ann => (
                   <span key={ann.id} className="inline-flex items-center gap-2 text-sm font-medium text-[#e8edf5] whitespace-nowrap">
                     <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${BG_COLOR_CLASSES[ann.bg_color] ?? 'bg-orange-500'}`} />
