@@ -2,10 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Ticker marquee (used via inline style so must live here, not tailwind.config) ── */
+/* ── Ticker marquee (used via inline style so must live here, not tailwind.config) ──
+   Content is rendered TWICE inside a `flex w-max` container, so the inner
+   container is exactly 2× the width of a single copy. Animating
+   translateX from 0 → -50% shifts the whole strip leftward by exactly one
+   copy's worth, at which point the second copy occupies the position the
+   first copy started in — making the loop pixel-perfectly seamless when
+   the animation restarts. */
 @keyframes marquee {
-  0%   { transform: translateX(-50%); }
-  100% { transform: translateX(0%); }
+  0%   { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
 }
 
 /* ── Basketball flyer animations ─────────────────────────────────────────── */
