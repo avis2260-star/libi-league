@@ -36,15 +36,39 @@ type Preview = {
 
 // ── Standings parser ────────────────────────────────────────────────────────
 
-const NORTH_NAMES = new Set([
+// Canonical team rosters per division. These lists drive recognition of
+// standings rows in the Excel — if a cell value matches (loosely) one of
+// these names, the row is treated as a standings row. The match is
+// substring-tolerant in both directions, so when a team is renamed in
+// libi.xlsx to a name that still contains the old name (e.g. "אדיס אשדוד"
+// → "שועלי אדיס אשדוד") it is still picked up without a code change.
+// Same goes for the reverse — keeping "אדיס אשדוד" here would also match
+// "שועלי אדיס אשדוד" via substring.
+const NORTH_NAMES = [
   'ידרסל חדרה', 'חולון', 'בני נתניה', 'גוטלמן השרון',
   'בני מוצקין', 'כ.ע. בת-ים', 'גלי בת-ים',
-]);
-const SOUTH_NAMES = new Set([
+];
+const SOUTH_NAMES = [
   'ראשון "גפן" לציון', 'אחים קריית משה', 'קריית מלאכי',
   'אוריה ירושלים', 'אופק רחובות', 'אריות קריית גת',
-  'אדיס אשדוד', "החבר'ה הטובים גדרה",
-]);
+  'שועלי אדיס אשדוד', "החבר'ה הטובים גדרה",
+];
+
+function normTeam(s: string): string {
+  return s.replace(/["""''`״׳]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+// Substring-tolerant membership: matches if names are equal OR either
+// contains the other (e.g. "שועלי אדיס אשדוד" matches "אדיס אשדוד").
+function loosely(list: string[], cell: string): boolean {
+  const target = normTeam(cell);
+  if (!target) return false;
+  for (const name of list) {
+    const n = normTeam(name);
+    if (n === target || n.includes(target) || target.includes(n)) return true;
+  }
+  return false;
+}
 
 function parseStandings(rows: unknown[][]): { north: StandingRow[]; south: StandingRow[] } {
   const north: StandingRow[] = [];
@@ -53,8 +77,8 @@ function parseStandings(rows: unknown[][]): { north: StandingRow[]; south: Stand
   for (const row of rows) {
     for (let i = 0; i < row.length; i++) {
       const cell = String(row[i] ?? '').trim();
-      const inNorth = NORTH_NAMES.has(cell);
-      const inSouth = SOUTH_NAMES.has(cell);
+      const inNorth = loosely(NORTH_NAMES, cell);
+      const inSouth = loosely(SOUTH_NAMES, cell);
       if (!inNorth && !inSouth) continue;
 
       const nums = (row.slice(i + 1) as unknown[])
