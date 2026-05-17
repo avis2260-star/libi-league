@@ -56,6 +56,20 @@ function Avatar({ name, displayName, logoUrl }: { name: string; displayName: str
   );
 }
 
+// ── Stat helper: number + Hebrew label, baseline-aligned ─────────────────────
+function StatPair({ value, label, color }: { value: number; label: string; color: string }) {
+  return (
+    <span className={`inline-flex items-baseline gap-1 ${color}`}>
+      <span className="text-base font-stats font-black tabular-nums leading-none min-w-[2ch] text-center">
+        {value}
+      </span>
+      <span className="text-[13px] font-body font-bold opacity-90 leading-none">
+        {label}
+      </span>
+    </span>
+  );
+}
+
 // ── Team card ──────────────────────────────────────────────────────────────────
 import Link from 'next/link';
 
@@ -122,15 +136,22 @@ function TeamCard({
           </p>
         )}
 
-        {/* Mini stats from standings */}
+        {/* Mini stats from standings.
+           Numbers use font-stats (digital) and tabular-nums so they align
+           column-by-column across cards; Hebrew labels use font-body so
+           they're readable and properly weighted instead of cramped. The
+           techni column is conditional — only shown when > 0. */}
         {stats && (
-          <div className="mt-2 flex gap-4 text-sm font-stats">
-            <span className="text-green-400 font-black">{stats.wins}{T('נ')}</span>
-            <span className="text-red-400 font-black">{stats.losses}{T('ה')}</span>
-            <span dir="ltr" className={`font-black ${stats.diff > 0 ? 'text-green-400' : 'text-red-400'}`}>
+          <div className="mt-2 grid grid-flow-col auto-cols-max items-baseline gap-x-3 sm:gap-x-4">
+            <StatPair value={stats.wins}   label={T('נ')}   color="text-green-400"  />
+            <StatPair value={stats.losses} label={T('ה')}   color="text-red-400"    />
+            {stats.techni > 0 && (
+              <StatPair value={stats.techni} label={T('ט')} color="text-yellow-400" />
+            )}
+            <span dir="ltr" className={`text-base font-stats font-black tabular-nums min-w-[3ch] text-center ${stats.diff > 0 ? 'text-green-400' : 'text-red-400'}`}>
               {stats.diff > 0 ? `+${stats.diff}` : stats.diff}
             </span>
-            <span className="font-black text-orange-400">{stats.pts} <span className="font-body">{T('נק׳')}</span></span>
+            <StatPair value={stats.pts} label={T('נק׳')} color="text-orange-400" />
           </div>
         )}
       </div>
