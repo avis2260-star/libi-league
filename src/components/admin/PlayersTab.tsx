@@ -17,7 +17,26 @@ type PlayerRow = {
   is_active?: boolean;
 };
 
+// On-court basketball positions.
 const POSITIONS = ['PG', 'SG', 'SF', 'PF', 'C'];
+
+// Coaching / staff roles — stored in the same `position` column as the
+// playing positions, separated visually by an <optgroup> in the dropdown.
+// The schedule / stats logic ignores any value not in POSITIONS, so a
+// coach row never accidentally shows up on the court.
+const STAFF_ROLES = [
+  { value: 'COACH',     label: 'מאמן' },
+  { value: 'ASST_COACH', label: 'עוזר מאמן' },
+  { value: 'MANAGER',    label: 'מנהל קבוצה' },
+];
+
+// Display label for any role (playing or staff). Falls back to the raw
+// value (so existing 'PG' / 'SG' rows render unchanged).
+function roleLabel(role: string | null | undefined): string {
+  if (!role) return '—';
+  const staff = STAFF_ROLES.find((r) => r.value === role);
+  return staff ? staff.label : role;
+}
 
 export default function PlayersTab({ teams, players }: { teams: Team[]; players: PlayerRow[] }) {
   const [list, setList]           = useState<PlayerRow[]>(players);
@@ -405,13 +424,18 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-gray-400">פוזיציה</label>
+            <label className="mb-1 block text-xs text-gray-400">תפקיד</label>
             <select
               value={position} onChange={(e) => setPosition(e.target.value)}
               className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
             >
-              <option value="">— בחר פוזיציה —</option>
-              {POSITIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+              <option value="">— בחר תפקיד —</option>
+              <optgroup label="פוזיציות מגרש">
+                {POSITIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+              </optgroup>
+              <optgroup label="צוות אימון">
+                {STAFF_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+              </optgroup>
             </select>
           </div>
           <div>
@@ -520,7 +544,7 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
                         <th className="px-4 py-2 w-14 text-center">תמונה</th>
                         <th className="px-4 py-2">שם</th>
                         <th className="px-4 py-2 text-center">#</th>
-                        <th className="px-4 py-2 text-center">פוזיציה</th>
+                        <th className="px-4 py-2 text-center">תפקיד</th>
                         <th className="px-4 py-2 text-center">ת. לידה</th>
                         <th className="px-4 py-2 text-center">קבוצה</th>
                         <th className="px-4 py-2 text-center">סטטוס</th>
@@ -567,7 +591,12 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
                                 className="w-full rounded border border-gray-600 bg-gray-900 px-1 py-1 text-sm text-white focus:border-orange-500 focus:outline-none"
                               >
                                 <option value="">—</option>
-                                {POSITIONS.map((pos) => <option key={pos} value={pos}>{pos}</option>)}
+                                <optgroup label="פוזיציות מגרש">
+                                  {POSITIONS.map((pos) => <option key={pos} value={pos}>{pos}</option>)}
+                                </optgroup>
+                                <optgroup label="צוות אימון">
+                                  {STAFF_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                                </optgroup>
                               </select>
                             </td>
                             {/* Date of Birth */}
@@ -651,7 +680,7 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
                           </td>
                           <td className="px-4 py-2 font-medium text-white">{p.name}</td>
                           <td className="px-4 py-2 text-center text-gray-400">{p.jersey_number ?? '—'}</td>
-                          <td className="px-4 py-2 text-center text-gray-400">{p.position ?? '—'}</td>
+                          <td className="px-4 py-2 text-center text-gray-400">{roleLabel(p.position)}</td>
                           <td className="px-4 py-2 text-center text-gray-400 text-xs">
                             {p.date_of_birth
                               ? new Date(p.date_of_birth).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' })
