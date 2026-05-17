@@ -15,11 +15,29 @@ const POSITION_LABELS_EN: Record<string, string> = {
   SF: 'Small Forward', PF: 'Power Forward', C: 'Center',
 };
 
+// Staff role display + sort priority. Lower rank = earlier in sorted list.
+const STAFF_INFO_HE: Record<string, { label: string; rank: number }> = {
+  MANAGER:    { label: 'מנהל קבוצה', rank: 1 },
+  COACH:      { label: 'מאמן',        rank: 2 },
+  ASST_COACH: { label: 'עוזר מאמן',   rank: 3 },
+};
+const STAFF_INFO_EN: Record<string, { label: string; rank: number }> = {
+  MANAGER:    { label: 'Manager',         rank: 1 },
+  COACH:      { label: 'Head Coach',      rank: 2 },
+  ASST_COACH: { label: 'Assistant Coach', rank: 3 },
+};
+function staffRank(role: string | null | undefined): number {
+  if (!role) return 99;
+  return STAFF_INFO_HE[role]?.rank ?? 99;
+}
+
 // ── Trading Card ──────────────────────────────────────────────────────────────
 
 function PlayerCard({ player, T, en }: { player: Player & { team?: Team }; T: (he: string) => string; en: boolean }) {
   const POSITION_LABELS = en ? POSITION_LABELS_EN : POSITION_LABELS_HE;
+  const STAFF_INFO = en ? STAFF_INFO_EN : STAFF_INFO_HE;
   const position = player.position ? POSITION_LABELS[player.position] ?? player.position : null;
+  const staffLabel = player.staff_role ? STAFF_INFO[player.staff_role]?.label ?? null : null;
   const teamName = T(player.team?.name ?? '');
   const isInactive = player.is_active === false;
 
@@ -75,6 +93,12 @@ function PlayerCard({ player, T, en }: { player: Player & { team?: Team }; T: (h
             <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#5a7a9a]">
               {position}
             </p>
+          )}
+          {staffLabel && (
+            <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-amber-400/50 bg-amber-400/15 px-2 py-0.5 text-[10px] font-black text-amber-300">
+              <span>🎯</span>
+              {staffLabel}
+            </span>
           )}
         </div>
 
@@ -186,9 +210,21 @@ export default async function TeamPlayersPage({ params }: { params: Promise<{ id
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {players.map((player) => (
-            <PlayerCard key={player.id} player={player} T={T} en={en} />
-          ))}
+          {[...players]
+            .sort((a, b) => {
+              // Staff first: Manager → Coach → Asst Coach → players.
+              const sa = staffRank(a.staff_role);
+              const sb = staffRank(b.staff_role);
+              if (sa !== sb) return sa - sb;
+              // Then by jersey number (original supabase order).
+              const ja = a.jersey_number ?? 999;
+              const jb = b.jersey_number ?? 999;
+              if (ja !== jb) return ja - jb;
+              return a.name.localeCompare(b.name, 'he');
+            })
+            .map((player) => (
+              <PlayerCard key={player.id} player={player} T={T} en={en} />
+            ))}
         </div>
       )}
     </div>

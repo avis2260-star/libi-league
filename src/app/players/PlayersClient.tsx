@@ -20,6 +20,18 @@ const POSITIONS_EN: Record<string, string> = {
   C:  'Center',
 };
 
+// Staff role display + sort priority. Lower = earlier in sorted list.
+const STAFF_INFO: Record<string, { he: string; en: string; rank: number }> = {
+  MANAGER:    { he: 'מנהל קבוצה', en: 'Manager',         rank: 1 },
+  COACH:      { he: 'מאמן',        en: 'Head Coach',      rank: 2 },
+  ASST_COACH: { he: 'עוזר מאמן',   en: 'Assistant Coach', rank: 3 },
+};
+// Sort rank for a player. Manager → Coach → Asst Coach → regular players.
+function staffRank(role: string | null | undefined): number {
+  if (!role) return 99;
+  return STAFF_INFO[role]?.rank ?? 99;
+}
+
 function Avatar({ name, photoUrl, size = 80 }: { name: string; photoUrl: string | null; size?: number }) {
   const initials = name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('');
   if (photoUrl) {
@@ -60,6 +72,8 @@ function PlayerCard({ player }: { player: EnrichedPlayer }) {
   const { t, lang } = useLang();
   const inactive = !player.is_active;
   const POSITIONS = lang === 'en' ? POSITIONS_EN : POSITIONS_HE;
+  const staff     = player.staff_role ? STAFF_INFO[player.staff_role] : null;
+  const staffLabel = staff ? (lang === 'en' ? staff.en : staff.he) : null;
 
   return (
     <Link
@@ -107,11 +121,19 @@ function PlayerCard({ player }: { player: EnrichedPlayer }) {
           ) : null;
         })()}
 
-        {player.position && (
-          <span className="inline-block rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-xs font-bold text-[#8aaac8]">
-            {POSITIONS[player.position] ?? player.position}
-          </span>
-        )}
+        <div className="flex flex-wrap items-center justify-center gap-1">
+          {player.position && (
+            <span className="inline-block rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-xs font-bold text-[#8aaac8]">
+              {POSITIONS[player.position] ?? player.position}
+            </span>
+          )}
+          {staffLabel && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/15 px-2 py-0.5 text-xs font-black text-amber-300">
+              <span className="text-[10px]">🎯</span>
+              {staffLabel}
+            </span>
+          )}
+        </div>
 
         {/* Stats row */}
         <div className="mt-3 grid grid-cols-3 divide-x divide-x-reverse divide-white/[0.06] rounded-xl border border-white/[0.06] bg-white/[0.02]">
@@ -254,6 +276,11 @@ function PlayerGridView({
     }
 
     list.sort((a, b) => {
+      // Staff always at the top, in the order: Manager → Coach → Asst Coach.
+      // Players (no staff_role) fall through to the user-chosen secondary sort.
+      const sa = staffRank(a.staff_role);
+      const sb = staffRank(b.staff_role);
+      if (sa !== sb) return sa - sb;
       if (sortBy === 'points') return (b.points ?? 0) - (a.points ?? 0);
       if (sortBy === 'jersey') return (a.jersey_number ?? 99) - (b.jersey_number ?? 99);
       return a.name.localeCompare(b.name, 'he');

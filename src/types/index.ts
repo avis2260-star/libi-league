@@ -11,18 +11,22 @@ export interface Team {
   created_at: string;
 }
 
+export type StaffRole = 'COACH' | 'ASST_COACH' | 'MANAGER';
+
 export interface Player {
   id: string;
   name: string;
   team_id: string | null;
   jersey_number: number | null;
   position: Position | null;
+  staff_role: StaffRole | null;
   photo_url: string | null;
   points: number;
   fouls: number;
   three_pointers: number;
   created_at: string;
   is_active?: boolean;
+  date_of_birth?: string | null;
   // Joined
   team?: Team;
 }
