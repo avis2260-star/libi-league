@@ -85,14 +85,14 @@ export default function MediaTab({ games }: Props) {
   return (
     <div dir="rtl" className="space-y-6">
       <div>
-        <h2 className="text-xl font-bold text-slate-900">סנכרון מדיה</h2>
-        <p className="mt-1 text-sm text-slate-500">
+        <h2 className="text-xl font-black text-white">סנכרון מדיה</h2>
+        <p className="mt-1 text-sm font-bold text-[#8aaac8]">
           צרף קישור וידאו (YouTube וכו׳) לכל משחק. המשחקים מקובצים לפי מחזורים.
         </p>
       </div>
 
       {games.length === 0 && (
-        <p className="rounded-2xl border border-slate-200 bg-slate-50 py-10 text-center text-sm text-slate-500">
+        <p className="rounded-2xl border border-white/[0.07] bg-[#0c1825] py-10 text-center text-sm font-bold text-[#8aaac8]">
           לא נמצאו משחקים.
         </p>
       )}
@@ -143,19 +143,19 @@ function Section({
 }) {
   const accent =
     tone === 'upcoming'
-      ? 'border-orange-200 bg-orange-50/60'
-      : 'border-slate-200 bg-slate-50';
-  const dot = tone === 'upcoming' ? 'bg-orange-500' : 'bg-slate-400';
+      ? 'border-orange-500/30 bg-orange-500/[0.06]'
+      : 'border-white/[0.08] bg-white/[0.03]';
+  const dot = tone === 'upcoming' ? 'bg-orange-500' : 'bg-[#5a7a9a]';
 
   return (
     <details open={defaultOpen} className={`group rounded-2xl border ${accent} overflow-hidden`}>
-      <summary className="flex cursor-pointer select-none items-center justify-between gap-3 px-4 py-3 hover:bg-white/40">
+      <summary className="flex cursor-pointer select-none items-center justify-between gap-3 px-4 py-3 hover:bg-white/[0.02]">
         <div className="flex items-center gap-3">
           <span className={`h-2 w-2 shrink-0 rounded-full ${dot}`} />
-          <h3 className="text-base font-bold text-slate-900">{title}</h3>
-          <span className="text-xs font-medium text-slate-500">{subtitle}</span>
+          <h3 className="text-base font-black text-white">{title}</h3>
+          <span className="text-xs font-bold text-[#8aaac8]">{subtitle}</span>
         </div>
-        <span className="text-slate-400 transition-transform group-open:rotate-90">▶</span>
+        <span className="text-orange-400 transition-transform group-open:rotate-90">▶</span>
       </summary>
       <div className="space-y-2 px-3 pb-3">{children}</div>
     </details>
@@ -181,20 +181,20 @@ function RoundGroup({
     ? fmtRoundDate(DATE_OF_ROUND[round])
     : fmtRoundDate(games[0]?.game_date);
   return (
-    <details open={defaultOpen} className="group rounded-xl border border-slate-200 bg-white">
-      <summary className="flex cursor-pointer select-none items-center justify-between gap-2 px-4 py-2.5 hover:bg-slate-50">
+    <details open={defaultOpen} className="group rounded-xl border border-white/[0.07] bg-[#0c1825]">
+      <summary className="flex cursor-pointer select-none items-center justify-between gap-2 px-4 py-2.5 hover:bg-white/[0.02]">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-slate-900">{label}</span>
+          <span className="text-sm font-black text-white">{label}</span>
           {dateLabel && (
-            <span className="text-xs font-medium text-slate-500">· {dateLabel}</span>
+            <span className="text-xs font-bold text-[#8aaac8]">· {dateLabel}</span>
           )}
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
+          <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] font-black text-[#c8d8e8]">
             {games.length}
           </span>
         </div>
-        <span className="text-slate-400 transition-transform group-open:rotate-90">▶</span>
+        <span className="text-orange-400 transition-transform group-open:rotate-90">▶</span>
       </summary>
-      <div className="divide-y divide-slate-100 border-t border-slate-100">
+      <div className="divide-y divide-white/[0.06] border-t border-white/[0.06]">
         {games.map((g) => (
           <VideoUrlRow key={g.id} game={g} />
         ))}
@@ -235,22 +235,22 @@ function VideoUrlRow({ game }: { game: GameWithTeams }) {
       {/* Game header */}
       <div className="mb-2 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-bold text-slate-900">
-            {game.home_team.name} <span className="font-normal text-slate-400">vs</span> {game.away_team.name}
+          <p className="truncate text-sm font-black text-white">
+            {game.home_team.name} <span className="font-bold text-[#5a7a9a]">vs</span> {game.away_team.name}
           </p>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mt-0.5 text-xs font-bold text-[#8aaac8]">
             {dateStr}
             {timeStr && <> · {timeStr}</>}
             {locationStr && <> · 📍 {locationStr}</>}
           </p>
         </div>
         <span
-          className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+          className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-black ${
             isFinished
-              ? 'bg-slate-100 text-slate-600'
+              ? 'bg-white/[0.06] text-[#8aaac8]'
               : game.status === 'Live'
-              ? 'bg-red-100 text-red-700'
-              : 'bg-blue-100 text-blue-700'
+              ? 'bg-red-500/15 text-red-400 ring-1 ring-red-500/30'
+              : 'bg-blue-500/15 text-blue-400 ring-1 ring-blue-500/30'
           }`}
         >
           {game.status}
@@ -260,7 +260,7 @@ function VideoUrlRow({ game }: { game: GameWithTeams }) {
       {/* URL input + save */}
       <div dir="ltr" className="flex gap-2">
         <div className="relative min-w-0 flex-1">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🎥</span>
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#5a7a9a]">🎥</span>
           <input
             type="url"
             value={url}
@@ -269,13 +269,13 @@ function VideoUrlRow({ game }: { game: GameWithTeams }) {
               setFeedback({});
             }}
             placeholder="https://youtube.com/watch?v=…"
-            className="h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-sm text-slate-900 placeholder-slate-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+            className="h-10 w-full rounded-lg border border-white/10 bg-white/[0.03] pl-9 pr-3 text-sm font-bold text-white placeholder:text-[#3a5a7a] focus:border-orange-500/50 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
           />
         </div>
         <button
           onClick={handleSave}
           disabled={isPending}
-          className="h-10 shrink-0 rounded-lg bg-orange-500 px-4 text-sm font-bold text-white transition hover:bg-orange-600 active:scale-95 disabled:opacity-60"
+          className="h-10 shrink-0 rounded-lg bg-orange-500 px-4 text-sm font-black text-white transition hover:bg-orange-400 active:scale-95 disabled:opacity-60"
         >
           {isPending ? '…' : 'שמור'}
         </button>
@@ -283,7 +283,7 @@ function VideoUrlRow({ game }: { game: GameWithTeams }) {
 
       {/* Inline feedback */}
       {feedback.msg && (
-        <p className={`mt-1.5 text-xs font-medium ${feedback.ok ? 'text-green-600' : 'text-red-600'}`}>
+        <p className={`mt-1.5 text-xs font-black ${feedback.ok ? 'text-green-400' : 'text-red-400'}`}>
           {feedback.msg}
         </p>
       )}
@@ -295,7 +295,7 @@ function VideoUrlRow({ game }: { game: GameWithTeams }) {
           target="_blank"
           rel="noopener noreferrer"
           dir="ltr"
-          className="mt-1.5 block truncate text-xs text-blue-600 underline underline-offset-2 hover:text-blue-700"
+          className="mt-1.5 block truncate text-xs font-bold text-blue-400 underline underline-offset-2 hover:text-blue-300"
         >
           {url}
         </a>
