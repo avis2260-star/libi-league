@@ -14,6 +14,7 @@ const QUICK_LINKS = [
 
 const LEGAL_LINKS = [
   { href: '/takanon',        he: 'תקנון הליגה'              },
+  { href: '/forms',          he: 'טפסים להורדה'             },
   { href: '/terms',          he: 'תנאי שימוש ומדיניות פרטיות' },
   { href: '/accessibility',  he: 'הצהרת נגישות'             },
   { href: '/about',          he: 'אודות'                    },
@@ -59,6 +60,7 @@ const MOBILE_LINKS = [
   { href: '/about',          he: 'צור קשר'     },
   { href: '/terms',          he: 'תנאי שימוש'  },
   { href: '/takanon',        he: 'תקנון'       },
+  { href: '/forms',          he: 'טפסים'       },
   { href: '/accessibility',  he: 'נגישות'      },
 ];
 
