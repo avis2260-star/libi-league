@@ -23,6 +23,27 @@ type HRecord = {
   value: string | null;
 };
 
+// Common Hebrew record categories — suggested via <datalist> on the
+// add-record form so the admin doesn't have to retype standard titles.
+// Editing remains free-text; this is just autocomplete.
+const SUGGESTED_RECORD_TITLES = [
+  'שיא נקודות במשחק',
+  'שיא שלשות במשחק',
+  'שיא נקודות לקבוצה במשחק',
+  'שיא הפרש במשחק',
+  'מלך הסל העונתי',
+  'מלך השלשות העונתי',
+  'הכי הרבה ניצחונות בעונה',
+  'הפרש סלים מצטבר הטוב ביותר',
+  'רוב האליפויות (כל הזמנים)',
+  'רוב גביעים (כל הזמנים)',
+  'רצף ניצחונות הארוך ביותר',
+  'רצף הפסדים הארוך ביותר',
+  'שיא ממוצע נקודות לעונה',
+  'שיא ממוצע שלשות לעונה',
+  'שיא נוכחות במגרש',
+];
+
 const inputCls = 'w-full rounded-lg border border-white/[0.10] bg-white/[0.05] px-3 py-2 text-sm text-white placeholder-white/30 focus:border-orange-500 focus:outline-none';
 const labelCls = 'mb-1 block text-xs text-[#5a7a9a]';
 const btnOrange = 'rounded-lg bg-orange-500 px-4 py-1.5 text-sm font-bold text-white transition hover:bg-orange-400 disabled:opacity-50';
@@ -498,8 +519,25 @@ export default function HallOfFameTab({
         {/* Add form */}
         <form onSubmit={handleAddRecord} className="space-y-4 border border-white/[0.06] rounded-xl p-4 bg-white/[0.02]">
           <p className="text-sm font-semibold text-white/70">הוסף שיא +</p>
+          <p className="text-xs text-[#8aaac8]">
+            💡 שיאים נפוצים מחושבים אוטומטית מהנתונים. השדה תומך באוטו-השלמה — בחר קטגוריה קיימת או הקלד חדשה.
+            הוספת שיא עם אותה כותרת תדרוס את השיא האוטומטי.
+          </p>
           <div className="grid gap-3 sm:grid-cols-3">
-            <div><label className={labelCls}>קטגוריה *</label><input value={rTitle} onChange={e => setRTitle(e.target.value)} placeholder="הכי הרבה נקודות במשחק" required className={inputCls} /></div>
+            <div>
+              <label className={labelCls}>קטגוריה *</label>
+              <input
+                value={rTitle}
+                onChange={e => setRTitle(e.target.value)}
+                placeholder="הכי הרבה נקודות במשחק"
+                required
+                list="hof-record-suggestions"
+                className={inputCls}
+              />
+              <datalist id="hof-record-suggestions">
+                {SUGGESTED_RECORD_TITLES.map((t) => <option key={t} value={t} />)}
+              </datalist>
+            </div>
             <div><label className={labelCls}>בעל השיא</label><input value={rHolder} onChange={e => setRHolder(e.target.value)} placeholder="שם שחקן / קבוצה" className={inputCls} /></div>
             <div><label className={labelCls}>ערך</label><input value={rValue} onChange={e => setRValue(e.target.value)} placeholder="99" className={inputCls} /></div>
           </div>
@@ -512,7 +550,7 @@ export default function HallOfFameTab({
           <form onSubmit={handleSaveRecord} className="space-y-4 border border-orange-500/30 rounded-xl p-4 bg-orange-500/[0.04]">
             <p className="text-sm font-semibold text-orange-400">✏️ עורך: {editingRecord.title}</p>
             <div className="grid gap-3 sm:grid-cols-3">
-              <div><label className={labelCls}>קטגוריה *</label><input value={editingRecord.title} onChange={e => setEditingRecord(r => r ? { ...r, title: e.target.value } : r)} required className={inputCls} /></div>
+              <div><label className={labelCls}>קטגוריה *</label><input value={editingRecord.title} onChange={e => setEditingRecord(r => r ? { ...r, title: e.target.value } : r)} required list="hof-record-suggestions" className={inputCls} /></div>
               <div><label className={labelCls}>בעל השיא</label><input value={editingRecord.holder ?? ''} onChange={e => setEditingRecord(r => r ? { ...r, holder: e.target.value } : r)} className={inputCls} /></div>
               <div><label className={labelCls}>ערך</label><input value={editingRecord.value ?? ''} onChange={e => setEditingRecord(r => r ? { ...r, value: e.target.value } : r)} className={inputCls} /></div>
             </div>
