@@ -91,7 +91,7 @@ export default async function AdminPage({
   }
 
   // Disciplinary tab
-  let disciplinaryRecords: { id: string; player_id: string | null; player_name: string; team_name: string | null; type: string; round: number | null; notes: string | null; created_at: string }[] = [];
+  let disciplinaryRecords: { id: string; player_id: string | null; player_name: string; team_name: string | null; type: string; round: number | null; suspension_until_round: number | null; notes: string | null; created_at: string }[] = [];
   let playerOptions: { id: string; name: string; team_name: string | null }[] = [];
   if (tab === 'disciplinary') {
     const [{ data: recData }, { data: plData }, { data: tmData }] = await Promise.all([
