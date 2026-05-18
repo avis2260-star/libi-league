@@ -78,6 +78,45 @@ function normTitle(s: string) {
   return s.replace(/[״׳'"`.,]/g, '').replace(/\s+/g, ' ').trim();
 }
 
+// Format a list of tied holder names into a single display string.
+// Ties show ALL holders alphabetically, but past `limit` they collapse to
+// "first N, ועוד K" so the table stays readable when many players share
+// an achievement (e.g. early-season records where multiple players are
+// tied at low single-game totals).
+function joinHolders(names: string[], limit = 3): string {
+  // Dedupe (a player can appear multiple times for the same stat if they
+  // posted that value in more than one game) and sort for stability.
+  const unique = Array.from(new Set(names.filter((n) => n && n.trim() !== ''))).sort(
+    (a, b) => a.localeCompare(b, 'he'),
+  );
+  if (unique.length === 0) return '—';
+  if (unique.length <= limit) return unique.join(', ');
+  return unique.slice(0, limit).join(', ') + ` ועוד ${unique.length - limit}`;
+}
+
+// Find every row at the max value (>0) and return the formatted holder
+// string + the max. Returns null when nothing crosses the threshold so
+// empty leagues don't produce bogus "0 נק׳" rows.
+function pickAtMax<T>(
+  rows: T[],
+  getValue: (r: T) => number,
+  getName: (r: T) => string,
+  limit = 3,
+): { holder: string; value: number; tied: number } | null {
+  if (rows.length === 0) return null;
+  let max = 0;
+  for (const r of rows) {
+    const v = getValue(r);
+    if (v > max) max = v;
+  }
+  if (max <= 0) return null;
+  const tiedNames = rows.filter((r) => getValue(r) === max).map(getName);
+  // Dedupe count by unique name (one player tied with themselves across
+  // multiple games shouldn't inflate the tie count).
+  const uniqueCount = new Set(tiedNames.filter((n) => n && n.trim() !== '')).size;
+  return { holder: joinHolders(tiedNames, limit), value: max, tied: uniqueCount };
+}
+
 // Build the auto-derived records list. Returns title/holder/value triples
 // in the order they should display; each value is omitted entirely if no
 // real data backs it (so empty leagues don't get bogus rows).
@@ -90,106 +129,103 @@ function buildComputedRecords(
 ): { title: string; holder: string | null; value: string | null }[] {
   const out: { title: string; holder: string | null; value: string | null }[] = [];
 
-  // ── Per-game records (from game_stats) ──────────────────────────────────
+  // ── Per-game player records (from game_stats) ───────────────────────────
   if (gameStats.length > 0) {
-    const topPtsRow = gameStats.reduce((best, r) => (r.points > best.points ? r : best));
-    if (topPtsRow.points > 0) {
+    const topPts = pickAtMax(
+      gameStats,
+      (r) => r.points,
+      (r) => playersById.get(r.player_id)?.name ?? '',
+    );
+    if (topPts) {
       out.push({
         title: 'שיא נקודות במשחק',
-        holder: playersById.get(topPtsRow.player_id)?.name ?? '—',
-        value: `${topPtsRow.points} נק׳`,
+        holder: topPts.holder,
+        value: `${topPts.value} נק׳`,
       });
     }
-    const top3ptRow = gameStats.reduce((best, r) => (r.three_pointers > best.three_pointers ? r : best));
-    if (top3ptRow.three_pointers > 0) {
+    const top3pt = pickAtMax(
+      gameStats,
+      (r) => r.three_pointers,
+      (r) => playersById.get(r.player_id)?.name ?? '',
+    );
+    if (top3pt) {
       out.push({
         title: 'שיא שלשות במשחק',
-        holder: playersById.get(top3ptRow.player_id)?.name ?? '—',
-        value: `${top3ptRow.three_pointers}`,
+        holder: top3pt.holder,
+        value: `${top3pt.value}`,
       });
     }
   }
 
   // ── Single-game team records (from game_results) ────────────────────────
+  // Build a per-game "winning team / score" view first so the max-by-team
+  // logic also handles ties correctly. Each game contributes one row: the
+  // winning team's score (or both if tied).
   if (gameResults.length > 0) {
-    let topTeamGame = { team: '', score: 0, opp: '', oppScore: 0, round: 0 };
-    let biggestGap  = { team: '', score: 0, opp: '', oppScore: 0, diff: 0, round: 0 };
+    type TeamGame = { team: string; score: number; opp: string; oppScore: number; round: number; diff: number };
+    const teamGameRows: TeamGame[] = [];
     for (const g of gameResults) {
-      if (g.home_score > topTeamGame.score) {
-        topTeamGame = { team: g.home_team, score: g.home_score, opp: g.away_team, oppScore: g.away_score, round: g.round };
-      }
-      if (g.away_score > topTeamGame.score) {
-        topTeamGame = { team: g.away_team, score: g.away_score, opp: g.home_team, oppScore: g.home_score, round: g.round };
-      }
-      const d = Math.abs(g.home_score - g.away_score);
-      if (d > biggestGap.diff) {
-        const homeWon = g.home_score > g.away_score;
-        biggestGap = {
-          team: homeWon ? g.home_team : g.away_team,
-          score: Math.max(g.home_score, g.away_score),
-          opp: homeWon ? g.away_team : g.home_team,
-          oppScore: Math.min(g.home_score, g.away_score),
-          diff: d,
-          round: g.round,
-        };
-      }
+      teamGameRows.push({ team: g.home_team, score: g.home_score, opp: g.away_team, oppScore: g.away_score, round: g.round, diff: g.home_score - g.away_score });
+      teamGameRows.push({ team: g.away_team, score: g.away_score, opp: g.home_team, oppScore: g.home_score, round: g.round, diff: g.away_score - g.home_score });
     }
-    if (topTeamGame.score > 0) {
+
+    const topTeam = pickAtMax(teamGameRows, (r) => r.score, (r) => r.team);
+    if (topTeam) {
       out.push({
         title: 'שיא נקודות לקבוצה במשחק',
-        holder: `${topTeamGame.team} (נגד ${topTeamGame.opp} · מחזור ${topTeamGame.round})`,
-        value: `${topTeamGame.score}`,
+        holder: topTeam.holder,
+        value: `${topTeam.value}`,
       });
     }
-    if (biggestGap.diff > 0) {
+    const biggestGap = pickAtMax(teamGameRows, (r) => r.diff, (r) => r.team);
+    if (biggestGap) {
       out.push({
         title: 'שיא הפרש במשחק',
-        holder: `${biggestGap.team} ${biggestGap.score}-${biggestGap.oppScore} ${biggestGap.opp} (מחזור ${biggestGap.round})`,
-        value: `+${biggestGap.diff}`,
+        holder: biggestGap.holder,
+        value: `+${biggestGap.value}`,
       });
     }
   }
 
   // ── Season-long player records (from players cumulative totals) ─────────
   if (players.length > 0) {
-    const topSeasonScorer = players.reduce((best, p) => (p.points > best.points ? p : best));
-    if (topSeasonScorer.points > 0) {
+    const playerWithTeam = (p: { name: string; team?: { name: string } | null }) =>
+      p.team?.name ? `${p.name} · ${p.team.name}` : p.name;
+
+    const topSeasonScorer = pickAtMax(players, (p) => p.points, playerWithTeam);
+    if (topSeasonScorer) {
       out.push({
         title: 'מלך הסלים העונתי',
-        holder: topSeasonScorer.team?.name
-          ? `${topSeasonScorer.name} · ${topSeasonScorer.team.name}`
-          : topSeasonScorer.name,
-        value: `${topSeasonScorer.points} נק׳`,
+        holder: topSeasonScorer.holder,
+        value: `${topSeasonScorer.value} נק׳`,
       });
     }
-    const top3ptShooter = players.reduce((best, p) => (p.three_pointers > best.three_pointers ? p : best));
-    if (top3ptShooter.three_pointers > 0) {
+    const top3ptShooter = pickAtMax(players, (p) => p.three_pointers, playerWithTeam);
+    if (top3ptShooter) {
       out.push({
         title: 'מלך השלשות העונתי',
-        holder: top3ptShooter.team?.name
-          ? `${top3ptShooter.name} · ${top3ptShooter.team.name}`
-          : top3ptShooter.name,
-        value: `${top3ptShooter.three_pointers}`,
+        holder: top3ptShooter.holder,
+        value: `${top3ptShooter.value}`,
       });
     }
   }
 
   // ── Season standings records ───────────────────────────────────────────
   if (standings.length > 0) {
-    const topWins = standings.reduce((best, s) => (s.wins > best.wins ? s : best));
-    if (topWins.wins > 0) {
+    const topWins = pickAtMax(standings, (s) => s.wins, (s) => s.name);
+    if (topWins) {
       out.push({
         title: 'הכי הרבה ניצחונות בעונה',
-        holder: topWins.name,
-        value: `${topWins.wins}`,
+        holder: topWins.holder,
+        value: `${topWins.value}`,
       });
     }
-    const topDiff = standings.reduce((best, s) => (s.diff > best.diff ? s : best));
-    if (topDiff.diff > 0) {
+    const topDiff = pickAtMax(standings, (s) => s.diff, (s) => s.name);
+    if (topDiff) {
       out.push({
         title: 'הפרש סלים מצטבר הטוב ביותר',
-        holder: topDiff.name,
-        value: `+${topDiff.diff}`,
+        holder: topDiff.holder,
+        value: `+${topDiff.value}`,
       });
     }
   }
