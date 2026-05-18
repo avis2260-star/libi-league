@@ -155,7 +155,7 @@ function buildComputedRecords(
     const topSeasonScorer = players.reduce((best, p) => (p.points > best.points ? p : best));
     if (topSeasonScorer.points > 0) {
       out.push({
-        title: 'מלך הסל העונתי',
+        title: 'מלך הסלים העונתי',
         holder: topSeasonScorer.team?.name
           ? `${topSeasonScorer.name} · ${topSeasonScorer.team.name}`
           : topSeasonScorer.name,
@@ -545,7 +545,7 @@ export default async function HallOfFamePage() {
             </div>
             {renderedRecords.some((r) => r.auto) && (
               <p className="mt-3 text-xs font-bold text-slate-400">
-                {T('⚡ סימון "אוטומטי" = השיא נגזר מהנתונים הקיימים בליגה. מנהל יכול לדרוס כל שיא ידנית בלוח הניהול.')}
+                {T('⚡ סימון "אוטומטי" = השיא נגזר מהנתונים הקיימים בליגה.')}
               </p>
             )}
           </>
