@@ -228,7 +228,7 @@ export default async function AdminPage({
   if (tab === 'messages') {
     const { data } = await supabaseAdmin
       .from('contact_submissions')
-      .select('id,name,email,message,is_read,created_at')
+      .select('id,name,email,message,is_read,is_handled,created_at')
       .order('created_at', { ascending: false });
     contactMessages = (data ?? []) as ContactMessage[];
   }

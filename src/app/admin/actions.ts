@@ -908,6 +908,21 @@ export async function markMessageRead(id: string): Promise<ActionResult> {
   return {};
 }
 
+// Mark / unmark a message as handled. Sets is_read=true alongside so a
+// handled-but-never-opened message can't end up in "טרם נקרא".
+export async function setMessageHandled(id: string, handled: boolean): Promise<ActionResult> {
+  const update = handled
+    ? { is_handled: true,  is_read: true }
+    : { is_handled: false };
+  const { error } = await supabaseAdmin
+    .from('contact_submissions')
+    .update(update)
+    .eq('id', id);
+
+  if (error) return { error: error.message };
+  return {};
+}
+
 export async function deleteMessage(id: string): Promise<ActionResult> {
   const { error } = await supabaseAdmin
     .from('contact_submissions')
