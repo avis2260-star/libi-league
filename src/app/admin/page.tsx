@@ -15,6 +15,7 @@ import SyncLogTab from '@/components/admin/SyncLogTab';
 import TeamsTab from '@/components/admin/TeamsTab';
 import TakanonTab from '@/components/admin/TakanonTab';
 import DownloadFormsTab from '@/components/admin/DownloadFormsTab';
+import AnalyticsTab from '@/components/admin/AnalyticsTab';
 import PlayoffTab from '@/components/admin/PlayoffTab';
 import SubmissionsTab, { type SubmissionRow } from '@/components/admin/SubmissionsTab';
 import PerGameStatsTab, { type PerGameInfo, type PerGameStatRow } from '@/components/admin/PerGameStatsTab';
@@ -390,6 +391,7 @@ export default async function AdminPage({
       {tab === 'synclog'       && <SyncLogTab logs={syncLogs} />}
       {tab === 'takanon'       && <TakanonTab />}
       {tab === 'forms'         && <DownloadFormsTab />}
+      {tab === 'analytics'     && <AnalyticsTab />}
       {tab === 'playoff'       && <PlayoffTab />}
       {tab === 'submissions'   && <SubmissionsTab submissions={submissions} />}
       {tab === 'gamestats'     && <PerGameStatsTab games={perGameInfos} existingStats={perGameExisting} initialRound={perGameInitialRound} />}

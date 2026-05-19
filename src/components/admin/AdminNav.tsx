@@ -53,6 +53,7 @@ const GROUPS = [
       { href: '/admin?tab=accessibility',label: '♿ נגישות'        },
       { href: '/admin?tab=terms',        label: '📋 תנאי שימוש'  },
       { href: '/admin?tab=halloffame',   label: '🏆 היכל התהילה' },
+      { href: '/admin?tab=analytics',    label: '📊 אנליטיקה'     },
     ],
   },
 ];
