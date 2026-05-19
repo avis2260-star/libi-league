@@ -317,14 +317,36 @@ export async function approveSubmission(submissionId: string): Promise<ActionRes
 
   if (fetchErr || !sub) return { error: 'הגשה לא נמצאה' };
 
+  // Pull optional quarter breakdown out of the JSON payload. Only write if
+  // valid: equal-length arrays of length >= 4, all finite integers.
+  const statsForQuarters = sub.extracted_stats as {
+    home_quarters?: unknown;
+    away_quarters?: unknown;
+  } | null;
+  const rawHomeQ = Array.isArray(statsForQuarters?.home_quarters) ? statsForQuarters!.home_quarters as unknown[] : null;
+  const rawAwayQ = Array.isArray(statsForQuarters?.away_quarters) ? statsForQuarters!.away_quarters as unknown[] : null;
+  const validQuarters =
+    rawHomeQ && rawAwayQ
+    && rawHomeQ.length >= 4
+    && rawHomeQ.length === rawAwayQ.length
+    && rawHomeQ.every(n => Number.isInteger(n))
+    && rawAwayQ.every(n => Number.isInteger(n));
+  const homeQuarters = validQuarters ? (rawHomeQ as number[]) : null;
+  const awayQuarters = validQuarters ? (rawAwayQ as number[]) : null;
+
   // Apply score to the game
+  const gameUpdate: Record<string, unknown> = {
+    home_score: sub.home_score,
+    away_score: sub.away_score,
+    status: 'Finished',
+  };
+  if (validQuarters) {
+    gameUpdate.home_quarters = homeQuarters;
+    gameUpdate.away_quarters = awayQuarters;
+  }
   const { error: gameErr } = await supabaseAdmin
     .from('games')
-    .update({
-      home_score: sub.home_score,
-      away_score: sub.away_score,
-      status: 'Finished',
-    })
+    .update(gameUpdate)
     .eq('id', sub.game_id);
 
   if (gameErr) return { error: gameErr.message };

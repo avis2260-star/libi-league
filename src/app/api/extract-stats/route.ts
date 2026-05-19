@@ -38,11 +38,15 @@ CRITICAL RULES — READ CAREFULLY:
 4. NEVER write a name that is not on the roster. The only valid names are the ones listed above. Anything else must be "?".
 5. For numeric stats: write the exact number visible on the sheet, or 0 if unreadable. Never invent numbers.
 6. Include ONLY rows that are actually visible and filled in on the sheet.
+7. QUARTER BREAKDOWN: If the sheet clearly shows a per-period score table (rows labeled Q1/Q2/Q3/Q4 or רבע 1/2/3/4, with values for both teams), set "quarters_visible": true and fill "home_quarters" and "away_quarters" with exactly 4 integers each (in order Q1, Q2, Q3, Q4). If overtime period(s) are also visible, append them after the 4 quarters (so length becomes 5, 6, ...). If the sheet has no quarter breakdown, OR only one team's quarters are visible, OR you are not confident — set "quarters_visible": false and return empty arrays for both. Never invent quarter numbers.
 
 Return ONLY valid JSON, no explanation:
 {
   "home_score": <final home score as integer>,
   "away_score": <final away score as integer>,
+  "quarters_visible": <boolean>,
+  "home_quarters": <array of integers, length 0 or >=4>,
+  "away_quarters": <array of integers, length 0 or >=4>,
   "home_players": [{"name": string, "jersey": number|null, "points": number, "three_pointers": number, "fouls": number}],
   "away_players": [{"name": string, "jersey": number|null, "points": number, "three_pointers": number, "fouls": number}]
 }` },

@@ -14,9 +14,65 @@ type ExtractedPlayer = {
 type ExtractedStats = {
   home_score: number;
   away_score: number;
+  home_quarters?: number[];
+  away_quarters?: number[];
   home_players: ExtractedPlayer[];
   away_players: ExtractedPlayer[];
 };
+
+function QuartersTable({
+  homeName, awayName, homeQuarters, awayQuarters, homeScore, awayScore,
+}: {
+  homeName: string; awayName: string;
+  homeQuarters: number[]; awayQuarters: number[];
+  homeScore: number; awayScore: number;
+}) {
+  const periods = Math.max(homeQuarters.length, awayQuarters.length);
+  const homeSum = homeQuarters.reduce((s, n) => s + (n ?? 0), 0);
+  const awaySum = awayQuarters.reduce((s, n) => s + (n ?? 0), 0);
+  const mismatch = homeSum !== homeScore || awaySum !== awayScore;
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-bold text-[#8aaac8] uppercase tracking-wide">פירוט רבעים</p>
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="text-[#4a6a8a] border-b border-white/5">
+            <th className="text-right pb-1 font-medium">תקופה</th>
+            <th className="text-center pb-1 font-medium">{homeName}</th>
+            <th className="text-center pb-1 font-medium">{awayName}</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-white/[0.04]">
+          {Array.from({ length: periods }, (_, i) => {
+            const isOT = i >= 4;
+            const otIdx = i - 3;
+            const label = isOT
+              ? `הארכה${otIdx > 1 ? ' ' + otIdx : ''}`
+              : `רבע ${i + 1}`;
+            return (
+              <tr key={i} className="text-gray-300">
+                <td className="py-1 text-[#8aaac8]">{label}</td>
+                <td className="py-1 text-center">{homeQuarters[i] ?? '—'}</td>
+                <td className="py-1 text-center">{awayQuarters[i] ?? '—'}</td>
+              </tr>
+            );
+          })}
+          <tr className={`border-t border-white/5 font-bold ${mismatch ? 'text-yellow-300' : 'text-white'}`}>
+            <td className="py-1">סיכום</td>
+            <td className="py-1 text-center">{homeSum}</td>
+            <td className="py-1 text-center">{awaySum}</td>
+          </tr>
+        </tbody>
+      </table>
+      {mismatch && (
+        <p className="text-[10px] text-yellow-300/90">
+          ⚠ סכום הרבעים לא תואם לתוצאה הסופית ({homeScore}:{awayScore})
+        </p>
+      )}
+    </div>
+  );
+}
 
 export type SubmissionRow = {
   id: string;
@@ -176,6 +232,18 @@ function SubmissionCard({ sub }: { sub: SubmissionRow }) {
             {sub.extracted_stats && (
               <div className="space-y-3">
                 <p className="text-xs font-bold text-[#8aaac8] uppercase tracking-wide">📊 נתונים שחולצו</p>
+                {Array.isArray(sub.extracted_stats.home_quarters)
+                  && Array.isArray(sub.extracted_stats.away_quarters)
+                  && sub.extracted_stats.home_quarters.length >= 4 && (
+                  <QuartersTable
+                    homeName={sub.home_name}
+                    awayName={sub.away_name}
+                    homeQuarters={sub.extracted_stats.home_quarters}
+                    awayQuarters={sub.extracted_stats.away_quarters}
+                    homeScore={sub.home_score}
+                    awayScore={sub.away_score}
+                  />
+                )}
                 <PlayerTable players={sub.extracted_stats.home_players ?? []} teamName={sub.home_name} />
                 <PlayerTable players={sub.extracted_stats.away_players ?? []} teamName={sub.away_name} />
               </div>
