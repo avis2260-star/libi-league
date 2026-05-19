@@ -25,6 +25,23 @@ const POSITION_META: Record<
   C:  { he: 'סנטר',          en: 'Center',          color: 'text-rose-400',    bg: 'bg-rose-500/10 border-rose-500/30' },
 };
 
+const STAFF_ROLE_META: Record<string, { he: string; en: string }> = {
+  COACH:      { he: 'מאמן',        en: 'Head Coach' },
+  ASST_COACH: { he: 'עוזר מאמן',   en: 'Assistant Coach' },
+  MANAGER:    { he: 'מנהל קבוצה',  en: 'Team Manager' },
+};
+
+function calcAge(dob: string | null | undefined): number | null {
+  if (!dob) return null;
+  const birth = new Date(dob);
+  if (Number.isNaN(birth.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function avg(total: number, games: number): string | null {
@@ -129,6 +146,8 @@ export default async function PlayerProfilePage({
   const foulsSub   = hasGames && foulsAvg   !== null ? `${T('ממוצע')} ${foulsAvg}`   : T('סה״כ עבירות');
 
   const posMeta = player.position ? POSITION_META[player.position] : null;
+  const staffMeta = player.staff_role ? STAFF_ROLE_META[player.staff_role] : null;
+  const ageToShow = player.age_visible === false ? null : calcAge(player.date_of_birth);
 
   const videos = dedupedStats
     .filter((s) => s.game.video_url)
@@ -199,6 +218,17 @@ export default async function PlayerProfilePage({
               {posMeta && (
                 <span className={`rounded-lg border px-3 py-0.5 text-sm font-semibold ${posMeta.color} ${posMeta.bg}`}>
                   {lang === 'en' ? posMeta.en : posMeta.he}
+                </span>
+              )}
+              {staffMeta && (
+                <span className="inline-flex items-center gap-1 rounded-lg border border-amber-400/40 bg-amber-400/15 px-3 py-0.5 text-sm font-bold text-amber-300">
+                  <span className="text-xs">🎯</span>
+                  {lang === 'en' ? staffMeta.en : staffMeta.he}
+                </span>
+              )}
+              {ageToShow !== null && (
+                <span className="rounded-lg border border-white/[0.12] bg-white/[0.04] px-3 py-0.5 text-sm font-semibold text-[#8aaac8]">
+                  {lang === 'en' ? `Age ${ageToShow}` : `גיל ${ageToShow}`}
                 </span>
               )}
               {player.is_active === false ? (
