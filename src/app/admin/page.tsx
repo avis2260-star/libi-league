@@ -59,12 +59,12 @@ export default async function AdminPage({
   });
 
   let teams: Team[] = [];
-  let players: { id: string; name: string; jersey_number: number | null; position: string | null; staff_role: string | null; team_id: string | null; photo_url: string | null; date_of_birth: string | null; is_active: boolean }[] = [];
+  let players: { id: string; name: string; jersey_number: number | null; position: string | null; staff_role: string | null; team_id: string | null; photo_url: string | null; date_of_birth: string | null; is_active: boolean; age_visible: boolean }[] = [];
 
   if (tab === 'players') {
     const [{ data: teamsData }, { data: playersData }] = await Promise.all([
       supabaseAdmin.from('teams').select('*').order('name'),
-      supabaseAdmin.from('players').select('id,name,jersey_number,position,staff_role,team_id,photo_url,date_of_birth,is_active').order('name'),
+      supabaseAdmin.from('players').select('id,name,jersey_number,position,staff_role,team_id,photo_url,date_of_birth,is_active,age_visible').order('name'),
     ]);
     teams   = (teamsData  ?? []) as Team[];
     players = (playersData ?? []) as typeof players;

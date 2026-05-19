@@ -115,6 +115,7 @@ function PlayerCard({ player }: { player: EnrichedPlayer }) {
         )}
 
         {(() => {
+          if (player.age_visible === false) return null;
           const age = calcAge(player.date_of_birth);
           return age !== null ? (
             <p className="text-xs font-bold text-[#8aaac8]">{t('גיל')}: {age}</p>
