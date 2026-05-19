@@ -16,6 +16,7 @@ import TeamsTab from '@/components/admin/TeamsTab';
 import TakanonTab from '@/components/admin/TakanonTab';
 import DownloadFormsTab from '@/components/admin/DownloadFormsTab';
 import AnalyticsTab from '@/components/admin/AnalyticsTab';
+import RulesTab, { type Rule } from '@/components/admin/RulesTab';
 import PlayoffTab from '@/components/admin/PlayoffTab';
 import SubmissionsTab, { type SubmissionRow } from '@/components/admin/SubmissionsTab';
 import PerGameStatsTab, { type PerGameInfo, type PerGameStatRow } from '@/components/admin/PerGameStatsTab';
@@ -224,6 +225,17 @@ export default async function AdminPage({
     a11yUpdatedAt        = map.get('accessibility_updated_at')        ?? '';
   }
 
+  // League rules tab
+  let rules: Rule[] = [];
+  if (tab === 'rules') {
+    const { data } = await supabaseAdmin
+      .from('league_rules')
+      .select('id,title,body,sort_order')
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true });
+    rules = (data ?? []) as Rule[];
+  }
+
   // Contact messages tab
   let contactMessages: ContactMessage[] = [];
   if (tab === 'messages') {
@@ -392,6 +404,7 @@ export default async function AdminPage({
       {tab === 'takanon'       && <TakanonTab />}
       {tab === 'forms'         && <DownloadFormsTab />}
       {tab === 'analytics'     && <AnalyticsTab />}
+      {tab === 'rules'         && <RulesTab rules={rules} />}
       {tab === 'playoff'       && <PlayoffTab />}
       {tab === 'submissions'   && <SubmissionsTab submissions={submissions} />}
       {tab === 'gamestats'     && <PerGameStatsTab games={perGameInfos} existingStats={perGameExisting} initialRound={perGameInitialRound} />}
