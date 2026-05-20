@@ -435,16 +435,16 @@ export default async function GamePreviewPage({
           </div>
 
           {[
-            { label: en ? 'G (Wins)' : 'מ׳ (ניצחונות)', home: homeStats ? (en ? `${homeStats.wins}W / ${homeStats.losses}L` : `${homeStats.wins}נ / ${homeStats.losses}ה`) : '—', away: awayStats ? (en ? `${awayStats.wins}W / ${awayStats.losses}L` : `${awayStats.wins}נ / ${awayStats.losses}ה`) : '—' },
+            { label: en ? 'G (Wins)' : 'מ׳ (ניצחונות)', home: homeStats ? (en ? `${homeStats.wins}W / ${homeStats.losses}L` : `${homeStats.wins}נ / ${homeStats.losses}ה`) : '—', away: awayStats ? (en ? `${awayStats.wins}W / ${awayStats.losses}L` : `${awayStats.wins}נ / ${awayStats.losses}ה`) : '—', rtl: !en },
             { label: en ? 'League Points' : 'נקודות ליגה', home: homeStats?.pts  != null ? String(homeStats.pts)  : '—', away: awayStats?.pts  != null ? String(awayStats.pts)  : '—' },
             { label: en ? 'Point Diff' : 'הפרש נקודות', home: homeStats?.diff != null ? (homeStats.diff > 0 ? `+${homeStats.diff}` : String(homeStats.diff)) : '—', away: awayStats?.diff != null ? (awayStats.diff > 0 ? `+${awayStats.diff}` : String(awayStats.diff)) : '—' },
             { label: en ? 'PPG' : 'ממוצע נק׳ למשחק', home: homeStats?.games ? (homeStats.pf / homeStats.games).toFixed(1) : '—', away: awayStats?.games ? (awayStats.pf / awayStats.games).toFixed(1) : '—' },
             { label: en ? 'OPP PPG' : 'ממוצע ספיגה', home: homeStats?.games ? (homeStats.pa / homeStats.games).toFixed(1) : '—', away: awayStats?.games ? (awayStats.pa / awayStats.games).toFixed(1) : '—' },
-          ].map(({ label, home, away }) => (
+          ].map(({ label, home, away, rtl }) => (
             <div key={label} className="grid grid-cols-3 border-b border-white/[0.04] px-5 py-3.5 last:border-0">
-              <span dir="ltr" className={`text-base font-black text-white ${en ? 'text-left' : 'text-right'}`}>{home}</span>
+              <span dir={rtl ? 'rtl' : 'ltr'} className={`text-base font-black text-white ${en ? 'text-left' : 'text-right'}`}>{home}</span>
               <span className="text-center text-xs font-semibold text-[#5a7a9a] self-center">{label}</span>
-              <span dir="ltr" className={`text-base font-bold text-[#c8d8e8] ${en ? 'text-right' : 'text-left'}`}>{away}</span>
+              <span dir={rtl ? 'rtl' : 'ltr'} className={`text-base font-bold text-[#c8d8e8] ${en ? 'text-right' : 'text-left'}`}>{away}</span>
             </div>
           ))}
         </div>
