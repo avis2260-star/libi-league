@@ -19,7 +19,7 @@ export default async function CupPage() {
     supabaseAdmin
       .from('league_settings')
       .select('key,value')
-      .in('key', ['cup_tournament_date', 'cup_tournament_location', 'cup_tournament_teams']),
+      .eq('key', 'cup_tournament_teams'),
     getLogoUrl(),
     getLang(),
   ]);
@@ -33,13 +33,11 @@ export default async function CupPage() {
 
   const cupGames = games ?? [];
 
-  // Cup tournament meta (date / location / participating teams)
-  const settingsMap = new Map<string, string>((settings ?? []).map((r) => [r.key, r.value]));
-  const cupDate = settingsMap.get('cup_tournament_date') ?? '';
-  const cupLocation = settingsMap.get('cup_tournament_location') ?? '';
+  // Participating teams (date + location were dropped — each game is played
+  // at the home_team's venue and dates live per-game on cup_games).
   let cupTeamIds: string[] = [];
   try {
-    const raw = settingsMap.get('cup_tournament_teams');
+    const raw = (settings ?? []).find((r) => r.key === 'cup_tournament_teams')?.value;
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) cupTeamIds = parsed.filter((x): x is string => typeof x === 'string');
@@ -47,9 +45,6 @@ export default async function CupPage() {
   } catch { /* malformed — ignore */ }
   const teamById = new Map((teams ?? []).map((t) => [t.id, t]));
   const participatingTeams = cupTeamIds.map((id) => teamById.get(id)).filter((t): t is NonNullable<typeof t> => !!t);
-  const cupDateLabel = cupDate
-    ? new Date(cupDate).toLocaleDateString(lang === 'en' ? 'en-US' : 'he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' })
-    : '';
 
   return (
     <>
@@ -73,16 +68,6 @@ export default async function CupPage() {
             <img src={logoUrl} alt={T('ליגת ליבי')} className="h-8 w-8 object-contain rounded-full" />
           </div>
           <p className="text-[#5a7a9a] text-[11px] font-body">{T('טורניר הגביע העונתי 2025–2026')}</p>
-          {(cupDateLabel || cupLocation) && (
-            <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] font-bold">
-              {cupDateLabel && (
-                <span className="text-[#c8d8e8]">📅 {cupDateLabel}</span>
-              )}
-              {cupLocation && (
-                <span className="text-[#c8d8e8]">📍 {cupLocation}</span>
-              )}
-            </div>
-          )}
           {participatingTeams.length > 0 && (
             <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5 max-w-2xl mx-auto">
               <span className="text-[10px] font-black tracking-widest uppercase text-[#5a7a9a]">{T('קבוצות משתתפות')}:</span>

@@ -898,13 +898,11 @@ export async function saveAccessibilitySetting(
 }
 
 // ── Cup tournament metadata ───────────────────────────────────────────────────
-// Date, location, and participating teams are stored in league_settings.
-// `cup_tournament_teams` is a JSON array of team UUIDs.
+// Participating teams are stored in league_settings as a JSON array of
+// team UUIDs. Per-game date / home / away / scores live on the cup_games
+// rows — managed via /api/admin/cup-games.
 
-export type CupSettingKey =
-  | 'cup_tournament_date'
-  | 'cup_tournament_location'
-  | 'cup_tournament_teams';
+export type CupSettingKey = 'cup_tournament_teams';
 
 export async function saveCupSetting(
   key: CupSettingKey,

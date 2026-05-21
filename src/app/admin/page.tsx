@@ -17,7 +17,7 @@ import TakanonTab from '@/components/admin/TakanonTab';
 import DownloadFormsTab from '@/components/admin/DownloadFormsTab';
 import AnalyticsTab from '@/components/admin/AnalyticsTab';
 import RulesTab, { type Rule } from '@/components/admin/RulesTab';
-import CupTab from '@/components/admin/CupTab';
+import CupTab, { type CupGame } from '@/components/admin/CupTab';
 import PlayoffTab from '@/components/admin/PlayoffTab';
 import SubmissionsTab, { type SubmissionRow } from '@/components/admin/SubmissionsTab';
 import PerGameStatsTab, { type PerGameInfo, type PerGameStatRow } from '@/components/admin/PerGameStatsTab';
@@ -227,22 +227,19 @@ export default async function AdminPage({
   }
 
   // Cup tournament tab
-  let cupDate = '';
-  let cupLocation = '';
   let cupTeamIds: string[] = [];
   let cupTeams: { id: string; name: string }[] = [];
+  let cupGames: CupGame[] = [];
   if (tab === 'cup') {
-    const [{ data: settings }, { data: teamsList }] = await Promise.all([
+    const [{ data: settings }, { data: teamsList }, { data: cupGamesData }] = await Promise.all([
       supabaseAdmin
         .from('league_settings')
         .select('key,value')
-        .in('key', ['cup_tournament_date', 'cup_tournament_location', 'cup_tournament_teams']),
+        .eq('key', 'cup_tournament_teams'),
       supabaseAdmin.from('teams').select('id,name').order('name'),
+      supabaseAdmin.from('cup_games').select('*').order('round_order').order('game_number'),
     ]);
-    const map = new Map<string, string>((settings ?? []).map((r) => [r.key, r.value]));
-    cupDate = map.get('cup_tournament_date') ?? '';
-    cupLocation = map.get('cup_tournament_location') ?? '';
-    const teamsRaw = map.get('cup_tournament_teams');
+    const teamsRaw = (settings ?? []).find((r) => r.key === 'cup_tournament_teams')?.value;
     if (teamsRaw) {
       try {
         const parsed = JSON.parse(teamsRaw);
@@ -250,6 +247,7 @@ export default async function AdminPage({
       } catch { /* ignore malformed */ }
     }
     cupTeams = (teamsList ?? []) as { id: string; name: string }[];
+    cupGames = (cupGamesData ?? []) as CupGame[];
   }
 
   // League rules tab
@@ -432,7 +430,7 @@ export default async function AdminPage({
       {tab === 'forms'         && <DownloadFormsTab />}
       {tab === 'analytics'     && <AnalyticsTab />}
       {tab === 'rules'         && <RulesTab rules={rules} />}
-      {tab === 'cup'           && <CupTab date={cupDate} location={cupLocation} teamIds={cupTeamIds} teams={cupTeams} />}
+      {tab === 'cup'           && <CupTab teamIds={cupTeamIds} teams={cupTeams} games={cupGames} />}
       {tab === 'playoff'       && <PlayoffTab />}
       {tab === 'submissions'   && <SubmissionsTab submissions={submissions} />}
       {tab === 'gamestats'     && <PerGameStatsTab games={perGameInfos} existingStats={perGameExisting} initialRound={perGameInitialRound} />}
