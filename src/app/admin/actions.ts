@@ -897,6 +897,28 @@ export async function saveAccessibilitySetting(
   return {};
 }
 
+// ── Cup tournament metadata ───────────────────────────────────────────────────
+// Date, location, and participating teams are stored in league_settings.
+// `cup_tournament_teams` is a JSON array of team UUIDs.
+
+export type CupSettingKey =
+  | 'cup_tournament_date'
+  | 'cup_tournament_location'
+  | 'cup_tournament_teams';
+
+export async function saveCupSetting(
+  key: CupSettingKey,
+  value: string,
+): Promise<ActionResult> {
+  const { error } = await supabaseAdmin
+    .from('league_settings')
+    .upsert({ key, value }, { onConflict: 'key' });
+
+  if (error) return { error: error.message };
+  revalidatePath('/cup');
+  return {};
+}
+
 // ── About page text ───────────────────────────────────────────────────────────
 
 export type AboutSettingKey =

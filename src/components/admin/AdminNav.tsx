@@ -36,6 +36,7 @@ const GROUPS = [
       { href: '/admin?tab=synclog',      label: '📜 לוג'        },
       { href: '/admin?tab=disciplinary', label: '⚠️ משמעת'     },
       { href: '/admin?tab=playoff',      label: '🏆 פלייאוף'   },
+      { href: '/admin?tab=cup',          label: '🏆 גביע'      },
     ],
   },
   {

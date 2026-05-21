@@ -17,6 +17,7 @@ import TakanonTab from '@/components/admin/TakanonTab';
 import DownloadFormsTab from '@/components/admin/DownloadFormsTab';
 import AnalyticsTab from '@/components/admin/AnalyticsTab';
 import RulesTab, { type Rule } from '@/components/admin/RulesTab';
+import CupTab from '@/components/admin/CupTab';
 import PlayoffTab from '@/components/admin/PlayoffTab';
 import SubmissionsTab, { type SubmissionRow } from '@/components/admin/SubmissionsTab';
 import PerGameStatsTab, { type PerGameInfo, type PerGameStatRow } from '@/components/admin/PerGameStatsTab';
@@ -225,6 +226,32 @@ export default async function AdminPage({
     a11yUpdatedAt        = map.get('accessibility_updated_at')        ?? '';
   }
 
+  // Cup tournament tab
+  let cupDate = '';
+  let cupLocation = '';
+  let cupTeamIds: string[] = [];
+  let cupTeams: { id: string; name: string }[] = [];
+  if (tab === 'cup') {
+    const [{ data: settings }, { data: teamsList }] = await Promise.all([
+      supabaseAdmin
+        .from('league_settings')
+        .select('key,value')
+        .in('key', ['cup_tournament_date', 'cup_tournament_location', 'cup_tournament_teams']),
+      supabaseAdmin.from('teams').select('id,name').order('name'),
+    ]);
+    const map = new Map<string, string>((settings ?? []).map((r) => [r.key, r.value]));
+    cupDate = map.get('cup_tournament_date') ?? '';
+    cupLocation = map.get('cup_tournament_location') ?? '';
+    const teamsRaw = map.get('cup_tournament_teams');
+    if (teamsRaw) {
+      try {
+        const parsed = JSON.parse(teamsRaw);
+        if (Array.isArray(parsed)) cupTeamIds = parsed.filter((x): x is string => typeof x === 'string');
+      } catch { /* ignore malformed */ }
+    }
+    cupTeams = (teamsList ?? []) as { id: string; name: string }[];
+  }
+
   // League rules tab
   let rules: Rule[] = [];
   if (tab === 'rules') {
@@ -405,6 +432,7 @@ export default async function AdminPage({
       {tab === 'forms'         && <DownloadFormsTab />}
       {tab === 'analytics'     && <AnalyticsTab />}
       {tab === 'rules'         && <RulesTab rules={rules} />}
+      {tab === 'cup'           && <CupTab date={cupDate} location={cupLocation} teamIds={cupTeamIds} teams={cupTeams} />}
       {tab === 'playoff'       && <PlayoffTab />}
       {tab === 'submissions'   && <SubmissionsTab submissions={submissions} />}
       {tab === 'gamestats'     && <PerGameStatsTab games={perGameInfos} existingStats={perGameExisting} initialRound={perGameInitialRound} />}
