@@ -24,6 +24,63 @@ export default function SeasonsTab({ seasons: initial }: { seasons: Season[] }) 
   const [deleting, setDeleting] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
 
+  // Inline edit state — only one row is editable at a time. `editing` holds
+  // the draft values; setting it null exits edit mode without saving.
+  const [editing, setEditing] = useState<{
+    id: string;
+    name: string;
+    year: string;
+    start_date: string;
+    end_date: string;
+  } | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  function beginEdit(s: Season) {
+    setEditing({
+      id: s.id,
+      name: s.name,
+      year: s.year ?? '',
+      start_date: s.start_date ?? '',
+      end_date: s.end_date ?? '',
+    });
+  }
+
+  async function handleSaveEdit() {
+    if (!editing) return;
+    if (!editing.name.trim()) {
+      setMsg({ ok: false, text: 'שם העונה חובה' });
+      return;
+    }
+    setSavingEdit(true);
+    setMsg(null);
+    try {
+      const res = await fetch('/api/admin/seasons', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editing.id,
+          name: editing.name.trim(),
+          year: editing.year.trim() || null,
+          start_date: editing.start_date || null,
+          end_date: editing.end_date || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'עדכון נכשל');
+      setList((prev) => prev.map((s) =>
+        s.id === editing.id
+          ? { ...s, name: editing.name.trim(), year: editing.year.trim() || null, start_date: editing.start_date || null, end_date: editing.end_date || null }
+          : s
+      ));
+      setMsg({ ok: true, text: `✏️ העונה "${editing.name.trim()}" עודכנה` });
+      setEditing(null);
+    } catch (err: unknown) {
+      setMsg({ ok: false, text: err instanceof Error ? err.message : 'שגיאה' });
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
@@ -153,37 +210,110 @@ export default function SeasonsTab({ seasons: initial }: { seasons: Season[] }) 
               </tr>
             </thead>
             <tbody>
-              {list.map((s) => (
-                <tr key={s.id} className="border-t border-gray-700/50 hover:bg-gray-800/40">
-                  <td className="px-4 py-3 font-medium text-white">{s.name}</td>
-                  <td className="px-4 py-3 text-gray-400">{s.year ?? '—'}</td>
-                  <td className="px-4 py-3 text-gray-400">{s.start_date ?? '—'}</td>
-                  <td className="px-4 py-3 text-gray-400">{s.end_date ?? '—'}</td>
-                  <td className="px-4 py-3 text-center">
-                    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${s.status === 'active' ? 'bg-green-900/50 text-green-300' : 'bg-gray-700/70 text-gray-400'}`}>
-                      {s.status === 'active' ? 'פעיל' : 'ארכיון'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <button
-                        onClick={() => handleToggle(s)}
-                        disabled={toggling === s.id}
-                        className={`rounded px-2 py-0.5 text-xs transition disabled:opacity-40 ${s.status === 'active' ? 'text-yellow-400 hover:bg-yellow-900/30' : 'text-green-400 hover:bg-green-900/30'}`}
-                      >
-                        {toggling === s.id ? '...' : s.status === 'active' ? 'ארכיון' : 'פעיל'}
-                      </button>
-                      <button
-                        onClick={() => handleDelete(s.id, s.name)}
-                        disabled={deleting === s.id}
-                        className="rounded px-2 py-0.5 text-xs text-red-400 hover:bg-red-900/30 disabled:opacity-40"
-                      >
-                        {deleting === s.id ? '...' : '🗑'}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {list.map((s) => {
+                const isEditing = editing?.id === s.id;
+                return (
+                  <tr key={s.id} className="border-t border-gray-700/50 hover:bg-gray-800/40">
+                    {isEditing && editing ? (
+                      <>
+                        <td className="px-4 py-3">
+                          <input
+                            value={editing.name}
+                            onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                            className="w-full rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm text-white focus:border-orange-500 focus:outline-none"
+                            placeholder="שם העונה"
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <input
+                            value={editing.year}
+                            onChange={(e) => setEditing({ ...editing, year: e.target.value })}
+                            className="w-full rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm text-white focus:border-orange-500 focus:outline-none"
+                            placeholder="2025-2026"
+                            dir="ltr"
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="date"
+                            value={editing.start_date}
+                            onChange={(e) => setEditing({ ...editing, start_date: e.target.value })}
+                            className="w-full rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm text-white focus:border-orange-500 focus:outline-none"
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="date"
+                            value={editing.end_date}
+                            onChange={(e) => setEditing({ ...editing, end_date: e.target.value })}
+                            className="w-full rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm text-white focus:border-orange-500 focus:outline-none"
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${s.status === 'active' ? 'bg-green-900/50 text-green-300' : 'bg-gray-700/70 text-gray-400'}`}>
+                            {s.status === 'active' ? 'פעיל' : 'ארכיון'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={handleSaveEdit}
+                              disabled={savingEdit || !editing.name.trim()}
+                              className="rounded px-2 py-0.5 text-xs font-bold text-green-300 hover:bg-green-900/30 transition disabled:opacity-40"
+                            >
+                              {savingEdit ? '...' : '✅ שמור'}
+                            </button>
+                            <button
+                              onClick={() => setEditing(null)}
+                              disabled={savingEdit}
+                              className="rounded px-2 py-0.5 text-xs text-gray-400 hover:bg-gray-800 transition disabled:opacity-40"
+                            >
+                              ביטול
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-4 py-3 font-medium text-white">{s.name}</td>
+                        <td className="px-4 py-3 text-gray-400">{s.year ?? '—'}</td>
+                        <td className="px-4 py-3 text-gray-400">{s.start_date ?? '—'}</td>
+                        <td className="px-4 py-3 text-gray-400">{s.end_date ?? '—'}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${s.status === 'active' ? 'bg-green-900/50 text-green-300' : 'bg-gray-700/70 text-gray-400'}`}>
+                            {s.status === 'active' ? 'פעיל' : 'ארכיון'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => beginEdit(s)}
+                              disabled={editing !== null}
+                              className="rounded px-2 py-0.5 text-xs text-orange-300 hover:bg-orange-900/30 transition disabled:opacity-40"
+                            >
+                              ✏️ ערוך
+                            </button>
+                            <button
+                              onClick={() => handleToggle(s)}
+                              disabled={toggling === s.id || editing !== null}
+                              className={`rounded px-2 py-0.5 text-xs transition disabled:opacity-40 ${s.status === 'active' ? 'text-yellow-400 hover:bg-yellow-900/30' : 'text-green-400 hover:bg-green-900/30'}`}
+                            >
+                              {toggling === s.id ? '...' : s.status === 'active' ? 'ארכיון' : 'פעיל'}
+                            </button>
+                            <button
+                              onClick={() => handleDelete(s.id, s.name)}
+                              disabled={deleting === s.id || editing !== null}
+                              className="rounded px-2 py-0.5 text-xs text-red-400 hover:bg-red-900/30 disabled:opacity-40"
+                            >
+                              {deleting === s.id ? '...' : '🗑'}
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

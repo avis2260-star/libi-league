@@ -33,13 +33,37 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const { id, status } = await req.json();
-    if (!id || !status) return NextResponse.json({ error: 'חסר id או status' }, { status: 400 });
+    const body = await req.json() as {
+      id?: string;
+      status?: string;
+      name?: string;
+      year?: string | null;
+      start_date?: string | null;
+      end_date?: string | null;
+    };
+    if (!body.id) return NextResponse.json({ error: 'חסר id' }, { status: 400 });
+
+    // Whitelist of editable fields. Status comes in only from the
+    // ארכיון/פעיל toggle; the inline-edit form sends name/year/dates.
+    const update: Record<string, unknown> = {};
+    if (body.status !== undefined)     update.status     = body.status;
+    if (body.name !== undefined)       update.name       = body.name;
+    if (body.year !== undefined)       update.year       = body.year;
+    if (body.start_date !== undefined) update.start_date = body.start_date;
+    if (body.end_date !== undefined)   update.end_date   = body.end_date;
+
+    if (Object.keys(update).length === 0) {
+      return NextResponse.json({ error: 'אין שדות לעדכון' }, { status: 400 });
+    }
+
+    if (typeof update.name === 'string' && !update.name.trim()) {
+      return NextResponse.json({ error: 'שם העונה לא יכול להיות ריק' }, { status: 400 });
+    }
 
     const { error } = await supabaseAdmin
       .from('seasons')
-      .update({ status })
-      .eq('id', id);
+      .update(update)
+      .eq('id', body.id);
     if (error) throw error;
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
