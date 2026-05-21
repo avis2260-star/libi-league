@@ -27,6 +27,7 @@ export interface Player {
   created_at: string;
   is_active?: boolean;
   date_of_birth?: string | null;
+  age_visible?: boolean;
   // Joined
   team?: Team;
 }

@@ -73,7 +73,7 @@ export default async function GamePreviewPage({
     supabaseAdmin.from('standings').select('name,rank,wins,losses,diff,pts,games,pf,pa').eq('season', season).order('rank'),
     supabaseAdmin
       .from('games')
-      .select('id,game_time,location,game_date,video_url,home_team:teams!games_home_team_id_fkey(name),away_team:teams!games_away_team_id_fkey(name)')
+      .select('id,game_time,location,game_date,video_url,home_quarters,away_quarters,home_team:teams!games_home_team_id_fkey(name),away_team:teams!games_away_team_id_fkey(name)')
       .eq('season', season)
       .order('game_date', { ascending: false }),
     supabaseAdmin
@@ -113,12 +113,16 @@ export default async function GamePreviewPage({
   let gameLocation: string | null = null;
   let gameId: string | null = null;
   let videoUrl: string | null = null;
+  let homeQuarters: number[] | null = null;
+  let awayQuarters: number[] | null = null;
   const dbGames = (dbGamesRes.data ?? []) as unknown as {
     id: string;
     game_time: string;
     location: string;
     game_date: string;
     video_url: string | null;
+    home_quarters: number[] | null;
+    away_quarters: number[] | null;
     home_team: { name: string } | null;
     away_team: { name: string } | null;
   }[];
@@ -144,6 +148,12 @@ export default async function GamePreviewPage({
     const l = dbMatch.location;
     gameLocation = (l && l !== 'TBD') ? l : null;
     videoUrl     = dbMatch.video_url;
+    const hq = dbMatch.home_quarters;
+    const aq = dbMatch.away_quarters;
+    if (Array.isArray(hq) && Array.isArray(aq) && hq.length >= 4 && hq.length === aq.length) {
+      homeQuarters = hq;
+      awayQuarters = aq;
+    }
   }
 
   // Result from game_results (matched by round + team pair)
@@ -339,6 +349,60 @@ export default async function GamePreviewPage({
         </div>
       </div>
 
+      {/* Quarter-by-quarter line score */}
+      {isPlayed && homeQuarters && awayQuarters && (() => {
+        const periods = homeQuarters.length;
+        const homeSum = homeQuarters.reduce((s, n) => s + (n ?? 0), 0);
+        const awaySum = awayQuarters.reduce((s, n) => s + (n ?? 0), 0);
+        const label = (i: number) => {
+          if (i < 4) return en ? `Q${i + 1}` : `ר${i + 1}`;
+          const otIdx = i - 3;
+          return en
+            ? `OT${periods - 4 > 1 ? otIdx : ''}`
+            : `הארכה${periods - 4 > 1 ? ' ' + otIdx : ''}`;
+        };
+        return (
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] overflow-hidden">
+            <div className="border-b border-white/[0.06] px-5 py-4">
+              <h2 className="text-base font-black text-white">📈 {en ? 'Line Score' : 'תוצאות לפי רבעים'}</h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs font-black uppercase tracking-widest text-[#8aaac8] border-b border-white/[0.06]">
+                    <th className={`px-5 py-3 ${en ? 'text-left' : 'text-right'}`}>{en ? 'Team' : 'קבוצה'}</th>
+                    {Array.from({ length: periods }, (_, i) => (
+                      <th key={i} className="px-3 py-3 text-center w-12">{label(i)}</th>
+                    ))}
+                    <th className="px-5 py-3 text-center w-16">{en ? 'Total' : 'סה״כ'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-white/[0.04]">
+                    <td className={`px-5 py-3 font-black ${homeWon ? 'text-orange-400' : 'text-white'} ${en ? 'text-left' : 'text-right'}`}>
+                      {T(homeDisplayName)}
+                    </td>
+                    {homeQuarters.map((q, i) => (
+                      <td key={i} className="px-3 py-3 text-center font-stats text-base font-bold text-[#c8d8e8] tabular-nums">{q}</td>
+                    ))}
+                    <td className={`px-5 py-3 text-center font-stats text-lg font-black tabular-nums ${homeWon ? 'text-orange-400' : 'text-[#8aaac8]'}`}>{homeSum}</td>
+                  </tr>
+                  <tr>
+                    <td className={`px-5 py-3 font-black ${awayWon ? 'text-orange-400' : 'text-white'} ${en ? 'text-left' : 'text-right'}`}>
+                      {T(awayDisplayName)}
+                    </td>
+                    {awayQuarters.map((q, i) => (
+                      <td key={i} className="px-3 py-3 text-center font-stats text-base font-bold text-[#c8d8e8] tabular-nums">{q}</td>
+                    ))}
+                    <td className={`px-5 py-3 text-center font-stats text-lg font-black tabular-nums ${awayWon ? 'text-orange-400' : 'text-[#8aaac8]'}`}>{awaySum}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Game info row */}
       <div className="grid grid-cols-3 gap-4">
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] p-5">
@@ -377,16 +441,16 @@ export default async function GamePreviewPage({
           </div>
 
           {[
-            { label: en ? 'G (Wins)' : 'מ׳ (ניצחונות)', home: homeStats ? (en ? `${homeStats.wins}W / ${homeStats.losses}L` : `${homeStats.wins}נ / ${homeStats.losses}ה`) : '—', away: awayStats ? (en ? `${awayStats.wins}W / ${awayStats.losses}L` : `${awayStats.wins}נ / ${awayStats.losses}ה`) : '—' },
+            { label: en ? 'G (Wins)' : 'מ׳ (ניצחונות)', home: homeStats ? (en ? `${homeStats.wins}W / ${homeStats.losses}L` : `${homeStats.wins}נ / ${homeStats.losses}ה`) : '—', away: awayStats ? (en ? `${awayStats.wins}W / ${awayStats.losses}L` : `${awayStats.wins}נ / ${awayStats.losses}ה`) : '—', rtl: !en },
             { label: en ? 'League Points' : 'נקודות ליגה', home: homeStats?.pts  != null ? String(homeStats.pts)  : '—', away: awayStats?.pts  != null ? String(awayStats.pts)  : '—' },
             { label: en ? 'Point Diff' : 'הפרש נקודות', home: homeStats?.diff != null ? (homeStats.diff > 0 ? `+${homeStats.diff}` : String(homeStats.diff)) : '—', away: awayStats?.diff != null ? (awayStats.diff > 0 ? `+${awayStats.diff}` : String(awayStats.diff)) : '—' },
             { label: en ? 'PPG' : 'ממוצע נק׳ למשחק', home: homeStats?.games ? (homeStats.pf / homeStats.games).toFixed(1) : '—', away: awayStats?.games ? (awayStats.pf / awayStats.games).toFixed(1) : '—' },
             { label: en ? 'OPP PPG' : 'ממוצע ספיגה', home: homeStats?.games ? (homeStats.pa / homeStats.games).toFixed(1) : '—', away: awayStats?.games ? (awayStats.pa / awayStats.games).toFixed(1) : '—' },
-          ].map(({ label, home, away }) => (
+          ].map(({ label, home, away, rtl }) => (
             <div key={label} className="grid grid-cols-3 border-b border-white/[0.04] px-5 py-3.5 last:border-0">
-              <span dir="ltr" className={`text-base font-black text-white ${en ? 'text-left' : 'text-right'}`}>{home}</span>
+              <span dir={rtl ? 'rtl' : 'ltr'} className={`text-base font-black text-white ${en ? 'text-left' : 'text-right'}`}>{home}</span>
               <span className="text-center text-xs font-semibold text-[#5a7a9a] self-center">{label}</span>
-              <span dir="ltr" className={`text-base font-bold text-[#c8d8e8] ${en ? 'text-right' : 'text-left'}`}>{away}</span>
+              <span dir={rtl ? 'rtl' : 'ltr'} className={`text-base font-bold text-[#c8d8e8] ${en ? 'text-right' : 'text-left'}`}>{away}</span>
             </div>
           ))}
         </div>

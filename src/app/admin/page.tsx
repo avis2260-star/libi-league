@@ -16,6 +16,8 @@ import TeamsTab from '@/components/admin/TeamsTab';
 import TakanonTab from '@/components/admin/TakanonTab';
 import DownloadFormsTab from '@/components/admin/DownloadFormsTab';
 import AnalyticsTab from '@/components/admin/AnalyticsTab';
+import RulesTab, { type Rule } from '@/components/admin/RulesTab';
+import CupTab, { type CupGame } from '@/components/admin/CupTab';
 import PlayoffTab from '@/components/admin/PlayoffTab';
 import SubmissionsTab, { type SubmissionRow } from '@/components/admin/SubmissionsTab';
 import PerGameStatsTab, { type PerGameInfo, type PerGameStatRow } from '@/components/admin/PerGameStatsTab';
@@ -66,12 +68,12 @@ export default async function AdminPage({
   });
 
   let teams: Team[] = [];
-  let players: { id: string; name: string; jersey_number: number | null; position: string | null; staff_role: string | null; team_id: string | null; photo_url: string | null; date_of_birth: string | null; is_active: boolean }[] = [];
+  let players: { id: string; name: string; jersey_number: number | null; position: string | null; staff_role: string | null; team_id: string | null; photo_url: string | null; date_of_birth: string | null; is_active: boolean; age_visible: boolean }[] = [];
 
   if (tab === 'players') {
     const [{ data: teamsData }, { data: playersData }] = await Promise.all([
       supabaseAdmin.from('teams').select('*').order('name'),
-      supabaseAdmin.from('players').select('id,name,jersey_number,position,staff_role,team_id,photo_url,date_of_birth,is_active').order('name'),
+      supabaseAdmin.from('players').select('id,name,jersey_number,position,staff_role,team_id,photo_url,date_of_birth,is_active,age_visible').order('name'),
     ]);
     teams   = (teamsData  ?? []) as Team[];
     players = (playersData ?? []) as typeof players;
@@ -230,6 +232,41 @@ export default async function AdminPage({
     a11yCoordinatorName  = map.get('accessibility_coordinator_name')  ?? '';
     a11yCoordinatorEmail = map.get('accessibility_coordinator_email') ?? '';
     a11yUpdatedAt        = map.get('accessibility_updated_at')        ?? '';
+  }
+
+  // Cup tournament tab
+  let cupTeamIds: string[] = [];
+  let cupTeams: { id: string; name: string }[] = [];
+  let cupGames: CupGame[] = [];
+  if (tab === 'cup') {
+    const [{ data: settings }, { data: teamsList }, { data: cupGamesData }] = await Promise.all([
+      supabaseAdmin
+        .from('league_settings')
+        .select('key,value')
+        .eq('key', 'cup_tournament_teams'),
+      supabaseAdmin.from('teams').select('id,name').order('name'),
+      supabaseAdmin.from('cup_games').select('*').order('round_order').order('game_number'),
+    ]);
+    const teamsRaw = (settings ?? []).find((r) => r.key === 'cup_tournament_teams')?.value;
+    if (teamsRaw) {
+      try {
+        const parsed = JSON.parse(teamsRaw);
+        if (Array.isArray(parsed)) cupTeamIds = parsed.filter((x): x is string => typeof x === 'string');
+      } catch { /* ignore malformed */ }
+    }
+    cupTeams = (teamsList ?? []) as { id: string; name: string }[];
+    cupGames = (cupGamesData ?? []) as CupGame[];
+  }
+
+  // League rules tab
+  let rules: Rule[] = [];
+  if (tab === 'rules') {
+    const { data } = await supabaseAdmin
+      .from('league_rules')
+      .select('id,title,body,sort_order')
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true });
+    rules = (data ?? []) as Rule[];
   }
 
   // Contact messages tab
@@ -436,6 +473,8 @@ export default async function AdminPage({
       {tab === 'takanon'       && <TakanonTab />}
       {tab === 'forms'         && <DownloadFormsTab />}
       {tab === 'analytics'     && <AnalyticsTab />}
+      {tab === 'rules'         && <RulesTab rules={rules} />}
+      {tab === 'cup'           && <CupTab teamIds={cupTeamIds} teams={cupTeams} games={cupGames} />}
       {tab === 'playoff'       && <PlayoffTab />}
       {tab === 'submissions'   && <SubmissionsTab submissions={submissions} />}
       {tab === 'gamestats'     && <PerGameStatsTab games={perGameInfos} existingStats={perGameExisting} initialRound={perGameInitialRound} />}

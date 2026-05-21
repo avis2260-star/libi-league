@@ -72,8 +72,29 @@ function paragraphs(text: string): string[] {
   return text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
 }
 
+const DEFAULT_RULES: { title: string; body: string }[] = [
+  { title: 'שלב הבית', body: '14 מחזורים — כל קבוצה משחקת נגד כל קבוצה אחרת במחוזה פעמיים (בית וחוץ).' },
+  { title: 'פלייאוף',  body: 'ארבעת המובילות מכל מחוז נפגשות בסדרות של הטוב מ-3 משחקים — רבע גמר, חצי גמר וגמר.' },
+  { title: 'גביע',      body: 'טורניר גביע מקביל הפתוח לכל קבוצות הליגה, בפורמט נוקאאוט חד-שלבי.' },
+  { title: 'כלל הבית',  body: 'הקבוצה המדורגת גבוה יותר מארחת את משחקים 1 ו-3. הקבוצה הנמוכה מארחת את משחק 2.' },
+];
+
+async function getRules(): Promise<{ title: string; body: string }[]> {
+  try {
+    const { data } = await supabaseAdmin
+      .from('league_rules')
+      .select('title,body,sort_order,created_at')
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true });
+    const rows = (data ?? []) as { title: string; body: string }[];
+    return rows.length ? rows : DEFAULT_RULES;
+  } catch {
+    return DEFAULT_RULES;
+  }
+}
+
 export default async function AboutPage() {
-  const [logoUrl, lang] = await Promise.all([getLogoUrl(), getLang()]);
+  const [logoUrl, lang, rules] = await Promise.all([getLogoUrl(), getLang(), getRules()]);
   const about = await getAboutContent(lang);
   const T = (he: string) => st(he, lang);
   const storyParas = paragraphs(about.story);
@@ -167,15 +188,10 @@ export default async function AboutPage() {
           <h2 className="text-base font-bold text-[#e0c97a] font-heading">📋 {T('פורמט הליגה')}</h2>
         </div>
         <div className="divide-y divide-white/[0.05]">
-          {[
-            { title: 'שלב הבית', desc: '14 מחזורים — כל קבוצה משחקת נגד כל קבוצה אחרת במחוזה פעמיים (בית וחוץ).' },
-            { title: 'פלייאוף', desc: 'ארבעת המובילות מכל מחוז נפגשות בסדרות של הטוב מ-3 משחקים — רבע גמר, חצי גמר וגמר.' },
-            { title: 'גביע', desc: 'טורניר גביע מקביל הפתוח לכל קבוצות הליגה, בפורמט נוקאאוט חד-שלבי.' },
-            { title: 'כלל הבית', desc: 'הקבוצה המדורגת גבוה יותר מארחת את משחקים 1 ו-3. הקבוצה הנמוכה מארחת את משחק 2.' },
-          ].map(({ title, desc }) => (
-            <div key={title} className="px-5 py-4">
-              <p className="font-bold text-white text-sm mb-1 font-heading">{T(title)}</p>
-              <p className="text-sm font-semibold text-[#c8d8e8] leading-relaxed font-body">{T(desc)}</p>
+          {rules.map((r, i) => (
+            <div key={`${r.title}-${i}`} className="px-5 py-4">
+              <p className="font-bold text-white text-sm mb-1 font-heading">{T(r.title)}</p>
+              <p className="text-sm font-semibold text-[#c8d8e8] leading-relaxed font-body whitespace-pre-wrap">{T(r.body)}</p>
             </div>
           ))}
         </div>

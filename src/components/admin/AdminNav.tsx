@@ -36,6 +36,7 @@ const GROUPS = [
       { href: '/admin?tab=synclog',      label: '📜 לוג'        },
       { href: '/admin?tab=disciplinary', label: '⚠️ משמעת'     },
       { href: '/admin?tab=playoff',      label: '🏆 פלייאוף'   },
+      { href: '/admin?tab=cup',          label: '🏆 גביע'      },
     ],
   },
   {
@@ -50,6 +51,7 @@ const GROUPS = [
       { href: '/admin?tab=forms',        label: '📂 טפסים להורדה' },
       { href: '/admin?tab=messages',     label: '📬 פניות'        },
       { href: '/admin?tab=about',        label: '📖 דף אודות'    },
+      { href: '/admin?tab=rules',        label: '📋 כללי הליגה'  },
       { href: '/admin?tab=accessibility',label: '♿ נגישות'        },
       { href: '/admin?tab=terms',        label: '📋 תנאי שימוש'  },
       { href: '/admin?tab=halloffame',   label: '🏆 היכל התהילה' },

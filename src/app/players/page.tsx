@@ -13,6 +13,7 @@ export type EnrichedPlayer = {
   team_id: string | null;
   is_active: boolean;
   date_of_birth: string | null;
+  age_visible: boolean;
   points: number | null;
   three_pointers: number | null;
   fouls: number | null;
@@ -25,7 +26,7 @@ export default async function PlayersPage() {
   const [{ data: rawPlayers }, { data: rawTeams }] = await Promise.all([
     supabaseAdmin
       .from('players')
-      .select('id,name,jersey_number,position,staff_role,photo_url,is_active,team_id,points,three_pointers,fouls,date_of_birth')
+      .select('id,name,jersey_number,position,staff_role,photo_url,is_active,team_id,points,three_pointers,fouls,date_of_birth,age_visible')
       .order('name'),
     supabaseAdmin
       .from('teams')

@@ -39,6 +39,11 @@ type ExtractedPlayer = {
 type ExtractedData = {
   home_score: number;
   away_score: number;
+  // First 4 entries = Q1-Q4. Indexes 4+ = OT periods. Empty array = no breakdown.
+  home_quarters?: number[];
+  away_quarters?: number[];
+  // True if the OCR confidently saw a quarter table on the form.
+  quarters_visible?: boolean;
   home_players: ExtractedPlayer[];
   away_players: ExtractedPlayer[];
 };
@@ -190,6 +195,7 @@ export default function SubmitFlow({
   const [extractError, setExtractError] = useState('');
   const [submitError, setSubmitError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   // Build Fuse instances per team once game is selected
   const homeFuse = useMemo(() => {
@@ -359,8 +365,30 @@ export default function SubmitFlow({
       const awayMatches = mergedAway.map(p => ({ ocr: p.name, matched: p.name, score: 1, candidates: [] }));
       setNameMatches({ home: homeMatches, away: awayMatches });
 
+      // Normalize quarters: if OCR returned valid arrays of equal length >=4, keep them.
+      // Otherwise, if quarters_visible is true (form has the table), seed empty 4-slot
+      // arrays so the user must fill them. If false, leave undefined (section hidden).
+      const ocrHomeQ = Array.isArray(extracted.home_quarters) ? extracted.home_quarters : [];
+      const ocrAwayQ = Array.isArray(extracted.away_quarters) ? extracted.away_quarters : [];
+      const ocrLen = Math.min(ocrHomeQ.length, ocrAwayQ.length);
+      const hasOcrQuarters = ocrLen >= 4 && ocrHomeQ.length === ocrAwayQ.length;
+      const quartersVisible = !!extracted.quarters_visible;
+
+      let homeQuarters: number[] | undefined;
+      let awayQuarters: number[] | undefined;
+      if (hasOcrQuarters) {
+        homeQuarters = ocrHomeQ.slice(0, ocrLen);
+        awayQuarters = ocrAwayQ.slice(0, ocrLen);
+      } else if (quartersVisible) {
+        homeQuarters = [0, 0, 0, 0];
+        awayQuarters = [0, 0, 0, 0];
+      }
+
       const patched: ExtractedData = {
         ...extracted,
+        quarters_visible: quartersVisible,
+        home_quarters: homeQuarters,
+        away_quarters: awayQuarters,
         home_players: mergedHome,
         away_players: mergedAway,
       };
@@ -382,6 +410,7 @@ export default function SubmitFlow({
     setPreview(null);
     setBase64(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
+    if (galleryInputRef.current) galleryInputRef.current.value = '';
   }
 
   async function handleProceedAnyway() {
@@ -416,6 +445,48 @@ export default function SubmitFlow({
     setEditedData({ ...editedData, [key]: ps });
   }
 
+  function updateQuarter(team: 'home' | 'away', idx: number, val: string) {
+    if (!editedData) return;
+    const key = `${team}_quarters` as 'home_quarters' | 'away_quarters';
+    const current = editedData[key] ?? [0, 0, 0, 0];
+    const n = parseInt(val, 10);
+    const next = [...current];
+    next[idx] = Number.isNaN(n) ? 0 : n;
+    setEditedData({ ...editedData, [key]: next });
+  }
+
+  function addOvertime() {
+    if (!editedData) return;
+    const h = editedData.home_quarters ?? [0, 0, 0, 0];
+    const a = editedData.away_quarters ?? [0, 0, 0, 0];
+    setEditedData({
+      ...editedData,
+      home_quarters: [...h, 0],
+      away_quarters: [...a, 0],
+    });
+  }
+
+  function removeOvertime(idx: number) {
+    if (!editedData) return;
+    const h = editedData.home_quarters ?? [];
+    const a = editedData.away_quarters ?? [];
+    if (idx < 4) return; // never remove regulation quarters
+    setEditedData({
+      ...editedData,
+      home_quarters: h.filter((_, i) => i !== idx),
+      away_quarters: a.filter((_, i) => i !== idx),
+    });
+  }
+
+  function enableQuarters() {
+    if (!editedData) return;
+    setEditedData({
+      ...editedData,
+      home_quarters: [0, 0, 0, 0],
+      away_quarters: [0, 0, 0, 0],
+    });
+  }
+
   function togglePlayed(team: 'home' | 'away', idx: number) {
     if (!editedData) return;
     const key = `${team}_players` as 'home_players' | 'away_players';
@@ -427,6 +498,25 @@ export default function SubmitFlow({
   // ── Step 4 ─────────────────────────────────────────────────────────────────
   async function handleSubmit() {
     if (!editedData || !selectedGame) return;
+
+    // Block submit when the form clearly showed quarters but the user left them empty.
+    if (editedData.quarters_visible) {
+      const hq = editedData.home_quarters ?? [];
+      const aq = editedData.away_quarters ?? [];
+      const filled = hq.length >= 4
+        && aq.length === hq.length
+        && hq.every(n => Number.isFinite(n))
+        && aq.every(n => Number.isFinite(n))
+        // Treat "all four are zero" as not filled — empty placeholders.
+        && !(hq.slice(0, 4).every(n => n === 0) && aq.slice(0, 4).every(n => n === 0));
+      if (!filled) {
+        setSubmitError(en
+          ? 'The scoresheet shows a quarter-by-quarter table. Please fill all four quarters for both teams before sending.'
+          : 'בטופס מופיע פירוט רבעים. יש למלא את כל ארבעת הרבעים לשתי הקבוצות לפני שליחה.');
+        return;
+      }
+    }
+
     setLoading(true);
     setSubmitError('');
 
@@ -644,7 +734,16 @@ export default function SubmitFlow({
               capture="environment"
               onChange={handleFileChange}
               className="hidden"
-              id="scoresheet-input"
+              id="scoresheet-camera-input"
+              disabled={loading}
+            />
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+              id="scoresheet-gallery-input"
               disabled={loading}
             />
 
@@ -672,16 +771,25 @@ export default function SubmitFlow({
                 </button>
               </div>
             ) : (
-              <label htmlFor="scoresheet-input" className="cursor-pointer block">
-                <div className="rounded-2xl border-2 border-dashed border-white/20 hover:border-orange-500/50 bg-white/[0.02] hover:bg-white/5 p-16 text-center transition-all space-y-3">
-                  <div className="text-5xl">📋</div>
-                  <p className="text-white font-bold">{t('העלה טופס משחק')}</p>
-                  <p className="text-sm text-[#5a7a9a]">{t('צלם את דף הסטטיסטיקות של המשחק')}</p>
-                  <span className="inline-block mt-2 bg-orange-500 hover:bg-orange-400 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-all">
-                    {t('📷 צלם / בחר תמונה')}
-                  </span>
+              <div className="rounded-2xl border-2 border-dashed border-white/20 bg-white/[0.02] p-10 text-center space-y-4">
+                <div className="text-5xl">📋</div>
+                <p className="text-white font-bold">{t('העלה טופס משחק')}</p>
+                <p className="text-sm text-[#5a7a9a]">{en ? 'Take a photo or pick one from your gallery' : 'צלם את דף הסטטיסטיקות או בחר תמונה מהגלריה'}</p>
+                <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                  <label
+                    htmlFor="scoresheet-camera-input"
+                    className="cursor-pointer flex-1 bg-orange-500 hover:bg-orange-400 text-white font-bold py-2.5 px-4 rounded-xl text-sm transition-all"
+                  >
+                    {en ? '📷 Take a photo' : '📷 צלם תמונה'}
+                  </label>
+                  <label
+                    htmlFor="scoresheet-gallery-input"
+                    className="cursor-pointer flex-1 border border-white/15 bg-white/5 hover:bg-white/10 text-white font-bold py-2.5 px-4 rounded-xl text-sm transition-all"
+                  >
+                    {en ? '🖼️ Choose from gallery' : '🖼️ בחר מהגלריה'}
+                  </label>
                 </div>
-              </label>
+              </div>
             )}
 
             {/* Extraction error — shown inline with retry */}
@@ -770,6 +878,129 @@ export default function SubmitFlow({
                 </div>
               </div>
             </div>
+
+            {/* Quarters */}
+            {(() => {
+              const hq = editedData.home_quarters;
+              const aq = editedData.away_quarters;
+              const enabled = Array.isArray(hq) && Array.isArray(aq) && hq.length >= 4;
+              const periods = enabled ? Math.max(hq!.length, aq!.length) : 0;
+              const homeSum = enabled ? hq!.reduce((s, n) => s + (Number(n) || 0), 0) : 0;
+              const awaySum = enabled ? aq!.reduce((s, n) => s + (Number(n) || 0), 0) : 0;
+              const mismatchHome = enabled && homeSum !== editedData.home_score;
+              const mismatchAway = enabled && awaySum !== editedData.away_score;
+              const required = !!editedData.quarters_visible;
+
+              return (
+                <div className="bg-white/5 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-bold text-[#8aaac8] uppercase tracking-wide">
+                      {en ? 'Quarter Breakdown' : 'פירוט רבעים'}
+                      {required && <span className="text-orange-400"> *</span>}
+                    </p>
+                    {!enabled && !required && (
+                      <button
+                        type="button"
+                        onClick={enableQuarters}
+                        className="text-xs text-orange-300 hover:text-orange-200 transition-colors"
+                      >
+                        {en ? '+ Add quarter breakdown' : '+ הוסף פירוט רבעים'}
+                      </button>
+                    )}
+                  </div>
+
+                  {required && !enabled && (
+                    <p className="text-xs text-orange-300/90">
+                      {en
+                        ? 'The form has a quarter table — please enter Q1–Q4 for both teams.'
+                        : 'בטופס מופיע פירוט רבעים — אנא הזן את ארבעת הרבעים לשתי הקבוצות.'}
+                    </p>
+                  )}
+
+                  {enabled && (
+                    <>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="text-[#4a6a8a] border-b border-white/5">
+                              <th className={`pb-2 font-medium ${en ? 'text-left' : 'text-right'}`}>{en ? 'Period' : 'תקופה'}</th>
+                              <th className="text-center pb-2 font-medium">{t(selectedGame.home_name)}</th>
+                              <th className="text-center pb-2 font-medium">{t(selectedGame.away_name)}</th>
+                              <th className="w-8"></th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-white/[0.04]">
+                            {Array.from({ length: periods }, (_, i) => {
+                              const isOT = i >= 4;
+                              const otIdx = i - 3; // OT1, OT2, ...
+                              const label = isOT
+                                ? (en ? `OT${otIdx > 1 ? otIdx : ''}` : `הארכה${otIdx > 1 ? ' ' + otIdx : ''}`)
+                                : (en ? `Q${i + 1}` : `רבע ${i + 1}`);
+                              const isLastOT = isOT && i === periods - 1;
+                              return (
+                                <tr key={i}>
+                                  <td className="py-1.5 text-[#8aaac8] font-medium">{label}</td>
+                                  <td className="py-1.5 text-center">
+                                    <input
+                                      type="number"
+                                      value={hq![i] ?? 0}
+                                      onChange={e => updateQuarter('home', i, e.target.value)}
+                                      className="w-14 text-center bg-black/30 border border-white/10 rounded-md py-1 text-white focus:outline-none focus:border-orange-500"
+                                    />
+                                  </td>
+                                  <td className="py-1.5 text-center">
+                                    <input
+                                      type="number"
+                                      value={aq![i] ?? 0}
+                                      onChange={e => updateQuarter('away', i, e.target.value)}
+                                      className="w-14 text-center bg-black/30 border border-white/10 rounded-md py-1 text-white focus:outline-none focus:border-orange-500"
+                                    />
+                                  </td>
+                                  <td className="py-1.5 text-center">
+                                    {isLastOT && (
+                                      <button
+                                        type="button"
+                                        onClick={() => removeOvertime(i)}
+                                        className="text-[#5a7a9a] hover:text-red-400 transition-colors text-xs"
+                                        aria-label={en ? 'Remove overtime' : 'הסר הארכה'}
+                                      >
+                                        ✕
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            <tr className="text-[#5a7a9a] border-t border-white/5">
+                              <td className="py-1.5 font-bold">{en ? 'Sum' : 'סיכום'}</td>
+                              <td className={`py-1.5 text-center font-bold ${mismatchHome ? 'text-yellow-300' : 'text-white'}`}>{homeSum}</td>
+                              <td className={`py-1.5 text-center font-bold ${mismatchAway ? 'text-yellow-300' : 'text-white'}`}>{awaySum}</td>
+                              <td></td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {(mismatchHome || mismatchAway) && (
+                        <p className="text-[11px] text-yellow-300/90">
+                          {en
+                            ? `⚠ Sum of quarters (${homeSum}:${awaySum}) doesn't match final score (${editedData.home_score}:${editedData.away_score}). The final score above is what counts — please double-check.`
+                            : `⚠ סכום הרבעים (${homeSum}:${awaySum}) לא תואם לתוצאה הסופית (${editedData.home_score}:${editedData.away_score}). התוצאה הסופית למעלה היא הקובעת — אנא בדוק שוב.`}
+                        </p>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={addOvertime}
+                        className="text-xs text-orange-300 hover:text-orange-200 transition-colors"
+                      >
+                        {en ? '+ Add overtime' : '+ הארכה נוספת'}
+                      </button>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Players */}
             {(['home', 'away'] as const).map(team => {

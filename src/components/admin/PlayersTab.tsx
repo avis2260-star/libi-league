@@ -16,6 +16,7 @@ type PlayerRow = {
   photo_url: string | null;
   date_of_birth?: string | null;
   is_active?: boolean;
+  age_visible?: boolean;
 };
 
 // On-court basketball positions — backed by a CHECK constraint on
@@ -251,6 +252,24 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
 
   // Active / Inactive toggle
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [togglingAgeId, setTogglingAgeId] = useState<string | null>(null);
+
+  async function toggleAgeVisible(id: string, currentVisible: boolean) {
+    setTogglingAgeId(id);
+    try {
+      const res = await fetch('/api/admin/players', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, age_visible: !currentVisible }),
+      });
+      if (!res.ok) throw new Error('עדכון נכשל');
+      setList((prev) => prev.map((p) => p.id === id ? { ...p, age_visible: !currentVisible } : p));
+    } catch {
+      setMsg({ ok: false, text: 'עדכון נראות גיל נכשל' });
+    } finally {
+      setTogglingAgeId(null);
+    }
+  }
 
   async function toggleActive(id: string, currentActive: boolean) {
     setTogglingId(id);
@@ -725,9 +744,28 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
                           <td className="px-4 py-2 text-center text-gray-400">{p.jersey_number ?? '—'}</td>
                           <td className="px-4 py-2 text-center text-gray-400 text-xs">{rolesCell(p.position, p.staff_role)}</td>
                           <td className="px-4 py-2 text-center text-gray-400 text-xs">
-                            {p.date_of_birth
-                              ? new Date(p.date_of_birth).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' })
-                              : '—'}
+                            <div className="inline-flex items-center gap-1.5">
+                              <span>
+                                {p.date_of_birth
+                                  ? new Date(p.date_of_birth).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                                  : '—'}
+                              </span>
+                              {p.date_of_birth && (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleAgeVisible(p.id, p.age_visible !== false)}
+                                  disabled={togglingAgeId === p.id}
+                                  title={p.age_visible !== false ? 'הגיל גלוי לכולם — לחץ כדי להסתיר' : 'הגיל מוסתר — לחץ כדי להציג'}
+                                  className={`rounded px-1.5 py-0.5 text-[10px] font-bold border transition ${
+                                    p.age_visible !== false
+                                      ? 'border-green-600/40 bg-green-900/30 text-green-400 hover:bg-green-900/50'
+                                      : 'border-gray-600/40 bg-gray-800/50 text-gray-400 hover:bg-gray-700/60'
+                                  }`}
+                                >
+                                  {togglingAgeId === p.id ? '...' : p.age_visible !== false ? '👁 גלוי' : '🚫 מוסתר'}
+                                </button>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-2 text-center text-gray-400 text-xs truncate max-w-[80px]">
                             {teams.find((t) => t.id === p.team_id)?.name ?? '—'}
