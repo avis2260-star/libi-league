@@ -21,6 +21,9 @@ import SubmissionsTab, { type SubmissionRow } from '@/components/admin/Submissio
 import PerGameStatsTab, { type PerGameInfo, type PerGameStatRow } from '@/components/admin/PerGameStatsTab';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import { makeNameResolver } from '@/lib/team-name-resolver';
+import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
+import SeasonPicker from '@/components/SeasonPicker';
+import ArchiveBanner from '@/components/ArchiveBanner';
 import MessagesTab, { type ContactMessage } from '@/components/admin/MessagesTab';
 import TermsTab from '@/components/admin/TermsTab';
 import AboutTab from '@/components/admin/AboutTab';
@@ -28,12 +31,13 @@ import AccessibilityTab from '@/components/admin/AccessibilityTab';
 import HallOfFameTab from '@/components/admin/HallOfFameTab';
 import type { GameWithTeams, Team } from '@/types';
 
-async function getAllGames(): Promise<GameWithTeams[]> {
+async function getAllGames(season: string): Promise<GameWithTeams[]> {
   const { data, error } = await supabaseAdmin
     .from('games')
     .select(
       '*, home_team:teams!games_home_team_id_fkey(*), away_team:teams!games_away_team_id_fkey(*)',
     )
+    .eq('season', season)
     .order('game_date', { ascending: false })
     .order('game_time', { ascending: false });
 
@@ -44,12 +48,15 @@ async function getAllGames(): Promise<GameWithTeams[]> {
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; gameId?: string }>;
+  searchParams: Promise<{ tab?: string; gameId?: string; season?: string }>;
 }) {
   const params = await searchParams;
   const tab = params.tab ?? 'games';
   const gameId = params.gameId ?? undefined;
-  const games = await getAllGames();
+  const { viewing, current, isArchive } = await resolveSeasonFromParams(params);
+  const season = viewing;
+  const knownSeasons = await listKnownSeasons();
+  const games = await getAllGames(season);
   // Sort all games chronologically. The GamesTab itself groups them into
   // "active" (status!=Finished AND date>=today) for the top section, and
   // "past" (everything else) collapsed at the bottom.
@@ -96,7 +103,7 @@ export default async function AdminPage({
   let playerOptions: { id: string; name: string; team_name: string | null }[] = [];
   if (tab === 'disciplinary') {
     const [{ data: recData }, { data: plData }, { data: tmData }] = await Promise.all([
-      supabaseAdmin.from('disciplinary_records').select('*').order('created_at', { ascending: false }),
+      supabaseAdmin.from('disciplinary_records').select('*').eq('season', season).order('created_at', { ascending: false }),
       supabaseAdmin.from('players').select('id,name,team_id').order('name'),
       supabaseAdmin.from('teams').select('id,name'),
     ]);
@@ -155,6 +162,7 @@ export default async function AdminPage({
           away_team:teams!games_away_team_id_fkey(name)
         )
       `)
+      .eq('season', season)
       .order('created_at', { ascending: false });
 
     submissions = ((subData ?? []) as RawSub[]).map((s) => ({
@@ -267,6 +275,7 @@ export default async function AdminPage({
       supabaseAdmin
         .from('games')
         .select('id,game_date,home_team_id,away_team_id,home_score,away_score,home_team:teams!games_home_team_id_fkey(id,name),away_team:teams!games_away_team_id_fkey(id,name)')
+        .eq('season', season)
         .order('game_date'),
       supabaseAdmin
         .from('players')
@@ -275,7 +284,8 @@ export default async function AdminPage({
         .order('name'),
       supabaseAdmin
         .from('game_stats')
-        .select('player_id,game_id,points,three_pointers,fouls'),
+        .select('player_id,game_id,points,three_pointers,fouls')
+        .eq('season', season),
       supabaseAdmin.from('teams').select('id,name'),
     ]);
 
@@ -370,13 +380,47 @@ export default async function AdminPage({
     const { data } = await supabaseAdmin
       .from('sync_logs')
       .select('id,uploaded_at,filename,north_count,south_count,results_count,is_rolled_back')
+      .eq('season', season)
       .order('uploaded_at', { ascending: false })
       .limit(20);
     syncLogs = (data ?? []) as typeof syncLogs;
   }
 
+  // Tabs whose displayed data is filtered by `season` — these get the picker
+  // and (if viewing an archive) the warning banner. Other tabs (master data,
+  // config, content) ignore the season.
+  const seasonedTabs = new Set([
+    'games', 'boxscore', 'media', 'gamestats', 'disciplinary',
+    'synclog', 'submissions', 'playoff',
+  ]);
+  const showSeasonControls = seasonedTabs.has(tab);
+
   return (
     <>
+      {showSeasonControls && (
+        <div className="mb-4 space-y-3" dir="rtl">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-xs font-bold text-[#8aaac8]">
+              לשונית זו מציגה נתונים של עונת <span dir="ltr" className="font-mono">{viewing}</span>
+            </p>
+            <SeasonPicker current={current} viewing={viewing} seasons={knownSeasons} />
+          </div>
+          {isArchive && (
+            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-200 font-bold space-y-1">
+              <p>
+                ⚠️ ארכיון — אתה צופה בנתוני עונת <span dir="ltr" className="font-mono">{viewing}</span>.
+                עונה נוכחית: <span dir="ltr" className="font-mono">{current}</span>.
+              </p>
+              <p className="text-xs font-normal opacity-90">
+                עריכת ציון או פרטים של משחק קיים — תעבוד.
+                {' '}יצירת רשומות חדשות (תוצאה חדשה, פאול, סדרת פלייאוף וכו׳) — תשתייך לעונה הנוכחית, לא לארכיון.
+                לתיקון נתוני ארכיון: ערוך ישירות דרך Supabase.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {tab === 'games'         && <GamesTab games={allGamesSorted} />}
       {tab === 'teams'         && <TeamsTab teams={teamsForTab} />}
       {tab === 'boxscore'      && <BoxScoreTab games={games} initialGameId={gameId} />}

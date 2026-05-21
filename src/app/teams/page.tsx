@@ -4,12 +4,13 @@ import { getTeams } from '@/lib/supabase';
 import { NORTH_TABLE, SOUTH_TABLE } from '@/lib/league-data';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getLang, st } from '@/lib/get-lang';
+import { getCurrentSeason } from '@/lib/current-season';
 
 type StandingRow = { rank: number; name: string; wins: number; losses: number; diff: number; pts: number; division: string; games: number; pf: number; pa: number; techni: number; penalty: number };
 
-async function getLiveStandings(): Promise<StandingRow[]> {
+async function getLiveStandings(season: string): Promise<StandingRow[]> {
   try {
-    const { data, error } = await supabaseAdmin.from('standings').select('*').order('rank');
+    const { data, error } = await supabaseAdmin.from('standings').select('*').eq('season', season).order('rank');
     if (error || !data || data.length === 0) throw new Error('no data');
     return data as StandingRow[];
   } catch {
@@ -162,7 +163,8 @@ function TeamCard({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function TeamsPage() {
-  const [teams, standings, lang] = await Promise.all([getTeams(), getLiveStandings(), getLang()]);
+  const season = await getCurrentSeason();
+  const [teams, standings, lang] = await Promise.all([getTeams(), getLiveStandings(season), getLang()]);
   const T = (he: string) => st(he, lang);
   const findStats  = makeFind(standings);
   const DIVISION_MAP = makeDivisionMap(standings);

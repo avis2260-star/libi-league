@@ -6,12 +6,16 @@ import GamesContent from './GamesContent';
 import { getLang, st } from '@/lib/get-lang';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
+import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
+import SeasonPicker from '@/components/SeasonPicker';
+import ArchiveBanner from '@/components/ArchiveBanner';
 
-async function getCurrentRound(): Promise<number> {
+async function getCurrentRound(season: string): Promise<number> {
   try {
     const { data } = await supabaseAdmin
       .from('game_results')
       .select('round')
+      .eq('season', season)
       .order('round', { ascending: false })
       .limit(1);
     return data?.[0]?.round ?? 0;
@@ -33,13 +37,21 @@ async function getTeamLogos(): Promise<Record<string, string>> {
   }
 }
 
-export default async function GamesPage() {
-  const [currentRound, logos, closeGamesData, roundDatesData, lang] = await Promise.all([
-    getCurrentRound(),
+export default async function GamesPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const { viewing, current, isArchive } = await resolveSeasonFromParams(params);
+  const season = viewing;
+  const [currentRound, logos, closeGamesData, roundDatesData, lang, seasons] = await Promise.all([
+    getCurrentRound(season),
     getTeamLogos(),
     supabaseAdmin
       .from('game_results')
       .select('round,date,home_team,away_team,home_score,away_score')
+      .eq('season', season)
       .filter('techni', 'eq', false)
       .then(({ data }) =>
         (data ?? []).filter(
@@ -61,6 +73,7 @@ export default async function GamesPage() {
         } catch { return {} as Record<number, string>; }
       }),
     getLang(),
+    listKnownSeasons(),
   ]);
   const T = (he: string) => st(he, lang);
 
@@ -87,6 +100,12 @@ export default async function GamesPage() {
 
   return (
     <Suspense fallback={<div className="py-16 text-center text-[#5a7a9a]">{T('טוען...')}</div>}>
+      <div className="space-y-4 mb-4">
+        <div className="flex items-center justify-end gap-3 flex-wrap" dir="rtl">
+          <SeasonPicker current={current} viewing={viewing} seasons={seasons} />
+        </div>
+        {isArchive && <ArchiveBanner viewing={viewing} current={current} pathname="/games" />}
+      </div>
       <GamesContent
         currentRound={currentRound}
         logos={logos}

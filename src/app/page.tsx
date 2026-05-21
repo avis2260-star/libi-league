@@ -9,6 +9,7 @@ import ScoreboardStrip from '@/components/ScoreboardStrip';
 import LastRoundResults from '@/components/LastRoundResults';
 import { getLang, st } from '@/lib/get-lang';
 import { makeNameResolver } from '@/lib/team-name-resolver';
+import { getCurrentSeason } from '@/lib/current-season';
 
 const ROUND_DATES: Record<number, string> = {
   1: '01.11.25', 2: '08.11.25', 3: '29.11.25', 4:  '20.12.25',
@@ -82,7 +83,7 @@ function resolveTeamId(
   return sub?.id ?? null;
 }
 
-async function getGameDetails(games: { home: string; away: string }[]): Promise<Record<string, { location: string; time: string }>> {
+async function getGameDetails(games: { home: string; away: string }[], season: string): Promise<Record<string, { location: string; time: string }>> {
   if (!games.length) return {};
   try {
     const { data: teamsData } = await supabaseAdmin.from('teams').select('id, name');
@@ -104,6 +105,7 @@ async function getGameDetails(games: { home: string; away: string }[]): Promise<
     const { data: dbGames } = await supabaseAdmin
       .from('games')
       .select('home_team_id, away_team_id, game_date, game_time, location')
+      .eq('season', season)
       .in('home_team_id', [...ids])
       .in('away_team_id', [...ids])
       .order('game_date', { ascending: true });
@@ -229,11 +231,11 @@ async function getTickerSpeed(): Promise<number> {
   }
 }
 
-async function getLiveData() {
+async function getLiveData(season: string) {
   try {
     const [{ data: standings }, { data: results }] = await Promise.all([
-      supabaseAdmin.from('standings').select('rank,name,wins,losses,pts,pf,division').order('rank'),
-      supabaseAdmin.from('game_results').select('round,date,home_team,away_team,home_score,away_score,techni').order('round'),
+      supabaseAdmin.from('standings').select('rank,name,wins,losses,pts,pf,division').eq('season', season).order('rank'),
+      supabaseAdmin.from('game_results').select('round,date,home_team,away_team,home_score,away_score,techni').eq('season', season).order('round'),
     ]);
 
     if (!standings || standings.length === 0) throw new Error('no standings');
@@ -290,11 +292,12 @@ async function getLiveData() {
 
 type CupFinal = { date: string; home_team: string; away_team: string; home_score: number | null; away_score: number | null; played: boolean } | null;
 
-async function getCupFinal(): Promise<CupFinal> {
+async function getCupFinal(season: string): Promise<CupFinal> {
   try {
     const { data } = await supabaseAdmin
       .from('cup_games')
       .select('date, home_team, away_team, home_score, away_score, played')
+      .eq('season', season)
       .eq('round', 'גמר')
       .maybeSingle();
     return data as CupFinal;
@@ -345,21 +348,23 @@ function RecordCard({ icon, label, value, sub, detail, color }: { icon: string; 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function HomePage() {
+  const season = await getCurrentSeason();
   const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers, lang, dbRoundDates, cupFinal] = await Promise.all([
-    getLiveData(),
+    getLiveData(season),
     getActiveAnnouncements(),
     getTeams(),
     getTickerSpeed(),
     getTopScorers(),
     getLang(),
     getRoundDates(),
-    getCupFinal(),
+    getCupFinal(season),
   ]);
 
   const nextRoundEarly = liveData.currentRound + 1;
   const nextRoundSchedule = LIBI_SCHEDULE.filter(g => g.round === nextRoundEarly);
   const gameDetails = await getGameDetails(
-    nextRoundSchedule.map(g => ({ home: g.homeTeam, away: g.awayTeam }))
+    nextRoundSchedule.map(g => ({ home: g.homeTeam, away: g.awayTeam })),
+    season,
   );
   const T = (he: string) => st(he, lang);
 

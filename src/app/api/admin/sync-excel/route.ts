@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getCurrentSeason } from '@/lib/current-season';
 
 type StandingRow = {
   rank: number; name: string; games: number; wins: number; losses: number;
@@ -21,17 +22,19 @@ export async function POST(req: NextRequest) {
       results: GameResultRow[];
     };
 
-    // Upsert standings
+    const season = await getCurrentSeason();
+
+    // Upsert standings — scoped to the current season so prior seasons stay intact.
     const standingRows = [
-      ...north.map((r) => ({ ...r, division: 'North' })),
-      ...south.map((r) => ({ ...r, division: 'South' })),
+      ...north.map((r) => ({ ...r, division: 'North', season })),
+      ...south.map((r) => ({ ...r, division: 'South', season })),
     ];
 
     if (standingRows.length > 0) {
       const { error: delErr } = await supabaseAdmin
         .from('standings')
         .delete()
-        .neq('name', '');
+        .eq('season', season);
       if (delErr) throw delErr;
 
       const { error: insErr } = await supabaseAdmin
@@ -40,19 +43,20 @@ export async function POST(req: NextRequest) {
       if (insErr) throw insErr;
     }
 
-    // Replace game results: delete all, then insert fresh
+    // Replace game results for the current season only.
     let resultsCount = 0;
     {
       const { error: delErr } = await supabaseAdmin
         .from('game_results')
         .delete()
-        .neq('round', -1);
+        .eq('season', season);
       if (delErr) throw delErr;
     }
     if (Array.isArray(results) && results.length > 0) {
+      const stamped = results.map((r) => ({ ...r, season }));
       const { error: insErr } = await supabaseAdmin
         .from('game_results')
-        .insert(results);
+        .insert(stamped);
       if (insErr) throw insErr;
       resultsCount = results.length;
     }

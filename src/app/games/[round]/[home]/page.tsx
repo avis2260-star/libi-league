@@ -7,6 +7,7 @@ import { getTeams } from '@/lib/supabase';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getLang, st } from '@/lib/get-lang';
 import { makeNameResolver } from '@/lib/team-name-resolver';
+import { getCurrentSeason } from '@/lib/current-season';
 
 const ROUND_DATES: Record<number, string> = {
   1: '01.11.25', 2: '08.11.25', 3: '29.11.25', 4: '20.12.25',
@@ -67,15 +68,18 @@ export default async function GamePreviewPage({
   // a date filter would silently miss the row and the time/location entered
   // in admin would never appear here. Instead we filter by team pair, which
   // is unique per matchup per round and survives date drifts.
+  const season = await getCurrentSeason();
   const [standingsRes, dbGamesRes, resultRes] = await Promise.all([
-    supabaseAdmin.from('standings').select('name,rank,wins,losses,diff,pts,games,pf,pa').order('rank'),
+    supabaseAdmin.from('standings').select('name,rank,wins,losses,diff,pts,games,pf,pa').eq('season', season).order('rank'),
     supabaseAdmin
       .from('games')
       .select('id,game_time,location,game_date,video_url,home_team:teams!games_home_team_id_fkey(name),away_team:teams!games_away_team_id_fkey(name)')
+      .eq('season', season)
       .order('game_date', { ascending: false }),
     supabaseAdmin
       .from('game_results')
       .select('round,home_team,away_team,home_score,away_score,techni')
+      .eq('season', season)
       .eq('round', round),
   ]);
 
@@ -191,6 +195,7 @@ export default async function GamePreviewPage({
     const { data: matchingGames } = await supabaseAdmin
       .from('games')
       .select('id')
+      .eq('season', season)
       .eq('home_team_id', homeTeamObj.id)
       .eq('away_team_id', awayTeamObj.id);
     const gameIds = ((matchingGames ?? []) as { id: string }[]).map(g => g.id);
@@ -200,6 +205,7 @@ export default async function GamePreviewPage({
       ? await supabaseAdmin
           .from('game_stats')
           .select('points,three_pointers,fouls,player:players(id,name,jersey_number,team_id)')
+          .eq('season', season)
           .in('game_id', gameIds)
           .or('points.gt.0,three_pointers.gt.0,fouls.gt.0')
       : { data: [] as PgsRow[] };

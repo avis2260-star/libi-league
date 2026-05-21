@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getCurrentSeason } from '@/lib/current-season';
 
 /* ── Team-name normalization for fuzzy matching across tables ──────────── */
 function normalizeTeamName(s: string): string {
@@ -478,23 +479,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No data found in Excel file' }, { status: 400 });
     }
 
-    // Snapshot existing data before replacing
+    const season = await getCurrentSeason();
+
+    // Snapshot existing data before replacing (current-season only — we never
+    // touch prior-season rows).
     const [{ data: prevStandings }, { data: prevResults }] = await Promise.all([
-      supabaseAdmin.from('standings').select('*'),
-      supabaseAdmin.from('game_results').select('*'),
+      supabaseAdmin.from('standings').select('*').eq('season', season),
+      supabaseAdmin.from('game_results').select('*').eq('season', season),
     ]);
 
-    // ── Replace standings: delete all, then insert fresh ──
+    // ── Replace standings for the current season ──
     const standingRows = [
-      ...north.map((r) => ({ ...r, division: 'North' })),
-      ...south.map((r) => ({ ...r, division: 'South' })),
+      ...north.map((r) => ({ ...r, division: 'North', season })),
+      ...south.map((r) => ({ ...r, division: 'South', season })),
     ];
 
     if (standingRows.length > 0) {
       const { error: delErr } = await supabaseAdmin
         .from('standings')
         .delete()
-        .neq('name', '');           // delete every row
+        .eq('season', season);
       if (delErr) throw delErr;
 
       const { error: insErr } = await supabaseAdmin
@@ -503,19 +507,20 @@ export async function POST(req: NextRequest) {
       if (insErr) throw insErr;
     }
 
-    // ── Replace game results: delete all, then insert fresh ──
+    // ── Replace game results for the current season ──
     let resultsCount = 0;
     {
       const { error: delErr } = await supabaseAdmin
         .from('game_results')
         .delete()
-        .neq('round', -1);          // delete every row
+        .eq('season', season);
       if (delErr) throw delErr;
     }
     if (results.length > 0) {
+      const stamped = results.map((r) => ({ ...r, season }));
       const { error: insErr } = await supabaseAdmin
         .from('game_results')
-        .insert(results);
+        .insert(stamped);
       if (insErr) throw insErr;
       resultsCount = results.length;
     }
@@ -538,11 +543,12 @@ export async function POST(req: NextRequest) {
         const teamMap = new Map<string, string>();
         for (const t of teamsList) teamMap.set(normalizeTeamName(t.name), t.id);
 
-        // Load existing games once — INCLUDE game_time + location so we can
+        // Load existing games for the current season — INCLUDE game_time + location so we can
         // preserve admin-filled values when migrating a rescheduled row.
         const { data: existingGames } = await supabaseAdmin
           .from('games')
-          .select('id, home_team_id, away_team_id, game_date, game_time, location, status, home_score, away_score');
+          .select('id, home_team_id, away_team_id, game_date, game_time, location, status, home_score, away_score')
+          .eq('season', season);
 
         type ExistingGame = {
           id: string; date: string; status: string;
@@ -570,6 +576,7 @@ export async function POST(req: NextRequest) {
           home_team_id: string; away_team_id: string;
           game_date: string; game_time: string; location: string;
           home_score: number; away_score: number; status: string;
+          season: string;
         }[] = [];
         const toUpdate: { id: string; home_score: number; away_score: number; status: string }[] = [];
         // For stale rescheduled rows we MIGRATE (update date) instead of
@@ -630,6 +637,7 @@ export async function POST(req: NextRequest) {
               game_date: isoDate, game_time: '19:00:00', location: 'TBD',
               home_score: r.home_score, away_score: r.away_score,
               status: 'Finished',
+              season,
             });
           }
         }
@@ -665,11 +673,12 @@ export async function POST(req: NextRequest) {
       // Don't fail the whole sync — auto-create is a nice-to-have
     }
 
-    // Replace cup games (silently skip if table doesn't exist yet)
+    // Replace cup games for the current season (silently skip if table doesn't exist yet)
     try {
-      await supabaseAdmin.from('cup_games').delete().neq('round', '');
+      await supabaseAdmin.from('cup_games').delete().eq('season', season);
       if (cupGames.length > 0) {
-        await supabaseAdmin.from('cup_games').insert(cupGames);
+        const stampedCup = cupGames.map((g) => ({ ...g, season }));
+        await supabaseAdmin.from('cup_games').insert(stampedCup);
       }
     } catch { /* cup_games table not created yet — run SQL in Supabase */ }
 
@@ -682,6 +691,7 @@ export async function POST(req: NextRequest) {
         results_count: resultsCount,
         snapshot_standings: prevStandings ?? [],
         snapshot_results: prevResults ?? [],
+        season,
       });
     } catch { /* sync_logs table not created yet — run SQL in Supabase */ }
 

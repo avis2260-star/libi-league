@@ -1,10 +1,12 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import SubmitFlow from './SubmitFlow';
 import { getLang } from '@/lib/get-lang';
+import { getCurrentSeason } from '@/lib/current-season';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SubmitPage() {
+  const season = await getCurrentSeason();
   // Submissions are for games that already happened. Filter by date instead
   // of status — admins don't always flip status to 'Finished' after a game,
   // and submissions should be possible for any past game.
@@ -14,6 +16,7 @@ export default async function SubmitPage() {
     .select(
       'id, game_date, game_time, status, home_team:teams!games_home_team_id_fkey(name), away_team:teams!games_away_team_id_fkey(name)',
     )
+    .eq('season', season)
     .lte('game_date', today)
     .order('game_date', { ascending: false });
 
@@ -21,6 +24,7 @@ export default async function SubmitPage() {
   const { data: submissions } = await supabaseAdmin
     .from('game_submissions')
     .select('game_id')
+    .eq('season', season)
     .in('status', ['pending', 'needs_review', 'approved']);
 
   const lockedIds = new Set((submissions ?? []).map((s: { game_id: string }) => s.game_id));

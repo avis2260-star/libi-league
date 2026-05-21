@@ -79,8 +79,8 @@ export async function getPlayerById(id: string): Promise<PlayerWithTeam | null> 
   return data as PlayerWithTeam;
 }
 
-export async function getPlayerGameStats(playerId: string): Promise<GameStatWithGame[]> {
-  const { data, error } = await supabase
+export async function getPlayerGameStats(playerId: string, season?: string): Promise<GameStatWithGame[]> {
+  let query = supabase
     .from('game_stats')
     .select(`
       id, game_id, player_id, team_id, points, three_pointers, fouls,
@@ -91,8 +91,9 @@ export async function getPlayerGameStats(playerId: string): Promise<GameStatWith
         away_team:teams!games_away_team_id_fkey (name, logo_url)
       )
     `)
-    .eq('player_id', playerId)
-    .order('created_at', { ascending: true });
+    .eq('player_id', playerId);
+  if (season) query = query.eq('season', season);
+  const { data, error } = await query.order('created_at', { ascending: true });
   if (error) throw error;
 
   // Sort chronologically by game date client-side (join ordering is unreliable)

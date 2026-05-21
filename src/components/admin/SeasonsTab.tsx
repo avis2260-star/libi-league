@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { resetSeason } from '@/app/admin/actions';
+import { useEffect, useState } from 'react';
+import { resetSeason, startNewSeason } from '@/app/admin/actions';
 
 type Season = {
   id: string;
@@ -193,8 +193,196 @@ export default function SeasonsTab({ seasons: initial }: { seasons: Season[] }) 
         <p className="text-center text-gray-500 py-8">אין עונות עדיין</p>
       )}
 
-      {/* ── Reset Season ── */}
+      {/* ── Non-destructive new-season bump ── */}
+      <StartNewSeasonPanel />
+
+      {/* ── Reset Season (destructive — only when you really mean it) ── */}
       <ResetSeasonPanel />
+    </div>
+  );
+}
+
+/* ── Start New Season Panel ────────────────────────────────────────────────── */
+function StartNewSeasonPanel() {
+  const [current, setCurrent]   = useState<string>('');
+  const [loading, setLoading]   = useState(true);
+  const [nextSeason, setNext]   = useState('');
+  // step 0: input form  · step 1: confirmation screen (user has to click "אישור" to actually fire)
+  const [step, setStep]         = useState<0 | 1>(0);
+  const [running, setRunning]   = useState(false);
+  const [msg, setMsg]           = useState<{ ok: boolean; text: string } | null>(null);
+
+  // Read the active season once on mount so the admin sees what they're
+  // bumping FROM. After a successful bump we update both `current` and
+  // clear the input so the next bump is explicit.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/admin/league-settings', { cache: 'no-store' });
+        const data = await res.json();
+        if (cancelled) return;
+        const row = (data.settings as { key: string; value: string }[] | undefined)
+          ?.find(s => s.key === 'current_season');
+        const value = row?.value?.trim() || '2025-2026';
+        setCurrent(value);
+        setNext(suggestNext(value));
+      } catch {
+        if (!cancelled) {
+          setCurrent('2025-2026');
+          setNext('2026-2027');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  function suggestNext(s: string): string {
+    const m = s.match(/^(\d{4})-(\d{4})$/);
+    if (!m) return '';
+    const [, a, b] = m;
+    return `${parseInt(a) + 1}-${parseInt(b) + 1}`;
+  }
+
+  function handleProceed() {
+    const target = nextSeason.trim();
+    if (!target) return;
+    if (target === current) {
+      setMsg({ ok: false, text: `העונה ${target} כבר מסומנת כעונה הנוכחית` });
+      return;
+    }
+    if (!/^\d{4}-\d{4}$/.test(target)) {
+      setMsg({ ok: false, text: 'פורמט עונה לא תקין — נדרש YYYY-YYYY (לדוגמה 2026-2027)' });
+      return;
+    }
+    setMsg(null);
+    setStep(1);
+  }
+
+  async function handleConfirm() {
+    const target = nextSeason.trim();
+    setRunning(true);
+    setMsg(null);
+    try {
+      const res = await startNewSeason(target);
+      if (res.error) {
+        setMsg({ ok: false, text: res.error });
+        setStep(0);
+      } else {
+        setCurrent(res.current ?? target);
+        setNext(suggestNext(res.current ?? target));
+        setMsg({ ok: true, text: `✅ העונה הנוכחית עודכנה ל-"${res.current}" (קודם: "${res.previous}")` });
+        setStep(0);
+      }
+    } catch (e: unknown) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : 'שגיאה' });
+      setStep(0);
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  const target = nextSeason.trim();
+
+  return (
+    <div className="rounded-xl border border-orange-700/50 bg-orange-950/20 p-5 space-y-4">
+      <div>
+        <h3 className="font-bold text-orange-300 text-base">📅 התחל עונה חדשה</h3>
+        <p className="text-xs text-gray-400 mt-0.5">
+          מסמן עונה חדשה כעונה הפעילה. כל הנתונים הקודמים נשמרים תחת תגית העונה הישנה ונותרים נגישים לארכיון —
+          שום דבר לא נמחק ושום שורה לא נכתבת מחדש.
+        </p>
+      </div>
+
+      {/* Step 0 — input form */}
+      {step === 0 && (
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto] items-end">
+          <div>
+            <label className="mb-1 block text-xs text-gray-400">עונה חדשה (YYYY-YYYY)</label>
+            <input
+              value={nextSeason}
+              onChange={e => setNext(e.target.value)}
+              placeholder="2026-2027"
+              dir="ltr"
+              disabled={loading || running}
+              className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white font-mono placeholder-gray-600 focus:border-orange-500 focus:outline-none disabled:opacity-50"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              עונה נוכחית: <span className="font-mono text-gray-300">{loading ? '...' : current}</span>
+            </p>
+          </div>
+          <button
+            onClick={handleProceed}
+            disabled={loading || running || !target || target === current}
+            className="rounded-lg bg-orange-500 px-5 py-2 text-sm font-bold text-white transition hover:bg-orange-600 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            📅 התחל עונה חדשה
+          </button>
+        </div>
+      )}
+
+      {/* Step 1 — confirmation screen */}
+      {step === 1 && (
+        <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-4 space-y-3">
+          <div className="flex items-start gap-2">
+            <span className="text-2xl leading-none">⚠️</span>
+            <div className="space-y-1">
+              <p className="text-sm font-bold text-amber-200">
+                אתה עומד לעבור מעונה{' '}
+                <span dir="ltr" className="font-mono">{current}</span>
+                {' '}לעונה{' '}
+                <span dir="ltr" className="font-mono">{target}</span>
+              </p>
+              <p className="text-xs text-amber-100/90">אנא ודא את ההשלכות לפני האישור:</p>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-1.5">
+              <p className="text-xs font-black text-emerald-300 uppercase tracking-wide">✅ נשמר כפי שהוא</p>
+              <ul className="text-xs text-emerald-100/90 space-y-1">
+                <li>• כל המשחקים, התוצאות והטבלאות של <span dir="ltr" className="font-mono">{current}</span></li>
+                <li>• כל סטטיסטיקות שחקנים פר-משחק (game_stats)</li>
+                <li>• פלייאוף, גביע, אירועים משמעתיים — כולם תחת תגית <span dir="ltr" className="font-mono">{current}</span></li>
+                <li>• קבוצות, שחקנים, שופטים, הגדרות, היכל התהילה — לא מושפעים</li>
+              </ul>
+            </div>
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-1.5">
+              <p className="text-xs font-black text-amber-300 uppercase tracking-wide">🔄 משתנה מיידית</p>
+              <ul className="text-xs text-amber-100/90 space-y-1">
+                <li>• האתר הציבורי וכל לשוניות הניהול יתחילו להציג רק עונת <span dir="ltr" className="font-mono">{target}</span></li>
+                <li>• מובילי הקליעה והסטטיסטיקות של שחקנים <strong>יאופסו ל-0</strong> (יעודכנו מחדש כאשר תיכנס סטטיסטיקה לעונה החדשה)</li>
+                <li>• הנתונים הישנים נגישים דרך בורר העונה (ארכיון) בכל עמוד</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 pt-1">
+            <button
+              onClick={handleConfirm}
+              disabled={running}
+              className="rounded-lg bg-orange-500 px-5 py-2 text-sm font-black text-white transition hover:bg-orange-600 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {running ? '⏳ מעדכן...' : `✅ אני מאשר — עבור לעונת ${target}`}
+            </button>
+            <button
+              onClick={() => setStep(0)}
+              disabled={running}
+              className="rounded-lg px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition disabled:opacity-40"
+            >
+              ביטול
+            </button>
+          </div>
+        </div>
+      )}
+
+      {msg && (
+        <p className={`rounded-lg px-3 py-2 text-sm font-medium ${msg.ok ? 'bg-green-900/40 text-green-300' : 'bg-red-900/40 text-red-300'}`}>
+          {msg.text}
+        </p>
+      )}
     </div>
   );
 }

@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getCurrentSeason } from '@/lib/current-season';
 
 // GET — series + games + top 4 from each division for dropdowns
 export async function GET() {
+  const season = await getCurrentSeason();
   const [{ data: series }, { data: games }, { data: standings }] = await Promise.all([
-    supabaseAdmin.from('playoff_series').select('*').order('series_number'),
-    supabaseAdmin.from('playoff_games').select('*').order('series_number').order('game_number'),
-    supabaseAdmin.from('standings').select('name,division,rank').order('rank', { ascending: true }),
+    supabaseAdmin.from('playoff_series').select('*').eq('season', season).order('series_number'),
+    supabaseAdmin.from('playoff_games').select('*').eq('season', season).order('series_number').order('game_number'),
+    supabaseAdmin.from('standings').select('name,division,rank').eq('season', season).order('rank', { ascending: true }),
   ]);
 
   const all = (standings ?? []) as { name: string; division: string; rank: number }[];
@@ -18,11 +20,13 @@ export async function GET() {
 
 // PUT — update a series team names
 export async function PUT(req: NextRequest) {
+  const season = await getCurrentSeason();
   const body = await req.json();
   const { series_number, team_a, team_b } = body;
   const { error } = await supabaseAdmin
     .from('playoff_series')
     .update({ team_a, team_b })
+    .eq('season', season)
     .eq('series_number', series_number);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
@@ -30,6 +34,7 @@ export async function PUT(req: NextRequest) {
 
 // PATCH — update a single game result
 export async function PATCH(req: NextRequest) {
+  const season = await getCurrentSeason();
   const body = await req.json();
   const { series_number, game_number, home_score, away_score, played, game_date } = body;
 
@@ -38,10 +43,12 @@ export async function PATCH(req: NextRequest) {
   if (away_score !== undefined) update.away_score = away_score;
   if (game_date  !== undefined) update.game_date  = game_date;
 
-  // Upsert by (series_number, game_number)
+  // Upsert keyed on (season, series_number, game_number) — the same shape as
+  // the unique constraint added in 20260521_add_season_column.sql. Two seasons
+  // can have a row for series 1 game 1 without one stomping the other.
   const { error } = await supabaseAdmin
     .from('playoff_games')
-    .upsert({ series_number, game_number, ...update }, { onConflict: 'series_number,game_number' });
+    .upsert({ series_number, game_number, season, ...update }, { onConflict: 'season,series_number,game_number' });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });

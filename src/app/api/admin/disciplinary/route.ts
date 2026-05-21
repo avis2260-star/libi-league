@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getCurrentSeason } from '@/lib/current-season';
 
 const ALLOWED_TYPES = ['technical', 'unsportsmanlike', 'ejection', 'suspension'];
 
 export async function GET() {
   try {
+    const season = await getCurrentSeason();
     const { data, error } = await supabaseAdmin
       .from('disciplinary_records')
       .select('*')
+      .eq('season', season)
       .order('created_at', { ascending: false });
     if (error) throw error;
     return NextResponse.json({ records: data });
@@ -18,6 +21,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const season = await getCurrentSeason();
     const { player_id, player_name, team_name, type, round, notes, suspension_until_round } = await req.json();
     if (!player_name || !type) return NextResponse.json({ error: 'שם שחקן וסוג חובה' }, { status: 400 });
     if (!ALLOWED_TYPES.includes(type)) {
@@ -38,6 +42,7 @@ export async function POST(req: NextRequest) {
           type === 'suspension' && suspension_until_round
             ? parseInt(String(suspension_until_round))
             : null,
+        season,
       })
       .select()
       .single();

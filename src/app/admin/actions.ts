@@ -5,6 +5,7 @@ import type { GameStatus } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import { findPlayerForExtracted, type ExtractedPlayer } from '@/lib/match-player';
+import { getCurrentSeason, clearCurrentSeasonCache } from '@/lib/current-season';
 
 type ActionResult = { error?: string };
 
@@ -42,10 +43,13 @@ export async function bulkImportGames(): Promise<ImportResult> {
     return { inserted: 0, skipped: 0, missingTeams: missing };
   }
 
+  const season = await getCurrentSeason();
+
   // 4. Load existing games to skip duplicates (match on home_team_id + away_team_id + game_date)
   const { data: existing } = await supabaseAdmin
     .from('games')
-    .select('home_team_id, away_team_id, game_date');
+    .select('home_team_id, away_team_id, game_date')
+    .eq('season', season);
 
   const existingSet = new Set(
     (existing ?? []).map((g) => `${g.home_team_id}|${g.away_team_id}|${g.game_date}`),
@@ -74,6 +78,7 @@ export async function bulkImportGames(): Promise<ImportResult> {
       home_score: 0,
       away_score: 0,
       status: 'Scheduled' as GameStatus,
+      season,
     });
   }
 
@@ -152,9 +157,11 @@ export async function updateGameDetails(
 export async function resetAllGameDetails(): Promise<ActionResult> {
   // Only reset games that have NOT yet been played — preserve location/time
   // on finished games so the game-preview page can still display them.
+  const season = await getCurrentSeason();
   const { error } = await supabaseAdmin
     .from('games')
     .update({ game_time: '00:00:00', location: 'TBD' })
+    .eq('season', season)
     .neq('status', 'Finished');
 
   if (error) return { error: error.message };
@@ -181,6 +188,7 @@ export type ResetSeasonResult = {
 
 export async function resetSeason(opts: ResetSeasonOptions): Promise<ResetSeasonResult> {
   const done: string[] = [];
+  const season = await getCurrentSeason();
 
   if (opts.resetGames) {
     const { error } = await supabaseAdmin
@@ -192,7 +200,7 @@ export async function resetSeason(opts: ResetSeasonOptions): Promise<ResetSeason
         game_time: '00:00:00',
         location: 'TBD',
       })
-      .neq('id', '00000000-0000-0000-0000-000000000000');
+      .eq('season', season);
     if (error) return { error: `שגיאה באיפוס משחקים: ${error.message}`, done };
     done.push('משחקים אופסו');
   }
@@ -210,7 +218,7 @@ export async function resetSeason(opts: ResetSeasonOptions): Promise<ResetSeason
     const { error } = await supabaseAdmin
       .from('standings')
       .update({ wins: 0, losses: 0, points_for: 0, points_against: 0, draws: 0 })
-      .neq('id', '00000000-0000-0000-0000-000000000000');
+      .eq('season', season);
     if (error) return { error: `שגיאה באיפוס טבלה: ${error.message}`, done };
     done.push('טבלת הליגה אופסה');
   }
@@ -219,13 +227,13 @@ export async function resetSeason(opts: ResetSeasonOptions): Promise<ResetSeason
     const { error: e1 } = await supabaseAdmin
       .from('playoff_games')
       .delete()
-      .neq('id', 0);
+      .eq('season', season);
     if (e1) return { error: `שגיאה במחיקת משחקי פלייאוף: ${e1.message}`, done };
 
     const { error: e2 } = await supabaseAdmin
       .from('playoff_series')
       .delete()
-      .neq('series_number', 0);
+      .eq('season', season);
     if (e2) return { error: `שגיאה במחיקת סדרות פלייאוף: ${e2.message}`, done };
     done.push('פלייאוף נמחק');
   }
@@ -235,6 +243,66 @@ export async function resetSeason(opts: ResetSeasonOptions): Promise<ResetSeason
   revalidatePath('/games');
   revalidatePath('/playoff');
   return { done };
+}
+
+// ── Start a new season (non-destructive) ─────────────────────────────────────
+// Just bumps the `current_season` value in league_settings. Old rows stay
+// untouched in every operational table; every list query just stops showing
+// them because it filters on the new current_season value.
+
+export type StartSeasonResult = { error?: string; previous?: string; current?: string };
+
+export async function startNewSeason(nextSeason: string): Promise<StartSeasonResult> {
+  const trimmed = nextSeason.trim();
+  // Accept the common Hebrew league format "YYYY-YYYY" (e.g. "2026-2027").
+  if (!/^\d{4}-\d{4}$/.test(trimmed)) {
+    return { error: 'פורמט עונה לא תקין — נדרש YYYY-YYYY (לדוגמה 2026-2027)' };
+  }
+
+  const previous = await getCurrentSeason();
+  if (previous === trimmed) {
+    return { error: `העונה ${trimmed} כבר מסומנת כעונה הנוכחית` };
+  }
+
+  const { error } = await supabaseAdmin
+    .from('league_settings')
+    .upsert(
+      { key: 'current_season', value: trimmed, updated_at: new Date().toISOString() },
+      { onConflict: 'key' },
+    );
+  if (error) return { error: error.message };
+
+  clearCurrentSeasonCache();
+
+  // players.points / three_pointers / fouls are cached current-season totals
+  // (the public scorers / homepage leaderboard reads them directly). The
+  // recalc helper sums game_stats WHERE season = current_season — now that
+  // the current season changed, those aggregates need refreshing so the
+  // leaderboard doesn't keep showing last season's leaders.
+  const { data: allPlayers } = await supabaseAdmin
+    .from('players')
+    .select('id');
+  if (allPlayers?.length) {
+    await recalcPlayerTotals(allPlayers.map((p) => p.id));
+  }
+
+  // Revalidate every public page that filters on season so the bump shows up
+  // immediately without waiting for the per-page cache to age out.
+  revalidatePath('/admin');
+  revalidatePath('/');
+  revalidatePath('/games');
+  revalidatePath('/results');
+  revalidatePath('/standings');
+  revalidatePath('/teams');
+  revalidatePath('/cup');
+  revalidatePath('/playoff');
+  revalidatePath('/scoreboard');
+  revalidatePath('/scorers');
+  revalidatePath('/live');
+  revalidatePath('/submit');
+  revalidatePath('/players');
+
+  return { previous, current: trimmed };
 }
 
 // ── Video URL ─────────────────────────────────────────────────────────────────
@@ -276,6 +344,7 @@ export type SubmitGameResultInput = {
 };
 
 export async function submitGameResult(input: SubmitGameResultInput): Promise<ActionResult> {
+  const season = await getCurrentSeason();
   // Enforce lock: only one active submission per game
   const { data: existing } = await supabaseAdmin
     .from('game_submissions')
@@ -298,6 +367,7 @@ export async function submitGameResult(input: SubmitGameResultInput): Promise<Ac
     quality_status: input.qualityStatus,
     status: input.status,
     scoresheet_image_url: input.scoresheetImageUrl ?? null,
+    season,
   });
 
   if (error) return { error: error.message };
@@ -381,6 +451,7 @@ export async function approveSubmission(submissionId: string): Promise<ActionRes
             points:         ep.points         ?? 0,
             three_pointers: ep.three_pointers ?? 0,
             fouls:          ep.fouls          ?? 0,
+            season:         await getCurrentSeason(),
           }, { onConflict: 'game_id,player_id' });
 
         affectedPlayerIds.push(result.player.id);
@@ -410,10 +481,16 @@ export async function approveSubmission(submissionId: string): Promise<ActionRes
 // ── Helper: recalculate players.points/three_pointers/fouls from game_stats ──
 
 async function recalcPlayerTotals(playerIds: string[]): Promise<void> {
+  // players.points/three_pointers/fouls are "current-season totals" by design
+  // (see /lib/current-season.ts). Sum only the rows in the current season so
+  // a "Start New Season" bump naturally zeroes the leaderboard until new
+  // games are recorded, without deleting any historical game_stats rows.
+  const season = await getCurrentSeason();
   for (const playerId of playerIds) {
     const { data: rows, error: selErr } = await supabaseAdmin
       .from('game_stats')
       .select('points, three_pointers, fouls')
+      .eq('season', season)
       .eq('player_id', playerId);
 
     if (selErr) {
@@ -443,6 +520,7 @@ async function recalcPlayerTotals(playerIds: string[]): Promise<void> {
 // ── Helper: undo approval effects (game_stats + player totals + game score) ───
 
 async function revokeApprovalEffects(submissionId: string): Promise<void> {
+  const season = await getCurrentSeason();
   const { data: sub } = await supabaseAdmin
     .from('game_submissions')
     .select('game_id, extracted_stats')
@@ -456,6 +534,7 @@ async function revokeApprovalEffects(submissionId: string): Promise<void> {
   const { data: gsRows } = await supabaseAdmin
     .from('game_stats')
     .select('player_id')
+    .eq('season', season)
     .eq('game_id', sub.game_id);
 
   const idsFromGameStats = new Set<string>((gsRows ?? []).map((r) => r.player_id));
@@ -464,6 +543,7 @@ async function revokeApprovalEffects(submissionId: string): Promise<void> {
   const { error: delErr } = await supabaseAdmin
     .from('game_stats')
     .delete()
+    .eq('season', season)
     .eq('game_id', sub.game_id);
   if (delErr) console.error('[revokeApprovalEffects] delete game_stats failed:', delErr);
 
@@ -501,10 +581,11 @@ async function revokeApprovalEffects(submissionId: string): Promise<void> {
   // force-zero them if game_stats is still empty after recalc.               ──
   for (const playerId of idsFromExtracted) {
     if (!idsFromGameStats.has(playerId)) {
-      // Check if they have any remaining game_stats
+      // Check if they have any remaining game_stats in the current season
       const { count } = await supabaseAdmin
         .from('game_stats')
         .select('*', { count: 'exact', head: true })
+        .eq('season', season)
         .eq('player_id', playerId);
 
       if ((count ?? 0) === 0) {
@@ -607,6 +688,7 @@ export async function upsertPlayerGameStat(input: {
   if (!input.playerId || !input.gameId) {
     return { error: 'player + game required' };
   }
+  const season = await getCurrentSeason();
   const next = {
     points:         Math.max(0, Math.floor(input.points         || 0)),
     three_pointers: Math.max(0, Math.floor(input.threePointers  || 0)),
@@ -630,6 +712,7 @@ export async function upsertPlayerGameStat(input: {
   const { data: existing, error: readErr } = await supabaseAdmin
     .from('game_stats')
     .select('points,three_pointers,fouls')
+    .eq('season',    season)
     .eq('player_id', input.playerId)
     .eq('game_id',   input.gameId)
     .maybeSingle();
@@ -651,6 +734,7 @@ export async function upsertPlayerGameStat(input: {
     const { error: delErr } = await supabaseAdmin
       .from('game_stats')
       .delete()
+      .eq('season',    season)
       .eq('player_id', input.playerId)
       .eq('game_id',   input.gameId);
     if (delErr) {
@@ -665,6 +749,7 @@ export async function upsertPlayerGameStat(input: {
           player_id: input.playerId,
           game_id:   input.gameId,
           team_id:   playerRow.team_id,
+          season,
           ...next,
         },
         { onConflict: 'game_id,player_id' },
@@ -763,12 +848,14 @@ export async function reprocessApprovedSubmissions(): Promise<ReprocessReport> {
     game: { game_date: string; home_team_id: string | null; away_team_id: string | null } | null;
   };
 
+  const season = await getCurrentSeason();
   const { data: subs, error: fetchErr } = await supabaseAdmin
     .from('game_submissions')
     .select(`
       id, game_id, extracted_stats,
       game:games(game_date, home_team_id, away_team_id)
     `)
+    .eq('season', season)
     .eq('status', 'approved');
 
   if (fetchErr) {
@@ -788,8 +875,8 @@ export async function reprocessApprovedSubmissions(): Promise<ReprocessReport> {
     const awayTeamId = subRaw.game?.away_team_id ?? null;
     const gameDate = subRaw.game?.game_date ?? '';
 
-    // Wipe existing game_stats for this game so we can rewrite cleanly
-    await supabaseAdmin.from('game_stats').delete().eq('game_id', subRaw.game_id);
+    // Wipe existing game_stats for this game (current season only) so we can rewrite cleanly
+    await supabaseAdmin.from('game_stats').delete().eq('season', season).eq('game_id', subRaw.game_id);
 
     type RawPlayer = { name?: string; jersey?: number | null; points?: number; three_pointers?: number; fouls?: number; played?: boolean };
     const tagged: { ep: RawPlayer; teamId: string | null; side: 'home' | 'away' }[] = [
@@ -817,6 +904,7 @@ export async function reprocessApprovedSubmissions(): Promise<ReprocessReport> {
           points:         ep.points         ?? 0,
           three_pointers: ep.three_pointers ?? 0,
           fouls:          ep.fouls          ?? 0,
+          season,
         }, { onConflict: 'game_id,player_id' });
 
         allAffectedPlayerIds.add(result.player.id);
@@ -949,6 +1037,7 @@ export async function saveBoxScore(
 ): Promise<ActionResult> {
   if (!stats.length) return { error: 'No stats provided.' };
 
+  const season = await getCurrentSeason();
   const rows = stats.map((s) => ({
     game_id: gameId,
     player_id: s.playerId,
@@ -956,6 +1045,7 @@ export async function saveBoxScore(
     points: Math.max(0, s.points),
     three_pointers: Math.max(0, s.threePt),
     fouls: Math.max(0, s.fouls),
+    season,
   }));
 
   const { error } = await supabaseAdmin

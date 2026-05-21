@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import ScoreboardClient from './ScoreboardClient';
 import { getLang } from '@/lib/get-lang';
+import { getCurrentSeason } from '@/lib/current-season';
 
 export type ScoreboardGame = {
   id: string;
@@ -36,6 +37,7 @@ function normName(n: string) {
 
 export default async function ScoreboardPage() {
   const today = new Date().toISOString().split('T')[0];
+  const season = await getCurrentSeason();
 
   // 1. Get all teams with id + logo from DB
   const { data: teamsData } = await supabaseAdmin
@@ -55,6 +57,7 @@ export default async function ScoreboardPage() {
   const { data: lastResultRow } = await supabaseAdmin
     .from('game_results')
     .select('round')
+    .eq('season', season)
     .order('round', { ascending: false })
     .limit(1);
 

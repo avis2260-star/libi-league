@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getCurrentSeason } from '@/lib/current-season';
 
 export async function GET() {
   try {
+    const season = await getCurrentSeason();
     const { data, error } = await supabaseAdmin
       .from('sync_logs')
       .select('id,uploaded_at,filename,north_count,south_count,results_count,is_rolled_back')
+      .eq('season', season)
       .order('uploaded_at', { ascending: false })
       .limit(20);
     if (error) throw error;
@@ -34,19 +37,25 @@ export async function POST(req: NextRequest) {
     const snapshotStandings = (log.snapshot_standings ?? []) as Record<string, unknown>[];
     const snapshotResults   = (log.snapshot_results   ?? []) as Record<string, unknown>[];
 
-    // Restore standings
-    const { error: delStErr } = await supabaseAdmin.from('standings').delete().neq('name', '');
+    const season = await getCurrentSeason();
+
+    // Restore standings for the current season only (other seasons untouched).
+    const { error: delStErr } = await supabaseAdmin.from('standings').delete().eq('season', season);
     if (delStErr) throw delStErr;
     if (snapshotStandings.length > 0) {
-      const { error: insStErr } = await supabaseAdmin.from('standings').insert(snapshotStandings);
+      // Re-stamp the snapshot rows with the current season so a future
+      // rollback from a different season doesn't drag the wrong tag along.
+      const restored = snapshotStandings.map((r) => ({ ...r, season }));
+      const { error: insStErr } = await supabaseAdmin.from('standings').insert(restored);
       if (insStErr) throw insStErr;
     }
 
-    // Restore game_results
-    const { error: delGrErr } = await supabaseAdmin.from('game_results').delete().neq('round', -1);
+    // Restore game_results for the current season only.
+    const { error: delGrErr } = await supabaseAdmin.from('game_results').delete().eq('season', season);
     if (delGrErr) throw delGrErr;
     if (snapshotResults.length > 0) {
-      const { error: insGrErr } = await supabaseAdmin.from('game_results').insert(snapshotResults);
+      const restored = snapshotResults.map((r) => ({ ...r, season }));
+      const { error: insGrErr } = await supabaseAdmin.from('game_results').insert(restored);
       if (insGrErr) throw insGrErr;
     }
 

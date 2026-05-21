@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import LiveClient from './LiveClient';
+import { getCurrentSeason } from '@/lib/current-season';
 
 export type LiveGame = {
   id: string;
@@ -23,10 +24,12 @@ export type LivePlayer = {
 };
 
 export default async function LivePage() {
+  const season = await getCurrentSeason();
   // 1. Current round from game_results
   const { data: roundRows } = await supabaseAdmin
     .from('game_results')
     .select('round')
+    .eq('season', season)
     .order('round', { ascending: false })
     .limit(1);
   const currentRound: number = roundRows?.[0]?.round ?? 0;

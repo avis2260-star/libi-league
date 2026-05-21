@@ -3,6 +3,9 @@ export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getLang, st } from '@/lib/get-lang';
+import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
+import SeasonPicker from '@/components/SeasonPicker';
+import ArchiveBanner from '@/components/ArchiveBanner';
 
 type ScorerRow = {
   id: string;
@@ -15,7 +18,9 @@ type ScorerRow = {
   fouls: number;
 };
 
-async function getScorers(): Promise<ScorerRow[]> {
+async function getCurrentScorers(): Promise<ScorerRow[]> {
+  // Current season: read the cached aggregates on `players` directly.
+  // These are kept in sync by recalcPlayerTotals (current-season scope).
   const { data } = await supabaseAdmin
     .from('players')
     .select('id, name, photo_url, jersey_number, points, three_pointers, fouls, team:teams(name)')
@@ -40,11 +45,69 @@ async function getScorers(): Promise<ScorerRow[]> {
   }));
 }
 
+async function getArchiveScorers(season: string): Promise<ScorerRow[]> {
+  // Archive view: `players.points` reflects the CURRENT season, not the one
+  // being viewed. Re-derive totals from per-game rows scoped to the season.
+  const { data: stats } = await supabaseAdmin
+    .from('game_stats')
+    .select('player_id, points, three_pointers, fouls')
+    .eq('season', season);
+
+  type Totals = { points: number; three_pointers: number; fouls: number };
+  const totalsByPlayer = new Map<string, Totals>();
+  for (const r of (stats ?? []) as { player_id: string; points: number | null; three_pointers: number | null; fouls: number | null }[]) {
+    const t = totalsByPlayer.get(r.player_id) ?? { points: 0, three_pointers: 0, fouls: 0 };
+    t.points         += r.points         ?? 0;
+    t.three_pointers += r.three_pointers ?? 0;
+    t.fouls          += r.fouls          ?? 0;
+    totalsByPlayer.set(r.player_id, t);
+  }
+
+  const playerIds = [...totalsByPlayer.keys()];
+  if (playerIds.length === 0) return [];
+
+  const { data: players } = await supabaseAdmin
+    .from('players')
+    .select('id, name, photo_url, jersey_number, team:teams(name)')
+    .in('id', playerIds);
+
+  return ((players ?? []) as unknown as {
+    id: string; name: string; photo_url: string | null; jersey_number: number | null;
+    team: { name: string } | null;
+  }[])
+    .map((p) => {
+      const t = totalsByPlayer.get(p.id) ?? { points: 0, three_pointers: 0, fouls: 0 };
+      return {
+        id:             p.id,
+        name:           p.name,
+        photo_url:      p.photo_url,
+        jersey_number:  p.jersey_number,
+        team_name:      p.team?.name ?? null,
+        points:         t.points,
+        three_pointers: t.three_pointers,
+        fouls:          t.fouls,
+      };
+    })
+    .filter((p) => p.points > 0)
+    .sort((a, b) => b.points - a.points)
+    .slice(0, 20);
+}
+
 const MEDAL = ['🥇', '🥈', '🥉'];
 const RANK_COLORS = ['text-yellow-400', 'text-slate-300', 'text-amber-600'];
 
-export default async function ScorersPage() {
-  const [scorers, lang] = await Promise.all([getScorers(), getLang()]);
+export default async function ScorersPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const { viewing, current, isArchive } = await resolveSeasonFromParams(params);
+  const [scorers, lang, seasons] = await Promise.all([
+    isArchive ? getArchiveScorers(viewing) : getCurrentScorers(),
+    getLang(),
+    listKnownSeasons(),
+  ]);
   const T = (he: string) => st(he, lang);
   const dir = lang === 'he' ? 'rtl' : 'ltr';
 
@@ -61,9 +124,14 @@ export default async function ScorersPage() {
             <span className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-700 px-2 py-1 text-sm">🏅</span>
             {T('רשימת קלעי הליגה')}
           </h1>
-          <p className="text-sm font-bold text-[#8aaac8] mt-0.5 font-body">{T('טבלת מובילי הנקודות — עונת 2025–2026')}</p>
+          <p className="text-sm font-bold text-[#8aaac8] mt-0.5 font-body">
+            {T('טבלת מובילי הנקודות')} — {lang === 'en' ? `Season ${viewing}` : `עונת ${viewing}`}
+          </p>
         </div>
+        <SeasonPicker current={current} viewing={viewing} seasons={seasons} />
       </div>
+
+      {isArchive && <ArchiveBanner viewing={viewing} current={current} pathname="/scorers" />}
 
       {scorers.length === 0 ? (
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] py-20 text-center">

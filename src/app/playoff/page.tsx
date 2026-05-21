@@ -7,6 +7,9 @@ import ChampionshipPlate from '@/components/ChampionshipPlate';
 import ChampionReveal from '@/components/ChampionReveal';
 import PlayoffSeriesCard, { type RosterPlayer } from '@/components/PlayoffSeriesCard';
 import { getLang, st } from '@/lib/get-lang';
+import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
+import SeasonPicker from '@/components/SeasonPicker';
+import ArchiveBanner from '@/components/ArchiveBanner';
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
 interface Series {
@@ -307,7 +310,14 @@ async function getLogoUrl() {
 }
 
 /* ── Page ───────────────────────────────────────────────────────────────── */
-export default async function PlayoffPage() {
+export default async function PlayoffPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const { viewing, current, isArchive } = await resolveSeasonFromParams(params);
+  const season = viewing;
   const [
     { data: seriesData },
     { data: gamesData },
@@ -316,14 +326,16 @@ export default async function PlayoffPage() {
     { data: playersData },
     logoUrl,
     lang,
+    seasonsList,
   ] = await Promise.all([
-    supabaseAdmin.from('playoff_series').select('*').order('series_number'),
-    supabaseAdmin.from('playoff_games').select('*').order('series_number').order('game_number'),
+    supabaseAdmin.from('playoff_series').select('*').eq('season', season).order('series_number'),
+    supabaseAdmin.from('playoff_games').select('*').eq('season', season).order('series_number').order('game_number'),
     supabaseAdmin.from('teams').select('name, logo_url'),
-    supabaseAdmin.from('standings').select('name, rank, division').order('rank', { ascending: true }),
+    supabaseAdmin.from('standings').select('name, rank, division').eq('season', season).order('rank', { ascending: true }),
     supabaseAdmin.from('players').select('name, jersey_number, team:teams(name)').eq('is_active', true).order('jersey_number'),
     getLogoUrl(),
     getLang(),
+    listKnownSeasons(),
   ]);
   const T = (he: string) => st(he, lang);
 
@@ -442,8 +454,13 @@ export default async function PlayoffPage() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={logoUrl} alt="ליגת ליבי" className="h-12 w-12 object-contain rounded-full" />
         </div>
-        <p className="text-sm text-[#5a7a9a] font-body">{lang === 'en' ? '2025–2026 · Quarters & Semis: Best of 3 · Final: Single Game' : '2025–2026 · רבע גמר וחצי גמר: הטוב מ-3 · גמר: משחק אחד'}</p>
+        <p className="text-sm text-[#5a7a9a] font-body">{lang === 'en' ? `${viewing} · Quarters & Semis: Best of 3 · Final: Single Game` : `${viewing} · רבע גמר וחצי גמר: הטוב מ-3 · גמר: משחק אחד`}</p>
+        <div className="mt-3 flex justify-center">
+          <SeasonPicker current={current} viewing={viewing} seasons={seasonsList} />
+        </div>
       </div>
+
+      {isArchive && <ArchiveBanner viewing={viewing} current={current} pathname="/playoff" />}
 
       <div className="space-y-10">
         {/* ── Rounds ──────────────────────────────────────────────────────── */}

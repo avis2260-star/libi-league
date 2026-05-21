@@ -5,6 +5,9 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import StandingsTables, { type StandingWithStreak } from './StandingsTables';
 import { getLang, st } from '@/lib/get-lang';
 import { makeNameResolver } from '@/lib/team-name-resolver';
+import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
+import SeasonPicker from '@/components/SeasonPicker';
+import ArchiveBanner from '@/components/ArchiveBanner';
 
 /* ── Team name normalizer ─────────────────────────────────────────────── */
 function normName(s: string) {
@@ -38,7 +41,7 @@ type GameResultRow = {
 
 type TeamRow = { name: string; logo_url: string | null };
 
-async function getStandings(): Promise<{
+async function getStandings(season: string): Promise<{
   north: StandingWithStreak[];
   south: StandingWithStreak[];
   logos: Record<string, string>;
@@ -49,7 +52,7 @@ async function getStandings(): Promise<{
       { data: teamsData },
       { data: results },
     ] = await Promise.all([
-      supabaseAdmin.from('standings').select('*').order('rank', { ascending: true }),
+      supabaseAdmin.from('standings').select('*').eq('season', season).order('rank', { ascending: true }),
       supabaseAdmin.from('teams').select('name, logo_url'),
       // Pull round results from the Excel-sync table. Sort by round DESC so
       // the most recent round is first — string dates like "22.11.25" don't
@@ -57,6 +60,7 @@ async function getStandings(): Promise<{
       supabaseAdmin
         .from('game_results')
         .select('round, home_team, away_team, home_score, away_score, techni')
+        .eq('season', season)
         .order('round', { ascending: false }),
     ]);
 
@@ -150,15 +154,32 @@ async function getStandings(): Promise<{
   }
 }
 
-export default async function StandingsPage() {
-  const [{ north, south, logos }, lang] = await Promise.all([getStandings(), getLang()]);
+export default async function StandingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const { viewing, current, isArchive } = await resolveSeasonFromParams(params);
+  const [{ north, south, logos }, lang, seasons] = await Promise.all([
+    getStandings(viewing),
+    getLang(),
+    listKnownSeasons(),
+  ]);
   const T = (he: string) => st(he, lang);
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-black text-white">{T('טבלאות ליגה')}</h1>
-        <p className="mt-1 text-sm font-bold text-[#8aaac8]">{lang === 'en' ? 'Updated through Round 8 · Season 2025–2026' : 'עדכני עד מחזור 8 · עונת 2025–2026'}</p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-3xl font-black text-white">{T('טבלאות ליגה')}</h1>
+          <p className="mt-1 text-sm font-bold text-[#8aaac8]">
+            {lang === 'en' ? `Season ${viewing}` : `עונת ${viewing}`}
+          </p>
+        </div>
+        <SeasonPicker current={current} viewing={viewing} seasons={seasons} />
       </div>
+
+      {isArchive && <ArchiveBanner viewing={viewing} current={current} pathname="/standings" />}
 
       <StandingsTables north={north} south={south} logos={logos} />
     </div>

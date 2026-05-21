@@ -4,6 +4,9 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import StageCardsBracket from '@/components/cup/StageCardsBracket';
 import JourneyBracket from '@/components/cup/JourneyBracket';
 import { getLang, st } from '@/lib/get-lang';
+import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
+import SeasonPicker from '@/components/SeasonPicker';
+import ArchiveBanner from '@/components/ArchiveBanner';
 
 async function getLogoUrl() {
   try {
@@ -12,12 +15,19 @@ async function getLogoUrl() {
   } catch { return '/logo.png'; }
 }
 
-export default async function CupPage() {
-  const [{ data: games }, { data: teams }, logoUrl, lang] = await Promise.all([
-    supabaseAdmin.from('cup_games').select('*').order('round_order', { ascending: true }).order('game_number', { ascending: true }),
+export default async function CupPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const { viewing, current, isArchive } = await resolveSeasonFromParams(params);
+  const [{ data: games }, { data: teams }, logoUrl, lang, seasons] = await Promise.all([
+    supabaseAdmin.from('cup_games').select('*').eq('season', viewing).order('round_order', { ascending: true }).order('game_number', { ascending: true }),
     supabaseAdmin.from('teams').select('name, logo_url'),
     getLogoUrl(),
     getLang(),
+    listKnownSeasons(),
   ]);
   const T = (he: string) => st(he, lang);
   const dir = lang === 'he' ? 'rtl' : 'ltr';
@@ -50,9 +60,16 @@ export default async function CupPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={logoUrl} alt={T('ליגת ליבי')} className="h-8 w-8 object-contain rounded-full" />
           </div>
-          <p className="text-[#5a7a9a] text-[11px] font-body">{T('טורניר הגביע העונתי 2025–2026')}</p>
+          <p className="text-[#5a7a9a] text-[11px] font-body">
+            {T('טורניר הגביע העונתי')} {viewing}
+          </p>
+          <div className="mt-2 flex justify-center">
+            <SeasonPicker current={current} viewing={viewing} seasons={seasons} />
+          </div>
           <p className="hidden sm:block text-[#8aaac8] text-[10px] mt-1">{T('💡 לחצו על כל קבוצה כדי לצפות במסע שלה בטורניר')}</p>
         </div>
+
+        {isArchive && <ArchiveBanner viewing={viewing} current={current} pathname="/cup" />}
 
         {/* Mobile: stacked round cards (Option A) */}
         <div className="sm:hidden">

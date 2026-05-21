@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getLang, st } from '@/lib/get-lang';
 import { makeNameResolver } from '@/lib/team-name-resolver';
+import { getCurrentSeason } from '@/lib/current-season';
 
 type Season = {
   id: string;
@@ -327,6 +328,11 @@ export default async function HallOfFamePage() {
   let cupHolderLogo: string | null = null;
 
   try {
+    // league_history_seasons / league_history_records are intentionally
+    // all-time (the manual archive). Everything else here is the live,
+    // current-season picture: who's the league champion right now,
+    // current cup holder, this season's records.
+    const season = await getCurrentSeason();
     const [
       { data: s },
       { data: r },
@@ -341,14 +347,14 @@ export default async function HallOfFamePage() {
     ] = await Promise.all([
       supabaseAdmin.from('league_history_seasons').select('*').order('year', { ascending: false }),
       supabaseAdmin.from('league_history_records').select('*').order('sort_order'),
-      supabaseAdmin.from('playoff_series').select('series_number, team_a, team_b').order('series_number'),
-      supabaseAdmin.from('playoff_games').select('series_number, game_number, home_score, away_score, played'),
-      supabaseAdmin.from('cup_games').select('round, home_team, away_team, home_score, away_score, played'),
+      supabaseAdmin.from('playoff_series').select('series_number, team_a, team_b').eq('season', season).order('series_number'),
+      supabaseAdmin.from('playoff_games').select('series_number, game_number, home_score, away_score, played').eq('season', season),
+      supabaseAdmin.from('cup_games').select('round, home_team, away_team, home_score, away_score, played').eq('season', season),
       supabaseAdmin.from('teams').select('name, logo_url'),
       supabaseAdmin.from('players').select('id, name, points, three_pointers, team:teams(name)'),
-      supabaseAdmin.from('game_stats').select('player_id, points, three_pointers'),
-      supabaseAdmin.from('game_results').select('home_team, away_team, home_score, away_score, round'),
-      supabaseAdmin.from('standings').select('name, wins, losses, diff, division'),
+      supabaseAdmin.from('game_stats').select('player_id, points, three_pointers').eq('season', season),
+      supabaseAdmin.from('game_results').select('home_team, away_team, home_score, away_score, round').eq('season', season),
+      supabaseAdmin.from('standings').select('name, wins, losses, diff, division').eq('season', season),
     ]);
     seasons = (s ?? []) as Season[];
     records = (r ?? []) as Record[];

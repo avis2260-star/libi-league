@@ -11,6 +11,9 @@ import PlayerStatsChart from '@/components/player/PlayerStatsChart';
 import { getLang, st } from '@/lib/get-lang';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import { makeNameResolver } from '@/lib/team-name-resolver';
+import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
+import SeasonPicker from '@/components/SeasonPicker';
+import ArchiveBanner from '@/components/ArchiveBanner';
 
 // ── Position metadata ─────────────────────────────────────────────────────────
 
@@ -54,15 +57,20 @@ function getResult(stat: GameStatWithGame, teamId: string): 'W' | 'L' | 'D' | nu
 
 export default async function PlayerProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
-  const [player, gameStats, lang, { data: teamsData }] = await Promise.all([
+  const sp = await searchParams;
+  const { viewing, current, isArchive } = await resolveSeasonFromParams(sp);
+  const [player, gameStats, lang, { data: teamsData }, seasons] = await Promise.all([
     getPlayerById(id),
-    getPlayerGameStats(id),
+    getPlayerGameStats(id, viewing),
     getLang(),
     supabaseAdmin.from('teams').select('id,name'),
+    listKnownSeasons(),
   ]);
   const T = (he: string) => st(he, lang);
 
@@ -153,6 +161,15 @@ export default async function PlayerProfilePage({
 
   return (
     <div>
+
+      <div className="mb-4 flex items-center justify-end gap-3 flex-wrap" dir="rtl">
+        <SeasonPicker current={current} viewing={viewing} seasons={seasons} />
+      </div>
+      {isArchive && (
+        <div className="mb-4">
+          <ArchiveBanner viewing={viewing} current={current} pathname={`/players/${id}`} />
+        </div>
+      )}
 
       {/* ── Hero banner ─────────────────────────────────────────────────── */}
       <div className="relative overflow-hidden rounded-2xl border border-white/[0.07] bg-gradient-to-b from-[#0f1e30] to-[#0b1520] mb-8">

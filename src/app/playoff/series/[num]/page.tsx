@@ -6,6 +6,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { NORTH_TABLE, SOUTH_TABLE } from '@/lib/league-data';
 import SeriesFlyerCard from '@/components/SeriesFlyerCard';
 import { getLang, st } from '@/lib/get-lang';
+import { getCurrentSeason } from '@/lib/current-season';
 
 interface Game {
   series_number: number; game_number: number;
@@ -32,13 +33,14 @@ export default async function SeriesFlyerPage({
   const seriesNum = parseInt(num, 10);
   const lang = await getLang();
   const T = (he: string) => st(he, lang);
+  const season = await getCurrentSeason();
 
   const [{ data: seriesData }, { data: gamesData }, { data: teamsData }, { data: standingsData }] =
     await Promise.all([
-      supabaseAdmin.from('playoff_series').select('*').eq('series_number', seriesNum).maybeSingle(),
-      supabaseAdmin.from('playoff_games').select('*').eq('series_number', seriesNum).order('game_number'),
+      supabaseAdmin.from('playoff_series').select('*').eq('season', season).eq('series_number', seriesNum).maybeSingle(),
+      supabaseAdmin.from('playoff_games').select('*').eq('season', season).eq('series_number', seriesNum).order('game_number'),
       supabaseAdmin.from('teams').select('name, logo_url'),
-      supabaseAdmin.from('standings').select('name,rank,division').order('rank'),
+      supabaseAdmin.from('standings').select('name,rank,division').eq('season', season).order('rank'),
     ]);
 
   if (!seriesData) notFound();

@@ -9,6 +9,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getTeams } from '@/lib/supabase';
 import { getLang, st } from '@/lib/get-lang';
 import { makeNameResolver } from '@/lib/team-name-resolver';
+import { getCurrentSeason } from '@/lib/current-season';
 
 type ResultRow = {
   round: number;
@@ -174,16 +175,19 @@ function GameCard({
 
 // ── Section ──────────────────────────────────────────────────────────────
 export default async function LastRoundResults() {
+  const season = await getCurrentSeason();
   const [{ data: results }, { data: gamesWithVideos }, teams, lang] = await Promise.all([
     supabaseAdmin
       .from('game_results')
       .select('round,date,home_team,away_team,home_score,away_score,techni,division')
+      .eq('season', season)
       .order('round', { ascending: false }),
     // Pull every games row that has a video URL set — we'll match by team
     // pair to mark the corresponding result card with a YouTube indicator.
     supabaseAdmin
       .from('games')
       .select('video_url,game_date,home_team:teams!games_home_team_id_fkey(name),away_team:teams!games_away_team_id_fkey(name)')
+      .eq('season', season)
       .not('video_url', 'is', null)
       .order('game_date', { ascending: false }),
     getTeams(),

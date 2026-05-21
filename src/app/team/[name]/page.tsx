@@ -6,6 +6,9 @@ import { notFound } from 'next/navigation';
 import { getLang, st } from '@/lib/get-lang';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
+import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
+import SeasonPicker from '@/components/SeasonPicker';
+import ArchiveBanner from '@/components/ArchiveBanner';
 
 /* Canonical round → date map (DD.M.YY), used when game_results has no date. */
 const ROUND_DATE_BY_NUM: Record<number, string> = (() => {
@@ -46,9 +49,18 @@ function normName(s: string) {
 }
 
 /* ── Page ───────────────────────────────────────────────────────────────────── */
-export default async function TeamStatsPage({ params }: { params: Promise<{ name: string }> }) {
+export default async function TeamStatsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ name: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { name: encodedName } = await params;
   const teamName = decodeURIComponent(encodedName);
+  const sp = await searchParams;
+  const { viewing, current, isArchive } = await resolveSeasonFromParams(sp);
+  const season = viewing;
 
   /* Fetch all data in parallel */
   const [
@@ -58,18 +70,21 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
     { data: cupData },
     { data: upcomingData },
     lang,
+    seasons,
   ] = await Promise.all([
-    supabaseAdmin.from('standings').select('*').order('rank'),
-    supabaseAdmin.from('game_results').select('*').order('round'),
+    supabaseAdmin.from('standings').select('*').eq('season', season).order('rank'),
+    supabaseAdmin.from('game_results').select('*').eq('season', season).order('round'),
     supabaseAdmin.from('teams').select('id, name, logo_url, captain_name, contact_info'),
-    supabaseAdmin.from('cup_games').select('*').order('round_order'),
+    supabaseAdmin.from('cup_games').select('*').eq('season', season).order('round_order'),
     supabaseAdmin
       .from('games')
       .select('game_date, game_time, location, status, home_team_id, away_team_id, home_team:teams!games_home_team_id_fkey(name), away_team:teams!games_away_team_id_fkey(name)')
+      .eq('season', season)
       .neq('status', 'Finished')
       .gte('game_date', new Date().toISOString().slice(0, 10))
       .order('game_date', { ascending: true }),
     getLang(),
+    listKnownSeasons(),
   ]);
   const T = (he: string) => st(he, lang);
   const en = lang === 'en';
@@ -176,8 +191,15 @@ export default async function TeamStatsPage({ params }: { params: Promise<{ name
     : standing?.rank === 3 ? '#c87d3a'
     : '#7aaac8';
 
+  const pickerPath = `/team/${encodedName}`;
+
   return (
     <div className="max-w-3xl mx-auto space-y-8">
+
+      <div className="flex items-center justify-end gap-3 flex-wrap" dir="rtl">
+        <SeasonPicker current={current} viewing={viewing} seasons={seasons} />
+      </div>
+      {isArchive && <ArchiveBanner viewing={viewing} current={current} pathname={pickerPath} />}
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-5">
