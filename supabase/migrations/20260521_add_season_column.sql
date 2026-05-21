@@ -112,28 +112,26 @@ DO $$
 DECLARE
   con_name text;
 BEGIN
-  -- playoff_games: find any UNIQUE/PK constraint on (series_number, game_number)
-  -- WITHOUT season, and drop it. There should be exactly one.
-  FOR con_name IN
-    SELECT c.conname
-    FROM   pg_constraint c
-    JOIN   pg_class       t ON t.oid = c.conrelid
-    JOIN   pg_namespace   n ON n.oid = t.relnamespace
-    WHERE  n.nspname = 'public'
-      AND  t.relname = 'playoff_games'
-      AND  c.contype IN ('u','p')
-      AND  c.conkey = (
-        SELECT array_agg(a.attnum ORDER BY a.attnum)
-        FROM   pg_attribute a
-        WHERE  a.attrelid = t.oid
-          AND  a.attname IN ('series_number','game_number')
-      )
-  LOOP
-    EXECUTE format('ALTER TABLE playoff_games DROP CONSTRAINT %I', con_name);
-  END LOOP;
-
+  -- playoff_games: drop any UNIQUE/PK on EXACTLY (series_number, game_number)
+  -- in any order, with no other columns. The earlier version of this block
+  -- compared conkey against attnum-sorted arrays, which silently missed
+  -- constraints when the columns weren't defined in attnum order. The
+  -- order-independent version below uses set membership + length.
   IF EXISTS (SELECT 1 FROM information_schema.tables
              WHERE table_schema='public' AND table_name='playoff_games') THEN
+    FOR con_name IN
+      SELECT c.conname
+      FROM   pg_constraint c
+      WHERE  c.conrelid = 'public.playoff_games'::regclass
+        AND  c.contype IN ('u','p')
+        AND  array_length(c.conkey, 1) = 2
+        AND  (SELECT count(*) FROM unnest(c.conkey) k
+              JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k
+              WHERE a.attname IN ('series_number','game_number')) = 2
+    LOOP
+      EXECUTE format('ALTER TABLE playoff_games DROP CONSTRAINT %I', con_name);
+    END LOOP;
+
     -- Add the season-aware unique constraint (idempotent — only if missing).
     IF NOT EXISTS (
       SELECT 1 FROM pg_constraint
@@ -145,27 +143,23 @@ BEGIN
     END IF;
   END IF;
 
-  -- playoff_series: same treatment if it has a constraint on series_number alone.
-  FOR con_name IN
-    SELECT c.conname
-    FROM   pg_constraint c
-    JOIN   pg_class       t ON t.oid = c.conrelid
-    JOIN   pg_namespace   n ON n.oid = t.relnamespace
-    WHERE  n.nspname = 'public'
-      AND  t.relname = 'playoff_series'
-      AND  c.contype = 'u'
-      AND  c.conkey = (
-        SELECT array_agg(a.attnum ORDER BY a.attnum)
-        FROM   pg_attribute a
-        WHERE  a.attrelid = t.oid
-          AND  a.attname = 'series_number'
-      )
-  LOOP
-    EXECUTE format('ALTER TABLE playoff_series DROP CONSTRAINT %I', con_name);
-  END LOOP;
-
+  -- playoff_series: same defensive treatment — any single-column unique on
+  -- series_number alone gets dropped and replaced with (season, series_number).
   IF EXISTS (SELECT 1 FROM information_schema.tables
              WHERE table_schema='public' AND table_name='playoff_series') THEN
+    FOR con_name IN
+      SELECT c.conname
+      FROM   pg_constraint c
+      WHERE  c.conrelid = 'public.playoff_series'::regclass
+        AND  c.contype = 'u'
+        AND  array_length(c.conkey, 1) = 1
+        AND  (SELECT count(*) FROM unnest(c.conkey) k
+              JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k
+              WHERE a.attname = 'series_number') = 1
+    LOOP
+      EXECUTE format('ALTER TABLE playoff_series DROP CONSTRAINT %I', con_name);
+    END LOOP;
+
     IF NOT EXISTS (
       SELECT 1 FROM pg_constraint
       WHERE  conname = 'playoff_series_season_series_key'
