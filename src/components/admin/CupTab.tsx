@@ -5,6 +5,22 @@ import { saveCupSetting } from '@/app/admin/actions';
 
 type Team = { id: string; name: string };
 
+/**
+ * Defensive cup-date formatter — the `date` column is free text. Some rows
+ * carry ISO ("2025-12-13") from the date picker; older rows imported from
+ * the Excel parser carry "DD.MM" (e.g. "13.12"). `new Date('13.12')` is
+ * Invalid Date, so we try ISO first and fall back to showing the raw text
+ * for anything we can't parse.
+ */
+function formatCupDate(raw: string | null | undefined): string {
+  if (!raw) return '—';
+  const parsed = new Date(raw);
+  if (!isNaN(parsed.getTime())) {
+    return parsed.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
+  }
+  return raw;
+}
+
 export type CupGame = {
   id: string;
   round: string;
@@ -62,6 +78,11 @@ export default function CupTab({ teamIds: tInit, teams, games: gInit }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<CupGame | null>(null);
+  // Per-round date drafts. Keyed by round name. The admin sets one date
+  // per round and it gets stamped on every game in the round — saves
+  // re-typing the same date 4-8 times.
+  const [roundDate, setRoundDate] = useState<Record<string, string>>({});
+  const [applyingRound, setApplyingRound] = useState<string | null>(null);
 
   // Group games by round, preserving each round's earliest round_order.
   const rounds = useMemo(() => {
@@ -152,6 +173,41 @@ export default function CupTab({ teamIds: tInit, teams, games: gInit }: Props) {
       flash(err instanceof Error ? err.message : 'שגיאה', false);
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function applyDateToRound(round: string, date: string) {
+    if (!date) {
+      flash('בחר תאריך לפני החלה', false);
+      return;
+    }
+    const target = rounds.find(r => r.round === round);
+    if (!target || target.games.length === 0) return;
+
+    setApplyingRound(round);
+    try {
+      // Sequential PATCHes — fine for ≤8 games per round. Doing them one by
+      // one keeps the existing single-game endpoint as-is and avoids partial
+      // batch-failure ambiguity.
+      let updated = 0;
+      for (const g of target.games) {
+        if (g.date === date) continue; // skip no-ops
+        const res = await fetch('/api/admin/cup-games', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: g.id, date }),
+        });
+        if (!res.ok) throw new Error(`עדכון נכשל למשחק ${g.game_number}`);
+        updated++;
+      }
+      setGames(prev => prev.map(g =>
+        g.round === round ? { ...g, date } : g
+      ));
+      flash(updated === 0 ? '✓ כבר היה התאריך' : `📅 התאריך הוחל על ${updated} משחקים בסיבוב`, true);
+    } catch (err: unknown) {
+      flash(err instanceof Error ? err.message : 'שגיאה', false);
+    } finally {
+      setApplyingRound(null);
     }
   }
 
@@ -264,20 +320,49 @@ export default function CupTab({ teamIds: tInit, teams, games: gInit }: Props) {
             עדיין אין משחקים בבראקט. לחץ &quot;הוסף סיבוב חדש&quot; למטה כדי להתחיל.
           </div>
         ) : (
-          rounds.map((group) => (
+          rounds.map((group) => {
+            // Suggest the most common date already on the round's games so
+            // the admin can fix outliers without retyping from scratch.
+            const dateCounts = new Map<string, number>();
+            for (const g of group.games) {
+              if (g.date) dateCounts.set(g.date, (dateCounts.get(g.date) ?? 0) + 1);
+            }
+            const commonDate = [...dateCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
+            const draft = roundDate[group.round] ?? commonDate;
+            const isApplying = applyingRound === group.round;
+            return (
             <div key={group.round} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-3">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <h4 className="text-sm font-black text-white">
                   {group.round}
                   <span className="text-xs font-bold text-[#5a7a9a] mr-2">· {group.games.length} משחקים</span>
                 </h4>
-                <button
-                  onClick={() => addGame(group.round, group.round_order)}
-                  disabled={busyId === 'add'}
-                  className="text-xs font-bold text-orange-300 hover:text-orange-200 transition disabled:opacity-40"
-                >
-                  ➕ הוסף משחק
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-[#8aaac8]">
+                    📅 תאריך הסיבוב:
+                    <input
+                      type="date"
+                      value={draft}
+                      onChange={(e) => setRoundDate(prev => ({ ...prev, [group.round]: e.target.value }))}
+                      className="rounded-md border border-white/[0.1] bg-[#0a1525] px-2 py-1 text-xs text-white focus:border-orange-500/40 focus:outline-none"
+                    />
+                  </label>
+                  <button
+                    onClick={() => applyDateToRound(group.round, draft)}
+                    disabled={isApplying || !draft}
+                    title="עדכן את התאריך של כל המשחקים בסיבוב"
+                    className="rounded-lg border border-orange-500/40 bg-orange-500/[0.08] px-2 py-1 text-xs font-bold text-orange-300 hover:bg-orange-500/[0.15] transition disabled:opacity-40"
+                  >
+                    {isApplying ? 'מחיל...' : '↻ החל על הסיבוב'}
+                  </button>
+                  <button
+                    onClick={() => addGame(group.round, group.round_order)}
+                    disabled={busyId === 'add'}
+                    className="text-xs font-bold text-orange-300 hover:text-orange-200 transition disabled:opacity-40"
+                  >
+                    ➕ הוסף משחק
+                  </button>
+                </div>
               </div>
               <div className="space-y-2">
                 {group.games.map((g) => (
@@ -297,7 +382,8 @@ export default function CupTab({ teamIds: tInit, teams, games: gInit }: Props) {
                 ))}
               </div>
             </div>
-          ))
+            );
+          })
         )}
 
         <button
@@ -420,7 +506,7 @@ function GameRow({
         <span className="text-[10px] font-bold text-[#5a7a9a] mr-1">חוץ</span>
       </span>
       <span className="text-xs text-[#5a7a9a] tabular-nums whitespace-nowrap">
-        {game.date ? new Date(game.date).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' }) : '—'}
+        {formatCupDate(game.date)}
       </span>
       <button
         onClick={onStartEdit}
