@@ -28,6 +28,8 @@ export function queryResult(response: DbResponse) {
     neq: () => builder,
     in: () => builder,
     order: () => builder,
+    limit: () => builder,
+    range: () => builder,
     single: () => Promise.resolve(response),
     maybeSingle: () => Promise.resolve(response),
     then: (res: (v: DbResponse) => unknown, rej: (e: unknown) => unknown) =>
