@@ -62,6 +62,7 @@ const GROUPS = [
       { href: '/admin?tab=seasons',      label: '📅 עונות'     },
       { href: '/admin?tab=announcements',label: '📢 הודעות'    },
       { href: '/admin?tab=messages',     label: '📬 פניות'     },
+      { href: '/admin?tab=previews',     label: '🎤 לקראת המשחק' },
       { href: '/admin?tab=analytics',    label: '📊 אנליטיקה'  },
     ],
   },

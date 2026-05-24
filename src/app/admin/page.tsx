@@ -21,6 +21,7 @@ import CupTab, { type CupGame } from '@/components/admin/CupTab';
 import PlayoffTab from '@/components/admin/PlayoffTab';
 import SubmissionsTab, { type SubmissionRow } from '@/components/admin/SubmissionsTab';
 import PerGameStatsTab, { type PerGameInfo, type PerGameStatRow } from '@/components/admin/PerGameStatsTab';
+import MatchPreviewsTab, { type CupGameLite, type Preview } from '@/components/admin/MatchPreviewsTab';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
@@ -423,6 +424,27 @@ export default async function AdminPage({
     syncLogs = (data ?? []) as typeof syncLogs;
   }
 
+  // Match-previews tab — load every cup game in the current season and any
+  // existing previews so the editor knows which rows already have content.
+  let previewCupGames: CupGameLite[] = [];
+  let matchPreviews: Preview[] = [];
+  if (tab === 'previews') {
+    const [{ data: cupData }, { data: prData }] = await Promise.all([
+      supabaseAdmin
+        .from('cup_games')
+        .select('id, round, round_order, game_number, home_team, away_team, date, played')
+        .eq('season', season)
+        .order('round_order', { ascending: true })
+        .order('game_number', { ascending: true }),
+      supabaseAdmin
+        .from('match_previews')
+        .select('id, cup_game_id, season, home_review, away_review, is_published')
+        .eq('season', season),
+    ]);
+    previewCupGames = (cupData ?? []) as CupGameLite[];
+    matchPreviews = (prData ?? []) as Preview[];
+  }
+
   // Tabs whose displayed data is filtered by `season` — these get the picker
   // and (if viewing an archive) the warning banner. Other tabs (master data,
   // config, content) ignore the season.
@@ -470,6 +492,7 @@ export default async function AdminPage({
       {tab === 'settings'      && <LeagueSettingsTab settings={leagueSettings} />}
       {tab === 'announcements' && <AnnouncementsTab announcements={announcements} tickerSpeed={tickerSpeed} />}
       {tab === 'synclog'       && <SyncLogTab logs={syncLogs} />}
+      {tab === 'previews'      && <MatchPreviewsTab cupGames={previewCupGames} previews={matchPreviews} />}
       {tab === 'takanon'       && <TakanonTab />}
       {tab === 'forms'         && <DownloadFormsTab />}
       {tab === 'analytics'     && <AnalyticsTab />}

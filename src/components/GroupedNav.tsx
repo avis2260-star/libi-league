@@ -28,6 +28,7 @@ const GROUPS = [
     links: [
       { href: '/cup',          label: 'גביע' },
       { href: '/playoff',      label: 'פלייאוף' },
+      { href: '/events',       label: '🎤 לקראת המשחק' },
       { href: '/hall-of-fame', label: '🏆 היכל התהילה' },
     ],
   },
