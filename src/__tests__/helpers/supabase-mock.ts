@@ -27,6 +27,8 @@ export function queryResult(response: DbResponse) {
     eq: () => builder,
     neq: () => builder,
     in: () => builder,
+    or: () => builder,
+    ilike: () => builder,
     order: () => builder,
     limit: () => builder,
     range: () => builder,
