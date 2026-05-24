@@ -381,11 +381,13 @@ function ReviewBox({
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        rows={6}
-        placeholder="הפרשנות תופיע כאן אחרי לחיצה על &quot;✨ צור פרשנות&quot;. אפשר גם לכתוב ידנית."
-        className="w-full rounded-lg border border-white/[0.1] bg-[#0a1525] px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500/40 focus:outline-none resize-y leading-relaxed"
+        rows={14}
+        placeholder="הפרשנות תופיע כאן אחרי לחיצה על &quot;✨ צור פרשנות&quot;. אפשר גם לכתוב ידנית.&#10;&#10;תומך ב-markdown: **מודגש** וגם תבליטים שמתחילים ב- (מינוס)."
+        className="w-full rounded-lg border border-white/[0.1] bg-[#0a1525] px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500/40 focus:outline-none resize-y leading-relaxed font-mono"
       />
-      <p className="text-[10px] text-[#5a7a9a]">{value.length} תווים</p>
+      <p className="text-[10px] text-[#5a7a9a]">
+        {value.length} תווים · ~{Math.round(value.split(/\s+/).filter(Boolean).length)} מילים
+      </p>
     </div>
   );
 }

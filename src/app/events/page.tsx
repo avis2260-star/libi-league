@@ -7,6 +7,7 @@ import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season'
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import SeasonPicker from '@/components/SeasonPicker';
 import ArchiveBanner from '@/components/ArchiveBanner';
+import MarkdownLite from '@/components/MarkdownLite';
 
 type CupGame = {
   id: string;
@@ -406,9 +407,7 @@ function ReviewBlock({ title, body, compact }: { title: string; body: string; co
       <p className={`${compact ? 'text-[10px]' : 'text-[11px]'} font-black uppercase tracking-widest text-amber-300`}>
         {title}
       </p>
-      <p className={`${compact ? 'text-xs' : 'text-sm'} text-[#e0ecf5] leading-relaxed whitespace-pre-wrap`}>
-        {body}
-      </p>
+      <MarkdownLite text={body} compact={compact} />
     </div>
   );
 }
