@@ -31,7 +31,7 @@ import * as downloadForms from '@/app/api/admin/download-forms/route';
 // ─── shared mock handles ────────────────────────────────────────────────────
 
 const fromMock = supabaseAdmin.from as jest.Mock;
-const storageMock = supabaseAdmin.storage as {
+const storageMock = supabaseAdmin.storage as unknown as {
   createBucket: jest.Mock;
   from: jest.Mock;
 };
