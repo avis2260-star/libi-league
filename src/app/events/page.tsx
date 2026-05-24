@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getLang, st } from '@/lib/get-lang';
 import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
+import { makeNameResolver } from '@/lib/team-name-resolver';
 import SeasonPicker from '@/components/SeasonPicker';
 import ArchiveBanner from '@/components/ArchiveBanner';
 
@@ -27,7 +28,14 @@ type PreviewRow = {
   updated_at: string;
 };
 
-type TeamRow = { name: string; logo_url: string | null };
+type TeamRow = { id: string; name: string; logo_url: string | null };
+
+/** Strip quote glyphs + collapse whitespace + lowercase so cup_games.home_team
+ *  ("ראשון \"גפן\" לציון") matches teams.name ("ראשון 'גפן' לציון") despite
+ *  the curly/straight quote inconsistency that bit us on a similar page. */
+function normKey(s: string): string {
+  return s.replace(/["“”״''`׳]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
 
 type Event = {
   cupGame: CupGame;
@@ -117,16 +125,37 @@ export default async function EventsPage({
       .eq('is_published', true),
     supabaseAdmin
       .from('teams')
-      .select('name, logo_url'),
+      .select('id, name, logo_url'),
     getLang(),
     listKnownSeasons(),
   ]);
 
   const T = (he: string) => st(he, lang);
   const previews = (previewsData ?? []) as PreviewRow[];
-  const teamLogos: Record<string, string | null> = {};
-  for (const t of ((teamsData ?? []) as TeamRow[])) {
-    if (t.name) teamLogos[t.name] = t.logo_url;
+  const teamRows = (teamsData ?? []) as TeamRow[];
+
+  // Name resolver maps any cached cup_games team string (with whatever quote
+  // glyphs Excel left in it) to the canonical name from the admin Teams tab.
+  // Quote-insensitive logo map keyed on normKey ensures the lookup still
+  // works even if the resolver fails to canonicalize (e.g. team not yet
+  // renamed in admin).
+  const resolveTeamName = makeNameResolver(teamRows.map(t => ({ id: t.id, name: t.name })));
+  const logoByKey: Record<string, string | null> = {};
+  for (const t of teamRows) {
+    if (t.name) logoByKey[normKey(t.name)] = t.logo_url;
+  }
+  function lookupLogo(name: string): string | null {
+    if (!name) return null;
+    // Try canonical (admin Teams tab) first, then the raw cup_games string.
+    const canonical = resolveTeamName(name);
+    return (
+      logoByKey[normKey(canonical)] ??
+      logoByKey[normKey(name)] ??
+      null
+    );
+  }
+  function displayTeamName(name: string): string {
+    return resolveTeamName(name) || name;
   }
 
   // No published previews → empty state, but we still want to render the
@@ -195,7 +224,14 @@ export default async function EventsPage({
       ) : (
         <>
           {/* ── Featured (closest upcoming) ─────────────────────────────── */}
-          {featured && <FeaturedPreview event={featured} teamLogos={teamLogos} lang={lang as 'he' | 'en'} />}
+          {featured && (
+            <FeaturedPreview
+              event={featured}
+              lookupLogo={lookupLogo}
+              displayTeamName={displayTeamName}
+              lang={lang as 'he' | 'en'}
+            />
+          )}
 
           {/* ── Smaller cards for remaining previews ────────────────────── */}
           {secondary.length > 0 && (
@@ -205,7 +241,13 @@ export default async function EventsPage({
               </h2>
               <div className="grid gap-4 md:grid-cols-2">
                 {secondary.map((ev) => (
-                  <SecondaryPreview key={ev.cupGame.id} event={ev} teamLogos={teamLogos} lang={lang as 'he' | 'en'} />
+                  <SecondaryPreview
+                    key={ev.cupGame.id}
+                    event={ev}
+                    lookupLogo={lookupLogo}
+                    displayTeamName={displayTeamName}
+                    lang={lang as 'he' | 'en'}
+                  />
                 ))}
               </div>
             </div>
@@ -217,15 +259,18 @@ export default async function EventsPage({
 }
 
 function FeaturedPreview({
-  event, teamLogos, lang,
+  event, lookupLogo, displayTeamName, lang,
 }: {
   event: Event;
-  teamLogos: Record<string, string | null>;
+  lookupLogo: (name: string) => string | null;
+  displayTeamName: (name: string) => string;
   lang: 'he' | 'en';
 }) {
   const { cupGame: g, preview, parsedDate, isFuture } = event;
   const en = lang === 'en';
   const final = g.round.trim() === 'גמר' || /\bfinal\b/i.test(g.round);
+  const homeName = displayTeamName(g.home_team);
+  const awayName = displayTeamName(g.away_team);
 
   return (
     <article
@@ -263,26 +308,26 @@ function FeaturedPreview({
         {/* Match-up — big logos */}
         <div className="flex items-center justify-around gap-3 sm:gap-6">
           <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
-            <TeamLogo logo={teamLogos[g.home_team] ?? null} name={g.home_team} big />
+            <TeamLogo logo={lookupLogo(g.home_team)} name={homeName} big />
             <p className="text-sm sm:text-lg font-black text-white text-center truncate max-w-full font-heading">
-              {g.home_team}
+              {homeName}
             </p>
           </div>
           <span className={`text-3xl sm:text-4xl font-black tabular-nums font-stats shrink-0 ${final ? 'text-yellow-300' : 'text-amber-300'}`}>
             VS
           </span>
           <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
-            <TeamLogo logo={teamLogos[g.away_team] ?? null} name={g.away_team} big />
+            <TeamLogo logo={lookupLogo(g.away_team)} name={awayName} big />
             <p className="text-sm sm:text-lg font-black text-white text-center truncate max-w-full font-heading">
-              {g.away_team}
+              {awayName}
             </p>
           </div>
         </div>
 
         {/* Reviews — side-by-side, each titled with its team */}
         <div className="grid gap-4 md:grid-cols-2">
-          <ReviewBlock title={g.home_team} body={preview.home_review} />
-          <ReviewBlock title={g.away_team} body={preview.away_review} />
+          <ReviewBlock title={homeName} body={preview.home_review} />
+          <ReviewBlock title={awayName} body={preview.away_review} />
         </div>
 
         {/* Footer */}
@@ -302,14 +347,17 @@ function FeaturedPreview({
 }
 
 function SecondaryPreview({
-  event, teamLogos, lang,
+  event, lookupLogo, displayTeamName, lang,
 }: {
   event: Event;
-  teamLogos: Record<string, string | null>;
+  lookupLogo: (name: string) => string | null;
+  displayTeamName: (name: string) => string;
   lang: 'he' | 'en';
 }) {
   const { cupGame: g, preview, parsedDate } = event;
   const en = lang === 'en';
+  const homeName = displayTeamName(g.home_team);
+  const awayName = displayTeamName(g.away_team);
 
   return (
     <article className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 space-y-3">
@@ -325,11 +373,11 @@ function SecondaryPreview({
       </div>
 
       <div className="flex items-center gap-3">
-        <TeamLogo logo={teamLogos[g.home_team] ?? null} name={g.home_team} />
-        <span className="text-sm font-black text-white truncate">{g.home_team}</span>
+        <TeamLogo logo={lookupLogo(g.home_team)} name={homeName} />
+        <span className="text-sm font-black text-white truncate">{homeName}</span>
         <span className="text-xs font-bold text-amber-400">VS</span>
-        <TeamLogo logo={teamLogos[g.away_team] ?? null} name={g.away_team} />
-        <span className="text-sm font-black text-white truncate">{g.away_team}</span>
+        <TeamLogo logo={lookupLogo(g.away_team)} name={awayName} />
+        <span className="text-sm font-black text-white truncate">{awayName}</span>
       </div>
 
       <details className="text-sm text-[#c0d4e8] leading-relaxed group">
@@ -337,8 +385,8 @@ function SecondaryPreview({
           {en ? 'Read the preview ▾' : '▾ קרא את הפרשנות'}
         </summary>
         <div className="space-y-3 pt-1">
-          <ReviewBlock title={g.home_team} body={preview.home_review} compact />
-          <ReviewBlock title={g.away_team} body={preview.away_review} compact />
+          <ReviewBlock title={homeName} body={preview.home_review} compact />
+          <ReviewBlock title={awayName} body={preview.away_review} compact />
         </div>
       </details>
     </article>
