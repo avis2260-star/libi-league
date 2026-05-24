@@ -7,6 +7,7 @@ import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import { getTeams } from '@/lib/supabase';
 import ScoreboardStrip from '@/components/ScoreboardStrip';
 import LastRoundResults from '@/components/LastRoundResults';
+import UpcomingEvents, { type UpcomingEvent } from '@/components/UpcomingEvents';
 import { getLang, st } from '@/lib/get-lang';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { getCurrentSeason } from '@/lib/current-season';
@@ -321,6 +322,147 @@ async function getRoundDates(): Promise<Record<number, string>> {
   } catch { return {}; }
 }
 
+/* ── Upcoming events feed (league rounds + cup matches) ───────────────── */
+
+type CupRow = {
+  round: string;
+  home_team: string;
+  away_team: string;
+  date: string | null;
+  played: boolean | null;
+};
+
+/**
+ * Defensive date parser — cup_games.date is a free-text column that holds
+ * a mix of ISO ("2026-05-29"), DD.MM.YY ("29.05.26") and DD.MM ("29.05")
+ * depending on whether the date came from the date picker or the Excel
+ * cup sheet. Returns null for anything we can't make sense of.
+ *
+ * When the year is missing (DD.MM), we assume the value belongs to the
+ * current season's window — preferring the season's second year if the
+ * inferred date is earlier than its start.
+ */
+function parseFlexibleDate(s: string | null | undefined, season: string): Date | null {
+  if (!s) return null;
+  const trimmed = s.trim();
+  if (!trimmed) return null;
+
+  // ONLY trust the native Date parser for ISO-looking inputs.
+  // `new Date("5.6.26")` is silently accepted by V8 as M.D.YY → wrong year.
+  // Restricting the fast path to ISO eliminates that ambiguity; everything
+  // else falls through to the explicit DD.MM[.YY] branch below.
+  if (/^\d{4}-\d{2}-\d{2}(?:[T ]|$)/.test(trimmed)) {
+    const native = new Date(trimmed);
+    if (!isNaN(native.getTime())) return native;
+  }
+
+  const m = trimmed.match(/^(\d{1,2})[./](\d{1,2})(?:[./](\d{2,4}))?$/);
+  if (!m) return null;
+
+  const day   = parseInt(m[1], 10);
+  const month = parseInt(m[2], 10) - 1;
+  let   year: number;
+
+  if (m[3]) {
+    year = parseInt(m[3], 10);
+    if (year < 100) year += 2000;
+  } else {
+    const seasonMatch = season.match(/^(\d{4})-(\d{4})$/);
+    if (seasonMatch) {
+      const startYear = parseInt(seasonMatch[1], 10);
+      const endYear   = parseInt(seasonMatch[2], 10);
+      // Months 9-12 (Sept-Dec) → first calendar year of the season,
+      // months 1-8 (Jan-Aug) → second.
+      year = month >= 8 ? startYear : endYear;
+    } else {
+      year = new Date().getFullYear();
+    }
+  }
+  const d = new Date(year, month, day);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+async function getUpcomingCupGames(season: string): Promise<CupRow[]> {
+  try {
+    const { data } = await supabaseAdmin
+      .from('cup_games')
+      .select('round, home_team, away_team, date, played')
+      .eq('season', season)
+      .eq('played', false);
+    return (data ?? []) as CupRow[];
+  } catch { return []; }
+}
+
+/** Days from today within which an upcoming cup match earns the hero-card
+ *  treatment. Anything farther out is treated as "not soon enough" and the
+ *  section just stays hidden. */
+const CUP_HERO_WINDOW_DAYS = 14;
+
+function buildUpcomingCupEvents(opts: {
+  season: string;
+  todayIso: string;
+  cupGames: CupRow[];
+  logoLookup: (name: string) => string | null;
+  resolveTeamName: (name: string) => string;
+  lang: 'he' | 'en';
+  maxItems: number;
+}): UpcomingEvent[] {
+  const { season, todayIso, cupGames, logoLookup, resolveTeamName, lang, maxItems } = opts;
+  // Normalize "today" to midnight so daysUntil math doesn't drift by partial-day offsets.
+  const today = new Date(todayIso);
+  today.setHours(0, 0, 0, 0);
+  const events: UpcomingEvent[] = [];
+
+  const heDays = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+  const enDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  function fmtDay(d: Date) {
+    return (lang === 'en' ? enDays : heDays)[d.getDay()];
+  }
+  function fmtDate(d: Date) {
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return `${dd}.${mm}`;
+  }
+  function isoOf(d: Date) {
+    const y  = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${y}-${mm}-${dd}`;
+  }
+  function daysBetween(target: Date) {
+    return Math.round((target.getTime() - today.getTime()) / 86_400_000);
+  }
+
+  // Unplayed cup games dated today or later, but only those within the
+  // hero window (default 14 days). Far-future games are deliberately
+  // hidden — the section is meant for "the cup match is approaching",
+  // not a season-long timeline.
+  for (const c of cupGames) {
+    const d = parseFlexibleDate(c.date, season);
+    if (!d) continue;
+    d.setHours(0, 0, 0, 0);
+    const daysUntil = daysBetween(d);
+    if (daysUntil < 0 || daysUntil > CUP_HERO_WINDOW_DAYS) continue;
+
+    events.push({
+      type: 'cup',
+      isoDate: isoOf(d),
+      displayDate: fmtDate(d),
+      heDayLabel: fmtDay(d),
+      daysUntil,
+      roundName: c.round,
+      homeTeam: resolveTeamName(c.home_team),
+      awayTeam: resolveTeamName(c.away_team),
+      homeLogo: logoLookup(c.home_team),
+      awayLogo: logoLookup(c.away_team),
+    });
+  }
+
+  events.sort((a, b) => a.isoDate.localeCompare(b.isoDate));
+  return events.slice(0, maxItems);
+}
+
 // ── Primitives ─────────────────────────────────────────────────────────────────
 
 function StatCard({ value, label, icon, colorClass }: { value: string; label: string; icon: string; colorClass: string }) {
@@ -349,7 +491,7 @@ function RecordCard({ icon, label, value, sub, detail, color }: { icon: string; 
 
 export default async function HomePage() {
   const season = await getCurrentSeason();
-  const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers, lang, dbRoundDates, cupFinal] = await Promise.all([
+  const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers, lang, dbRoundDates, cupFinal, upcomingCup] = await Promise.all([
     getLiveData(season),
     getActiveAnnouncements(),
     getTeams(),
@@ -358,6 +500,7 @@ export default async function HomePage() {
     getLang(),
     getRoundDates(),
     getCupFinal(season),
+    getUpcomingCupGames(season),
   ]);
 
   const nextRoundEarly = liveData.currentRound + 1;
@@ -436,6 +579,21 @@ export default async function HomePage() {
   const nextRoundTeamNames = allNextGames.flatMap(g => [g.home, g.away]);
   const teamRosters = await getTeamRosters(nextRoundTeamNames);
 
+  // Build the upcoming cup-games list. Sits between the league scoreboard
+  // strip (next-round games above) and the last-round results (below). Pure
+  // "what cup matches are coming" reminder — league rounds are already
+  // covered by the scoreboard so we don't repeat them here.
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const upcomingEvents = buildUpcomingCupEvents({
+    season,
+    todayIso,
+    cupGames: upcomingCup,
+    logoLookup: (name: string) => logoMap[norm(dbDisplayName(name))] ?? logoMap[norm(name)] ?? null,
+    resolveTeamName: dbDisplayName,
+    lang,
+    maxItems: 6,
+  });
+
   const banners   = activeAnnouncements.filter((a) => a.type === 'banner');
   const tickers   = activeAnnouncements.filter((a) => a.type === 'ticker');
 
@@ -487,6 +645,11 @@ export default async function HomePage() {
           heDay={heDay}
           teamRosters={teamRosters}
         />
+      )}
+
+      {/* ── Unified upcoming events (rounds + cup, sorted by date) ── */}
+      {upcomingEvents.length > 0 && (
+        <UpcomingEvents events={upcomingEvents} lang={lang as 'he' | 'en'} />
       )}
 
       {/* ── Last Round Results ── */}
