@@ -22,6 +22,7 @@ import PlayoffTab from '@/components/admin/PlayoffTab';
 import SubmissionsTab, { type SubmissionRow } from '@/components/admin/SubmissionsTab';
 import PerGameStatsTab, { type PerGameInfo, type PerGameStatRow } from '@/components/admin/PerGameStatsTab';
 import MatchPreviewsTab, { type CupGameLite, type Preview } from '@/components/admin/MatchPreviewsTab';
+import SeasonReviewsTab, { type SeasonReview } from '@/components/admin/SeasonReviewsTab';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
@@ -424,6 +425,17 @@ export default async function AdminPage({
     syncLogs = (data ?? []) as typeof syncLogs;
   }
 
+  // Season reviews tab
+  let seasonReviews: SeasonReview[] = [];
+  if (tab === 'seasonreviews') {
+    const { data } = await supabaseAdmin
+      .from('season_reviews')
+      .select('id, season, review_type, title, content, is_published, created_at, updated_at')
+      .eq('season', season)
+      .order('created_at', { ascending: false });
+    seasonReviews = (data ?? []) as SeasonReview[];
+  }
+
   // Match-previews tab — load every cup game in the current season and any
   // existing previews so the editor knows which rows already have content.
   let previewCupGames: CupGameLite[] = [];
@@ -506,6 +518,7 @@ export default async function AdminPage({
       {tab === 'about'         && <AboutTab heroSubtitle={aboutHeroSubtitle} story={aboutStory} association={aboutAssociation} chairmanName={aboutChairmanName} />}
       {tab === 'accessibility' && <AccessibilityTab coordinatorName={a11yCoordinatorName} coordinatorEmail={a11yCoordinatorEmail} updatedAt={a11yUpdatedAt} />}
       {tab === 'halloffame'    && <HallOfFameTab seasons={hofSeasons} records={hofRecords} />}
+      {tab === 'seasonreviews' && <SeasonReviewsTab reviews={seasonReviews} season={season} knownSeasons={knownSeasons} />}
     </>
   );
 }
