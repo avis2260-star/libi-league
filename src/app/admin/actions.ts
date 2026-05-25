@@ -809,6 +809,159 @@ export async function upsertPlayerGameStat(input: {
   return {};
 }
 
+// ── Cup & playoff per-game stats ───────────────────────────────────────────
+// These are stored in their own tables (cup_game_stats / playoff_game_stats)
+// and intentionally do NOT touch players' cumulative season totals — cup and
+// playoff are separate competitions from the regular season leaderboard.
+
+/** Clean + clamp the three editable stat fields. */
+function cleanStatValues(input: { points: number; threePointers: number; fouls: number }) {
+  return {
+    points:         Math.max(0, Math.floor(input.points        || 0)),
+    three_pointers: Math.max(0, Math.floor(input.threePointers || 0)),
+    fouls:          Math.max(0, Math.floor(input.fouls         || 0)),
+  };
+}
+
+export async function upsertCupGameStat(input: {
+  playerId: string;
+  cupGameId: string;
+  points: number;
+  threePointers: number;
+  fouls: number;
+}): Promise<ActionResult> {
+  if (!input.playerId || !input.cupGameId) return { error: 'player + game required' };
+  const season = await getCurrentSeason();
+  const next = cleanStatValues(input);
+
+  // Derive team_id from the player (used for box-score grouping later).
+  const { data: playerRow, error: pErr } = await supabaseAdmin
+    .from('players')
+    .select('id,team_id')
+    .eq('id', input.playerId)
+    .maybeSingle();
+  if (pErr || !playerRow) return { error: pErr?.message ?? 'player not found' };
+
+  const allZero = next.points === 0 && next.three_pointers === 0 && next.fouls === 0;
+  if (allZero) {
+    // Remove any existing row so zeroed-out players don't linger as box-score noise.
+    const { error } = await supabaseAdmin
+      .from('cup_game_stats')
+      .delete()
+      .eq('cup_game_id', input.cupGameId)
+      .eq('player_id', input.playerId);
+    if (error) return { error: error.message };
+  } else {
+    const { error } = await supabaseAdmin
+      .from('cup_game_stats')
+      .upsert(
+        { cup_game_id: input.cupGameId, player_id: input.playerId, team_id: playerRow.team_id, season, ...next },
+        { onConflict: 'cup_game_id,player_id' },
+      );
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath('/admin');
+  revalidatePath('/cup');
+  return {};
+}
+
+export async function upsertPlayoffGameStat(input: {
+  playerId: string;
+  seriesNumber: number;
+  gameNumber: number;
+  points: number;
+  threePointers: number;
+  fouls: number;
+}): Promise<ActionResult> {
+  if (!input.playerId || !input.seriesNumber || !input.gameNumber) {
+    return { error: 'player + series + game required' };
+  }
+  const season = await getCurrentSeason();
+  const next = cleanStatValues(input);
+
+  const { data: playerRow, error: pErr } = await supabaseAdmin
+    .from('players')
+    .select('id,team_id')
+    .eq('id', input.playerId)
+    .maybeSingle();
+  if (pErr || !playerRow) return { error: pErr?.message ?? 'player not found' };
+
+  const allZero = next.points === 0 && next.three_pointers === 0 && next.fouls === 0;
+  if (allZero) {
+    const { error } = await supabaseAdmin
+      .from('playoff_game_stats')
+      .delete()
+      .eq('season', season)
+      .eq('series_number', input.seriesNumber)
+      .eq('game_number', input.gameNumber)
+      .eq('player_id', input.playerId);
+    if (error) return { error: error.message };
+  } else {
+    const { error } = await supabaseAdmin
+      .from('playoff_game_stats')
+      .upsert(
+        {
+          season,
+          series_number: input.seriesNumber,
+          game_number:   input.gameNumber,
+          player_id:     input.playerId,
+          team_id:       playerRow.team_id,
+          ...next,
+        },
+        { onConflict: 'season,series_number,game_number,player_id' },
+      );
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath('/admin');
+  revalidatePath('/playoff');
+  return {};
+}
+
+/** Normalize a quarter-score array: ints ≥ 0, trailing empties trimmed, or null. */
+function cleanQuarters(q: number[] | null | undefined): number[] | null {
+  if (!q || q.length === 0) return null;
+  const cleaned = q.map(n => Math.max(0, Math.floor(n || 0)));
+  return cleaned.length ? cleaned : null;
+}
+
+export async function saveCupGameQuarters(input: {
+  cupGameId: string;
+  homeQuarters: number[] | null;
+  awayQuarters: number[] | null;
+}): Promise<ActionResult> {
+  if (!input.cupGameId) return { error: 'game required' };
+  const { error } = await supabaseAdmin
+    .from('cup_games')
+    .update({ home_quarters: cleanQuarters(input.homeQuarters), away_quarters: cleanQuarters(input.awayQuarters) })
+    .eq('id', input.cupGameId);
+  if (error) return { error: error.message };
+  revalidatePath('/admin');
+  revalidatePath('/cup');
+  return {};
+}
+
+export async function savePlayoffGameQuarters(input: {
+  seriesNumber: number;
+  gameNumber: number;
+  homeQuarters: number[] | null;
+  awayQuarters: number[] | null;
+}): Promise<ActionResult> {
+  if (!input.seriesNumber || !input.gameNumber) return { error: 'series + game required' };
+  const season = await getCurrentSeason();
+  const { error } = await supabaseAdmin
+    .from('playoff_games')
+    .update({ home_quarters: cleanQuarters(input.homeQuarters), away_quarters: cleanQuarters(input.awayQuarters) })
+    .eq('season', season)
+    .eq('series_number', input.seriesNumber)
+    .eq('game_number', input.gameNumber);
+  if (error) return { error: error.message };
+  revalidatePath('/admin');
+  revalidatePath('/playoff');
+  return {};
+}
+
 // ── Ticker speed ─────────────────────────────────────────────────────────────
 
 export async function saveTickerSpeed(seconds: number): Promise<ActionResult> {

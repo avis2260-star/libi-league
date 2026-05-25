@@ -1,9 +1,18 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import { saveCupSetting } from '@/app/admin/actions';
+import { saveCupSetting, upsertCupGameStat, saveCupGameQuarters } from '@/app/admin/actions';
+import GameStatsEditor, { type RosterPlayer } from '@/components/admin/GameStatsEditor';
 
 type Team = { id: string; name: string };
+
+export type CupStatRow = {
+  cup_game_id: string;
+  player_id: string;
+  points: number;
+  three_pointers: number;
+  fouls: number;
+};
 
 /**
  * Defensive cup-date formatter — the `date` column is free text. Some rows
@@ -32,15 +41,19 @@ export type CupGame = {
   away_score: number | null;
   date: string | null;
   played: boolean;
+  home_quarters: number[] | null;
+  away_quarters: number[] | null;
 };
 
 type Props = {
   teamIds: string[];   // selected participating-team UUIDs
   teams: Team[];       // all teams in the league
   games: CupGame[];    // existing cup_games rows
+  rostersByTeam: Record<string, RosterPlayer[]>;  // team-name → roster
+  cupStats: CupStatRow[];                         // existing per-game stats
 };
 
-export default function CupTab({ teamIds: tInit, teams, games: gInit }: Props) {
+export default function CupTab({ teamIds: tInit, teams, games: gInit, rostersByTeam, cupStats }: Props) {
   // ── Section A — participating teams ────────────────────────────────────
   const [selected, setSelected] = useState<Set<string>>(new Set(tInit));
   const [savingTeams, setSavingTeams] = useState(false);
@@ -78,6 +91,18 @@ export default function CupTab({ teamIds: tInit, teams, games: gInit }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<CupGame | null>(null);
+  const [statsOpenId, setStatsOpenId] = useState<string | null>(null);
+
+  // cup_game_id → { player_id → stat values }
+  const statsByGame = useMemo(() => {
+    const m: Record<string, Record<string, { points: number; three_pointers: number; fouls: number }>> = {};
+    for (const s of cupStats) {
+      (m[s.cup_game_id] ??= {})[s.player_id] = {
+        points: s.points, three_pointers: s.three_pointers, fouls: s.fouls,
+      };
+    }
+    return m;
+  }, [cupStats]);
   // Per-round date drafts. Keyed by round name. The admin sets one date
   // per round and it gets stamped on every game in the round — saves
   // re-typing the same date 4-8 times.
@@ -366,19 +391,44 @@ export default function CupTab({ teamIds: tInit, teams, games: gInit }: Props) {
               </div>
               <div className="space-y-2">
                 {group.games.map((g) => (
-                  <GameRow
-                    key={g.id}
-                    game={g}
-                    teams={teams}
-                    isEditing={editingId === g.id}
-                    isBusy={busyId === g.id}
-                    draft={editDraft && editingId === g.id ? editDraft : null}
-                    onDraft={(d) => setEditDraft(d)}
-                    onStartEdit={() => startEdit(g)}
-                    onCancelEdit={() => { setEditingId(null); setEditDraft(null); }}
-                    onSave={saveEdit}
-                    onDelete={() => deleteGame(g.id)}
-                  />
+                  <div key={g.id} className="space-y-2">
+                    <GameRow
+                      game={g}
+                      teams={teams}
+                      isEditing={editingId === g.id}
+                      isBusy={busyId === g.id}
+                      draft={editDraft && editingId === g.id ? editDraft : null}
+                      onDraft={(d) => setEditDraft(d)}
+                      onStartEdit={() => startEdit(g)}
+                      onCancelEdit={() => { setEditingId(null); setEditDraft(null); }}
+                      onSave={saveEdit}
+                      onDelete={() => deleteGame(g.id)}
+                      statsOpen={statsOpenId === g.id}
+                      onToggleStats={() => setStatsOpenId(prev => prev === g.id ? null : g.id)}
+                    />
+                    {statsOpenId === g.id && (
+                      <div className="rounded-xl border border-orange-500/20 bg-orange-500/[0.03] p-3">
+                        <GameStatsEditor
+                          homeTeamName={g.home_team}
+                          awayTeamName={g.away_team}
+                          homePlayers={rostersByTeam[g.home_team] ?? []}
+                          awayPlayers={rostersByTeam[g.away_team] ?? []}
+                          homeScore={g.home_score}
+                          awayScore={g.away_score}
+                          initialStats={statsByGame[g.id] ?? {}}
+                          initialHomeQuarters={g.home_quarters ?? null}
+                          initialAwayQuarters={g.away_quarters ?? null}
+                          onSavePlayer={(playerId, v) => upsertCupGameStat({
+                            playerId, cupGameId: g.id,
+                            points: v.points, threePointers: v.three_pointers, fouls: v.fouls,
+                          })}
+                          onSaveQuarters={(home, away) => saveCupGameQuarters({
+                            cupGameId: g.id, homeQuarters: home, awayQuarters: away,
+                          })}
+                        />
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
@@ -401,6 +451,7 @@ export default function CupTab({ teamIds: tInit, teams, games: gInit }: Props) {
 // ── Single game row (display + inline edit) ───────────────────────────────
 function GameRow({
   game, teams, isEditing, isBusy, draft, onDraft, onStartEdit, onCancelEdit, onSave, onDelete,
+  statsOpen, onToggleStats,
 }: {
   game: CupGame;
   teams: Team[];
@@ -412,6 +463,8 @@ function GameRow({
   onCancelEdit: () => void;
   onSave: () => void;
   onDelete: () => void;
+  statsOpen: boolean;
+  onToggleStats: () => void;
 }) {
   if (isEditing && draft) {
     return (
@@ -491,7 +544,7 @@ function GameRow({
     : null;
 
   return (
-    <div className="grid grid-cols-[2fr,auto,2fr,auto,auto,auto] items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-sm">
+    <div className="grid grid-cols-[2fr,auto,2fr,auto,auto,auto,auto] items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-sm">
       <span className={`truncate font-bold ${winner === 'home' ? 'text-orange-400' : 'text-white'}`}>
         {game.home_team}
         <span className="text-[10px] font-bold text-[#5a7a9a] mr-1">בית</span>
@@ -508,6 +561,13 @@ function GameRow({
       <span className="text-xs text-[#5a7a9a] tabular-nums whitespace-nowrap">
         {formatCupDate(game.date)}
       </span>
+      <button
+        onClick={onToggleStats}
+        title="סטטיסטיקת שחקנים ורבעים"
+        className={`rounded px-2 py-0.5 text-sm transition ${statsOpen ? 'bg-orange-500/20 text-orange-300' : 'text-[#8aaac8] hover:bg-white/[0.05] hover:text-orange-300'}`}
+      >
+        📊
+      </button>
       <button
         onClick={onStartEdit}
         disabled={isBusy}
