@@ -135,9 +135,12 @@ export default async function SeasonReviewPage({
       {/* ── Upcoming / coming-soon placeholders ────────────────────────── */}
       {upcomingTypes.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-black text-[#5a7a9a] uppercase tracking-widest">
-            {T('בקרוב', 'Coming Soon')}
-          </h2>
+          {/* Only show "בקרוב" heading when there are also published reviews above */}
+          {hasAny && (
+            <h2 className="text-sm font-black text-[#5a7a9a] uppercase tracking-widest">
+              {T('בקרוב', 'Coming Soon')}
+            </h2>
+          )}
           <div className={`grid gap-3 ${upcomingTypes.length >= 2 ? 'sm:grid-cols-2' : ''} ${upcomingTypes.length === 3 ? 'lg:grid-cols-3' : ''}`}>
             {upcomingTypes.map(type => {
               const meta = MILESTONE_META[type];
@@ -162,19 +165,6 @@ export default async function SeasonReviewPage({
             })}
           </div>
         </section>
-      )}
-
-      {/* ── Fully empty state (no published, no upcoming) ───────────────── */}
-      {!hasAny && upcomingTypes.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-white/[0.08] py-16 text-center">
-          <p className="text-5xl mb-3">📭</p>
-          <p className="text-base font-bold text-[#8aaac8]">
-            {T('עדיין לא פורסמו סקירות לעונה זו.', 'No reviews published for this season yet.')}
-          </p>
-          <p className="mt-2 text-sm text-[#5a7a9a]">
-            {T('בדוק שוב בהמשך העונה.', 'Check back later in the season.')}
-          </p>
-        </div>
       )}
     </div>
   );
