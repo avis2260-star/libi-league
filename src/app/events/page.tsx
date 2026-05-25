@@ -341,7 +341,7 @@ function FeaturedPreview({
                 ? (en ? 'Upcoming match' : 'משחק קרוב')
                 : (en ? 'Past match — preview from before the game' : 'משחק שעבר — פרשנות מלפני המשחק')}
             </p>
-            <ArticleViewCounter previewId={preview.id} initialCount={preview.view_count} />
+            <ArticleViewCounter previewId={preview.id} initialCount={preview.view_count ?? 0} />
           </div>
           <Link href="/cup" className="text-xs font-bold text-amber-300 hover:text-amber-200 transition">
             {en ? 'View bracket →' : '← לבראקט המלא'}

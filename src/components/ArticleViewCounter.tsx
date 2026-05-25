@@ -26,8 +26,12 @@ function EyeIcon({ className }: { className?: string }) {
 interface ArticleViewCounterProps {
   /** match_previews.id — used to POST an increment and as the dedup key. */
   previewId: string;
-  /** Initial count read from the server so it renders immediately. */
-  initialCount: number;
+  /**
+   * Initial count read from the server so it renders immediately.
+   * Accept null/undefined defensively — Supabase PostgREST schema cache can
+   * lag after a new column is added, briefly returning null even with NOT NULL DEFAULT 0.
+   */
+  initialCount: number | null | undefined;
   /** Optional size variant for secondary (compact) cards. */
   compact?: boolean;
 }
@@ -46,7 +50,7 @@ export default function ArticleViewCounter({
   initialCount,
   compact = false,
 }: ArticleViewCounterProps) {
-  const [count, setCount] = useState(initialCount);
+  const [count, setCount] = useState(initialCount ?? 0);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,10 +81,10 @@ export default function ArticleViewCounter({
   return (
     <span
       className={`inline-flex items-center ${gapClass} ${textSize} font-bold text-[#5a7a9a] select-none`}
-      title={`${count.toLocaleString()} צפיות`}
+      title={`${(count ?? 0).toLocaleString()} צפיות`}
     >
       <EyeIcon className={`${iconSize} shrink-0`} />
-      <span className="tabular-nums">{count.toLocaleString()}</span>
+      <span className="tabular-nums">{(count ?? 0).toLocaleString()}</span>
     </span>
   );
 }
