@@ -309,6 +309,18 @@ function FeaturedPreview({
           )}
         </div>
 
+        {/* Flyer — shown above the match-up if uploaded */}
+        {preview.flyer_url && (
+          <div className="flex justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={preview.flyer_url}
+              alt={`פלייר: ${homeName} vs ${awayName}`}
+              className="max-h-[420px] w-auto max-w-full rounded-2xl border border-white/[0.12] object-contain shadow-2xl"
+            />
+          </div>
+        )}
+
         {/* Match-up — big logos */}
         <div className="flex items-center justify-around gap-3 sm:gap-6">
           <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
@@ -327,18 +339,6 @@ function FeaturedPreview({
             </p>
           </div>
         </div>
-
-        {/* Flyer — shown between match-up and reviews if uploaded */}
-        {preview.flyer_url && (
-          <div className="flex justify-center">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={preview.flyer_url}
-              alt={`פלייר: ${homeName} vs ${awayName}`}
-              className="max-h-[420px] w-auto max-w-full rounded-2xl border border-white/[0.12] object-contain shadow-2xl"
-            />
-          </div>
-        )}
 
         {/* Reviews — side-by-side, each titled with its team */}
         <div className="grid gap-4 md:grid-cols-2">
