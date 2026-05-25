@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 export type CupGameLite = {
   id: string;
@@ -20,6 +20,7 @@ export type Preview = {
   home_review: string;
   away_review: string;
   is_published: boolean;
+  flyer_url: string | null;
 };
 
 type Draft = {
@@ -51,6 +52,10 @@ export default function MatchPreviewsTab({ cupGames, previews: initial }: Props)
   // Which cup game the admin is currently editing. Null = nothing picked
   // yet, so we show the picker prompt instead of any editor.
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
+
+  // Flyer upload state per game
+  const [flyerPreviews, setFlyerPreviews] = useState<Record<string, string>>({});
+  const flyerInputRef = useRef<HTMLInputElement>(null);
 
   function flash(text: string, ok: boolean) {
     setMsg({ ok, text });
@@ -164,6 +169,94 @@ export default function MatchPreviewsTab({ cupGames, previews: initial }: Props)
     }
   }
 
+  async function handleFlyerUpload(g: CupGameLite, file: File) {
+    // We need an existing saved row to attach flyer_url to.
+    let existing = previews.find(p => p.cup_game_id === g.id);
+    if (!existing) {
+      // Auto-save a draft row first so we have an id to attach to.
+      setBusy({ id: g.id, action: 'flyer' });
+      try {
+        const res = await fetch('/api/admin/match-previews', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cup_game_id:  g.id,
+            home_review:  getDraft(g.id).home_review,
+            away_review:  getDraft(g.id).away_review,
+            is_published: getDraft(g.id).is_published,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? 'שמירה נכשלה');
+        const saved = data.preview as Preview;
+        setPreviews(prev => [...prev.filter(p => p.cup_game_id !== g.id), saved]);
+        existing = saved;
+      } catch (err: unknown) {
+        flash(err instanceof Error ? err.message : 'שגיאה בשמירה', false);
+        setBusy(null);
+        return;
+      }
+    }
+
+    setBusy({ id: g.id, action: 'flyer' });
+    try {
+      // Show local preview immediately
+      const localUrl = URL.createObjectURL(file);
+      setFlyerPreviews(prev => ({ ...prev, [g.id]: localUrl }));
+
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('id', existing.id);
+
+      const res = await fetch('/api/admin/match-previews/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'העלאה נכשלה');
+
+      // Persist public URL in local state
+      setPreviews(prev =>
+        prev.map(p => p.cup_game_id === g.id ? { ...p, flyer_url: data.flyer_url } : p)
+      );
+      // Replace local blob URL with real one
+      setFlyerPreviews(prev => ({ ...prev, [g.id]: data.flyer_url }));
+      flash('🖼️ הפלייר הועלה בהצלחה', true);
+    } catch (err: unknown) {
+      flash(err instanceof Error ? err.message : 'שגיאה בהעלאה', false);
+      // Revert local preview
+      setFlyerPreviews(prev => {
+        const copy = { ...prev };
+        delete copy[g.id];
+        return copy;
+      });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handleFlyerRemove(g: CupGameLite) {
+    const existing = previews.find(p => p.cup_game_id === g.id);
+    if (!existing?.id) return;
+    setBusy({ id: g.id, action: 'flyer-remove' });
+    try {
+      const res = await fetch('/api/admin/match-previews', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: existing.id, flyer_url: null }),
+      });
+      if (!res.ok) throw new Error('הסרה נכשלה');
+      setPreviews(prev => prev.map(p => p.cup_game_id === g.id ? { ...p, flyer_url: null } : p));
+      setFlyerPreviews(prev => {
+        const copy = { ...prev };
+        delete copy[g.id];
+        return copy;
+      });
+      flash('🗑️ הפלייר הוסר', true);
+    } catch (err: unknown) {
+      flash(err instanceof Error ? err.message : 'שגיאה', false);
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <div dir="rtl" className="space-y-6 max-w-5xl">
       <div>
@@ -265,6 +358,13 @@ export default function MatchPreviewsTab({ cupGames, previews: initial }: Props)
                  existing.is_published !== draft.is_published);
               const isUnsaved = !existing && (draft.home_review || draft.away_review);
 
+              // Flyer: prefer local preview (optimistic) → saved URL → null
+              const currentFlyer =
+                flyerPreviews[g.id] ??
+                existing?.flyer_url ??
+                null;
+              const flyerBusy = isBusy('flyer') || isBusy('flyer-remove');
+
               return (
                 <div
                   className={`rounded-2xl border p-5 space-y-4 ${
@@ -331,6 +431,73 @@ export default function MatchPreviewsTab({ cupGames, previews: initial }: Props)
                       onGenerate={() => handleGenerate(g, 'away')}
                       generating={isBusy('gen-away')}
                     />
+                  </div>
+
+                  {/* ── Flyer upload ─────────────────────────────────────── */}
+                  <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4 space-y-3">
+                    <p className="text-xs font-black uppercase tracking-widest text-[#8aaac8]">
+                      🖼️ פלייר / עלון
+                    </p>
+
+                    {currentFlyer ? (
+                      <div className="flex items-start gap-4 flex-wrap">
+                        {/* Thumbnail */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={currentFlyer}
+                          alt="פלייר"
+                          className="h-32 w-auto max-w-[160px] rounded-lg border border-white/[0.1] object-cover shadow-lg"
+                        />
+                        <div className="flex flex-col gap-2">
+                          <p className="text-xs text-[#8aaac8]">הפלייר יוצג בדף /events מעל פרשנות המשחק.</p>
+                          <div className="flex gap-2">
+                            {/* Replace */}
+                            <label className={`cursor-pointer rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-1.5 text-xs font-bold text-[#c8d8e8] hover:bg-white/[0.08] transition ${flyerBusy ? 'opacity-40 cursor-not-allowed' : ''}`}>
+                              {flyerBusy ? '⏳ ...' : '🔄 החלף'}
+                              <input
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp,image/gif"
+                                className="hidden"
+                                disabled={flyerBusy}
+                                onChange={e => {
+                                  const f = e.target.files?.[0];
+                                  if (f) handleFlyerUpload(g, f);
+                                  e.target.value = '';
+                                }}
+                              />
+                            </label>
+                            {/* Remove */}
+                            <button
+                              onClick={() => handleFlyerRemove(g)}
+                              disabled={flyerBusy}
+                              className="rounded-lg border border-red-500/30 bg-red-500/[0.08] px-3 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/[0.18] transition disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              🗑️ הסר
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <label className={`flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/[0.12] bg-white/[0.01] px-4 py-6 cursor-pointer hover:border-orange-500/40 hover:bg-orange-500/[0.03] transition ${flyerBusy ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''}`}>
+                        <span className="text-3xl">{flyerBusy ? '⏳' : '📎'}</span>
+                        <span className="text-xs font-bold text-[#8aaac8] text-center">
+                          {flyerBusy ? 'מעלה פלייר...' : 'לחץ להעלאת פלייר (JPG / PNG / WEBP)'}
+                        </span>
+                        <span className="text-[10px] text-[#5a7a9a]">הפלייר יוצג בראש כרטיס המשחק ב-/events</span>
+                        <input
+                          ref={flyerInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/gif"
+                          className="hidden"
+                          disabled={flyerBusy}
+                          onChange={e => {
+                            const f = e.target.files?.[0];
+                            if (f) handleFlyerUpload(g, f);
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-between gap-3 flex-wrap pt-1">

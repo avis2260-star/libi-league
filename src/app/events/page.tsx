@@ -29,6 +29,7 @@ type PreviewRow = {
   is_published: boolean;
   updated_at: string;
   view_count: number;
+  flyer_url: string | null;
 };
 
 type TeamRow = { id: string; name: string; logo_url: string | null };
@@ -123,7 +124,7 @@ export default async function EventsPage({
   const [{ data: previewsData }, { data: teamsData }, lang, seasons] = await Promise.all([
     supabaseAdmin
       .from('match_previews')
-      .select('id, cup_game_id, home_review, away_review, is_published, updated_at, view_count')
+      .select('id, cup_game_id, home_review, away_review, is_published, updated_at, view_count, flyer_url')
       .eq('season', viewing)
       .eq('is_published', true),
     supabaseAdmin
@@ -327,6 +328,18 @@ function FeaturedPreview({
           </div>
         </div>
 
+        {/* Flyer — shown between match-up and reviews if uploaded */}
+        {preview.flyer_url && (
+          <div className="flex justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={preview.flyer_url}
+              alt={`פלייר: ${homeName} vs ${awayName}`}
+              className="max-h-[420px] w-auto max-w-full rounded-2xl border border-white/[0.12] object-contain shadow-2xl"
+            />
+          </div>
+        )}
+
         {/* Reviews — side-by-side, each titled with its team */}
         <div className="grid gap-4 md:grid-cols-2">
           <ReviewBlock title={homeName} body={preview.home_review} />
@@ -377,6 +390,15 @@ function SecondaryPreview({
           </p>
         )}
       </div>
+
+      {preview.flyer_url && (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={preview.flyer_url}
+          alt={`פלייר: ${homeName} vs ${awayName}`}
+          className="w-full max-h-48 rounded-xl border border-white/[0.08] object-cover shadow-md"
+        />
+      )}
 
       <div className="flex items-center gap-3">
         <TeamLogo logo={lookupLogo(g.home_team)} name={homeName} />
