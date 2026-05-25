@@ -3,8 +3,11 @@ export const dynamic = 'force-dynamic';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import StageCardsBracket from '@/components/cup/StageCardsBracket';
 import JourneyBracket from '@/components/cup/JourneyBracket';
+import PublicBoxScore from '@/components/PublicBoxScore';
 import { getLang, st } from '@/lib/get-lang';
 import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
+import { makeNameResolver } from '@/lib/team-name-resolver';
+import { bucketGameStats, type RawStat } from '@/lib/box-score';
 import SeasonPicker from '@/components/SeasonPicker';
 import ArchiveBanner from '@/components/ArchiveBanner';
 
@@ -22,13 +25,15 @@ export default async function CupPage({
 }) {
   const params = await searchParams;
   const { viewing, current, isArchive } = await resolveSeasonFromParams(params);
-  const [{ data: games }, { data: teams }, { data: settings }, logoUrl, lang, seasons] = await Promise.all([
+  const [{ data: games }, { data: teams }, { data: settings }, { data: cupStatsData }, { data: playersData }, logoUrl, lang, seasons] = await Promise.all([
     supabaseAdmin.from('cup_games').select('*').eq('season', viewing).order('round_order', { ascending: true }).order('game_number', { ascending: true }),
     supabaseAdmin.from('teams').select('id, name, logo_url'),
     supabaseAdmin
       .from('league_settings')
       .select('key,value')
       .eq('key', 'cup_tournament_teams'),
+    supabaseAdmin.from('cup_game_stats').select('cup_game_id, player_id, team_id, points, three_pointers, fouls').eq('season', viewing),
+    supabaseAdmin.from('players').select('id, name, jersey_number'),
     getLogoUrl(),
     getLang(),
     listKnownSeasons(),
@@ -55,6 +60,34 @@ export default async function CupPage({
   } catch { /* malformed — ignore */ }
   const teamById = new Map((teams ?? []).map((t) => [t.id, t]));
   const participatingTeams = cupTeamIds.map((id) => teamById.get(id)).filter((t): t is NonNullable<typeof t> => !!t);
+
+  // ── Box scores: per-game player stats + quarter breakdown ────────────────
+  const resolveName = makeNameResolver((teams ?? []).map((t) => ({ id: t.id, name: t.name })));
+  const idByTeamName = new Map((teams ?? []).map((t) => [t.name, t.id]));
+  const teamNameToId = (name: string) => idByTeamName.get(resolveName(name)) ?? null;
+
+  const playerById = new Map(
+    (playersData ?? []).map((p) => [p.id, { name: p.name, jersey_number: p.jersey_number }]),
+  );
+
+  const cupStatsByGame = new Map<string, RawStat[]>();
+  for (const s of (cupStatsData ?? []) as (RawStat & { cup_game_id: string })[]) {
+    const arr = cupStatsByGame.get(s.cup_game_id) ?? [];
+    arr.push(s);
+    cupStatsByGame.set(s.cup_game_id, arr);
+  }
+
+  const boxScores = cupGames
+    .map((g) => {
+      const statRows = cupStatsByGame.get(g.id) ?? [];
+      const hasQuarters = (g.home_quarters?.length ?? 0) > 0 || (g.away_quarters?.length ?? 0) > 0;
+      if (statRows.length === 0 && !hasQuarters) return null;
+      const { homePlayers, awayPlayers } = bucketGameStats(
+        statRows, playerById, teamNameToId(g.home_team), teamNameToId(g.away_team),
+      );
+      return { game: g, homePlayers, awayPlayers };
+    })
+    .filter((b): b is NonNullable<typeof b> => b !== null);
 
   return (
     <>
@@ -114,6 +147,30 @@ export default async function CupPage({
         <div className="hidden sm:block">
           <JourneyBracket games={cupGames} teamLogos={teamLogos} />
         </div>
+
+        {/* Box scores — games with recorded player stats / quarter breakdown */}
+        {boxScores.length > 0 && (
+          <div className="mx-auto max-w-3xl space-y-2 pt-2">
+            <h2 className="text-sm font-black uppercase tracking-widest text-[#8aaac8]">
+              📋 {T('גיליונות משחק')}
+            </h2>
+            {boxScores.map(({ game, homePlayers, awayPlayers }) => (
+              <PublicBoxScore
+                key={game.id}
+                lang={lang as 'he' | 'en'}
+                gameLabel={T(game.round)}
+                homeTeamName={T(game.home_team)}
+                awayTeamName={T(game.away_team)}
+                homeScore={game.home_score}
+                awayScore={game.away_score}
+                homeQuarters={game.home_quarters ?? null}
+                awayQuarters={game.away_quarters ?? null}
+                homePlayers={homePlayers}
+                awayPlayers={awayPlayers}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </>
   );

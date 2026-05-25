@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { upsertPlayoffGameStat, savePlayoffGameQuarters } from '@/app/admin/actions';
+import GameStatsEditor, { type RosterPlayer } from '@/components/admin/GameStatsEditor';
 
 interface Series {
   series_number: number;
@@ -16,6 +18,16 @@ interface Game {
   away_score: number | null;
   played: boolean;
   game_date: string | null;
+  home_quarters: number[] | null;
+  away_quarters: number[] | null;
+}
+interface PlayoffStatRow {
+  series_number: number;
+  game_number: number;
+  player_id: string;
+  points: number;
+  three_pointers: number;
+  fouls: number;
 }
 
 function homeFor(s: Series, gNum: number) { return gNum === 2 ? s.team_b : s.team_a; }
@@ -86,15 +98,20 @@ export default function PlayoffTab() {
   const [teamDraft, setTeamDraft]   = useState<Record<number, { a: string; b: string }>>({});
   const [gameDraft, setGameDraft]   = useState<Record<string, { hs: string; as: string; date: string; played: boolean }>>({});
   const [saving, setSaving]         = useState<string | null>(null);
+  const [rostersByTeam, setRostersByTeam] = useState<Record<string, RosterPlayer[]>>({});
+  const [stats, setStats]           = useState<PlayoffStatRow[]>([]);
+  const [statsOpenKey, setStatsOpenKey] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/admin/playoff')
       .then(r => r.json())
-      .then(({ series: s, games: g, northTeams: nt, southTeams: st }) => {
+      .then(({ series: s, games: g, northTeams: nt, southTeams: st, rostersByTeam: rb, stats: stt }) => {
         setSeries(s);
         setGames(g);
         setNorthTeams(nt ?? []);
         setSouthTeams(st ?? []);
+        setRostersByTeam(rb ?? {});
+        setStats(stt ?? []);
         const td: Record<number, { a: string; b: string }> = {};
         for (const sr of s) td[sr.series_number] = { a: sr.team_a, b: sr.team_b };
         setTeamDraft(td);
@@ -111,6 +128,20 @@ export default function PlayoffTab() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  // "series-game" → { player_id → stat values }
+  const statsByGame = useMemo(() => {
+    const m: Record<string, Record<string, { points: number; three_pointers: number; fouls: number }>> = {};
+    for (const s of stats) {
+      const key = `${s.series_number}-${s.game_number}`;
+      (m[key] ??= {})[s.player_id] = { points: s.points, three_pointers: s.three_pointers, fouls: s.fouls };
+    }
+    return m;
+  }, [stats]);
+
+  function gameRow(sNum: number, gNum: number): Game | undefined {
+    return games.find(g => g.series_number === sNum && g.game_number === gNum);
+  }
 
   function getGD(sNum: number, gNum: number) {
     return gameDraft[`${sNum}-${gNum}`] ?? { hs: '', as: '', date: '', played: false };
@@ -179,11 +210,14 @@ export default function PlayoffTab() {
     });
     setSaving(null);
     if (res.ok) {
-      const updated = {
+      const prevGame = gameRow(sNum, gNum);
+      const updated: Game = {
         series_number: sNum, game_number: gNum,
         home_score: d.hs !== '' ? parseInt(d.hs) : null,
         away_score: d.as !== '' ? parseInt(d.as) : null,
         played: d.played, game_date: d.date || null,
+        home_quarters: prevGame?.home_quarters ?? null,
+        away_quarters: prevGame?.away_quarters ?? null,
       };
       setGames(prev => {
         const exists = prev.find(g => g.series_number === sNum && g.game_number === gNum);
@@ -311,7 +345,45 @@ export default function PlayoffTab() {
                           className="rounded-lg bg-gray-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-600 transition disabled:opacity-50">
                           {saving === gKey ? 'שומר...' : '✓ שמור'}
                         </button>
+                        <button
+                          onClick={() => setStatsOpenKey(prev => prev === gKey ? null : gKey)}
+                          disabled={!s.team_a || !s.team_b}
+                          title="סטטיסטיקת שחקנים ורבעים"
+                          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed ${
+                            statsOpenKey === gKey ? 'bg-orange-500/20 text-orange-300' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                          }`}
+                        >
+                          📊 סטטיסטיקה
+                        </button>
                       </div>
+
+                      {statsOpenKey === gKey && s.team_a && s.team_b && (() => {
+                        const row = gameRow(s.series_number, gNum);
+                        const homeScore = d.hs !== '' ? parseInt(d.hs) : (row?.home_score ?? null);
+                        const awayScore = d.as !== '' ? parseInt(d.as) : (row?.away_score ?? null);
+                        return (
+                          <div dir="rtl" className="rounded-xl border border-orange-500/20 bg-orange-500/[0.03] p-3 mt-1">
+                            <GameStatsEditor
+                              homeTeamName={homeTeam}
+                              awayTeamName={awayTeam}
+                              homePlayers={rostersByTeam[homeTeam] ?? []}
+                              awayPlayers={rostersByTeam[awayTeam] ?? []}
+                              homeScore={homeScore}
+                              awayScore={awayScore}
+                              initialStats={statsByGame[gKey.replace('game-', '')] ?? {}}
+                              initialHomeQuarters={row?.home_quarters ?? null}
+                              initialAwayQuarters={row?.away_quarters ?? null}
+                              onSavePlayer={(playerId, v) => upsertPlayoffGameStat({
+                                playerId, seriesNumber: s.series_number, gameNumber: gNum,
+                                points: v.points, threePointers: v.three_pointers, fouls: v.fouls,
+                              })}
+                              onSaveQuarters={(home, away) => savePlayoffGameQuarters({
+                                seriesNumber: s.series_number, gameNumber: gNum, homeQuarters: home, awayQuarters: away,
+                              })}
+                            />
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 })}

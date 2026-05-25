@@ -17,11 +17,14 @@ import TakanonTab from '@/components/admin/TakanonTab';
 import DownloadFormsTab from '@/components/admin/DownloadFormsTab';
 import AnalyticsTab from '@/components/admin/AnalyticsTab';
 import RulesTab, { type Rule } from '@/components/admin/RulesTab';
-import CupTab, { type CupGame } from '@/components/admin/CupTab';
+import CupTab, { type CupGame, type CupStatRow } from '@/components/admin/CupTab';
+import { type RosterPlayer } from '@/components/admin/GameStatsEditor';
+import { buildRostersByName } from '@/lib/build-rosters';
 import PlayoffTab from '@/components/admin/PlayoffTab';
 import SubmissionsTab, { type SubmissionRow } from '@/components/admin/SubmissionsTab';
 import PerGameStatsTab, { type PerGameInfo, type PerGameStatRow } from '@/components/admin/PerGameStatsTab';
 import MatchPreviewsTab, { type CupGameLite, type Preview } from '@/components/admin/MatchPreviewsTab';
+import SeasonReviewsTab, { type SeasonReview } from '@/components/admin/SeasonReviewsTab';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
@@ -239,14 +242,17 @@ export default async function AdminPage({
   let cupTeamIds: string[] = [];
   let cupTeams: { id: string; name: string }[] = [];
   let cupGames: CupGame[] = [];
+  let cupRostersByTeam: Record<string, RosterPlayer[]> = {};
+  let cupStats: CupStatRow[] = [];
   if (tab === 'cup') {
-    const [{ data: settings }, { data: teamsList }, { data: cupGamesData }] = await Promise.all([
+    const [{ data: settings }, { data: teamsList }, { data: cupGamesData }, { data: playersData }] = await Promise.all([
       supabaseAdmin
         .from('league_settings')
         .select('key,value')
         .eq('key', 'cup_tournament_teams'),
       supabaseAdmin.from('teams').select('id,name').order('name'),
       supabaseAdmin.from('cup_games').select('*').order('round_order').order('game_number'),
+      supabaseAdmin.from('players').select('id,name,jersey_number,team_id').eq('is_active', true).order('name'),
     ]);
     const teamsRaw = (settings ?? []).find((r) => r.key === 'cup_tournament_teams')?.value;
     if (teamsRaw) {
@@ -257,6 +263,23 @@ export default async function AdminPage({
     }
     cupTeams = (teamsList ?? []) as { id: string; name: string }[];
     cupGames = (cupGamesData ?? []) as CupGame[];
+
+    // Rosters keyed by the team-name strings that appear on cup games.
+    const cupTeamNames = [...new Set(cupGames.flatMap(g => [g.home_team, g.away_team]))];
+    cupRostersByTeam = buildRostersByName(
+      cupTeamNames,
+      cupTeams,
+      (playersData ?? []) as { id: string; name: string; jersey_number: number | null; team_id: string | null }[],
+    );
+
+    const cupGameIds = cupGames.map(g => g.id);
+    if (cupGameIds.length) {
+      const { data: statRows } = await supabaseAdmin
+        .from('cup_game_stats')
+        .select('cup_game_id,player_id,points,three_pointers,fouls')
+        .in('cup_game_id', cupGameIds);
+      cupStats = (statRows ?? []) as CupStatRow[];
+    }
   }
 
   // League rules tab
@@ -424,6 +447,17 @@ export default async function AdminPage({
     syncLogs = (data ?? []) as typeof syncLogs;
   }
 
+  // Season reviews tab
+  let seasonReviews: SeasonReview[] = [];
+  if (tab === 'seasonreviews') {
+    const { data } = await supabaseAdmin
+      .from('season_reviews')
+      .select('id, season, review_type, title, content, is_published, created_at, updated_at')
+      .eq('season', season)
+      .order('created_at', { ascending: false });
+    seasonReviews = (data ?? []) as SeasonReview[];
+  }
+
   // Match-previews tab — load every cup game in the current season and any
   // existing previews so the editor knows which rows already have content.
   let previewCupGames: CupGameLite[] = [];
@@ -497,7 +531,7 @@ export default async function AdminPage({
       {tab === 'forms'         && <DownloadFormsTab />}
       {tab === 'analytics'     && <AnalyticsTab />}
       {tab === 'rules'         && <RulesTab rules={rules} />}
-      {tab === 'cup'           && <CupTab teamIds={cupTeamIds} teams={cupTeams} games={cupGames} />}
+      {tab === 'cup'           && <CupTab teamIds={cupTeamIds} teams={cupTeams} games={cupGames} rostersByTeam={cupRostersByTeam} cupStats={cupStats} />}
       {tab === 'playoff'       && <PlayoffTab />}
       {tab === 'submissions'   && <SubmissionsTab submissions={submissions} />}
       {tab === 'gamestats'     && <PerGameStatsTab games={perGameInfos} existingStats={perGameExisting} initialRound={perGameInitialRound} />}
@@ -506,6 +540,7 @@ export default async function AdminPage({
       {tab === 'about'         && <AboutTab heroSubtitle={aboutHeroSubtitle} story={aboutStory} association={aboutAssociation} chairmanName={aboutChairmanName} />}
       {tab === 'accessibility' && <AccessibilityTab coordinatorName={a11yCoordinatorName} coordinatorEmail={a11yCoordinatorEmail} updatedAt={a11yUpdatedAt} />}
       {tab === 'halloffame'    && <HallOfFameTab seasons={hofSeasons} records={hofRecords} />}
+      {tab === 'seasonreviews' && <SeasonReviewsTab reviews={seasonReviews} season={season} knownSeasons={knownSeasons} />}
     </>
   );
 }
