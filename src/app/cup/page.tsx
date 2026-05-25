@@ -138,39 +138,51 @@ export default async function CupPage({
 
         {isArchive && <ArchiveBanner viewing={viewing} current={current} pathname="/cup" />}
 
-        {/* Mobile: stacked round cards (Option A) */}
-        <div className="sm:hidden">
-          <StageCardsBracket games={cupGames} teamLogos={teamLogos} />
-        </div>
+        {/* Game IDs that have recorded stats/quarters — used by bracket
+            components to render clickable links to the box-score section. */}
+        {(() => {
+          const statsGameIds = boxScores.map((b) => b.game.id);
+          return (
+            <>
+              {/* Mobile: stacked round cards */}
+              <div className="sm:hidden">
+                <StageCardsBracket games={cupGames} teamLogos={teamLogos} statsGameIds={statsGameIds} />
+              </div>
 
-        {/* Desktop/tablet: interactive bracket with team-journey overlay (Option E) */}
-        <div className="hidden sm:block">
-          <JourneyBracket games={cupGames} teamLogos={teamLogos} />
-        </div>
+              {/* Desktop/tablet: interactive bracket with team-journey overlay */}
+              <div className="hidden sm:block">
+                <JourneyBracket games={cupGames} teamLogos={teamLogos} statsGameIds={statsGameIds} />
+              </div>
 
-        {/* Box scores — games with recorded player stats / quarter breakdown */}
-        {boxScores.length > 0 && (
-          <div className="mx-auto max-w-3xl space-y-2 pt-2">
-            <h2 className="text-sm font-black uppercase tracking-widest text-[#8aaac8]">
-              📋 {T('גיליונות משחק')}
-            </h2>
-            {boxScores.map(({ game, homePlayers, awayPlayers }) => (
-              <PublicBoxScore
-                key={game.id}
-                lang={lang as 'he' | 'en'}
-                gameLabel={T(game.round)}
-                homeTeamName={T(game.home_team)}
-                awayTeamName={T(game.away_team)}
-                homeScore={game.home_score}
-                awayScore={game.away_score}
-                homeQuarters={game.home_quarters ?? null}
-                awayQuarters={game.away_quarters ?? null}
-                homePlayers={homePlayers}
-                awayPlayers={awayPlayers}
-              />
-            ))}
-          </div>
-        )}
+              {/* Box scores — games with recorded player stats / quarter breakdown */}
+              {boxScores.length > 0 && (
+                <div className="mx-auto max-w-3xl space-y-2 pt-2">
+                  <h2 className="text-sm font-black uppercase tracking-widest text-[#8aaac8]">
+                    📋 {T('גיליונות משחק')}
+                  </h2>
+                  {boxScores.map(({ game, homePlayers, awayPlayers }) => (
+                    /* id anchor so bracket / events links can scroll here */
+                    <div key={game.id} id={`game-${game.id}`} className="scroll-mt-20">
+                      <PublicBoxScore
+                        lang={lang as 'he' | 'en'}
+                        gameLabel={T(game.round)}
+                        homeTeamName={T(game.home_team)}
+                        awayTeamName={T(game.away_team)}
+                        homeScore={game.home_score}
+                        awayScore={game.away_score}
+                        homeQuarters={game.home_quarters ?? null}
+                        awayQuarters={game.away_quarters ?? null}
+                        homePlayers={homePlayers}
+                        awayPlayers={awayPlayers}
+                        defaultOpen
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
     </>
   );

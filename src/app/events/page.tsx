@@ -165,13 +165,36 @@ export default async function EventsPage({
   // No published previews → empty state, but we still want to render the
   // page chrome (header, picker) so users understand they're on the right page.
   let events: Event[] = [];
+  let statsGameIdsSet = new Set<string>();
+
   if (previews.length > 0) {
     const ids = previews.map((p) => p.cup_game_id);
-    const { data: cupData } = await supabaseAdmin
-      .from('cup_games')
-      .select('id, round, round_order, game_number, home_team, away_team, date, played')
-      .in('id', ids);
+    const [{ data: cupData }, { data: statsRows }] = await Promise.all([
+      supabaseAdmin
+        .from('cup_games')
+        .select('id, round, round_order, game_number, home_team, away_team, date, played')
+        .in('id', ids),
+      // Fetch distinct game IDs that have stats (player stats or quarters).
+      // We only need cup_game_id — one row per game is enough.
+      supabaseAdmin
+        .from('cup_game_stats')
+        .select('cup_game_id')
+        .in('cup_game_id', ids),
+    ]);
     const cupGames = (cupData ?? []) as CupGame[];
+
+    // Also check for games with quarter data (no player stats but has quarters).
+    // We detect this from the cup_games rows themselves:
+    const gamesWithQuarters = cupGames
+      .filter((g: CupGame & { home_quarters?: number[] | null; away_quarters?: number[] | null }) =>
+        (g.home_quarters?.length ?? 0) > 0 || (g.away_quarters?.length ?? 0) > 0,
+      )
+      .map((g) => g.id);
+
+    statsGameIdsSet = new Set([
+      ...(statsRows ?? []).map((r: { cup_game_id: string }) => r.cup_game_id),
+      ...gamesWithQuarters,
+    ]);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -234,6 +257,7 @@ export default async function EventsPage({
               lookupLogo={lookupLogo}
               displayTeamName={displayTeamName}
               lang={lang as 'he' | 'en'}
+              hasStats={statsGameIdsSet.has(featured.cupGame.id)}
             />
           )}
 
@@ -251,6 +275,7 @@ export default async function EventsPage({
                     lookupLogo={lookupLogo}
                     displayTeamName={displayTeamName}
                     lang={lang as 'he' | 'en'}
+                    hasStats={statsGameIdsSet.has(ev.cupGame.id)}
                   />
                 ))}
               </div>
@@ -263,12 +288,13 @@ export default async function EventsPage({
 }
 
 function FeaturedPreview({
-  event, lookupLogo, displayTeamName, lang,
+  event, lookupLogo, displayTeamName, lang, hasStats,
 }: {
   event: Event;
   lookupLogo: (name: string) => string | null;
   displayTeamName: (name: string) => string;
   lang: 'he' | 'en';
+  hasStats?: boolean;
 }) {
   const { cupGame: g, preview, parsedDate, isFuture } = event;
   const en = lang === 'en';
@@ -368,9 +394,19 @@ function FeaturedPreview({
             </p>
             <ArticleViewCounter previewId={preview.id} initialCount={preview.view_count ?? 0} />
           </div>
-          <Link href="/cup" className="text-xs font-bold text-amber-300 hover:text-amber-200 transition">
-            {en ? 'View bracket →' : '← לבראקט המלא'}
-          </Link>
+          <div className="flex items-center gap-3">
+            {hasStats && (
+              <Link
+                href={`/cup#game-${g.id}`}
+                className="inline-flex items-center gap-1 text-xs font-bold text-emerald-300 hover:text-emerald-200 transition"
+              >
+                📊 {en ? 'Box score' : 'גיליון משחק'}
+              </Link>
+            )}
+            <Link href="/cup" className="text-xs font-bold text-amber-300 hover:text-amber-200 transition">
+              {en ? 'View bracket →' : '← לבראקט המלא'}
+            </Link>
+          </div>
         </div>
       </div>
     </article>
@@ -378,12 +414,13 @@ function FeaturedPreview({
 }
 
 function SecondaryPreview({
-  event, lookupLogo, displayTeamName, lang,
+  event, lookupLogo, displayTeamName, lang, hasStats,
 }: {
   event: Event;
   lookupLogo: (name: string) => string | null;
   displayTeamName: (name: string) => string;
   lang: 'he' | 'en';
+  hasStats?: boolean;
 }) {
   const { cupGame: g, preview, parsedDate } = event;
   const en = lang === 'en';
@@ -431,7 +468,17 @@ function SecondaryPreview({
       </details>
 
       {/* Footer */}
-      <div className="flex items-center justify-end pt-2 border-t border-white/[0.05]">
+      <div className="flex items-center justify-between pt-2 border-t border-white/[0.05]">
+        {hasStats ? (
+          <Link
+            href={`/cup#game-${g.id}`}
+            className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300 hover:text-emerald-200 transition"
+          >
+            📊 {en ? 'Box score' : 'גיליון משחק'}
+          </Link>
+        ) : (
+          <span />
+        )}
         <ArticleViewCounter previewId={preview.id} initialCount={preview.view_count} compact />
       </div>
     </article>

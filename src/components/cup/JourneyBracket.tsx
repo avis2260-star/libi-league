@@ -54,11 +54,12 @@ function TeamLogo({ name, logos, size = 'sm' }: { name: string; logos: Record<st
 
 /* ── Match card with focus/dim states ────────────────────────────────── */
 function MatchCard({
-  game, teamLogos, isFinal, focused, dimmed, focusedTeam, onClickTeam,
+  game, teamLogos, isFinal, focused, dimmed, focusedTeam, onClickTeam, statsLink,
 }: {
   game: CupGame; teamLogos: Record<string, string>; isFinal?: boolean;
   focused: boolean; dimmed: boolean; focusedTeam: string | null;
   onClickTeam: (name: string) => void;
+  statsLink?: string;
 }) {
   const { t, lang } = useLang();
   const en = lang === 'en';
@@ -138,6 +139,15 @@ function MatchCard({
           </span>
         )}
       </button>
+      {statsLink && (
+        <a
+          href={statsLink}
+          onClick={(e) => e.stopPropagation()}
+          className="flex items-center justify-center gap-1 px-2.5 py-1 border-t border-white/[0.04] bg-orange-500/[0.06] hover:bg-orange-500/15 transition-colors"
+        >
+          <span className="text-[10px] font-bold text-orange-400">📊 {en ? 'Box score' : 'גיליון משחק'}</span>
+        </a>
+      )}
     </div>
   );
 }
@@ -318,10 +328,10 @@ function buildJourney(focusedTeam: string, games: CupGame[]): JourneyStep[] {
 }
 
 function JourneyPanel({
-  focusedTeam, teamLogos, games, onClose,
+  focusedTeam, teamLogos, games, statsGameIds, onClose,
 }: {
   focusedTeam: string; teamLogos: Record<string, string>;
-  games: CupGame[]; onClose: () => void;
+  games: CupGame[]; statsGameIds: Set<string>; onClose: () => void;
 }) {
   const { t, lang } = useLang();
   const en = lang === 'en';
@@ -513,6 +523,15 @@ function JourneyPanel({
                       </span>
                     )}
                   </div>
+                  {statsGameIds.has(step.game.id) && (
+                    <a
+                      href={`/cup#game-${step.game.id}`}
+                      onClick={onClose}
+                      className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-bold text-orange-400 hover:text-orange-300 transition-colors"
+                    >
+                      📊 {en ? 'View box score' : 'גיליון המשחק'}
+                    </a>
+                  )}
                 </div>
               </li>
             );
@@ -538,9 +557,19 @@ function JourneyPanel({
 }
 
 /* ── Main component ──────────────────────────────────────────────────── */
-export default function JourneyBracket({ games, teamLogos }: { games: CupGame[]; teamLogos: Record<string, string> }) {
+export default function JourneyBracket({
+  games,
+  teamLogos,
+  statsGameIds = [],
+}: {
+  games: CupGame[];
+  teamLogos: Record<string, string>;
+  /** IDs of cup games that have box-score data. */
+  statsGameIds?: string[];
+}) {
   const { t } = useLang();
   const [focusedTeam, setFocusedTeam] = useState<string | null>(null);
+  const statsSet = useMemo(() => new Set(statsGameIds), [statsGameIds]);
 
   if (games.length === 0) {
     return (
@@ -613,6 +642,7 @@ export default function JourneyBracket({ games, teamLogos }: { games: CupGame[];
                             dimmed={dimmed}
                             focusedTeam={focusedTeam}
                             onClickTeam={(name) => setFocusedTeam(name)}
+                            statsLink={statsSet.has(game.id) ? `#game-${game.id}` : undefined}
                           />
                         );
                       })}
@@ -648,6 +678,7 @@ export default function JourneyBracket({ games, teamLogos }: { games: CupGame[];
           focusedTeam={focusedTeam}
           teamLogos={teamLogos}
           games={games}
+          statsGameIds={statsSet}
           onClose={() => setFocusedTeam(null)}
         />
       )}

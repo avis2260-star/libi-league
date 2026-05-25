@@ -43,7 +43,7 @@ function TeamLogo({ name, logos, size = 'sm' }: { name: string; logos: Record<st
 }
 
 /* ── A compact match card — two-row layout, score on outside ─────────── */
-function MatchCard({ game, teamLogos }: { game: CupGame; teamLogos: Record<string, string> }) {
+function MatchCard({ game, teamLogos, statsLink }: { game: CupGame; teamLogos: Record<string, string>; statsLink?: string }) {
   const { t, lang } = useLang();
   const en = lang === 'en';
   const winner = getWinner(game);
@@ -76,18 +76,38 @@ function MatchCard({ game, teamLogos }: { game: CupGame; teamLogos: Record<strin
     </div>
   );
 
-  return (
-    <div className="overflow-hidden rounded-xl border border-white/[0.07] bg-[#0c1825] shadow-lg">
+  const cardBody = (
+    <>
       <Row name={game.home_team} score={game.home_score} isWinner={homeWin} placeholder={game.played && !homeWin} isHome />
       <div className="h-px bg-white/[0.05]" />
       <Row name={game.away_team} score={game.away_score} isWinner={awayWin} placeholder={game.played && !awayWin} isHome={false} />
+      {statsLink && (
+        <div className="flex items-center justify-center gap-1 px-3 py-1.5 border-t border-white/[0.04] bg-orange-500/[0.06]">
+          <span className="text-[10px] font-bold text-orange-400">📊 {en ? 'Box score' : 'גיליון משחק'}</span>
+        </div>
+      )}
+    </>
+  );
+
+  if (statsLink) {
+    return (
+      <a href={statsLink} className="block overflow-hidden rounded-xl border border-orange-500/25 bg-[#0c1825] shadow-lg hover:border-orange-500/50 hover:shadow-orange-500/10 transition-all">
+        {cardBody}
+      </a>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-white/[0.07] bg-[#0c1825] shadow-lg">
+      {cardBody}
     </div>
   );
 }
 
 /* ── Featured final card (big, centered) ─────────────────────────────── */
-function FinalCard({ game, teamLogos }: { game: CupGame; teamLogos: Record<string, string> }) {
-  const { t } = useLang();
+function FinalCard({ game, teamLogos, statsLink }: { game: CupGame; teamLogos: Record<string, string>; statsLink?: string }) {
+  const { t, lang } = useLang();
+  const en = lang === 'en';
   const winner = getWinner(game);
   const homeWin = winner === game.home_team;
   const awayWin = winner === game.away_team;
@@ -130,6 +150,14 @@ function FinalCard({ game, teamLogos }: { game: CupGame; teamLogos: Record<strin
           {awayWin && <span className="text-[10px] font-bold text-orange-400">🏆 {t('אלוף')}</span>}
         </div>
       </div>
+      {statsLink && (
+        <a
+          href={statsLink}
+          className="flex items-center justify-center gap-2 px-4 py-2.5 border-t border-orange-500/20 bg-orange-500/[0.08] hover:bg-orange-500/15 transition-colors"
+        >
+          <span className="text-sm font-black text-orange-300">📊 {en ? 'View Box Score' : 'לגיליון המשחק'}</span>
+        </a>
+      )}
     </div>
   );
 }
@@ -207,8 +235,19 @@ function gridClassForCount(count: number): string {
 }
 
 /* ── Main component ──────────────────────────────────────────────────── */
-export default function StageCardsBracket({ games, teamLogos }: { games: CupGame[]; teamLogos: Record<string, string> }) {
+export default function StageCardsBracket({
+  games,
+  teamLogos,
+  statsGameIds = [],
+}: {
+  games: CupGame[];
+  teamLogos: Record<string, string>;
+  /** IDs of cup games that have box-score data; cards for these become links. */
+  statsGameIds?: string[];
+}) {
   const { t } = useLang();
+  const statsSet = new Set(statsGameIds);
+
   if (games.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 space-y-4">
@@ -248,11 +287,20 @@ export default function StageCardsBracket({ games, teamLogos }: { games: CupGame
             />
 
             {isFinal ? (
-              <FinalCard game={round.games[0]} teamLogos={teamLogos} />
+              <FinalCard
+                game={round.games[0]}
+                teamLogos={teamLogos}
+                statsLink={statsSet.has(round.games[0].id) ? `#game-${round.games[0].id}` : undefined}
+              />
             ) : (
               <div className={`grid gap-2 ${gridClassForCount(round.games.length)}`}>
                 {round.games.map(game => (
-                  <MatchCard key={game.id} game={game} teamLogos={teamLogos} />
+                  <MatchCard
+                    key={game.id}
+                    game={game}
+                    teamLogos={teamLogos}
+                    statsLink={statsSet.has(game.id) ? `#game-${game.id}` : undefined}
+                  />
                 ))}
               </div>
             )}
