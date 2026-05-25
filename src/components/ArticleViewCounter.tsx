@@ -36,14 +36,19 @@ interface ArticleViewCounterProps {
   compact?: boolean;
 }
 
+/** localStorage key for a given preview — marks it as already viewed. */
+const storageKey = (id: string) => `libi_viewed_${id}`;
+
 /**
  * Client component that:
  *  1. Renders the current view count immediately (from SSR data).
- *  2. On mount, fires POST /api/events/view to atomically increment the DB
- *     counter, then updates the displayed number to the fresh value.
+ *  2. On mount, checks localStorage — if this browser has already counted
+ *     this article, it does NOT increment again (unique-browser dedup).
+ *  3. On a first visit, fires POST /api/events/view, saves a flag to
+ *     localStorage, and updates the displayed number.
  *
- * Each mount = one view. If the user navigates away and back the counter
- * fires again — intentional (page impression, not unique-user).
+ * This means repeat visits from the same browser/device are ignored,
+ * while a different browser, device, or cleared storage counts as new.
  */
 export default function ArticleViewCounter({
   previewId,
@@ -53,6 +58,9 @@ export default function ArticleViewCounter({
   const [count, setCount] = useState(initialCount ?? 0);
 
   useEffect(() => {
+    // Already counted this article in this browser — don't increment again.
+    if (localStorage.getItem(storageKey(previewId))) return;
+
     let cancelled = false;
     fetch('/api/events/view', {
       method: 'POST',
@@ -61,9 +69,12 @@ export default function ArticleViewCounter({
     })
       .then((r) => r.json())
       .then((data: { view_count?: number | null }) => {
-        if (!cancelled && typeof data.view_count === 'number') {
+        if (cancelled) return;
+        if (typeof data.view_count === 'number') {
           setCount(data.view_count);
         }
+        // Mark as viewed so future visits from this browser are skipped.
+        localStorage.setItem(storageKey(previewId), '1');
       })
       .catch(() => {
         // Silently ignore — a failed view-count call must never break the UI.
@@ -74,9 +85,9 @@ export default function ArticleViewCounter({
     };
   }, [previewId]);
 
-  const iconSize  = compact ? 'w-3 h-3'   : 'w-3.5 h-3.5';
-  const textSize  = compact ? 'text-[9px]' : 'text-[10px]';
-  const gapClass  = compact ? 'gap-1'      : 'gap-1.5';
+  const iconSize = compact ? 'w-3 h-3'    : 'w-3.5 h-3.5';
+  const textSize = compact ? 'text-[9px]' : 'text-[10px]';
+  const gapClass = compact ? 'gap-1'      : 'gap-1.5';
 
   return (
     <span
