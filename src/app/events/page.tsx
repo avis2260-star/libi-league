@@ -8,6 +8,7 @@ import { makeNameResolver } from '@/lib/team-name-resolver';
 import SeasonPicker from '@/components/SeasonPicker';
 import ArchiveBanner from '@/components/ArchiveBanner';
 import MarkdownLite from '@/components/MarkdownLite';
+import ArticleViewCounter from '@/components/ArticleViewCounter';
 
 type CupGame = {
   id: string;
@@ -27,6 +28,7 @@ type PreviewRow = {
   away_review: string;
   is_published: boolean;
   updated_at: string;
+  view_count: number;
 };
 
 type TeamRow = { id: string; name: string; logo_url: string | null };
@@ -121,7 +123,7 @@ export default async function EventsPage({
   const [{ data: previewsData }, { data: teamsData }, lang, seasons] = await Promise.all([
     supabaseAdmin
       .from('match_previews')
-      .select('id, cup_game_id, home_review, away_review, is_published, updated_at')
+      .select('id, cup_game_id, home_review, away_review, is_published, updated_at, view_count')
       .eq('season', viewing)
       .eq('is_published', true),
     supabaseAdmin
@@ -333,11 +335,14 @@ function FeaturedPreview({
 
         {/* Footer */}
         <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/[0.08]">
-          <p className="text-[10px] font-bold text-[#5a7a9a]">
-            {isFuture
-              ? (en ? 'Upcoming match' : 'משחק קרוב')
-              : (en ? 'Past match — preview from before the game' : 'משחק שעבר — פרשנות מלפני המשחק')}
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="text-[10px] font-bold text-[#5a7a9a]">
+              {isFuture
+                ? (en ? 'Upcoming match' : 'משחק קרוב')
+                : (en ? 'Past match — preview from before the game' : 'משחק שעבר — פרשנות מלפני המשחק')}
+            </p>
+            <ArticleViewCounter previewId={preview.id} initialCount={preview.view_count} />
+          </div>
           <Link href="/cup" className="text-xs font-bold text-amber-300 hover:text-amber-200 transition">
             {en ? 'View bracket →' : '← לבראקט המלא'}
           </Link>
@@ -390,6 +395,11 @@ function SecondaryPreview({
           <ReviewBlock title={awayName} body={preview.away_review} compact />
         </div>
       </details>
+
+      {/* Footer */}
+      <div className="flex items-center justify-end pt-2 border-t border-white/[0.05]">
+        <ArticleViewCounter previewId={preview.id} initialCount={preview.view_count} compact />
+      </div>
     </article>
   );
 }
