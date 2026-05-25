@@ -5,13 +5,17 @@ import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { NORTH_TABLE, SOUTH_TABLE } from '@/lib/league-data';
 import SeriesFlyerCard from '@/components/SeriesFlyerCard';
+import PublicBoxScore from '@/components/PublicBoxScore';
 import { getLang, st } from '@/lib/get-lang';
 import { getCurrentSeason } from '@/lib/current-season';
+import { makeNameResolver } from '@/lib/team-name-resolver';
+import { bucketGameStats, type RawStat } from '@/lib/box-score';
 
 interface Game {
   series_number: number; game_number: number;
   home_score: number | null; away_score: number | null;
   played: boolean;
+  home_quarters: number[] | null; away_quarters: number[] | null;
 }
 interface Series {
   series_number: number; team_a: string; team_b: string;
@@ -35,12 +39,14 @@ export default async function SeriesFlyerPage({
   const T = (he: string) => st(he, lang);
   const season = await getCurrentSeason();
 
-  const [{ data: seriesData }, { data: gamesData }, { data: teamsData }, { data: standingsData }] =
+  const [{ data: seriesData }, { data: gamesData }, { data: teamsData }, { data: standingsData }, { data: statsData }, { data: playersData }] =
     await Promise.all([
       supabaseAdmin.from('playoff_series').select('*').eq('season', season).eq('series_number', seriesNum).maybeSingle(),
       supabaseAdmin.from('playoff_games').select('*').eq('season', season).eq('series_number', seriesNum).order('game_number'),
-      supabaseAdmin.from('teams').select('name, logo_url'),
+      supabaseAdmin.from('teams').select('id, name, logo_url'),
       supabaseAdmin.from('standings').select('name,rank,division').eq('season', season).order('rank'),
+      supabaseAdmin.from('playoff_game_stats').select('game_number, player_id, team_id, points, three_pointers, fouls').eq('season', season).eq('series_number', seriesNum),
+      supabaseAdmin.from('players').select('id, name, jersey_number'),
     ]);
 
   if (!seriesData) notFound();
@@ -110,6 +116,42 @@ export default async function SeriesFlyerPage({
   const roundLabel = seriesNum <= 4 ? T('רבע גמר') : seriesNum <= 6 ? T('חצי גמר') : T('גמר');
   const waiting = lang === 'en' ? 'TBD' : 'ממתין';
 
+  /* ── Box scores (player stats + quarters per game) ── */
+  const resolveName = makeNameResolver((teamsData ?? []).map((t) => ({ id: t.id, name: t.name })));
+  const idByTeamName = new Map((teamsData ?? []).map((t) => [t.name, t.id]));
+  const teamNameToId = (name: string) => idByTeamName.get(resolveName(name)) ?? null;
+  const playerById = new Map(
+    (playersData ?? []).map((p) => [p.id, { name: p.name, jersey_number: p.jersey_number }]),
+  );
+  const statsByGameNum = new Map<number, RawStat[]>();
+  for (const s of (statsData ?? []) as (RawStat & { game_number: number })[]) {
+    const arr = statsByGameNum.get(s.game_number) ?? [];
+    arr.push(s);
+    statsByGameNum.set(s.game_number, arr);
+  }
+
+  const boxScores = [1, 2, 3]
+    .map((gNum) => {
+      const g = games.find((x) => x.game_number === gNum);
+      const statRows = statsByGameNum.get(gNum) ?? [];
+      const hasQuarters = (g?.home_quarters?.length ?? 0) > 0 || (g?.away_quarters?.length ?? 0) > 0;
+      if (statRows.length === 0 && !hasQuarters) return null;
+      const homeName = homeForGame(series, gNum);
+      const awayName = homeName === series.team_a ? series.team_b : series.team_a;
+      const { homePlayers, awayPlayers } = bucketGameStats(
+        statRows, playerById, teamNameToId(homeName), teamNameToId(awayName),
+      );
+      return {
+        gNum, homeName, awayName,
+        homeScore: g?.home_score ?? null,
+        awayScore: g?.away_score ?? null,
+        homeQuarters: g?.home_quarters ?? null,
+        awayQuarters: g?.away_quarters ?? null,
+        homePlayers, awayPlayers,
+      };
+    })
+    .filter((b): b is NonNullable<typeof b> => b !== null);
+
   return (
     <div
       className="flex flex-col items-center px-4 py-6"
@@ -136,6 +178,29 @@ export default async function SeriesFlyerPage({
         games={gameData}
         hasTeams={hasTeams}
       />
+
+      {boxScores.length > 0 && (
+        <div className="mt-6 w-full max-w-2xl space-y-2">
+          <h2 className="text-sm font-black uppercase tracking-widest text-[#8aaac8]">
+            📋 {lang === 'en' ? 'Box Scores' : 'גיליונות משחק'}
+          </h2>
+          {boxScores.map((b) => (
+            <PublicBoxScore
+              key={b.gNum}
+              lang={lang as 'he' | 'en'}
+              gameLabel={lang === 'en' ? `Game ${b.gNum}` : `משחק ${b.gNum}`}
+              homeTeamName={b.homeName}
+              awayTeamName={b.awayName}
+              homeScore={b.homeScore}
+              awayScore={b.awayScore}
+              homeQuarters={b.homeQuarters}
+              awayQuarters={b.awayQuarters}
+              homePlayers={b.homePlayers}
+              awayPlayers={b.awayPlayers}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
