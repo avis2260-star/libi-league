@@ -1,33 +1,45 @@
 export const dynamic = 'force-dynamic';
 
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { getLang, st } from '@/lib/get-lang';
+import { getLang } from '@/lib/get-lang';
 import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
 import SeasonPicker from '@/components/SeasonPicker';
 import ArchiveBanner from '@/components/ArchiveBanner';
-import MarkdownLite from '@/components/MarkdownLite';
+import SeasonReviewCard, { type ReviewCardData } from '@/components/SeasonReviewCard';
 
-type ReviewRow = {
-  id: string;
-  season: string;
-  review_type: 'pre_season' | 'mid_season' | 'end_season' | 'custom';
-  title: string;
-  content: string;
-  updated_at: string;
+type ReviewRow = ReviewCardData & { season: string };
+
+/** The three milestones that happen every season, in chronological order. */
+const MILESTONE_TYPES = ['pre_season', 'mid_season', 'end_season'] as const;
+type MilestoneType = (typeof MILESTONE_TYPES)[number];
+
+const MILESTONE_META: Record<MilestoneType, {
+  heLabel: string; enLabel: string;
+  heDesc: string;  enDesc: string;
+  emoji: string;   badgeColor: string;
+}> = {
+  pre_season: {
+    heLabel: 'פתיחת עונה',   enLabel: 'Season Preview',
+    heDesc:  'סקירת ציפיות לפני תחילת העונה — מה לצפות?',
+    enDesc:  'Pre-season expectations — what to watch for.',
+    emoji: '🌱',
+    badgeColor: 'text-emerald-300/50 border-emerald-500/20 bg-emerald-500/[0.05]',
+  },
+  mid_season: {
+    heLabel: 'מחצית עונה',  enLabel: 'Mid-Season',
+    heDesc:  'ניתוח מחצית — מי הפתיע, מי אכזב, ומה צפוי?',
+    enDesc:  'Halfway check — surprises, disappointments, and what\'s ahead.',
+    emoji: '⏸',
+    badgeColor: 'text-blue-300/50 border-blue-500/20 bg-blue-500/[0.05]',
+  },
+  end_season: {
+    heLabel: 'סיום עונה',    enLabel: 'Season Wrap-Up',
+    heDesc:  'סיכום מלא — אלוף, מובילי ניקוד, רגעי השנה.',
+    enDesc:  'Full wrap-up — champion, top scorers, moments of the year.',
+    emoji: '🏆',
+    badgeColor: 'text-amber-300/50 border-amber-500/20 bg-amber-500/[0.05]',
+  },
 };
-
-const TYPE_META: Record<ReviewRow['review_type'], { heLabel: string; enLabel: string; emoji: string; color: string }> = {
-  pre_season: { heLabel: 'פתיחת עונה',  enLabel: 'Season Preview',  emoji: '🌱', color: 'text-emerald-200 border-emerald-500/40 bg-emerald-500/10' },
-  mid_season: { heLabel: 'מחצית עונה', enLabel: 'Mid-Season',       emoji: '⏸',  color: 'text-blue-200   border-blue-500/40   bg-blue-500/10'   },
-  end_season: { heLabel: 'סיום עונה',   enLabel: 'Season Wrap-Up',  emoji: '🏆', color: 'text-amber-200  border-amber-500/40  bg-amber-500/10'  },
-  custom:     { heLabel: 'סקירה',        enLabel: 'Review',          emoji: '📰', color: 'text-[#c0d4e8]  border-white/20      bg-white/[0.04]'  },
-};
-
-function fmtDate(s: string, lang: 'he' | 'en'): string {
-  return new Date(s).toLocaleDateString(lang === 'he' ? 'he-IL' : 'en-US', {
-    day: 'numeric', month: 'long', year: 'numeric',
-  });
-}
 
 export default async function SeasonReviewPage({
   searchParams,
@@ -43,17 +55,32 @@ export default async function SeasonReviewPage({
       .select('id, season, review_type, title, content, updated_at')
       .eq('season', viewing)
       .eq('is_published', true)
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: true }),   // oldest first = chronological
     getLang(),
     listKnownSeasons(),
   ]);
 
   const reviews = (reviewsData ?? []) as ReviewRow[];
-  const T = (he: string, en?: string) => lang === 'en' ? (en ?? he) : he;
+  const publishedTypes = new Set(reviews.map(r => r.review_type));
+
+  const he = lang !== 'en';
+  const T  = (heText: string, enText: string) => he ? heText : enText;
+
+  // Separate "milestone" (pre/mid/end) and "custom" reviews.
+  const milestoneReviews = reviews.filter(r =>
+    (MILESTONE_TYPES as readonly string[]).includes(r.review_type)
+  );
+  const customReviews = reviews.filter(r => r.review_type === 'custom');
+
+  // Upcoming placeholders = milestone types NOT yet published.
+  const upcomingTypes = MILESTONE_TYPES.filter(t => !publishedTypes.has(t));
+
+  const hasAny = reviews.length > 0;
 
   return (
-    <div dir={lang === 'en' ? 'ltr' : 'rtl'} className="space-y-6">
-      {/* Header */}
+    <div dir={he ? 'rtl' : 'ltr'} className="space-y-8">
+
+      {/* ── Page header ────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-3xl font-black text-white font-heading">
@@ -70,7 +97,75 @@ export default async function SeasonReviewPage({
         <ArchiveBanner viewing={viewing} current={current} pathname="/season-review" />
       )}
 
-      {reviews.length === 0 ? (
+      {/* ── Milestone reviews (pre / mid / end) ────────────────────────── */}
+      {milestoneReviews.length > 0 && (
+        <section className="space-y-4">
+          {milestoneReviews.map((r, idx) => (
+            <SeasonReviewCard
+              key={r.id}
+              review={r}
+              lang={lang as 'he' | 'en'}
+              featured={idx === 0 && customReviews.length === 0}
+            />
+          ))}
+        </section>
+      )}
+
+      {/* ── Custom / ad-hoc reviews ─────────────────────────────────────── */}
+      {customReviews.length > 0 && (
+        <section className="space-y-4">
+          {milestoneReviews.length > 0 && (
+            <h2 className="text-sm font-black text-[#8aaac8] uppercase tracking-widest">
+              {T('סקירות נוספות', 'More Reviews')}
+            </h2>
+          )}
+          <div className="grid gap-4 sm:grid-cols-2">
+            {customReviews.map((r, idx) => (
+              <SeasonReviewCard
+                key={r.id}
+                review={r}
+                lang={lang as 'he' | 'en'}
+                featured={!hasAny && idx === 0}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── Upcoming / coming-soon placeholders ────────────────────────── */}
+      {upcomingTypes.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-black text-[#5a7a9a] uppercase tracking-widest">
+            {T('בקרוב', 'Coming Soon')}
+          </h2>
+          <div className={`grid gap-3 ${upcomingTypes.length >= 2 ? 'sm:grid-cols-2' : ''} ${upcomingTypes.length === 3 ? 'lg:grid-cols-3' : ''}`}>
+            {upcomingTypes.map(type => {
+              const meta = MILESTONE_META[type];
+              return (
+                <div
+                  key={type}
+                  className="rounded-2xl border border-dashed border-white/[0.07] bg-white/[0.01] p-5"
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest ${meta.badgeColor}`}>
+                      {meta.emoji} {he ? meta.heLabel : meta.enLabel}
+                    </span>
+                    <span className="rounded-full border border-white/[0.06] bg-white/[0.02] px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-[#3a5a7a]">
+                      {T('בקרוב', 'Coming Soon')}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#4a6a8a] leading-relaxed">
+                    {he ? meta.heDesc : meta.enDesc}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* ── Fully empty state (no published, no upcoming) ───────────────── */}
+      {!hasAny && upcomingTypes.length === 0 && (
         <div className="rounded-2xl border border-dashed border-white/[0.08] py-16 text-center">
           <p className="text-5xl mb-3">📭</p>
           <p className="text-base font-bold text-[#8aaac8]">
@@ -79,47 +174,6 @@ export default async function SeasonReviewPage({
           <p className="mt-2 text-sm text-[#5a7a9a]">
             {T('בדוק שוב בהמשך העונה.', 'Check back later in the season.')}
           </p>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {reviews.map((r, idx) => {
-            const meta  = TYPE_META[r.review_type];
-            const label = lang === 'en' ? meta.enLabel : meta.heLabel;
-            const isFeatured = idx === 0;
-
-            return (
-              <article
-                key={r.id}
-                className={`relative overflow-hidden rounded-3xl border ${
-                  isFeatured
-                    ? 'border-white/[0.1] bg-white/[0.03] p-6 sm:p-8'
-                    : 'border-white/[0.06] bg-white/[0.015] p-5 sm:p-6'
-                }`}
-              >
-                {/* Type badge + date */}
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                  <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-widest ${meta.color}`}>
-                    {meta.emoji} {label}
-                  </span>
-                  <p className="text-xs font-bold text-[#5a7a9a]">
-                    {fmtDate(r.updated_at, lang as 'he' | 'en')}
-                  </p>
-                </div>
-
-                {/* Title */}
-                {r.title && (
-                  <h2 className={`font-black text-white font-heading leading-tight mb-4 ${isFeatured ? 'text-xl sm:text-2xl' : 'text-base sm:text-lg'}`}>
-                    {r.title}
-                  </h2>
-                )}
-
-                {/* Content */}
-                <div className={`text-[#c0d4e8] leading-relaxed ${isFeatured ? '' : 'text-sm'}`}>
-                  <MarkdownLite text={r.content} />
-                </div>
-              </article>
-            );
-          })}
         </div>
       )}
     </div>
