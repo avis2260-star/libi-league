@@ -26,10 +26,11 @@ const GROUPS = [
     id: 'comp', icon: '🏆', label: 'תחרויות',
     direct: null,
     links: [
-      { href: '/cup',          label: 'גביע' },
-      { href: '/playoff',      label: 'פלייאוף' },
-      { href: '/events',       label: '🎤 לקראת המשחק' },
-      { href: '/hall-of-fame', label: '🏆 היכל התהילה' },
+      { href: '/cup',             label: 'גביע' },
+      { href: '/playoff',         label: 'פלייאוף' },
+      { href: '/events',          label: '🎤 לקראת המשחק' },
+      { href: '/season-review',   label: '📰 סקירות עונה' },
+      { href: '/hall-of-fame',    label: '🏆 היכל התהילה' },
     ],
   },
   {
