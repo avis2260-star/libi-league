@@ -47,14 +47,17 @@ export default function ReportErrorButton() {
 
   return (
     <>
-      {/* Floating button — clears mobile bottom nav on small screens */}
+      {/* Floating button — clears mobile bottom nav on small screens. On
+          mobile we collapse to an icon-only 44×44 circle so it doesn't
+          eclipse bottom-right CTAs on cards (e.g. the cup hero); on sm+
+          it expands back to a pill with the full label. */}
       <button
         onClick={() => setOpen(true)}
         aria-label="דווח על שגיאה"
-        className="fixed bottom-24 right-4 sm:bottom-6 sm:right-6 z-40 flex items-center gap-2 rounded-full border border-white/10 bg-[#1a2a3a] px-4 py-2.5 text-sm font-bold text-[#8aaac8] shadow-lg transition-all hover:border-orange-500/40 hover:text-orange-400"
+        className="fixed bottom-24 right-4 sm:bottom-6 sm:right-6 z-40 flex h-11 w-11 sm:h-auto sm:w-auto items-center justify-center sm:gap-2 rounded-full border border-white/10 bg-[#1a2a3a] sm:px-4 sm:py-2.5 text-sm font-bold text-[#8aaac8] shadow-lg transition-all hover:border-orange-500/40 hover:text-orange-400"
       >
         <span className="text-base leading-none">⚠</span>
-        <span>דווח על שגיאה</span>
+        <span className="hidden sm:inline">דווח על שגיאה</span>
       </button>
 
       {/* Modal */}

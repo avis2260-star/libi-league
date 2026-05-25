@@ -94,10 +94,9 @@ export default function UpcomingEvents({
             : 'border-amber-500/30';
 
           return (
-            <Link
+            <div
               key={`${ev.isoDate}-${ev.homeTeam}-${ev.awayTeam}`}
-              href="/cup"
-              className={`relative block overflow-hidden rounded-3xl border-2 ${borderClass} bg-gradient-to-br ${gradientClass} transition-all hover:scale-[1.01] hover:shadow-xl group`}
+              className={`relative block overflow-hidden rounded-3xl border-2 ${borderClass} bg-gradient-to-br ${gradientClass} transition-all hover:shadow-xl group`}
             >
               {/* Decorative trophy watermark */}
               <span
@@ -172,12 +171,28 @@ export default function UpcomingEvents({
                   </div>
                 </div>
 
-                {/* Footer link cue */}
-                <p className="mt-5 text-center text-[11px] font-bold text-[#a0b8d0] group-hover:text-orange-300 transition-colors">
-                  {en ? 'View bracket →' : '← לבראקט המלא'}
-                </p>
+                {/* Footer actions — primary CTA goes to the full bracket;
+                    secondary link points to the AI pre-match commentary. */}
+                <div className="mt-6 flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
+                  <Link
+                    href="/cup"
+                    className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-black uppercase tracking-widest transition-all hover:scale-[1.03] ${
+                      final
+                        ? 'bg-yellow-400/20 border border-yellow-400/50 text-yellow-100 hover:bg-yellow-400/30'
+                        : 'bg-amber-500/20 border border-amber-500/50 text-amber-100 hover:bg-amber-500/30'
+                    }`}
+                  >
+                    {en ? 'View bracket →' : '← לבראקט המלא'}
+                  </Link>
+                  <Link
+                    href="/events"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-widest text-[#c8d8e8] transition-all hover:scale-[1.03] hover:bg-white/[0.08] hover:text-orange-300"
+                  >
+                    {en ? 'Pre-match →' : '← לקראת המשחק'}
+                  </Link>
+                </div>
               </div>
-            </Link>
+            </div>
           );
         })}
       </div>
