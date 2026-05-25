@@ -450,7 +450,7 @@ export default async function AdminPage({
         .order('game_number', { ascending: true }),
       supabaseAdmin
         .from('match_previews')
-        .select('id, cup_game_id, season, home_review, away_review, is_published')
+        .select('id, cup_game_id, season, home_review, away_review, is_published, flyer_url')
         .eq('season', season),
     ]);
     previewCupGames = (cupData ?? []) as CupGameLite[];

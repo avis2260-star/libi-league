@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
 }
 
 // PATCH — update an existing preview by id. Accepts any subset of the
-// editable fields (home_review, away_review, is_published).
+// editable fields (home_review, away_review, is_published, flyer_url).
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json() as {
@@ -71,6 +71,7 @@ export async function PATCH(req: NextRequest) {
       home_review?: string;
       away_review?: string;
       is_published?: boolean;
+      flyer_url?: string | null;
     };
     if (!body.id) return NextResponse.json({ error: 'חסר id' }, { status: 400 });
 
@@ -78,6 +79,7 @@ export async function PATCH(req: NextRequest) {
     if (body.home_review  !== undefined) update.home_review  = body.home_review;
     if (body.away_review  !== undefined) update.away_review  = body.away_review;
     if (body.is_published !== undefined) update.is_published = body.is_published;
+    if (body.flyer_url    !== undefined) update.flyer_url    = body.flyer_url;
 
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ error: 'אין שדות לעדכון' }, { status: 400 });
