@@ -12,6 +12,8 @@ import Link from 'next/link';
 
 export type UpcomingEvent = {
   type: 'cup';
+  /** cup_games.id — used to deep-link to this game's pre-match review. */
+  cupGameId: string;
   isoDate: string;
   displayDate: string;
   heDayLabel: string;
@@ -185,7 +187,7 @@ export default function UpcomingEvents({
                     {en ? 'View bracket →' : '← לבראקט המלא'}
                   </Link>
                   <Link
-                    href="/events"
+                    href={`/events?open=${ev.cupGameId}#preview-${ev.cupGameId}`}
                     className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-widest text-[#c8d8e8] transition-all hover:scale-[1.03] hover:bg-white/[0.08] hover:text-orange-300"
                   >
                     {en ? 'Pre-match →' : '← לקראת המשחק'}

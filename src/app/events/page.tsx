@@ -9,7 +9,6 @@ import SeasonPicker from '@/components/SeasonPicker';
 import ArchiveBanner from '@/components/ArchiveBanner';
 import MarkdownLite from '@/components/MarkdownLite';
 import ArticleViewCounter from '@/components/ArticleViewCounter';
-import CardClickWrapper from '@/components/events/CardClickWrapper';
 
 type CupGame = {
   id: string;
@@ -220,8 +219,10 @@ export default async function EventsPage({
     });
   }
 
-  const featured  = events[0] ?? null;
-  const secondary = events.slice(1);
+  // Home-hero links arrive as /events?open=<cupGameId> — that preview opens
+  // expanded. Nav links carry no param, so every item stays collapsed.
+  const openParam = params.open;
+  const openId = Array.isArray(openParam) ? openParam[0] : openParam;
 
   return (
     <div dir={lang === 'en' ? 'ltr' : 'rtl'} className="space-y-6">
@@ -250,52 +251,36 @@ export default async function EventsPage({
           </p>
         </div>
       ) : (
-        <>
-          {/* ── Featured (closest upcoming) ─────────────────────────────── */}
-          {featured && (
-            <FeaturedPreview
-              event={featured}
+        /* Collapsible list — each match-up is a titled row that expands to
+           reveal its preview. One row opens by default when reached via a
+           home-hero /events?open=<id> link. */
+        <div className="space-y-3">
+          {events.map((ev) => (
+            <PreviewListItem
+              key={ev.cupGame.id}
+              event={ev}
               lookupLogo={lookupLogo}
               displayTeamName={displayTeamName}
               lang={lang as 'he' | 'en'}
-              hasStats={statsGameIdsSet.has(featured.cupGame.id)}
+              hasStats={statsGameIdsSet.has(ev.cupGame.id)}
+              open={ev.cupGame.id === openId}
             />
-          )}
-
-          {/* ── Smaller cards for remaining previews ────────────────────── */}
-          {secondary.length > 0 && (
-            <div className="space-y-4">
-              <h2 className="text-base font-black text-white font-heading">
-                {T('משחקים נוספים')}
-              </h2>
-              <div className="grid gap-4 md:grid-cols-2">
-                {secondary.map((ev) => (
-                  <SecondaryPreview
-                    key={ev.cupGame.id}
-                    event={ev}
-                    lookupLogo={lookupLogo}
-                    displayTeamName={displayTeamName}
-                    lang={lang as 'he' | 'en'}
-                    hasStats={statsGameIdsSet.has(ev.cupGame.id)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </>
+          ))}
+        </div>
       )}
     </div>
   );
 }
 
-function FeaturedPreview({
-  event, lookupLogo, displayTeamName, lang, hasStats,
+function PreviewListItem({
+  event, lookupLogo, displayTeamName, lang, hasStats, open,
 }: {
   event: Event;
   lookupLogo: (name: string) => string | null;
   displayTeamName: (name: string) => string;
   lang: 'he' | 'en';
   hasStats?: boolean;
+  open?: boolean;
 }) {
   const { cupGame: g, preview, parsedDate, isFuture } = event;
   const en = lang === 'en';
@@ -303,52 +288,45 @@ function FeaturedPreview({
   const homeName = displayTeamName(g.home_team);
   const awayName = displayTeamName(g.away_team);
 
-  // The card always links to the game on /cup. If a box score exists the
-  // anchor scrolls to it; otherwise it just lands on the bracket.
-  const cardHref = `/cup#game-${g.id}`;
-
   return (
-    <CardClickWrapper
-      href={cardHref}
-      className={`relative overflow-hidden rounded-3xl border-2 transition-[border-color,box-shadow] ${
+    <details
+      id={`preview-${g.id}`}
+      open={open}
+      className={`group scroll-mt-24 overflow-hidden rounded-2xl border bg-white/[0.02] transition-colors ${
         final
-          ? 'border-yellow-400/40 shadow-[0_0_40px_-12px_rgba(250,204,21,0.4)] hover:border-yellow-300/70'
-          : 'border-amber-500/40 hover:border-orange-400/60 hover:shadow-[0_0_32px_-8px_rgba(255,121,56,0.3)]'
-      } bg-gradient-to-br ${
-        final
-          ? 'from-yellow-500/30 via-amber-600/15 to-orange-600/20'
-          : 'from-amber-500/20 via-orange-500/[0.08] to-orange-600/15'
+          ? 'border-yellow-400/30 open:border-yellow-400/50'
+          : 'border-white/[0.08] open:border-amber-500/40'
       }`}
     >
-      <span aria-hidden className="pointer-events-none absolute -bottom-6 -left-6 select-none text-[12rem] leading-none opacity-[0.06]">
-        🏆
-      </span>
+      {/* Summary row — the always-visible, clickable title for this match-up */}
+      <summary className="flex items-center gap-2 sm:gap-3 px-4 py-3 cursor-pointer list-none hover:bg-white/[0.03] transition-colors">
+        <span className="shrink-0 text-amber-400 text-sm transition-transform group-open:rotate-90">▶</span>
 
-      {/* Click hint badge — always visible so the card feels tappable */}
-      <span className="absolute top-3 end-3 inline-flex items-center gap-1 rounded-full bg-white/[0.08] border border-white/[0.12] px-2 py-0.5 text-[10px] font-black text-[#8aaac8] backdrop-blur-sm pointer-events-none select-none">
-        {hasStats
-          ? (en ? '📊 Box score · tap to view' : '📊 גיליון זמין · לחץ לצפייה')
-          : (en ? '↗ View in bracket' : '↗ לצפייה בגביע')}
-      </span>
+        <span className={`hidden sm:inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest ${
+          final
+            ? 'bg-yellow-400/20 text-yellow-200 border border-yellow-400/40'
+            : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+        }`}>
+          🏆 {g.round}
+        </span>
 
-      <div className="relative p-6 sm:p-8 space-y-6">
-        {/* Top row: round + date */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-widest ${
-            final
-              ? 'bg-yellow-400/20 text-yellow-200 border border-yellow-400/40'
-              : 'bg-amber-500/20 text-amber-200 border border-amber-500/40'
-          }`}>
-            🏆 {en ? `Cup · ${g.round}` : `גביע · ${g.round}`}
-          </span>
-          {parsedDate && (
-            <p className="text-lg sm:text-xl font-black text-white tabular-nums font-stats leading-tight text-end">
-              {fmtDay(parsedDate, lang)} · {fmtDate(parsedDate)}
-            </p>
-          )}
+        <div className="flex flex-1 items-center gap-1.5 sm:gap-2 min-w-0">
+          <TeamLogo logo={lookupLogo(g.home_team)} name={homeName} />
+          <span className="text-sm font-black text-white truncate">{homeName}</span>
+          <span className="shrink-0 text-xs font-bold text-amber-400">VS</span>
+          <TeamLogo logo={lookupLogo(g.away_team)} name={awayName} />
+          <span className="text-sm font-black text-white truncate">{awayName}</span>
         </div>
 
-        {/* Flyer — shown above the match-up if uploaded */}
+        {parsedDate && (
+          <span className="hidden sm:block shrink-0 text-xs font-bold text-[#8aaac8] tabular-nums">
+            {fmtDay(parsedDate, lang)} · {fmtDate(parsedDate)}
+          </span>
+        )}
+      </summary>
+
+      {/* Expanded body — the full preview */}
+      <div className="border-t border-white/[0.06] p-4 sm:p-6 space-y-5">
         {preview.flyer_url && (
           <div className="flex justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -360,40 +338,11 @@ function FeaturedPreview({
           </div>
         )}
 
-        {/* Match-up — big logos.
-            data-no-card-link on team names keeps them as plain readable text
-            (clicking the names won't trigger card navigation). */}
-        <div className="flex items-center justify-around gap-3 sm:gap-6">
-          <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
-            <TeamLogo logo={lookupLogo(g.home_team)} name={homeName} big />
-            <p
-              data-no-card-link
-              className="text-sm sm:text-lg font-black text-white text-center truncate max-w-full font-heading select-text cursor-text"
-            >
-              {homeName}
-            </p>
-          </div>
-          <span className={`text-3xl sm:text-4xl font-black tabular-nums font-stats shrink-0 ${final ? 'text-yellow-300' : 'text-amber-300'}`}>
-            VS
-          </span>
-          <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
-            <TeamLogo logo={lookupLogo(g.away_team)} name={awayName} big />
-            <p
-              data-no-card-link
-              className="text-sm sm:text-lg font-black text-white text-center truncate max-w-full font-heading select-text cursor-text"
-            >
-              {awayName}
-            </p>
-          </div>
-        </div>
-
-        {/* Reviews — side-by-side, each titled with its team */}
         <div className="grid gap-4 md:grid-cols-2">
           <ReviewBlock title={homeName} body={preview.home_review} />
           <ReviewBlock title={awayName} body={preview.away_review} />
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/[0.08]">
           <div className="flex items-center gap-3">
             <p className="text-[10px] font-bold text-[#5a7a9a]">
@@ -403,96 +352,21 @@ function FeaturedPreview({
             </p>
             <ArticleViewCounter previewId={preview.id} initialCount={preview.view_count ?? 0} />
           </div>
-          <div className="flex items-center gap-3">
-            {hasStats && (
-              <Link
-                href={cardHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-bold text-emerald-300 hover:text-emerald-200 transition"
-              >
-                📊 {en ? 'Box score' : 'גיליון משחק'}
-              </Link>
-            )}
-            <Link href="/cup" target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-amber-300 hover:text-amber-200 transition">
-              {en ? 'View bracket ↗' : '↗ לבראקט המלא'}
+          {/* Box-score link — only when the admin has entered stats. Opens
+              the per-game box-score page in a new tab. */}
+          {hasStats && (
+            <Link
+              href={`/cup/game/${g.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs font-bold text-emerald-300 hover:text-emerald-200 transition"
+            >
+              📊 {en ? 'Box score' : 'גיליון משחק'}
             </Link>
-          </div>
+          )}
         </div>
       </div>
-    </CardClickWrapper>
-  );
-}
-
-function SecondaryPreview({
-  event, lookupLogo, displayTeamName, lang, hasStats,
-}: {
-  event: Event;
-  lookupLogo: (name: string) => string | null;
-  displayTeamName: (name: string) => string;
-  lang: 'he' | 'en';
-  hasStats?: boolean;
-}) {
-  const { cupGame: g, preview, parsedDate } = event;
-  const en = lang === 'en';
-  const homeName = displayTeamName(g.home_team);
-  const awayName = displayTeamName(g.away_team);
-
-  return (
-    <article className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-amber-300">
-          🏆 {en ? `Cup · ${g.round}` : `גביע · ${g.round}`}
-        </span>
-        {parsedDate && (
-          <p className="text-xs font-bold text-[#8aaac8] tabular-nums">
-            {fmtDay(parsedDate, lang)} · {fmtDate(parsedDate)}
-          </p>
-        )}
-      </div>
-
-      {preview.flyer_url && (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img
-          src={preview.flyer_url}
-          alt={`פלייר: ${homeName} vs ${awayName}`}
-          className="w-full max-h-48 rounded-xl border border-white/[0.08] object-cover shadow-md"
-        />
-      )}
-
-      <div className="flex items-center gap-3">
-        <TeamLogo logo={lookupLogo(g.home_team)} name={homeName} />
-        <span className="text-sm font-black text-white truncate">{homeName}</span>
-        <span className="text-xs font-bold text-amber-400">VS</span>
-        <TeamLogo logo={lookupLogo(g.away_team)} name={awayName} />
-        <span className="text-sm font-black text-white truncate">{awayName}</span>
-      </div>
-
-      <details className="text-sm text-[#c0d4e8] leading-relaxed group">
-        <summary className="cursor-pointer text-xs font-bold text-orange-300 group-open:mb-2">
-          {en ? 'Read the preview ▾' : '▾ קרא את הפרשנות'}
-        </summary>
-        <div className="space-y-3 pt-1">
-          <ReviewBlock title={homeName} body={preview.home_review} compact />
-          <ReviewBlock title={awayName} body={preview.away_review} compact />
-        </div>
-      </details>
-
-      {/* Footer */}
-      <div className="flex items-center justify-between pt-2 border-t border-white/[0.05]">
-        {hasStats ? (
-          <Link
-            href={`/cup#game-${g.id}`}
-            className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300 hover:text-emerald-200 transition"
-          >
-            📊 {en ? 'Box score' : 'גיליון משחק'}
-          </Link>
-        ) : (
-          <span />
-        )}
-        <ArticleViewCounter previewId={preview.id} initialCount={preview.view_count} compact />
-      </div>
-    </article>
+    </details>
   );
 }
 

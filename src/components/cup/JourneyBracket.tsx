@@ -142,6 +142,8 @@ function MatchCard({
       {statsLink && (
         <a
           href={statsLink}
+          target="_blank"
+          rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
           className="flex items-center justify-center gap-1 px-2.5 py-1 border-t border-white/[0.04] bg-orange-500/[0.06] hover:bg-orange-500/15 transition-colors"
         >
@@ -525,8 +527,9 @@ function JourneyPanel({
                   </div>
                   {statsGameIds.has(step.game.id) && (
                     <a
-                      href={`/cup#game-${step.game.id}`}
-                      onClick={onClose}
+                      href={`/cup/game/${step.game.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-bold text-orange-400 hover:text-orange-300 transition-colors"
                     >
                       📊 {en ? 'View box score' : 'גיליון המשחק'}
@@ -642,7 +645,7 @@ export default function JourneyBracket({
                             dimmed={dimmed}
                             focusedTeam={focusedTeam}
                             onClickTeam={(name) => setFocusedTeam(name)}
-                            statsLink={statsSet.has(game.id) ? `#game-${game.id}` : undefined}
+                            statsLink={statsSet.has(game.id) ? `/cup/game/${game.id}` : undefined}
                           />
                         );
                       })}

@@ -91,7 +91,7 @@ function MatchCard({ game, teamLogos, statsLink }: { game: CupGame; teamLogos: R
 
   if (statsLink) {
     return (
-      <a href={statsLink} className="block overflow-hidden rounded-xl border border-orange-500/25 bg-[#0c1825] shadow-lg hover:border-orange-500/50 hover:shadow-orange-500/10 transition-all">
+      <a href={statsLink} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-xl border border-orange-500/25 bg-[#0c1825] shadow-lg hover:border-orange-500/50 hover:shadow-orange-500/10 transition-all">
         {cardBody}
       </a>
     );
@@ -153,6 +153,8 @@ function FinalCard({ game, teamLogos, statsLink }: { game: CupGame; teamLogos: R
       {statsLink && (
         <a
           href={statsLink}
+          target="_blank"
+          rel="noopener noreferrer"
           className="flex items-center justify-center gap-2 px-4 py-2.5 border-t border-orange-500/20 bg-orange-500/[0.08] hover:bg-orange-500/15 transition-colors"
         >
           <span className="text-sm font-black text-orange-300">📊 {en ? 'View Box Score' : 'לגיליון המשחק'}</span>
@@ -290,7 +292,7 @@ export default function StageCardsBracket({
               <FinalCard
                 game={round.games[0]}
                 teamLogos={teamLogos}
-                statsLink={statsSet.has(round.games[0].id) ? `#game-${round.games[0].id}` : undefined}
+                statsLink={statsSet.has(round.games[0].id) ? `/cup/game/${round.games[0].id}` : undefined}
               />
             ) : (
               <div className={`grid gap-2 ${gridClassForCount(round.games.length)}`}>
@@ -299,7 +301,7 @@ export default function StageCardsBracket({
                     key={game.id}
                     game={game}
                     teamLogos={teamLogos}
-                    statsLink={statsSet.has(game.id) ? `#game-${game.id}` : undefined}
+                    statsLink={statsSet.has(game.id) ? `/cup/game/${game.id}` : undefined}
                   />
                 ))}
               </div>

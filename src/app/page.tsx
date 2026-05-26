@@ -325,6 +325,7 @@ async function getRoundDates(): Promise<Record<number, string>> {
 /* ── Upcoming events feed (league rounds + cup matches) ───────────────── */
 
 type CupRow = {
+  id: string;
   round: string;
   home_team: string;
   away_team: string;
@@ -386,7 +387,7 @@ async function getUpcomingCupGames(season: string): Promise<CupRow[]> {
   try {
     const { data } = await supabaseAdmin
       .from('cup_games')
-      .select('round, home_team, away_team, date, played')
+      .select('id, round, home_team, away_team, date, played')
       .eq('season', season)
       .eq('played', false);
     return (data ?? []) as CupRow[];
@@ -447,6 +448,7 @@ function buildUpcomingCupEvents(opts: {
 
     events.push({
       type: 'cup',
+      cupGameId: c.id,
       isoDate: isoOf(d),
       displayDate: fmtDate(d),
       heDayLabel: fmtDay(d),
