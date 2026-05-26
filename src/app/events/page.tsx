@@ -173,7 +173,7 @@ export default async function EventsPage({
     const [{ data: cupData }, { data: statsRows }] = await Promise.all([
       supabaseAdmin
         .from('cup_games')
-        .select('id, round, round_order, game_number, home_team, away_team, date, played')
+        .select('id, round, round_order, game_number, home_team, away_team, date, played, home_quarters, away_quarters')
         .in('id', ids),
       // Fetch distinct game IDs that have stats (player stats or quarters).
       // We only need cup_game_id — one row per game is enough.
@@ -303,17 +303,17 @@ function FeaturedPreview({
   const homeName = displayTeamName(g.home_team);
   const awayName = displayTeamName(g.away_team);
 
-  const statsUrl = hasStats ? `/cup#game-${g.id}` : undefined;
+  // The card always links to the game on /cup. If a box score exists the
+  // anchor scrolls to it; otherwise it just lands on the bracket.
+  const cardHref = `/cup#game-${g.id}`;
 
   return (
     <CardClickWrapper
-      statsUrl={statsUrl}
+      href={cardHref}
       className={`relative overflow-hidden rounded-3xl border-2 transition-[border-color,box-shadow] ${
         final
-          ? 'border-yellow-400/40 shadow-[0_0_40px_-12px_rgba(250,204,21,0.4)]'
-          : statsUrl
-            ? 'border-amber-500/40 hover:border-orange-400/60 hover:shadow-[0_0_32px_-8px_rgba(255,121,56,0.3)]'
-            : 'border-amber-500/30'
+          ? 'border-yellow-400/40 shadow-[0_0_40px_-12px_rgba(250,204,21,0.4)] hover:border-yellow-300/70'
+          : 'border-amber-500/40 hover:border-orange-400/60 hover:shadow-[0_0_32px_-8px_rgba(255,121,56,0.3)]'
       } bg-gradient-to-br ${
         final
           ? 'from-yellow-500/30 via-amber-600/15 to-orange-600/20'
@@ -324,8 +324,8 @@ function FeaturedPreview({
         🏆
       </span>
 
-      {/* Stats hint badge — top-right corner, only when stats available */}
-      {statsUrl && (
+      {/* Stats hint badge — top-right corner, only when a box score exists */}
+      {hasStats && (
         <span className="absolute top-3 end-3 inline-flex items-center gap-1 rounded-full bg-orange-500/20 border border-orange-500/30 px-2 py-0.5 text-[10px] font-black text-orange-300 backdrop-blur-sm pointer-events-none select-none">
           📊 {en ? 'Box score available' : 'גיליון זמין · לחץ לצפייה'}
         </span>
@@ -404,9 +404,9 @@ function FeaturedPreview({
             <ArticleViewCounter previewId={preview.id} initialCount={preview.view_count ?? 0} />
           </div>
           <div className="flex items-center gap-3">
-            {statsUrl && (
+            {hasStats && (
               <Link
-                href={statsUrl}
+                href={cardHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-xs font-bold text-emerald-300 hover:text-emerald-200 transition"
