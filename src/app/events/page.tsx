@@ -324,12 +324,12 @@ function FeaturedPreview({
         🏆
       </span>
 
-      {/* Stats hint badge — top-right corner, only when a box score exists */}
-      {hasStats && (
-        <span className="absolute top-3 end-3 inline-flex items-center gap-1 rounded-full bg-orange-500/20 border border-orange-500/30 px-2 py-0.5 text-[10px] font-black text-orange-300 backdrop-blur-sm pointer-events-none select-none">
-          📊 {en ? 'Box score available' : 'גיליון זמין · לחץ לצפייה'}
-        </span>
-      )}
+      {/* Click hint badge — always visible so the card feels tappable */}
+      <span className="absolute top-3 end-3 inline-flex items-center gap-1 rounded-full bg-white/[0.08] border border-white/[0.12] px-2 py-0.5 text-[10px] font-black text-[#8aaac8] backdrop-blur-sm pointer-events-none select-none">
+        {hasStats
+          ? (en ? '📊 Box score · tap to view' : '📊 גיליון זמין · לחץ לצפייה')
+          : (en ? '↗ View in bracket' : '↗ לצפייה בגביע')}
+      </span>
 
       <div className="relative p-6 sm:p-8 space-y-6">
         {/* Top row: round + date */}
@@ -414,8 +414,8 @@ function FeaturedPreview({
                 📊 {en ? 'Box score' : 'גיליון משחק'}
               </Link>
             )}
-            <Link href="/cup" className="text-xs font-bold text-amber-300 hover:text-amber-200 transition">
-              {en ? 'View bracket →' : '← לבראקט המלא'}
+            <Link href="/cup" target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-amber-300 hover:text-amber-200 transition">
+              {en ? 'View bracket ↗' : '↗ לבראקט המלא'}
             </Link>
           </div>
         </div>

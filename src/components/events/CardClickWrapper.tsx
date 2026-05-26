@@ -27,15 +27,9 @@ export default function CardClickWrapper({
     // Skip elements explicitly opted out (e.g. team name text).
     if (target.closest('[data-no-card-link]')) return;
 
-    // Open in a new tab reliably (a programmatic anchor click is treated as a
-    // user-initiated navigation and avoids popup-blocker / new-window quirks).
-    const a = document.createElement('a');
-    a.href = href!;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    // window.open is the most reliable way to open a new tab from a
+    // user-gesture handler — browsers won't block it as a popup.
+    window.open(href, '_blank', 'noopener,noreferrer');
   }
 
   return (
@@ -44,8 +38,11 @@ export default function CardClickWrapper({
       onClick={handleClick}
       role="link"
       tabIndex={0}
+      title="לחץ לצפייה בגיליון המשחק"
       onKeyDown={(e) => {
-        if (e.key === 'Enter') handleClick(e as unknown as React.MouseEvent<HTMLElement>);
+        if (e.key === 'Enter') {
+          window.open(href, '_blank', 'noopener,noreferrer');
+        }
       }}
     >
       {children}
