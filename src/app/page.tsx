@@ -8,6 +8,7 @@ import { getTeams } from '@/lib/supabase';
 import ScoreboardStrip from '@/components/ScoreboardStrip';
 import LastRoundResults from '@/components/LastRoundResults';
 import UpcomingEvents, { type UpcomingEvent } from '@/components/UpcomingEvents';
+import ChampionBanner, { type ChampionBannerProps } from '@/components/ChampionBanner';
 import { getLang, st } from '@/lib/get-lang';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { getCurrentSeason } from '@/lib/current-season';
@@ -305,6 +306,147 @@ async function getCupFinal(season: string): Promise<CupFinal> {
   } catch { return null; }
 }
 
+// ── Champion banner data ─────────────────────────────────────────────────────
+// Detects a decided cup final and/or a decided playoff series for the current
+// season. The banner picks the most recently decided of the two and renders
+// the hero variant for 30 days, then the compact variant. When the admin
+// starts a new season the season scope changes and getChampionBanner returns
+// null for the new (empty) season — hiding the banner automatically.
+
+const CHAMPION_HERO_DAYS = 30;
+
+type CupChampion = {
+  id: string;
+  home_team: string;
+  away_team: string;
+  home_score: number;
+  away_score: number;
+  date: string | null;
+  video_url: string | null;
+  decidedAt: Date;        // best-effort parsed date for the 30-day rule
+};
+
+async function getCupChampion(season: string): Promise<CupChampion | null> {
+  try {
+    const { data } = await supabaseAdmin
+      .from('cup_games')
+      .select('id, home_team, away_team, home_score, away_score, date, video_url, played, round_order')
+      .eq('season', season)
+      .eq('played', true)
+      .not('home_score', 'is', null)
+      .not('away_score', 'is', null)
+      .order('round_order', { ascending: false })
+      .order('game_number', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!data) return null;
+    const decidedAt = parseFlexibleDate(data.date, season) ?? new Date();
+    return {
+      id:         data.id,
+      home_team:  data.home_team,
+      away_team:  data.away_team,
+      home_score: data.home_score,
+      away_score: data.away_score,
+      date:       data.date,
+      video_url:  (data as { video_url: string | null }).video_url ?? null,
+      decidedAt,
+    };
+  } catch { return null; }
+}
+
+type PlayoffChampion = {
+  seriesNumber: number;
+  champion: string;
+  opponent: string;
+  championIsTeamA: boolean;
+  // The deciding game's score, oriented to home/away of that single game:
+  decidingGameNumber: number;
+  homeTeam: string;
+  awayTeam: string;
+  homeScore: number;
+  awayScore: number;
+  date: string | null;
+  video_url: string | null;
+  decidedAt: Date;
+};
+
+async function getPlayoffChampion(season: string): Promise<PlayoffChampion | null> {
+  try {
+    // Highest series_number for the season — that's the final by convention
+    // (seriesNum > 6 = 'גמר' per src/app/playoff/series/[num]/page.tsx).
+    const { data: series } = await supabaseAdmin
+      .from('playoff_series')
+      .select('series_number, team_a, team_b')
+      .eq('season', season)
+      .order('series_number', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!series || !series.team_a || !series.team_b) return null;
+
+    const { data: games } = await supabaseAdmin
+      .from('playoff_games')
+      .select('game_number, home_score, away_score, played, game_date, video_url')
+      .eq('season', season)
+      .eq('series_number', series.series_number)
+      .order('game_number', { ascending: true });
+    const rows = (games ?? []) as { game_number: number; home_score: number | null; away_score: number | null; played: boolean; game_date: string | null; video_url: string | null }[];
+
+    // homeFor(): g2 swaps home/away. Mirrors logic in /playoff/series/[num]/page.tsx.
+    const homeForGame = (gNum: number) => gNum === 2 ? series.team_b : series.team_a;
+
+    let winsA = 0, winsB = 0;
+    let deciding: typeof rows[number] | null = null;
+    for (const g of rows) {
+      if (!g.played || g.home_score == null || g.away_score == null) continue;
+      const home = homeForGame(g.game_number);
+      const homeWon = g.home_score > g.away_score;
+      const aWon = (homeWon && home === series.team_a) || (!homeWon && home !== series.team_a);
+      if (aWon) winsA++;
+      else      winsB++;
+      if (winsA === 2 || winsB === 2) {
+        deciding = g;
+        break;
+      }
+    }
+
+    if (!deciding) return null; // series not decided yet
+    const championIsTeamA = winsA === 2;
+    const champion = championIsTeamA ? series.team_a : series.team_b;
+    const opponent = championIsTeamA ? series.team_b : series.team_a;
+
+    const decidedAt = parseFlexibleDate(deciding.game_date, season) ?? new Date();
+    return {
+      seriesNumber: series.series_number,
+      champion,
+      opponent,
+      championIsTeamA,
+      decidingGameNumber: deciding.game_number,
+      homeTeam: homeForGame(deciding.game_number),
+      awayTeam: homeForGame(deciding.game_number) === series.team_a ? series.team_b : series.team_a,
+      homeScore: deciding.home_score!,
+      awayScore: deciding.away_score!,
+      date:      deciding.game_date,
+      video_url: deciding.video_url ?? null,
+      decidedAt,
+    };
+  } catch { return null; }
+}
+
+function daysBetween(from: Date, to: Date): number {
+  const ms = to.getTime() - from.getTime();
+  return Math.floor(ms / 86_400_000);
+}
+
+function formatChampionDate(iso: string | null, lang: 'he' | 'en', season: string): string | null {
+  const d = parseFlexibleDate(iso, season);
+  if (!d) return null;
+  try {
+    return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'he-IL', {
+      day: 'numeric', month: 'long', year: 'numeric',
+    });
+  } catch { return null; }
+}
+
 async function getRoundDates(): Promise<Record<number, string>> {
   try {
     const { data } = await supabaseAdmin
@@ -493,7 +635,7 @@ function RecordCard({ icon, label, value, sub, detail, color }: { icon: string; 
 
 export default async function HomePage() {
   const season = await getCurrentSeason();
-  const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers, lang, dbRoundDates, cupFinal, upcomingCup] = await Promise.all([
+  const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers, lang, dbRoundDates, cupFinal, upcomingCup, cupChampion, playoffChampion] = await Promise.all([
     getLiveData(season),
     getActiveAnnouncements(),
     getTeams(),
@@ -503,6 +645,8 @@ export default async function HomePage() {
     getRoundDates(),
     getCupFinal(season),
     getUpcomingCupGames(season),
+    getCupChampion(season),
+    getPlayoffChampion(season),
   ]);
 
   const nextRoundEarly = liveData.currentRound + 1;
@@ -526,6 +670,72 @@ export default async function HomePage() {
   // so a rename in admin propagates to scoreboard, records, standings, etc.
   const resolveTeam = makeNameResolver(teams.map(t => ({ id: t.id, name: t.name })));
   const dbDisplayName = (s: string) => resolveTeam(s);
+
+  // ── Champion banner: pick the most recently decided final (cup OR playoff)
+  // and decide between the hero (≤ 30 days) and compact variant. Both go
+  // away the moment the admin bumps current_season — the queries are scoped
+  // to the new season which has no decided final yet.
+  const championProps: ChampionBannerProps | null = (() => {
+    const now = new Date();
+
+    // Cup candidate
+    let cupProps: ChampionBannerProps | null = null;
+    if (cupChampion) {
+      const homeIsChampion = cupChampion.home_score > cupChampion.away_score;
+      const champName    = homeIsChampion ? cupChampion.home_team : cupChampion.away_team;
+      const opponentName = homeIsChampion ? cupChampion.away_team : cupChampion.home_team;
+      const canonical    = dbDisplayName(champName);
+      const opponent     = dbDisplayName(opponentName);
+      cupProps = {
+        type: 'cup',
+        variant: daysBetween(cupChampion.decidedAt, now) < CHAMPION_HERO_DAYS ? 'hero' : 'compact',
+        teamName:        canonical,
+        teamLogoUrl:     logoMap[norm(canonical)] ?? logoMap[norm(champName)] ?? null,
+        opponentName:    opponent,
+        homeIsChampion,
+        homeScore:       cupChampion.home_score,
+        awayScore:       cupChampion.away_score,
+        decidedOnLabel:  formatChampionDate(cupChampion.date, lang as 'he' | 'en', season),
+        season,
+        finalGameHref:   `/cup/game/${cupChampion.id}`,
+        bracketHref:     '/cup',
+        videoUrl:        cupChampion.video_url,
+        lang: lang as 'he' | 'en',
+      };
+    }
+
+    // Playoff candidate
+    let playoffProps: ChampionBannerProps | null = null;
+    if (playoffChampion) {
+      const canonical = dbDisplayName(playoffChampion.champion);
+      const opponent  = dbDisplayName(playoffChampion.opponent);
+      // homeIsChampion describes the deciding-game orientation, not the series.
+      const homeIsChampion = playoffChampion.homeTeam === playoffChampion.champion;
+      playoffProps = {
+        type: 'league',
+        variant: daysBetween(playoffChampion.decidedAt, now) < CHAMPION_HERO_DAYS ? 'hero' : 'compact',
+        teamName:        canonical,
+        teamLogoUrl:     logoMap[norm(canonical)] ?? logoMap[norm(playoffChampion.champion)] ?? null,
+        opponentName:    opponent,
+        homeIsChampion,
+        homeScore:       playoffChampion.homeScore,
+        awayScore:       playoffChampion.awayScore,
+        decidedOnLabel:  formatChampionDate(playoffChampion.date, lang as 'he' | 'en', season),
+        season,
+        finalGameHref:   `/playoff/series/${playoffChampion.seriesNumber}`,
+        bracketHref:     '/playoff',
+        videoUrl:        playoffChampion.video_url,
+        lang: lang as 'he' | 'en',
+      };
+    }
+
+    // Pick the most recent decided. (Most recent wins per user request.)
+    if (cupProps && playoffProps) {
+      return (cupChampion!.decidedAt.getTime() >= playoffChampion!.decidedAt.getTime())
+        ? cupProps : playoffProps;
+    }
+    return cupProps ?? playoffProps;
+  })();
 
   const {
     northLeader, southLeader,
@@ -637,6 +847,9 @@ export default async function HomePage() {
           </div>
         </div>
       )}
+
+      {/* ── Champion banner (cup or league) ── */}
+      {championProps && <ChampionBanner {...championProps} />}
 
       {/* ── NBA-style Scoreboard Strip ── */}
       {allNextGames.length > 0 && nextRound <= TOTAL_ROUNDS && (
