@@ -15,7 +15,6 @@ type ScorerRow = {
   team_name: string | null;
   games: number;
   points: number;
-  two_pointers: number;
   three_pointers: number;
   fouls: number;
 };
@@ -59,7 +58,6 @@ async function getCurrentScorers(season: string): Promise<ScorerRow[]> {
     points: number; three_pointers: number; fouls: number;
     team: { name: string } | null;
   }[]).map(p => {
-    const twos = Math.max(0, Math.floor((p.points - 3 * p.three_pointers) / 2));
     return {
       id:             p.id,
       name:           p.name,
@@ -68,7 +66,6 @@ async function getCurrentScorers(season: string): Promise<ScorerRow[]> {
       team_name:      p.team?.name ?? null,
       games:          gamesByPlayer.get(p.id) ?? 0,
       points:         p.points,
-      two_pointers:   twos,
       three_pointers: p.three_pointers,
       fouls:          p.fouls,
     };
@@ -108,7 +105,6 @@ async function getArchiveScorers(season: string): Promise<ScorerRow[]> {
   }[])
     .map((p) => {
       const t = totalsByPlayer.get(p.id) ?? { games: new Set<string>(), points: 0, three_pointers: 0, fouls: 0 };
-      const twos = Math.max(0, Math.floor((t.points - 3 * t.three_pointers) / 2));
       return {
         id:             p.id,
         name:           p.name,
@@ -117,7 +113,6 @@ async function getArchiveScorers(season: string): Promise<ScorerRow[]> {
         team_name:      p.team?.name ?? null,
         games:          t.games.size,
         points:         t.points,
-        two_pointers:   twos,
         three_pointers: t.three_pointers,
         fouls:          t.fouls,
       };
@@ -186,7 +181,7 @@ export default async function ScorersPage({
             <span>{T('שחקן')}</span>
             <span className="text-center">{T('משחקים')}</span>
             <span className="text-center">{T('סה״כ נק׳')}</span>
-            <span className="text-center">{T('ממוצע 2נק׳')}</span>
+            <span className="text-center">{T('ממוצע נק׳')}</span>
             <span className="text-center">{T('ממוצע 3נק׳')}</span>
             <span className="text-center">{T('ממוצע פאולים')}</span>
           </div>
@@ -256,9 +251,9 @@ export default async function ScorersPage({
                   <p className="text-[10px] font-bold text-[#8aaac8] sm:hidden font-body">{T('נק׳')}</p>
                 </div>
 
-                {/* Avg 2pt makes/game */}
+                {/* Avg points / game (PPG) */}
                 <div className="hidden sm:block py-4 text-center">
-                  <p className="text-base font-black text-emerald-400 font-stats">{fmtAvg(p.two_pointers, p.games)}</p>
+                  <p className="text-base font-black text-emerald-400 font-stats">{fmtAvg(p.points, p.games)}</p>
                   <p className="text-[9px] font-bold text-[#5a7a9a] font-body">{T('למשחק')}</p>
                 </div>
 
