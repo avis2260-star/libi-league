@@ -328,14 +328,18 @@ type CupChampion = {
 
 async function getCupChampion(season: string): Promise<CupChampion | null> {
   try {
+    // Cup champion = the team that won the FINAL ('גמר' — exact match,
+    // distinct from 'רבע גמר' / 'חצי גמר'). Only fires once the admin has
+    // entered scores AND marked the final as played. Earlier-round wins
+    // don't crown a champion.
     const { data } = await supabaseAdmin
       .from('cup_games')
-      .select('id, home_team, away_team, home_score, away_score, date, video_url, played, round_order')
+      .select('id, home_team, away_team, home_score, away_score, date, video_url, played')
       .eq('season', season)
+      .eq('round', 'גמר')
       .eq('played', true)
       .not('home_score', 'is', null)
       .not('away_score', 'is', null)
-      .order('round_order', { ascending: false })
       .order('game_number', { ascending: false })
       .limit(1)
       .maybeSingle();
