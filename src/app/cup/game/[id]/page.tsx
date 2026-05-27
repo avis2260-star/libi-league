@@ -91,6 +91,17 @@ export default async function CupGameBoxScorePage({
           </p>
         </div>
       )}
+
+      {game.video_url && (
+        <a
+          href={game.video_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-2 rounded-2xl border border-orange-500/30 bg-orange-500/10 px-5 py-3 text-sm font-bold text-orange-400 hover:bg-orange-500/20 transition-colors"
+        >
+          🎬 {en ? 'Watch Game Video' : 'צפה בסרטון המשחק'}
+        </a>
+      )}
     </div>
   );
 }

@@ -61,12 +61,19 @@ export async function PUT(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const season = await getCurrentSeason();
   const body = await req.json();
-  const { series_number, game_number, home_score, away_score, played, game_date } = body;
+  const { series_number, game_number, home_score, away_score, played, game_date, video_url } = body;
 
   const update: Record<string, unknown> = { played: played ?? false };
   if (home_score !== undefined) update.home_score = home_score;
   if (away_score !== undefined) update.away_score = away_score;
   if (game_date  !== undefined) update.game_date  = game_date;
+  if (video_url  !== undefined) {
+    const trimmed = typeof video_url === 'string' ? video_url.trim() : '';
+    if (trimmed && !/^https?:\/\/.+/.test(trimmed)) {
+      return NextResponse.json({ error: 'קישור וידאו חייב להתחיל ב-http:// או https://' }, { status: 400 });
+    }
+    update.video_url = trimmed || null;
+  }
 
   // Upsert keyed on (season, series_number, game_number) — the same shape as
   // the unique constraint added in 20260521_add_season_column.sql. Two seasons

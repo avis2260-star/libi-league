@@ -16,6 +16,7 @@ interface Game {
   home_score: number | null; away_score: number | null;
   played: boolean;
   home_quarters: number[] | null; away_quarters: number[] | null;
+  video_url: string | null;
 }
 interface Series {
   series_number: number; team_a: string; team_b: string;
@@ -147,10 +148,19 @@ export default async function SeriesFlyerPage({
         awayScore: g?.away_score ?? null,
         homeQuarters: g?.home_quarters ?? null,
         awayQuarters: g?.away_quarters ?? null,
+        videoUrl: g?.video_url ?? null,
         homePlayers, awayPlayers,
       };
     })
     .filter((b): b is NonNullable<typeof b> => b !== null);
+
+  // Videos for games that may not yet have a box score recorded (e.g. score
+  // entered + video link added but no per-player stats). The box-score loop
+  // already shows the video next to the score sheet; this catches any played
+  // game that has a video but no stats.
+  const videoOnlyGames = games
+    .filter((g) => g.video_url && !boxScores.some((b) => b.gNum === g.game_number))
+    .map((g) => ({ gNum: g.game_number, videoUrl: g.video_url! }));
 
   return (
     <div
@@ -185,19 +195,51 @@ export default async function SeriesFlyerPage({
             📋 {lang === 'en' ? 'Box Scores' : 'גיליונות משחק'}
           </h2>
           {boxScores.map((b) => (
-            <PublicBoxScore
-              key={b.gNum}
-              lang={lang as 'he' | 'en'}
-              gameLabel={lang === 'en' ? `Game ${b.gNum}` : `משחק ${b.gNum}`}
-              homeTeamName={b.homeName}
-              awayTeamName={b.awayName}
-              homeScore={b.homeScore}
-              awayScore={b.awayScore}
-              homeQuarters={b.homeQuarters}
-              awayQuarters={b.awayQuarters}
-              homePlayers={b.homePlayers}
-              awayPlayers={b.awayPlayers}
-            />
+            <div key={b.gNum} className="space-y-2">
+              <PublicBoxScore
+                lang={lang as 'he' | 'en'}
+                gameLabel={lang === 'en' ? `Game ${b.gNum}` : `משחק ${b.gNum}`}
+                homeTeamName={b.homeName}
+                awayTeamName={b.awayName}
+                homeScore={b.homeScore}
+                awayScore={b.awayScore}
+                homeQuarters={b.homeQuarters}
+                awayQuarters={b.awayQuarters}
+                homePlayers={b.homePlayers}
+                awayPlayers={b.awayPlayers}
+              />
+              {b.videoUrl && (
+                <a
+                  href={b.videoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 rounded-xl border border-orange-500/30 bg-orange-500/10 px-4 py-2 text-xs font-bold text-orange-400 hover:bg-orange-500/20 transition-colors"
+                >
+                  🎬 {lang === 'en' ? `Watch Game ${b.gNum}` : `צפה במשחק ${b.gNum}`}
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {videoOnlyGames.length > 0 && (
+        <div className="mt-6 w-full max-w-2xl space-y-2">
+          {boxScores.length === 0 && (
+            <h2 className="text-sm font-black uppercase tracking-widest text-[#8aaac8]">
+              🎬 {lang === 'en' ? 'Game Videos' : 'סרטוני משחק'}
+            </h2>
+          )}
+          {videoOnlyGames.map((v) => (
+            <a
+              key={v.gNum}
+              href={v.videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 rounded-xl border border-orange-500/30 bg-orange-500/10 px-4 py-2 text-xs font-bold text-orange-400 hover:bg-orange-500/20 transition-colors"
+            >
+              🎬 {lang === 'en' ? `Watch Game ${v.gNum}` : `צפה במשחק ${v.gNum}`}
+            </a>
           ))}
         </div>
       )}

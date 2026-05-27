@@ -43,6 +43,7 @@ export type CupGame = {
   played: boolean;
   home_quarters: number[] | null;
   away_quarters: number[] | null;
+  video_url: string | null;
 };
 
 type Props = {
@@ -520,6 +521,17 @@ function GameRow({
             שוחק
           </label>
         </div>
+        {/* Video URL — full-width row */}
+        <div dir="ltr" className="flex items-center gap-2 text-sm">
+          <span className="text-[#5a7a9a] text-base">🎥</span>
+          <input
+            type="url"
+            value={draft.video_url ?? ''}
+            onChange={(e) => onDraft({ ...draft, video_url: e.target.value || null })}
+            placeholder="https://youtube.com/watch?v=…"
+            className="flex-1 rounded-md border border-white/[0.1] bg-[#0a1525] px-3 py-1.5 text-sm text-white placeholder:text-[#3a5a7a] focus:border-orange-500/40 focus:outline-none"
+          />
+        </div>
         <div className="flex gap-2 justify-end">
           <button
             onClick={onSave}
@@ -558,8 +570,20 @@ function GameRow({
         {game.away_team}
         <span className="text-[10px] font-bold text-[#5a7a9a] mr-1">חוץ</span>
       </span>
-      <span className="text-xs text-[#5a7a9a] tabular-nums whitespace-nowrap">
+      <span className="text-xs text-[#5a7a9a] tabular-nums whitespace-nowrap flex items-center gap-1">
         {formatCupDate(game.date)}
+        {game.video_url && (
+          <a
+            href={game.video_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            title="פתח את סרטון המשחק"
+            className="text-rose-400 hover:text-rose-300 transition"
+          >
+            🎥
+          </a>
+        )}
       </span>
       <button
         onClick={onToggleStats}

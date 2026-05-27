@@ -40,10 +40,20 @@ export async function PATCH(req: NextRequest) {
     const { id, ...fields } = body;
     if (!id) return NextResponse.json({ error: 'חסר id' }, { status: 400 });
 
-    const allowed = ['round', 'round_order', 'game_number', 'home_team', 'away_team', 'home_score', 'away_score', 'date', 'played'];
+    const allowed = ['round', 'round_order', 'game_number', 'home_team', 'away_team', 'home_score', 'away_score', 'date', 'played', 'video_url'];
     const update: Record<string, unknown> = {};
     for (const key of allowed) {
       if (key in fields) update[key] = fields[key];
+    }
+
+    // Basic URL validation (allow null/empty to clear)
+    if ('video_url' in update) {
+      const raw = update.video_url;
+      const trimmed = typeof raw === 'string' ? raw.trim() : '';
+      if (trimmed && !/^https?:\/\/.+/.test(trimmed)) {
+        return NextResponse.json({ error: 'קישור וידאו חייב להתחיל ב-http:// או https://' }, { status: 400 });
+      }
+      update.video_url = trimmed || null;
     }
 
     const { error } = await supabaseAdmin
