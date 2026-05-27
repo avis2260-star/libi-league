@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 
+import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import StageCardsBracket from '@/components/cup/StageCardsBracket';
 import JourneyBracket from '@/components/cup/JourneyBracket';
@@ -92,8 +93,14 @@ export default async function CupPage({
           <p className="text-[#5a7a9a] text-[11px] font-body">
             {T('טורניר הגביע העונתי')} {viewing}
           </p>
-          <div className="mt-2 flex justify-center">
+          <div className="mt-2 flex justify-center items-center gap-2 flex-wrap">
             <SeasonPicker current={current} viewing={viewing} seasons={seasons} />
+            <Link
+              href="/cup/stats"
+              className="inline-flex items-center gap-1.5 rounded-full border border-orange-500/40 bg-orange-500/[0.08] px-3 py-1 text-[11px] font-black text-orange-300 hover:bg-orange-500/[0.15] transition-colors"
+            >
+              📊 {T('סטטיסטיקה גביע')}
+            </Link>
           </div>
           {participatingTeams.length > 0 && (
             <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5 max-w-2xl mx-auto">

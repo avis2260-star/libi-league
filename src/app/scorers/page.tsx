@@ -13,36 +13,66 @@ type ScorerRow = {
   photo_url: string | null;
   jersey_number: number | null;
   team_name: string | null;
+  games: number;
   points: number;
+  two_pointers: number;
   three_pointers: number;
   fouls: number;
 };
 
-async function getCurrentScorers(): Promise<ScorerRow[]> {
+// Builds a player_id → games_played count from the season's game_stats rows.
+// Used by both current and archive paths so averages divide by the right
+// number of games even when the cached players.points totals are authoritative.
+async function getGamesPlayedByPlayer(season: string): Promise<Map<string, number>> {
+  const { data } = await supabaseAdmin
+    .from('game_stats')
+    .select('player_id, game_id')
+    .eq('season', season);
+
+  const counts = new Map<string, Set<string>>();
+  for (const r of (data ?? []) as { player_id: string; game_id: string }[]) {
+    const s = counts.get(r.player_id) ?? new Set<string>();
+    s.add(r.game_id);
+    counts.set(r.player_id, s);
+  }
+  const out = new Map<string, number>();
+  for (const [pid, s] of counts) out.set(pid, s.size);
+  return out;
+}
+
+async function getCurrentScorers(season: string): Promise<ScorerRow[]> {
   // Current season: read the cached aggregates on `players` directly.
   // These are kept in sync by recalcPlayerTotals (current-season scope).
-  const { data } = await supabaseAdmin
-    .from('players')
-    .select('id, name, photo_url, jersey_number, points, three_pointers, fouls, team:teams(name)')
-    .eq('is_active', true)
-    .gt('points', 0)
-    .order('points', { ascending: false })
-    .limit(20);
+  const [{ data }, gamesByPlayer] = await Promise.all([
+    supabaseAdmin
+      .from('players')
+      .select('id, name, photo_url, jersey_number, points, three_pointers, fouls, team:teams(name)')
+      .eq('is_active', true)
+      .gt('points', 0)
+      .order('points', { ascending: false })
+      .limit(20),
+    getGamesPlayedByPlayer(season),
+  ]);
 
   return ((data ?? []) as unknown as {
     id: string; name: string; photo_url: string | null; jersey_number: number | null;
     points: number; three_pointers: number; fouls: number;
     team: { name: string } | null;
-  }[]).map(p => ({
-    id:             p.id,
-    name:           p.name,
-    photo_url:      p.photo_url,
-    jersey_number:  p.jersey_number,
-    team_name:      p.team?.name ?? null,
-    points:         p.points,
-    three_pointers: p.three_pointers,
-    fouls:          p.fouls,
-  }));
+  }[]).map(p => {
+    const twos = Math.max(0, Math.floor((p.points - 3 * p.three_pointers) / 2));
+    return {
+      id:             p.id,
+      name:           p.name,
+      photo_url:      p.photo_url,
+      jersey_number:  p.jersey_number,
+      team_name:      p.team?.name ?? null,
+      games:          gamesByPlayer.get(p.id) ?? 0,
+      points:         p.points,
+      two_pointers:   twos,
+      three_pointers: p.three_pointers,
+      fouls:          p.fouls,
+    };
+  });
 }
 
 async function getArchiveScorers(season: string): Promise<ScorerRow[]> {
@@ -50,13 +80,14 @@ async function getArchiveScorers(season: string): Promise<ScorerRow[]> {
   // being viewed. Re-derive totals from per-game rows scoped to the season.
   const { data: stats } = await supabaseAdmin
     .from('game_stats')
-    .select('player_id, points, three_pointers, fouls')
+    .select('player_id, game_id, points, three_pointers, fouls')
     .eq('season', season);
 
-  type Totals = { points: number; three_pointers: number; fouls: number };
+  type Totals = { games: Set<string>; points: number; three_pointers: number; fouls: number };
   const totalsByPlayer = new Map<string, Totals>();
-  for (const r of (stats ?? []) as { player_id: string; points: number | null; three_pointers: number | null; fouls: number | null }[]) {
-    const t = totalsByPlayer.get(r.player_id) ?? { points: 0, three_pointers: 0, fouls: 0 };
+  for (const r of (stats ?? []) as { player_id: string; game_id: string; points: number | null; three_pointers: number | null; fouls: number | null }[]) {
+    const t = totalsByPlayer.get(r.player_id) ?? { games: new Set<string>(), points: 0, three_pointers: 0, fouls: 0 };
+    t.games.add(r.game_id);
     t.points         += r.points         ?? 0;
     t.three_pointers += r.three_pointers ?? 0;
     t.fouls          += r.fouls          ?? 0;
@@ -76,14 +107,17 @@ async function getArchiveScorers(season: string): Promise<ScorerRow[]> {
     team: { name: string } | null;
   }[])
     .map((p) => {
-      const t = totalsByPlayer.get(p.id) ?? { points: 0, three_pointers: 0, fouls: 0 };
+      const t = totalsByPlayer.get(p.id) ?? { games: new Set<string>(), points: 0, three_pointers: 0, fouls: 0 };
+      const twos = Math.max(0, Math.floor((t.points - 3 * t.three_pointers) / 2));
       return {
         id:             p.id,
         name:           p.name,
         photo_url:      p.photo_url,
         jersey_number:  p.jersey_number,
         team_name:      p.team?.name ?? null,
+        games:          t.games.size,
         points:         t.points,
+        two_pointers:   twos,
         three_pointers: t.three_pointers,
         fouls:          t.fouls,
       };
@@ -91,6 +125,11 @@ async function getArchiveScorers(season: string): Promise<ScorerRow[]> {
     .filter((p) => p.points > 0)
     .sort((a, b) => b.points - a.points)
     .slice(0, 20);
+}
+
+function fmtAvg(total: number, games: number): string {
+  if (!games) return '0';
+  return (total / games).toFixed(1);
 }
 
 const MEDAL = ['🥇', '🥈', '🥉'];
@@ -104,7 +143,7 @@ export default async function ScorersPage({
   const params = await searchParams;
   const { viewing, current, isArchive } = await resolveSeasonFromParams(params);
   const [scorers, lang, seasons] = await Promise.all([
-    isArchive ? getArchiveScorers(viewing) : getCurrentScorers(),
+    isArchive ? getArchiveScorers(viewing) : getCurrentScorers(viewing),
     getLang(),
     listKnownSeasons(),
   ]);
@@ -142,12 +181,14 @@ export default async function ScorersPage({
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] overflow-hidden">
 
           {/* Table header */}
-          <div className="hidden sm:grid grid-cols-[3rem_1fr_6rem_6rem_6rem] gap-2 px-5 py-3 border-b border-white/[0.08] text-[11px] font-black uppercase tracking-widest text-[#8aaac8]">
+          <div className="hidden sm:grid grid-cols-[3rem_1fr_3.5rem_4rem_4.5rem_4.5rem_4.5rem] gap-2 px-5 py-3 border-b border-white/[0.08] text-[11px] font-black uppercase tracking-widest text-[#8aaac8]">
             <span className="text-center">{T('מקום')}</span>
             <span>{T('שחקן')}</span>
-            <span className="text-center">{T('נק׳')}</span>
-            <span className="text-center">{T('3נק׳')}</span>
-            <span className="text-center">{T('פאולים')}</span>
+            <span className="text-center">{T('משחקים')}</span>
+            <span className="text-center">{T('סה״כ נק׳')}</span>
+            <span className="text-center">{T('ממוצע 2נק׳')}</span>
+            <span className="text-center">{T('ממוצע 3נק׳')}</span>
+            <span className="text-center">{T('ממוצע פאולים')}</span>
           </div>
 
           {scorers.map((p, i) => {
@@ -156,7 +197,7 @@ export default async function ScorersPage({
               <Link
                 key={p.id}
                 href={`/players/${p.id}`}
-                className="flex sm:grid sm:grid-cols-[3rem_1fr_6rem_6rem_6rem] gap-0 sm:gap-2 items-center border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] transition-colors group"
+                className="flex sm:grid sm:grid-cols-[3rem_1fr_3.5rem_4rem_4.5rem_4.5rem_4.5rem] gap-0 sm:gap-2 items-center border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] transition-colors group"
               >
                 {/* Rank */}
                 <div className="w-14 sm:w-auto shrink-0 px-3 sm:px-0 py-4 flex flex-col items-center justify-center">
@@ -204,20 +245,33 @@ export default async function ScorersPage({
                   </div>
                 </div>
 
-                {/* Points */}
+                {/* Games — desktop only (mobile collapses to total) */}
+                <div className="hidden sm:block py-4 text-center">
+                  <p className="text-sm font-black text-[#c8d8e8] font-stats">{p.games}</p>
+                </div>
+
+                {/* Total points */}
                 <div className="w-16 sm:w-auto shrink-0 px-2 py-4 text-center">
                   <p className="text-lg font-black text-orange-400 font-stats">{p.points}</p>
                   <p className="text-[10px] font-bold text-[#8aaac8] sm:hidden font-body">{T('נק׳')}</p>
                 </div>
 
-                {/* 3PT */}
+                {/* Avg 2pt makes/game */}
                 <div className="hidden sm:block py-4 text-center">
-                  <p className="text-base font-black text-sky-400 font-stats">{p.three_pointers}</p>
+                  <p className="text-base font-black text-emerald-400 font-stats">{fmtAvg(p.two_pointers, p.games)}</p>
+                  <p className="text-[9px] font-bold text-[#5a7a9a] font-body">{T('למשחק')}</p>
                 </div>
 
-                {/* Fouls */}
+                {/* Avg 3pt makes/game */}
                 <div className="hidden sm:block py-4 text-center">
-                  <p className="text-base font-black text-rose-400 font-stats">{p.fouls}</p>
+                  <p className="text-base font-black text-sky-400 font-stats">{fmtAvg(p.three_pointers, p.games)}</p>
+                  <p className="text-[9px] font-bold text-[#5a7a9a] font-body">{T('למשחק')}</p>
+                </div>
+
+                {/* Avg fouls/game */}
+                <div className="hidden sm:block py-4 text-center">
+                  <p className="text-base font-black text-rose-400 font-stats">{fmtAvg(p.fouls, p.games)}</p>
+                  <p className="text-[9px] font-bold text-[#5a7a9a] font-body">{T('למשחק')}</p>
                 </div>
               </Link>
             );
@@ -227,7 +281,7 @@ export default async function ScorersPage({
 
       {/* Mobile extra columns note */}
       <p className="text-center text-xs text-[#3a5a7a] sm:hidden">
-        {T('סובב למצב אופקי לצפייה בנתוני 3נק׳ ופאולים')}
+        {T('סובב למצב אופקי לצפייה בממוצעים')}
       </p>
     </div>
   );
