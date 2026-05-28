@@ -137,7 +137,7 @@ export default function UpcomingEvents({
                       {ev.heDayLabel} · {ev.displayDate}
                     </p>
                     {ev.location && (
-                      <p className="mt-1 text-xs font-bold text-amber-200/80">📍 {ev.location}</p>
+                      <p className="mt-1 text-xs font-bold text-amber-700 dark:text-amber-200/80">📍 {ev.location}</p>
                     )}
                   </div>
                 </div>

@@ -380,7 +380,7 @@ function ReviewBlock({ title, body, compact }: { title: string; body: string; co
   }
   return (
     <div className={`rounded-xl border border-white/[0.07] bg-white/[0.03] ${compact ? 'p-3' : 'p-4'} space-y-2`}>
-      <p className={`${compact ? 'text-[10px]' : 'text-[11px]'} font-black uppercase tracking-widest text-amber-300`}>
+      <p className={`${compact ? 'text-[10px]' : 'text-[11px]'} font-black uppercase tracking-widest text-[#fb923c]`}>
         {title}
       </p>
       <MarkdownLite text={body} compact={compact} />
