@@ -352,8 +352,8 @@ export default async function CupStatsPage({
                   <span className="text-center text-sm font-black text-rose-400 font-stats">{t.losses}</span>
                   <span className="text-center text-sm font-black text-orange-400 font-stats">{t.points_for}</span>
                   <span className="text-center text-sm font-black text-[#8aaac8] font-stats">{t.points_against}</span>
-                  <span className={`text-center text-sm font-black font-stats ${diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-rose-400' : 'text-[#8aaac8]'}`}>
-                    {diff > 0 ? `+${diff}` : diff}
+                  <span dir="ltr" className={`text-center text-sm font-black font-stats ${diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-rose-400' : 'text-[#8aaac8]'}`}>
+                    {diff > 0 ? `+${diff}` : `${diff}`}
                   </span>
                 </div>
               );
