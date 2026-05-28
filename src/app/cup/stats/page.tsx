@@ -204,7 +204,6 @@ export default async function CupStatsPage({
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] py-16 text-center">
             <p className="text-4xl mb-3">🏀</p>
             <p className="font-bold text-[#8aaac8]">{T('עדיין אין סטטיסטיקה לגביע')}</p>
-            <p className="text-xs text-[#5a7a9a] mt-2">{T('הזן סטטיסטיקה דרך לשונית הגביע באדמין')}</p>
           </div>
         ) : (
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] overflow-hidden">
