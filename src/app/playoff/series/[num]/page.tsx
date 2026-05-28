@@ -17,6 +17,7 @@ interface Game {
   played: boolean;
   home_quarters: number[] | null; away_quarters: number[] | null;
   video_url: string | null;
+  location: string | null;
 }
 interface Series {
   series_number: number; team_a: string; team_b: string;
@@ -149,6 +150,7 @@ export default async function SeriesFlyerPage({
         homeQuarters: g?.home_quarters ?? null,
         awayQuarters: g?.away_quarters ?? null,
         videoUrl: g?.video_url ?? null,
+        location: g?.location ?? null,
         homePlayers, awayPlayers,
       };
     })
@@ -208,6 +210,9 @@ export default async function SeriesFlyerPage({
                 homePlayers={b.homePlayers}
                 awayPlayers={b.awayPlayers}
               />
+              {b.location && (
+                <p className="text-center text-xs font-bold text-[#8aaac8]">📍 {b.location}</p>
+              )}
               {b.videoUrl && (
                 <a
                   href={b.videoUrl}

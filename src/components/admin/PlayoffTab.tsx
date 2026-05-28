@@ -21,6 +21,7 @@ interface Game {
   home_quarters: number[] | null;
   away_quarters: number[] | null;
   video_url: string | null;
+  location: string | null;
 }
 interface PlayoffStatRow {
   series_number: number;
@@ -97,7 +98,7 @@ export default function PlayoffTab() {
   const [loading, setLoading]       = useState(true);
   const [msg, setMsg]               = useState<{ ok: boolean; text: string } | null>(null);
   const [teamDraft, setTeamDraft]   = useState<Record<number, { a: string; b: string }>>({});
-  const [gameDraft, setGameDraft]   = useState<Record<string, { hs: string; as: string; date: string; played: boolean; vu: string }>>({});
+  const [gameDraft, setGameDraft]   = useState<Record<string, { hs: string; as: string; date: string; played: boolean; vu: string; loc: string }>>({});
   const [saving, setSaving]         = useState<string | null>(null);
   const [rostersByTeam, setRostersByTeam] = useState<Record<string, RosterPlayer[]>>({});
   const [stats, setStats]           = useState<PlayoffStatRow[]>([]);
@@ -116,7 +117,7 @@ export default function PlayoffTab() {
         const td: Record<number, { a: string; b: string }> = {};
         for (const sr of s) td[sr.series_number] = { a: sr.team_a, b: sr.team_b };
         setTeamDraft(td);
-        const gd: Record<string, { hs: string; as: string; date: string; played: boolean; vu: string }> = {};
+        const gd: Record<string, { hs: string; as: string; date: string; played: boolean; vu: string; loc: string }> = {};
         for (const gm of g) {
           gd[`${gm.series_number}-${gm.game_number}`] = {
             hs: gm.home_score?.toString() ?? '',
@@ -124,6 +125,7 @@ export default function PlayoffTab() {
             date: gm.game_date ?? '',
             played: gm.played,
             vu: gm.video_url ?? '',
+            loc: gm.location ?? '',
           };
         }
         setGameDraft(gd);
@@ -146,9 +148,9 @@ export default function PlayoffTab() {
   }
 
   function getGD(sNum: number, gNum: number) {
-    return gameDraft[`${sNum}-${gNum}`] ?? { hs: '', as: '', date: '', played: false, vu: '' };
+    return gameDraft[`${sNum}-${gNum}`] ?? { hs: '', as: '', date: '', played: false, vu: '', loc: '' };
   }
-  function setGD(sNum: number, gNum: number, patch: Partial<{ hs: string; as: string; date: string; played: boolean; vu: string }>) {
+  function setGD(sNum: number, gNum: number, patch: Partial<{ hs: string; as: string; date: string; played: boolean; vu: string; loc: string }>) {
     const key = `${sNum}-${gNum}`;
     setGameDraft(prev => ({ ...prev, [key]: { ...getGD(sNum, gNum), ...patch } }));
   }
@@ -209,6 +211,7 @@ export default function PlayoffTab() {
         played: d.played,
         game_date: d.date || null,
         video_url: d.vu.trim() || null,
+        location: d.loc.trim() || null,
       }),
     });
     setSaving(null);
@@ -222,6 +225,7 @@ export default function PlayoffTab() {
         home_quarters: prevGame?.home_quarters ?? null,
         away_quarters: prevGame?.away_quarters ?? null,
         video_url: d.vu.trim() || null,
+        location: d.loc.trim() || null,
       };
       setGames(prev => {
         const exists = prev.find(g => g.series_number === sNum && g.game_number === gNum);
@@ -359,6 +363,18 @@ export default function PlayoffTab() {
                         >
                           📊 סטטיסטיקה
                         </button>
+                      </div>
+
+                      {/* Location — full-width row; saved with the rest of the game on ✓ שמור */}
+                      <div dir="rtl" className="flex items-center gap-2">
+                        <span className="text-gray-500 text-base shrink-0">📍</span>
+                        <input
+                          type="text"
+                          value={d.loc}
+                          onChange={e => setGD(s.series_number, gNum, { loc: e.target.value })}
+                          placeholder="מיקום המשחק (אולם / כתובת)"
+                          className="flex-1 min-w-0 rounded border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-white placeholder:text-gray-600 focus:border-orange-500 focus:outline-none"
+                        />
                       </div>
 
                       {/* Video URL — full-width row; saved with the rest of the game on ✓ שמור */}

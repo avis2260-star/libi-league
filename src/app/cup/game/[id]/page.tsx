@@ -60,6 +60,9 @@ export default async function CupGameBoxScorePage({
           <h1 className="text-xl sm:text-2xl font-black text-white font-heading">
             {T(game.home_team)} <span className="text-[#5a7a9a]">vs</span> {T(game.away_team)}
           </h1>
+          {game.location && (
+            <p className="mt-1 text-xs font-bold text-[#8aaac8]">📍 {game.location}</p>
+          )}
         </div>
         <Link href="/cup" className="shrink-0 text-xs font-bold text-amber-300 hover:text-amber-200 transition">
           {en ? 'Bracket →' : '← לבראקט'}

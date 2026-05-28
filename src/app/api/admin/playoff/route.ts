@@ -61,7 +61,7 @@ export async function PUT(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const season = await getCurrentSeason();
   const body = await req.json();
-  const { series_number, game_number, home_score, away_score, played, game_date, video_url } = body;
+  const { series_number, game_number, home_score, away_score, played, game_date, video_url, location } = body;
 
   const update: Record<string, unknown> = { played: played ?? false };
   if (home_score !== undefined) update.home_score = home_score;
@@ -73,6 +73,10 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'קישור וידאו חייב להתחיל ב-http:// או https://' }, { status: 400 });
     }
     update.video_url = trimmed || null;
+  }
+  if (location !== undefined) {
+    const trimmed = typeof location === 'string' ? location.trim() : '';
+    update.location = trimmed || null;
   }
 
   // Upsert keyed on (season, series_number, game_number) — the same shape as

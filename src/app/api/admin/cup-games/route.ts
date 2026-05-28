@@ -40,7 +40,7 @@ export async function PATCH(req: NextRequest) {
     const { id, ...fields } = body;
     if (!id) return NextResponse.json({ error: 'חסר id' }, { status: 400 });
 
-    const allowed = ['round', 'round_order', 'game_number', 'home_team', 'away_team', 'home_score', 'away_score', 'date', 'played', 'video_url'];
+    const allowed = ['round', 'round_order', 'game_number', 'home_team', 'away_team', 'home_score', 'away_score', 'date', 'played', 'video_url', 'location'];
     const update: Record<string, unknown> = {};
     for (const key of allowed) {
       if (key in fields) update[key] = fields[key];
@@ -54,6 +54,13 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: 'קישור וידאו חייב להתחיל ב-http:// או https://' }, { status: 400 });
       }
       update.video_url = trimmed || null;
+    }
+
+    // Normalize location (empty → null)
+    if ('location' in update) {
+      const raw = update.location;
+      const trimmed = typeof raw === 'string' ? raw.trim() : '';
+      update.location = trimmed || null;
     }
 
     const { error } = await supabaseAdmin

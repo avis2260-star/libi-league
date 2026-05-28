@@ -44,6 +44,7 @@ export type CupGame = {
   home_quarters: number[] | null;
   away_quarters: number[] | null;
   video_url: string | null;
+  location: string | null;
 };
 
 type Props = {
@@ -521,6 +522,17 @@ function GameRow({
             שוחק
           </label>
         </div>
+        {/* Location — full-width row */}
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-[#5a7a9a] text-base">📍</span>
+          <input
+            type="text"
+            value={draft.location ?? ''}
+            onChange={(e) => onDraft({ ...draft, location: e.target.value || null })}
+            placeholder="מיקום המשחק (אולם / כתובת)"
+            className="flex-1 rounded-md border border-white/[0.1] bg-[#0a1525] px-3 py-1.5 text-sm text-white placeholder:text-[#3a5a7a] focus:border-orange-500/40 focus:outline-none"
+          />
+        </div>
         {/* Video URL — full-width row */}
         <div dir="ltr" className="flex items-center gap-2 text-sm">
           <span className="text-[#5a7a9a] text-base">🎥</span>
@@ -572,6 +584,9 @@ function GameRow({
       </span>
       <span className="text-xs text-[#5a7a9a] tabular-nums whitespace-nowrap flex items-center gap-1">
         {formatCupDate(game.date)}
+        {game.location && (
+          <span title={game.location} className="text-emerald-400/80">📍</span>
+        )}
         {game.video_url && (
           <a
             href={game.video_url}
