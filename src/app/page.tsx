@@ -477,6 +477,7 @@ type CupRow = {
   away_team: string;
   date: string | null;
   played: boolean | null;
+  location: string | null;
 };
 
 /**
@@ -533,7 +534,7 @@ async function getUpcomingCupGames(season: string): Promise<CupRow[]> {
   try {
     const { data } = await supabaseAdmin
       .from('cup_games')
-      .select('id, round, home_team, away_team, date, played')
+      .select('id, round, home_team, away_team, date, played, location')
       .eq('season', season)
       .eq('played', false);
     return (data ?? []) as CupRow[];
@@ -604,6 +605,7 @@ function buildUpcomingCupEvents(opts: {
       awayTeam: resolveTeamName(c.away_team),
       homeLogo: logoLookup(c.home_team),
       awayLogo: logoLookup(c.away_team),
+      location: c.location,
     });
   }
 

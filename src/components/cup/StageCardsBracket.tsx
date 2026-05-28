@@ -7,6 +7,7 @@ type CupGame = {
   home_team: string; away_team: string;
   home_score: number | null; away_score: number | null;
   date: string; played: boolean;
+  location?: string | null;
 };
 
 function getWinner(g: CupGame): string | null {
@@ -81,6 +82,11 @@ function MatchCard({ game, teamLogos, statsLink }: { game: CupGame; teamLogos: R
       <Row name={game.home_team} score={game.home_score} isWinner={homeWin} placeholder={game.played && !homeWin} isHome />
       <div className="h-px bg-white/[0.05]" />
       <Row name={game.away_team} score={game.away_score} isWinner={awayWin} placeholder={game.played && !awayWin} isHome={false} />
+      {game.location && (
+        <div className="flex items-center justify-center gap-1 px-3 py-1 border-t border-white/[0.04] text-[10px] font-bold text-[#8aaac8]">
+          📍 <span className="truncate">{game.location}</span>
+        </div>
+      )}
       {statsLink && (
         <div className="flex items-center justify-center gap-1 px-3 py-1.5 border-t border-white/[0.04] bg-orange-500/[0.06]">
           <span className="text-[10px] font-bold text-orange-400">📊 {en ? 'Box score' : 'גיליון משחק'}</span>
@@ -117,7 +123,7 @@ function FinalCard({ game, teamLogos, statsLink }: { game: CupGame; teamLogos: R
       <div className="flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500/10 border-b border-orange-500/20">
         <span className="text-lg">🏆</span>
         <span className="text-[11px] font-black uppercase tracking-widest text-orange-400">
-          {t('הגמר')} · {game.date || t('תאריך טרם נקבע')} · {t('מגרש ניטרלי')}
+          {t('הגמר')} · {game.date || t('תאריך טרם נקבע')} · {game.location ? game.location : t('מגרש ניטרלי')}
         </span>
       </div>
       <div className="grid grid-cols-[1fr,auto,1fr] items-center gap-3 px-5 py-5">

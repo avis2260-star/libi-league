@@ -8,6 +8,7 @@ type CupGame = {
   home_team: string; away_team: string;
   home_score: number | null; away_score: number | null;
   date: string; played: boolean;
+  location?: string | null;
 };
 
 function getWinner(g: CupGame): string | null {
@@ -525,6 +526,9 @@ function JourneyPanel({
                       </span>
                     )}
                   </div>
+                  {step.game.location && (
+                    <p className="mt-1.5 text-[11px] font-bold text-[#8aaac8]">📍 {step.game.location}</p>
+                  )}
                   {statsGameIds.has(step.game.id) && (
                     <a
                       href={`/cup/game/${step.game.id}`}

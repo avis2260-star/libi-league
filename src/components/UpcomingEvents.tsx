@@ -24,6 +24,7 @@ export type UpcomingEvent = {
   awayTeam: string;
   homeLogo: string | null;
   awayLogo: string | null;
+  location: string | null;
 };
 
 function TeamLogo({ logo, name, large }: { logo: string | null; name: string; large?: boolean }) {
@@ -135,6 +136,9 @@ export default function UpcomingEvents({
                     <p className="mt-1 text-lg sm:text-xl font-black text-white tabular-nums font-stats leading-tight">
                       {ev.heDayLabel} · {ev.displayDate}
                     </p>
+                    {ev.location && (
+                      <p className="mt-1 text-xs font-bold text-amber-200/80">📍 {ev.location}</p>
+                    )}
                   </div>
                 </div>
 

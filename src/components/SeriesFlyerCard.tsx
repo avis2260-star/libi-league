@@ -8,6 +8,7 @@ interface GameData {
   aScore: number | null;
   bScore: number | null;
   aWon: boolean;
+  location?: string | null;
 }
 
 interface Props {
@@ -188,6 +189,11 @@ export default function SeriesFlyerCard({
                 <div className="h-3 w-3 rounded-full border border-white/[0.08] bg-transparent" />
                 <p className="text-[9px] font-bold text-[#2a4a6a]">{t('טרם שוחק')}</p>
               </>
+            )}
+            {g.location && (
+              <p className="text-[9px] font-bold text-[#5a7a9a] text-center leading-tight truncate w-full px-0.5" title={g.location}>
+                📍 {g.location}
+              </p>
             )}
           </div>
         ))}
