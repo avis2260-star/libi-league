@@ -55,7 +55,11 @@ export default function RotationShell({ children }: { children: React.ReactNode 
         transform: 'translate(-50%, -50%) rotate(90deg)',
         zIndex: 9000,
         overflow: 'hidden',
-        background: '#060810',
+        // Theme-aware page background. Using the CSS var (not a hardcoded hex)
+        // so the rotated overlay follows light/dark mode — React serializes
+        // inline hex to rgb(), which defeats the globals.css [style*="#hex"]
+        // light-mode override, leaving the overlay stuck dark.
+        background: 'var(--bg-base)',
       }}
     >
       <div
