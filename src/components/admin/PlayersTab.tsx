@@ -569,7 +569,17 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
       {list.length > 0 && (
         <div className="space-y-3">
           {teamsWithPlayers.map((team) => {
-            const teamPlayers = list.filter((p) => p.team_id === team.id);
+            // Active players first, then inactive. is_active === undefined is
+            // treated as active (matches the toggle's `!== false` logic).
+            // Array.sort is stable, so the existing name order is preserved
+            // within each group.
+            const teamPlayers = list
+              .filter((p) => p.team_id === team.id)
+              .sort((a, b) => {
+                const aRank = a.is_active !== false ? 0 : 1;
+                const bRank = b.is_active !== false ? 0 : 1;
+                return aRank - bRank;
+              });
             const isOpen = openTeams.has(team.id);
 
             return (
