@@ -50,11 +50,11 @@ function PlayerRow({
 
   return (
     <tr className="border-b border-white/[0.05] hover:bg-white/[0.02]">
-      <td className="px-3 py-2">
-        <div className="flex items-center gap-2">
-          <span className="font-semibold text-white text-sm">{player.name}</span>
+      <td className="px-2 py-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="font-semibold text-white text-sm truncate">{player.name}</span>
           {player.jersey_number !== null && (
-            <span className="text-[10px] font-bold text-orange-400/70">#{player.jersey_number}</span>
+            <span className="shrink-0 text-[10px] font-bold text-orange-400/70">#{player.jersey_number}</span>
           )}
         </div>
       </td>
@@ -63,29 +63,31 @@ function PlayerRow({
         { v: threePt, set: setThreePt },
         { v: fouls,   set: setFouls },
       ].map((f, i) => (
-        <td key={i} className="px-2 py-2">
+        <td key={i} className="px-1 py-2">
           <input
             type="text"
             inputMode="numeric"
             value={f.v}
             onChange={e => f.set(e.target.value.replace(/[^0-9]/g, ''))}
-            className="w-14 rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1 text-center text-sm text-white focus:outline-none focus:border-orange-500/50"
+            className="w-10 mx-auto block rounded-lg border border-white/10 bg-white/[0.03] px-1 py-1 text-center text-sm text-white focus:outline-none focus:border-orange-500/50"
           />
         </td>
       ))}
-      <td className="px-2 py-2 whitespace-nowrap">
-        <button
-          onClick={save}
-          disabled={!dirty || pending}
-          className="bg-orange-500 hover:bg-orange-400 disabled:opacity-30 disabled:cursor-not-allowed text-white text-xs font-bold py-1 px-3 rounded-lg transition-all"
-        >
-          {pending ? '...' : 'שמור'}
-        </button>
-        {msg && (
-          <span className={`mr-2 text-[10px] font-bold ${msg.ok ? 'text-green-400' : 'text-red-400'}`}>
-            {msg.text}
-          </span>
-        )}
+      <td className="px-1 py-2">
+        <div className="flex items-center justify-center gap-1">
+          <button
+            onClick={save}
+            disabled={!dirty || pending}
+            className="bg-orange-500 hover:bg-orange-400 disabled:opacity-30 disabled:cursor-not-allowed text-white text-xs font-bold py-1 px-2.5 rounded-lg transition-all"
+          >
+            {pending ? '...' : 'שמור'}
+          </button>
+          {msg && (
+            <span className={`text-[11px] font-bold ${msg.ok ? 'text-green-400' : 'text-red-400'}`} title={msg.ok ? undefined : msg.text}>
+              {msg.ok ? '✓' : '✗'}
+            </span>
+          )}
+        </div>
       </td>
     </tr>
   );
@@ -109,30 +111,28 @@ function RosterTable({
       {players.length === 0 ? (
         <p className="text-xs text-[#5a7a9a] text-center py-6">לא נמצאו שחקנים לקבוצה</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[420px]">
-            <thead className="bg-white/[0.02] text-[10px] font-bold uppercase tracking-wide text-[#5a7a9a]">
-              <tr>
-                <th className="px-3 py-2 text-right">שחקן</th>
-                <th className="px-2 py-2 text-center">נק׳</th>
-                <th className="px-2 py-2 text-center">3נק׳</th>
-                <th className="px-2 py-2 text-center">פאולים</th>
-                <th className="px-2 py-2 text-right">פעולות</th>
-              </tr>
-            </thead>
-            <tbody>
-              {players.map(p => (
-                <PlayerRow
-                  key={p.id}
-                  player={p}
-                  existing={statsByPlayer[p.id]}
-                  onSave={onSave}
-                  onLivePoints={onLivePoints}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <table className="w-full table-fixed text-sm">
+          <thead className="bg-white/[0.02] text-[10px] font-bold uppercase tracking-wide text-[#5a7a9a]">
+            <tr>
+              <th className="px-2 py-2 text-right">שחקן</th>
+              <th className="w-12 px-1 py-2 text-center">נק׳</th>
+              <th className="w-12 px-1 py-2 text-center">3נק׳</th>
+              <th className="w-12 px-1 py-2 text-center">פאולים</th>
+              <th className="w-[5.5rem] px-1 py-2 text-center">פעולות</th>
+            </tr>
+          </thead>
+          <tbody>
+            {players.map(p => (
+              <PlayerRow
+                key={p.id}
+                player={p}
+                existing={statsByPlayer[p.id]}
+                onSave={onSave}
+                onLivePoints={onLivePoints}
+              />
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );
