@@ -329,22 +329,34 @@ type CupChampion = {
 async function getCupChampion(season: string): Promise<CupChampion | null> {
   try {
     // Cup champion = the team that won the FINAL ('גמר' — exact match,
-    // distinct from 'רבע גמר' / 'חצי גמר'). Only fires once the admin has
-    // entered scores AND marked the final as played. Earlier-round wins
-    // don't crown a champion.
+    // distinct from 'רבע גמר' / 'חצי גמר'). Earlier-round wins don't crown
+    // a champion.
     const { data } = await supabaseAdmin
       .from('cup_games')
       .select('id, home_team, away_team, home_score, away_score, date, video_url, played')
       .eq('season', season)
       .eq('round', 'גמר')
-      .eq('played', true)
       .not('home_score', 'is', null)
       .not('away_score', 'is', null)
       .order('game_number', { ascending: false })
       .limit(1)
       .maybeSingle();
     if (!data) return null;
-    const decidedAt = parseFlexibleDate(data.date, season) ?? new Date();
+
+    // Need a real result — a tie (incl. a placeholder 0:0) has no winner.
+    if (data.home_score === data.away_score) return null;
+
+    // Reveal the champion once the final is decided. "Decided" = the admin
+    // marked it played, OR the scheduled date has already passed. The
+    // date-passed fallback means a finished final still crowns a champion
+    // even if the admin entered the score but forgot to tick "שוחק".
+    const parsed = parseFlexibleDate(data.date, season);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const datePassed = parsed ? parsed.getTime() <= today.getTime() : false;
+    if (!data.played && !datePassed) return null;
+
+    const decidedAt = parsed ?? new Date();
     return {
       id:         data.id,
       home_team:  data.home_team,
