@@ -571,14 +571,20 @@ export default function PlayersTab({ teams, players }: { teams: Team[]; players:
           {teamsWithPlayers.map((team) => {
             // Active players first, then inactive. is_active === undefined is
             // treated as active (matches the toggle's `!== false` logic).
-            // Array.sort is stable, so the existing name order is preserved
-            // within each group.
+            // Active players are ordered by jersey number ascending (those
+            // without a number go last). Inactive players keep their name
+            // order (Array.sort is stable, so equal keys preserve order).
             const teamPlayers = list
               .filter((p) => p.team_id === team.id)
               .sort((a, b) => {
-                const aRank = a.is_active !== false ? 0 : 1;
-                const bRank = b.is_active !== false ? 0 : 1;
-                return aRank - bRank;
+                const aActive = a.is_active !== false;
+                const bActive = b.is_active !== false;
+                if (aActive !== bActive) return aActive ? -1 : 1; // active first
+                if (!aActive) return 0;                            // both inactive → keep name order
+                // both active → by jersey number ascending, nulls last
+                const aj = a.jersey_number ?? Infinity;
+                const bj = b.jersey_number ?? Infinity;
+                return aj - bj;
               });
             const isOpen = openTeams.has(team.id);
 
