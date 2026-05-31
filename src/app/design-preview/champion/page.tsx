@@ -32,14 +32,31 @@ const cupHero: ChampionBannerProps = {
   teamLogoUrl: null,
   opponentName: 'גוטלמן השרון',
   homeIsChampion: true,
-  homeScore: 62,
-  awayScore: 58,
-  decidedOnLabel: '22 בפברואר 2026',
+  homeScore: 69,
+  awayScore: 65,
+  decidedOnLabel: '29 במאי 2026',
   season: SEASON,
   finalGameHref: '/cup/game/demo',
   bracketHref: '/cup',
   videoUrl: 'https://youtube.com/watch?v=demo',
   lang: 'he',
+  mvp: {
+    name: 'יוסף סהלו',
+    teamName: 'ראשון "גפן" לציון',
+    points: 27,
+    threePointers: 4,
+    photoUrl: null,
+  },
+  finalRoster: {
+    teamName: 'ראשון "גפן" לציון',
+    players: [
+      { name: 'יוסף סהלו',  points: 27, threePointers: 4, fouls: 2 },
+      { name: 'איתן תהלו',  points: 16, threePointers: 0, fouls: 3 },
+      { name: 'יוסף למלם',  points: 12, threePointers: 1, fouls: 1 },
+      { name: 'יעקב זמנה',  points: 9,  threePointers: 1, fouls: 4 },
+      { name: 'עמית יונס',  points: 5,  threePointers: 0, fouls: 2 },
+    ],
+  },
 };
 
 const leagueCompact: ChampionBannerProps = { ...leagueHero, variant: 'compact' };

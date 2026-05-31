@@ -325,6 +325,9 @@ type CupChampion = {
   date: string | null;
   video_url: string | null;
   decidedAt: Date;        // best-effort parsed date for the 30-day rule
+  // Final box score extras (for the home champion banner panels):
+  mvp: { name: string; teamName: string; points: number; threePointers: number; photoUrl: string | null } | null;
+  finalRoster: { teamName: string; players: { name: string; points: number; threePointers: number; fouls: number }[] } | null;
 };
 
 async function getCupChampion(season: string): Promise<CupChampion | null> {
@@ -375,6 +378,54 @@ async function getCupChampion(season: string): Promise<CupChampion | null> {
     // Need a real result — a tie (incl. a placeholder 0:0) has no winner.
     if (homeScore == null || awayScore == null || homeScore === awayScore) return null;
 
+    const championName = homeScore > awayScore ? data.home_team : data.away_team;
+
+    // ── Final box score → MVP (top scorer) + champion's scorers list ────────
+    let mvp: CupChampion['mvp'] = null;
+    let finalRoster: CupChampion['finalRoster'] = null;
+    try {
+      const [{ data: statRows }, { data: players }, { data: teams }] = await Promise.all([
+        supabaseAdmin.from('cup_game_stats').select('player_id, team_id, points, three_pointers, fouls').eq('cup_game_id', data.id),
+        supabaseAdmin.from('players').select('id, name, photo_url'),
+        supabaseAdmin.from('teams').select('id, name'),
+      ]);
+      const rows = (statRows ?? []) as { player_id: string; team_id: string | null; points: number | null; three_pointers: number | null; fouls: number | null }[];
+      if (rows.length > 0) {
+        const pById = new Map((players ?? []).map((p) => [p.id as string, p as { name: string; photo_url: string | null }]));
+        const teamNameById = new Map((teams ?? []).map((t) => [t.id as string, t.name as string]));
+
+        // MVP = top scorer of the final (either team).
+        const top = [...rows].sort((a, b) => (b.points ?? 0) - (a.points ?? 0))[0];
+        if (top && (top.points ?? 0) > 0) {
+          const pl = pById.get(top.player_id);
+          mvp = {
+            name:          pl?.name ?? '—',
+            teamName:      top.team_id ? (teamNameById.get(top.team_id) ?? '') : '',
+            points:        top.points ?? 0,
+            threePointers: top.three_pointers ?? 0,
+            photoUrl:      pl?.photo_url ?? null,
+          };
+        }
+
+        // Champion's scorers in the final. Resolve the champion name → team_id
+        // (handles the 'ראשון "גפן"' vs 'ראשון גפן' quote variants).
+        const resolve = makeNameResolver((teams ?? []) as { id: string; name: string }[]);
+        const idByName = new Map((teams ?? []).map((t) => [t.name as string, t.id as string]));
+        const championId = idByName.get(resolve(championName)) ?? null;
+        if (championId) {
+          const champPlayers = rows
+            .filter((r) => r.team_id === championId)
+            .map((r) => ({
+              name:          pById.get(r.player_id)?.name ?? '—',
+              points:        r.points ?? 0,
+              threePointers: r.three_pointers ?? 0,
+              fouls:         r.fouls ?? 0,
+            }));
+          if (champPlayers.length > 0) finalRoster = { teamName: championName, players: champPlayers };
+        }
+      }
+    } catch { /* box score is optional — banner still shows without panels */ }
+
     const decidedAt = parseFlexibleDate(data.date, season) ?? new Date();
     return {
       id:         data.id,
@@ -385,6 +436,8 @@ async function getCupChampion(season: string): Promise<CupChampion | null> {
       date:       data.date,
       video_url:  (data as { video_url: string | null }).video_url ?? null,
       decidedAt,
+      mvp,
+      finalRoster,
     };
   } catch { return null; }
 }
@@ -738,6 +791,10 @@ export default async function HomePage() {
         bracketHref:     '/cup',
         videoUrl:        cupChampion.video_url,
         lang: lang as 'he' | 'en',
+        mvp:             cupChampion.mvp,
+        finalRoster:     cupChampion.finalRoster
+          ? { teamName: dbDisplayName(cupChampion.finalRoster.teamName), players: cupChampion.finalRoster.players }
+          : null,
       };
     }
 

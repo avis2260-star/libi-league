@@ -32,6 +32,19 @@ export type ChampionBannerProps = {
   bracketHref: string;                 // /cup or /playoff
   videoUrl: string | null;             // optional youtube link for "Watch Final"
   lang: Lang;
+  // Hero-only side panels (omit to hide). MVP = top scorer of the final.
+  mvp?: {
+    name: string;
+    teamName: string;
+    points: number;
+    threePointers: number;
+    photoUrl: string | null;
+  } | null;
+  // Box score of the FINAL — the champion team's players (left panel).
+  finalRoster?: {
+    teamName: string;
+    players: { name: string; points: number; threePointers: number; fouls: number }[];
+  } | null;
 };
 
 export default function ChampionBanner(props: ChampionBannerProps) {
@@ -90,80 +103,158 @@ function Hero(p: ChampionBannerProps) {
         <span className="h-px flex-1 max-w-[80px] bg-gradient-to-r from-transparent via-amber-500 to-transparent" />
       </div>
 
-      <div className="flex flex-col items-center text-center gap-3">
-        {/* Trophy */}
-        <div className="text-5xl sm:text-6xl drop-shadow-[0_8px_20px_rgba(245,158,11,0.5)]">🏆</div>
+      {(() => {
+        const centerContent = (
+          <div className="order-1 lg:order-none flex flex-col items-center text-center gap-3">
+            {/* Trophy */}
+            <div className="text-5xl sm:text-6xl drop-shadow-[0_8px_20px_rgba(245,158,11,0.5)]">🏆</div>
 
-        {/* Logo */}
-        <div className="relative grid place-items-center h-24 w-24 sm:h-32 sm:w-32 rounded-full border-2 border-amber-500/50 bg-white/[0.03] shadow-[0_0_40px_-5px_rgba(245,158,11,0.45)]">
-          <span className="pointer-events-none absolute -inset-2 rounded-full border border-amber-200/20" />
-          {p.teamLogoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={p.teamLogoUrl} alt={p.teamName} className="h-[84px] w-[84px] sm:h-[110px] sm:w-[110px] rounded-full object-cover" />
-          ) : (
-            <span className="text-4xl sm:text-5xl font-black text-amber-200 drop-shadow-[0_4px_16px_rgba(245,158,11,0.4)]">
-              {p.teamName.trim().charAt(0)}
-            </span>
-          )}
-        </div>
+            {/* Logo */}
+            <div className="relative grid place-items-center h-24 w-24 sm:h-32 sm:w-32 rounded-full border-2 border-amber-500/50 bg-white/[0.03] shadow-[0_0_40px_-5px_rgba(245,158,11,0.45)]">
+              <span className="pointer-events-none absolute -inset-2 rounded-full border border-amber-200/20" />
+              {p.teamLogoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={p.teamLogoUrl} alt={p.teamName} className="h-[84px] w-[84px] sm:h-[110px] sm:w-[110px] rounded-full object-cover" />
+              ) : (
+                <span className="text-4xl sm:text-5xl font-black text-amber-200 drop-shadow-[0_4px_16px_rgba(245,158,11,0.4)]">
+                  {p.teamName.trim().charAt(0)}
+                </span>
+              )}
+            </div>
 
-        <p className="text-[12px] sm:text-sm font-black tracking-[0.1em] text-amber-200">{T(title)}</p>
-        <h2 className="text-3xl sm:text-5xl font-black leading-none bg-gradient-to-b from-white to-amber-200 bg-clip-text text-transparent">
-          {T(p.teamName)}
-        </h2>
-        <p className="text-xs sm:text-sm font-bold text-[#8aaac8]">{T(subtitle)}</p>
+            <p className="text-[12px] sm:text-sm font-black tracking-[0.1em] text-amber-200">{T(title)}</p>
+            <h2 className="text-3xl sm:text-5xl font-black leading-none bg-gradient-to-b from-white to-amber-200 bg-clip-text text-transparent">
+              {T(p.teamName)}
+            </h2>
+            <p className="text-xs sm:text-sm font-bold text-[#8aaac8]">{T(subtitle)}</p>
 
-        {/* Final score */}
-        {p.homeScore != null && p.awayScore != null && (
-          <div className="mt-4 inline-flex items-center justify-center gap-2 sm:gap-4 rounded-2xl border border-amber-500/25 bg-black/25 px-4 py-3">
-            <span className="max-w-[100px] sm:max-w-[160px] truncate text-xs sm:text-sm font-black text-amber-200">{T(p.teamName)}</span>
-            <span className="font-stats text-xl sm:text-3xl font-black tabular-nums text-white">
-              {champScore} <span className="text-[#5a7a9a]">:</span> {oppScore}
-            </span>
-            <span className="max-w-[100px] sm:max-w-[160px] truncate text-xs sm:text-sm font-bold text-[#8aaac8]">{T(p.opponentName)}</span>
+            {/* Final score */}
+            {p.homeScore != null && p.awayScore != null && (
+              <div className="mt-4 inline-flex items-center justify-center gap-2 sm:gap-4 rounded-2xl border border-amber-500/25 bg-black/25 px-4 py-3">
+                <span className="max-w-[100px] sm:max-w-[160px] truncate text-xs sm:text-sm font-black text-amber-200">{T(p.teamName)}</span>
+                <span className="font-stats text-xl sm:text-3xl font-black tabular-nums text-white">
+                  {champScore} <span className="text-[#5a7a9a]">:</span> {oppScore}
+                </span>
+                <span className="max-w-[100px] sm:max-w-[160px] truncate text-xs sm:text-sm font-bold text-[#8aaac8]">{T(p.opponentName)}</span>
+              </div>
+            )}
+
+            {/* Meta chips */}
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-2 text-[11px] sm:text-xs font-bold text-[#8aaac8]">
+              {p.decidedOnLabel && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.04] px-3 py-1">
+                  📅 {p.decidedOnLabel}
+                </span>
+              )}
+              <span className="text-[#5a7a9a]">·</span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.04] px-3 py-1">
+                {p.type === 'cup' ? (en ? 'Cup Final' : 'גמר הגביע') : (en ? 'Playoff Final' : 'גמר הפלייאוף')}
+              </span>
+            </div>
+
+            {/* CTAs */}
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              {p.finalGameHref && (
+                <Link
+                  href={p.finalGameHref}
+                  className="inline-flex items-center gap-2 rounded-xl border border-amber-700/40 bg-gradient-to-b from-amber-200 to-amber-500 px-4 py-2 text-xs sm:text-sm font-black text-amber-950 transition hover:-translate-y-px"
+                >
+                  {p.videoUrl ? `🎬 ${watchLabel}` : `📊 ${en ? 'Box Score' : 'גיליון המשחק'}`}
+                </Link>
+              )}
+              <Link
+                href={p.bracketHref}
+                className="inline-flex items-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.04] px-4 py-2 text-xs sm:text-sm font-black text-[#c8d8e8] transition hover:bg-white/[0.07] hover:border-white/[0.18]"
+              >
+                {bracketLabel}
+              </Link>
+            </div>
           </div>
-        )}
+        );
 
-        {/* Meta chips */}
-        <div className="mt-2 flex flex-wrap items-center justify-center gap-2 text-[11px] sm:text-xs font-bold text-[#8aaac8]">
-          {p.decidedOnLabel && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.04] px-3 py-1">
-              📅 {p.decidedOnLabel}
-            </span>
-          )}
-          <span className="text-[#5a7a9a]">·</span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.04] px-3 py-1">
-            {p.type === 'cup' ? (en ? 'Cup Final' : 'גמר הגביע') : (en ? 'Playoff Final' : 'גמר הפלייאוף')}
-          </span>
-        </div>
+        const hasPanels = !!(p.mvp || p.finalRoster);
+        if (!hasPanels) return centerContent;
 
-        {/* CTAs */}
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-          {p.videoUrl && p.finalGameHref && (
-            <Link
-              href={p.finalGameHref}
-              className="inline-flex items-center gap-2 rounded-xl border border-amber-700/40 bg-gradient-to-b from-amber-200 to-amber-500 px-4 py-2 text-xs sm:text-sm font-black text-amber-950 transition hover:-translate-y-px"
-            >
-              🎬 {watchLabel}
-            </Link>
-          )}
-          {!p.videoUrl && p.finalGameHref && (
-            <Link
-              href={p.finalGameHref}
-              className="inline-flex items-center gap-2 rounded-xl border border-amber-700/40 bg-gradient-to-b from-amber-200 to-amber-500 px-4 py-2 text-xs sm:text-sm font-black text-amber-950 transition hover:-translate-y-px"
-            >
-              📊 {en ? 'Box Score' : 'גיליון המשחק'}
-            </Link>
-          )}
-          <Link
-            href={p.bracketHref}
-            className="inline-flex items-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.04] px-4 py-2 text-xs sm:text-sm font-black text-[#c8d8e8] transition hover:bg-white/[0.07] hover:border-white/[0.18]"
-          >
-            {bracketLabel}
-          </Link>
-        </div>
-      </div>
+        // 3-column flank on desktop. In RTL the first DOM column renders on the
+        // RIGHT, so MVP (first) sits right and the stats panel (last) sits left —
+        // exactly as requested. On mobile everything stacks (center → MVP → stats).
+        return (
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_minmax(0,14rem)] lg:items-center">
+            <div className="order-2 lg:order-none">
+              {p.mvp ? <MvpPanel mvp={p.mvp} lang={p.lang} /> : null}
+            </div>
+            {centerContent}
+            <div className="order-3 lg:order-none">
+              {p.finalRoster ? <RosterPanel roster={p.finalRoster} lang={p.lang} /> : null}
+            </div>
+          </div>
+        );
+      })()}
     </section>
+  );
+}
+
+// ── MVP card (right side in RTL) ─────────────────────────────────────────────
+function MvpPanel({ mvp, lang }: { mvp: NonNullable<ChampionBannerProps['mvp']>; lang: Lang }) {
+  const T = (he: string) => st(he, lang);
+  const en = lang === 'en';
+  return (
+    <div className="rounded-2xl border border-amber-500/25 bg-black/20 p-4 text-center">
+      <p className="mb-2 text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">⭐ {en ? 'Final MVP' : 'מצטיין הגמר'}</p>
+      <div className="mx-auto grid h-16 w-16 place-items-center overflow-hidden rounded-full border-2 border-amber-500/40 bg-white/[0.04]">
+        {mvp.photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={mvp.photoUrl} alt={mvp.name} className="h-full w-full object-cover" />
+        ) : (
+          <span className="text-2xl font-black text-amber-200">{mvp.name.trim().charAt(0)}</span>
+        )}
+      </div>
+      <p className="mt-2 truncate text-sm font-black text-white">{T(mvp.name)}</p>
+      <p className="truncate text-[11px] font-bold text-[#8aaac8]">{T(mvp.teamName)}</p>
+      <div className="mt-2 flex items-baseline justify-center gap-1.5">
+        <span className="font-stats text-2xl font-black text-amber-300 tabular-nums">{mvp.points}</span>
+        <span className="text-[10px] font-bold text-[#8aaac8]">{en ? 'PTS' : 'נק׳'}</span>
+      </div>
+      {mvp.threePointers > 0 && (
+        <p className="text-[10px] font-bold text-sky-300">{mvp.threePointers} {en ? '3PT' : 'שלשות'}</p>
+      )}
+    </div>
+  );
+}
+
+// ── Final box score — champion's players (left side in RTL) ──────────────────
+function RosterPanel({
+  roster, lang,
+}: {
+  roster: NonNullable<ChampionBannerProps['finalRoster']>;
+  lang: Lang;
+}) {
+  const T = (he: string) => st(he, lang);
+  const en = lang === 'en';
+  // All champion players who scored in the final, highest first.
+  const players = roster.players.filter(p => p.points > 0).sort((a, b) => b.points - a.points);
+  return (
+    <div className="rounded-2xl border border-amber-500/25 bg-black/20 p-4">
+      <p className="mb-1 text-center text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">📋 {en ? 'Final Box Score' : 'גיליון הגמר'}</p>
+      <p className="mb-2 truncate text-center text-[11px] font-bold text-[#8aaac8]">{T(roster.teamName)}</p>
+      {players.length === 0 ? (
+        <p className="py-3 text-center text-[11px] text-[#5a7a9a]">{en ? 'No box score' : 'אין נתונים'}</p>
+      ) : (
+        <div className="space-y-1">
+          {players.map((pl, i) => (
+            <div key={i} className="flex items-center justify-between gap-2 rounded-lg bg-white/[0.03] px-2.5 py-1.5">
+              <span className="min-w-0 truncate text-[12px] font-bold text-white">{T(pl.name)}</span>
+              <span className="flex shrink-0 items-baseline gap-1.5">
+                {pl.threePointers > 0 && (
+                  <span className="text-[9px] font-bold text-sky-300" dir="ltr">{pl.threePointers}×3</span>
+                )}
+                <span className="font-stats text-sm font-black tabular-nums text-amber-300">{pl.points}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
