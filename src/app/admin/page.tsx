@@ -11,6 +11,8 @@ import OfficialsTab from '@/components/admin/OfficialsTab';
 import DisciplinaryTab from '@/components/admin/DisciplinaryTab';
 import LeagueSettingsTab from '@/components/admin/LeagueSettingsTab';
 import AnnouncementsTab from '@/components/admin/AnnouncementsTab';
+import { getAutoTickerItems } from '@/lib/ticker-auto-data';
+import type { AutoTickerItem } from '@/lib/ticker-auto';
 import SyncLogTab from '@/components/admin/SyncLogTab';
 import TeamsTab from '@/components/admin/TeamsTab';
 import TakanonTab from '@/components/admin/TakanonTab';
@@ -133,13 +135,18 @@ export default async function AdminPage({
   // Announcements tab
   let announcements: { id: string; message: string; type: string; active: boolean; bg_color: string; created_at: string; expires_at: string | null }[] = [];
   let tickerSpeed = 25;
+  let autoTicker: AutoTickerItem[] = [];
   if (tab === 'announcements') {
-    const [{ data }, { data: speedRow }] = await Promise.all([
+    const [{ data }, { data: speedRow }, auto] = await Promise.all([
       supabaseAdmin.from('announcements').select('*').order('created_at', { ascending: false }),
       supabaseAdmin.from('league_settings').select('value').eq('key', 'ticker_speed').maybeSingle(),
+      // The public ticker always reflects the current season — preview the
+      // same here even when an archive season is selected in other tabs.
+      getAutoTickerItems(current),
     ]);
     announcements = (data ?? []) as typeof announcements;
     tickerSpeed = speedRow?.value ? parseInt(speedRow.value, 10) : 25;
+    autoTicker = auto;
   }
 
   // Submissions tab
@@ -524,7 +531,7 @@ export default async function AdminPage({
       {tab === 'officials'     && <OfficialsTab officials={officials} />}
       {tab === 'disciplinary'  && <DisciplinaryTab records={disciplinaryRecords} players={playerOptions} />}
       {tab === 'settings'      && <LeagueSettingsTab settings={leagueSettings} />}
-      {tab === 'announcements' && <AnnouncementsTab announcements={announcements} tickerSpeed={tickerSpeed} />}
+      {tab === 'announcements' && <AnnouncementsTab announcements={announcements} tickerSpeed={tickerSpeed} autoTicker={autoTicker} />}
       {tab === 'synclog'       && <SyncLogTab logs={syncLogs} />}
       {tab === 'previews'      && <MatchPreviewsTab cupGames={previewCupGames} previews={matchPreviews} />}
       {tab === 'takanon'       && <TakanonTab />}

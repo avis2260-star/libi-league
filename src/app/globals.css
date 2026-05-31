@@ -24,6 +24,21 @@
   100% { transform: translateX(calc(100% / 6)); }
 }
 
+/* ── Ticker accessibility (WCAG 2.2.2 Pause, Stop, Hide) ──────────────────────
+   The animated track (.ticker-track) gets its `animation` from an inline
+   shorthand (so the per-league speed can be applied), which also carries
+   play-state: running. To pause it we therefore need `!important` to beat that
+   inline declaration. The strip pauses while the pointer hovers it OR while
+   anything inside it (a link) — or the strip itself (tabindex=0) — has keyboard
+   focus, and stops entirely for users who request reduced motion. */
+.ticker-wrap:hover  .ticker-track,
+.ticker-wrap:focus-within .ticker-track {
+  animation-play-state: paused !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track { animation: none !important; }
+}
+
 /* ── Basketball flyer animations ─────────────────────────────────────────── */
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(24px); }

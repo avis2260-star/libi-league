@@ -1,7 +1,15 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { saveTickerSpeed } from '@/app/admin/actions';
+import { saveTickerSpeed, saveTickerAuto } from '@/app/admin/actions';
+import {
+  AUTO_TICKER_ORDER,
+  AUTO_TICKER_LABELS,
+  MAX_PREFIX_LEN,
+  type AutoTickerType,
+  type AutoTickerConfig,
+  type AutoTickerItem,
+} from '@/lib/ticker-auto';
 
 type Announcement = {
   id: string;
@@ -131,12 +139,135 @@ function TickerSpeedControl({ initial }: { initial: number }) {
   );
 }
 
+function AutoTickerControl({ items }: { items: AutoTickerItem[] }) {
+  // Remember each line's live values (computed server-side) for the preview…
+  const valueByType = new Map(items.map(it => [it.type, { he: it.valueHe, en: it.valueEn }]));
+  // …and seed the editable enable/prefix config from the same items.
+  const [config, setConfig] = useState<AutoTickerConfig>(() => {
+    const byType = new Map(items.map(it => [it.type, it]));
+    const seed = {} as AutoTickerConfig;
+    for (const type of AUTO_TICKER_ORDER) {
+      const it = byType.get(type);
+      seed[type] = { enabled: it?.enabled ?? false, prefix: it?.prefix ?? '', prefixEn: it?.prefixEn ?? '' };
+    }
+    return seed;
+  });
+  const [saved, setSaved] = useState(false);
+  const [err, setErr]     = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function patch(type: AutoTickerType, p: Partial<{ enabled: boolean; prefix: string; prefixEn: string }>) {
+    setConfig(prev => ({ ...prev, [type]: { ...prev[type], ...p } }));
+    setSaved(false);
+  }
+
+  function handleSave() {
+    setErr(null); setSaved(false);
+    startTransition(async () => {
+      const res = await saveTickerAuto(config);
+      if (res.error) { setErr(res.error); }
+      else { setSaved(true); setTimeout(() => setSaved(false), 3000); }
+    });
+  }
+
+  // One preview row: "{prefix} {value}" in the given language, or a muted hint.
+  const previewRow = (label: string, prefix: string, value: string | null, dir: 'rtl' | 'ltr', noData: string) => (
+    <div className="flex items-start gap-2 text-xs" dir={dir}>
+      <span className="shrink-0 pt-0.5 font-bold text-[#5a7a9a]">{label}</span>
+      {value ? (
+        <span className="inline-flex items-center gap-2 text-[#e8edf5]">
+          <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-orange-500" />
+          {prefix.trim() ? `${prefix.trim()} ${value}` : value}
+        </span>
+      ) : (
+        <span className="italic text-[#5a7a9a]">{noData}</span>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-5 space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-bold text-white text-sm">🤖 הודעות אוטומטיות</h3>
+        <div className="flex items-center gap-2">
+          {saved && <span className="text-xs text-green-400">✓ נשמר</span>}
+          {err   && <span className="text-xs text-red-400">{err}</span>}
+          <button
+            onClick={handleSave}
+            disabled={pending}
+            className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {pending ? 'שומר...' : 'שמור'}
+          </button>
+        </div>
+      </div>
+
+      <p className="text-[11px] leading-relaxed text-[#5a7a9a]">
+        שורות אלה מתעדכנות אוטומטית בכל מחזור מתוך נתוני העונה. סמנו כדי להציג בטיקר,
+        וערכו את הטקסט (עברית ואנגלית) שמופיע <span className="text-[#8aaac8]">לפני</span> הנתון —
+        המבקרים יראו את הגרסה לפי שפת האתר.
+      </p>
+
+      <div className="space-y-3">
+        {AUTO_TICKER_ORDER.map(type => {
+          const c = config[type];
+          const value = valueByType.get(type) ?? { he: null, en: null };
+          return (
+            <div key={type} className="rounded-lg border border-white/[0.06] bg-[#0d1a28] p-3 space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={c.enabled}
+                  onChange={e => patch(type, { enabled: e.target.checked })}
+                  className="h-4 w-4 accent-orange-500"
+                />
+                <span className="text-sm font-bold text-white">{AUTO_TICKER_LABELS[type]}</span>
+              </label>
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-[11px] text-[#5a7a9a]">טקסט בעברית</label>
+                  <input
+                    value={c.prefix}
+                    onChange={e => patch(type, { prefix: e.target.value.slice(0, MAX_PREFIX_LEN) })}
+                    placeholder="טקסט לפני הנתון..."
+                    dir="rtl"
+                    className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] text-[#5a7a9a]">טקסט באנגלית</label>
+                  <input
+                    value={c.prefixEn}
+                    onChange={e => patch(type, { prefixEn: e.target.value.slice(0, MAX_PREFIX_LEN) })}
+                    placeholder="Text before the value..."
+                    dir="ltr"
+                    className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Live previews per language — current prefixes + values right now */}
+              <div className="space-y-1">
+                {previewRow('עברית:', c.prefix,   value.he, 'rtl', 'אין נתונים כרגע — יופיע אוטומטית כשיהיו')}
+                {previewRow('EN:',     c.prefixEn, value.en, 'ltr', 'No data yet — appears automatically once available')}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function AnnouncementsTab({
   announcements: initial,
   tickerSpeed,
+  autoTicker,
 }: {
   announcements: Announcement[];
   tickerSpeed: number;
+  autoTicker: AutoTickerItem[];
 }) {
   const [list, setList]           = useState<Announcement[]>(initial);
   const [message, setMessage]     = useState('');
@@ -204,6 +335,9 @@ export default function AnnouncementsTab({
 
       {/* ── Speed slider ── */}
       <TickerSpeedControl initial={tickerSpeed} />
+
+      {/* ── Auto spotlight lines (top scorer / hot streak / title race) ── */}
+      <AutoTickerControl items={autoTicker} />
 
       {/* ── Add form ── */}
       <form onSubmit={handleAdd} className="rounded-xl border border-gray-700 bg-gray-900/60 p-5 space-y-4">

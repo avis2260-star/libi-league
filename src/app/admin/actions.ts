@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import { findPlayerForExtracted, type ExtractedPlayer } from '@/lib/match-player';
 import { getCurrentSeason, clearCurrentSeasonCache } from '@/lib/current-season';
+import { serializeAutoConfig, type AutoTickerConfig } from '@/lib/ticker-auto';
 
 type ActionResult = { error?: string };
 
@@ -972,6 +973,24 @@ export async function saveTickerSpeed(seconds: number): Promise<ActionResult> {
 
   if (error) return { error: error.message };
   revalidatePath('/');
+  return {};
+}
+
+// ── Auto ticker spotlight config ──────────────────────────────────────────────
+// Persists the per-type enable/prefix config (top scorer / hot streak / title
+// race) as JSON under league_settings.ticker_auto. The lines themselves are
+// computed live from season data on each home-page render — see
+// src/lib/ticker-auto.ts / ticker-auto-data.ts.
+
+export async function saveTickerAuto(config: AutoTickerConfig): Promise<ActionResult> {
+  const clean = serializeAutoConfig(config);
+  const { error } = await supabaseAdmin
+    .from('league_settings')
+    .upsert({ key: 'ticker_auto', value: JSON.stringify(clean) }, { onConflict: 'key' });
+
+  if (error) return { error: error.message };
+  revalidatePath('/');
+  revalidatePath('/admin');
   return {};
 }
 

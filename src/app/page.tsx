@@ -13,6 +13,8 @@ import { deriveCupScores, type CupGameLike } from '@/lib/cup-derived-scores';
 import { getLang, st } from '@/lib/get-lang';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { getCurrentSeason } from '@/lib/current-season';
+import { getAutoTickerItems } from '@/lib/ticker-auto-data';
+import { autoTickerMessage } from '@/lib/ticker-auto';
 
 const ROUND_DATES: Record<number, string> = {
   1: '01.11.25', 2: '08.11.25', 3: '29.11.25', 4:  '20.12.25',
@@ -725,7 +727,7 @@ function RecordCard({ icon, label, value, sub, detail, color }: { icon: string; 
 
 export default async function HomePage() {
   const season = await getCurrentSeason();
-  const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers, lang, dbRoundDates, cupFinal, upcomingCup, cupChampion, playoffChampion] = await Promise.all([
+  const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers, lang, dbRoundDates, cupFinal, upcomingCup, cupChampion, playoffChampion, autoTickerItems] = await Promise.all([
     getLiveData(season),
     getActiveAnnouncements(),
     getTeams(),
@@ -737,6 +739,7 @@ export default async function HomePage() {
     getUpcomingCupGames(season),
     getCupChampion(season),
     getPlayoffChampion(season),
+    getAutoTickerItems(season),
   ]);
 
   const nextRoundEarly = liveData.currentRound + 1;
@@ -901,7 +904,20 @@ export default async function HomePage() {
   });
 
   const banners   = activeAnnouncements.filter((a) => a.type === 'banner');
-  const tickers   = activeAnnouncements.filter((a) => a.type === 'ticker');
+
+  // Ticker = admin announcements first (they're usually the urgent/manual
+  // notices), then the auto spotlight lines that refresh themselves each round.
+  type TickerItem = { id: string; message: string; bgColor: string; href: string | null };
+  const tickerItems: TickerItem[] = [
+    ...activeAnnouncements
+      .filter((a) => a.type === 'ticker')
+      .map((a) => ({ id: a.id, message: a.message, bgColor: a.bg_color, href: null as string | null })),
+    ...autoTickerItems.flatMap((it) => {
+      if (!it.enabled) return [];
+      const message = autoTickerMessage(it, lang as 'he' | 'en');
+      return message ? [{ id: `auto-${it.type}`, message, bgColor: it.bgColor, href: it.href }] : [];
+    }),
+  ];
 
   return (
     <div className="space-y-8">
@@ -915,9 +931,19 @@ export default async function HomePage() {
         </div>
       ))}
 
-      {/* Tickers */}
-      {tickers.length > 0 && (
-        <div className="overflow-hidden rounded-lg bg-[#0d1a28] border border-white/[0.07] py-2">
+      {/* Tickers (manual announcements + auto spotlight lines).
+          Accessibility (WCAG 2.2.2): `.ticker-wrap` pauses the animation on
+          hover/focus, the strip is keyboard-focusable so it can be paused
+          without a pointer, and reduced-motion users get a static strip (see
+          globals.css). Only the first copy is exposed to assistive tech / the
+          tab order; copies 2-6 are visual duplicates, hidden + non-focusable. */}
+      {tickerItems.length > 0 && (
+        <div
+          className="ticker-wrap overflow-hidden rounded-lg bg-[#0d1a28] border border-white/[0.07] py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/60"
+          tabIndex={0}
+          role="marquee"
+          aria-label={lang === 'en' ? 'League news ticker — hover or focus to pause' : 'מבזקי הליגה — רחף או התמקד כדי לעצור'}
+        >
           {/* Six identical groups (not two): with only two copies the loop
              exposes a visible blank band on the right whenever a single
              copy is narrower than the viewport. Six copies guarantee that
@@ -925,17 +951,23 @@ export default async function HomePage() {
              retreats from the viewport edge. `pe-16` lands the gap at the
              seam between adjacent copies in both LTR and RTL. */}
           <div
-            className="flex w-max"
+            className="flex w-max ticker-track"
             style={{ animation: `marquee ${tickerSpeed}s linear infinite` }}
           >
             {[0, 1, 2, 3, 4, 5].map(copy => (
-              <div key={copy} className="flex items-center gap-16 pe-16">
-                {tickers.map(ann => (
-                  <span key={ann.id} className="inline-flex items-center gap-2 text-sm font-medium text-[#e8edf5] whitespace-nowrap">
-                    <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${BG_COLOR_CLASSES[ann.bg_color] ?? 'bg-orange-500'}`} />
-                    {ann.message}
-                  </span>
-                ))}
+              <div key={copy} aria-hidden={copy !== 0} className="flex items-center gap-16 pe-16">
+                {tickerItems.map(item => {
+                  const dot = <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${BG_COLOR_CLASSES[item.bgColor] ?? 'bg-orange-500'}`} />;
+                  return item.href ? (
+                    <a key={item.id} href={item.href} tabIndex={copy === 0 ? undefined : -1} className="inline-flex items-center gap-2 text-sm font-medium text-[#e8edf5] whitespace-nowrap transition-colors hover:text-orange-300">
+                      {dot}{item.message}
+                    </a>
+                  ) : (
+                    <span key={item.id} className="inline-flex items-center gap-2 text-sm font-medium text-[#e8edf5] whitespace-nowrap">
+                      {dot}{item.message}
+                    </span>
+                  );
+                })}
               </div>
             ))}
           </div>
