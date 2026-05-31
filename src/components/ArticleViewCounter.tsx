@@ -24,7 +24,7 @@ function EyeIcon({ className }: { className?: string }) {
 }
 
 interface ArticleViewCounterProps {
-  /** match_previews.id — used to POST an increment and as the dedup key. */
+  /** Row id — used to POST an increment and as the dedup key. */
   previewId: string;
   /**
    * Initial count read from the server so it renders immediately.
@@ -34,6 +34,8 @@ interface ArticleViewCounterProps {
   initialCount: number | null | undefined;
   /** Optional size variant for secondary (compact) cards. */
   compact?: boolean;
+  /** Increment endpoint. Defaults to the match-preview counter. */
+  endpoint?: string;
 }
 
 /** localStorage key for a given preview — marks it as already viewed. */
@@ -54,6 +56,7 @@ export default function ArticleViewCounter({
   previewId,
   initialCount,
   compact = false,
+  endpoint = '/api/events/view',
 }: ArticleViewCounterProps) {
   const [count, setCount] = useState(initialCount ?? 0);
 
@@ -62,7 +65,7 @@ export default function ArticleViewCounter({
     if (localStorage.getItem(storageKey(previewId))) return;
 
     let cancelled = false;
-    fetch('/api/events/view', {
+    fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: previewId }),
@@ -83,7 +86,7 @@ export default function ArticleViewCounter({
     return () => {
       cancelled = true;
     };
-  }, [previewId]);
+  }, [previewId, endpoint]);
 
   const iconSize = compact ? 'w-3 h-3'    : 'w-3.5 h-3.5';
   const textSize = compact ? 'text-[9px]' : 'text-[10px]';

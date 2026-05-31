@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import MarkdownLite from '@/components/MarkdownLite';
+import ArticleViewCounter from '@/components/ArticleViewCounter';
 
 export type ReviewCardData = {
   id: string;
@@ -9,6 +10,7 @@ export type ReviewCardData = {
   title: string;
   content: string;
   updated_at: string;
+  view_count?: number | null;
 };
 
 const TYPE_META = {
@@ -63,9 +65,16 @@ export default function SeasonReviewCard({ review, lang, featured = false }: Pro
           <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-widest ${meta.badge}`}>
             {meta.emoji} {label}
           </span>
-          <p className="text-xs font-bold text-[#5a7a9a]">
-            {fmtDate(review.updated_at, lang)}
-          </p>
+          <div className="flex items-center gap-3">
+            <ArticleViewCounter
+              previewId={review.id}
+              initialCount={review.view_count}
+              endpoint="/api/season-reviews/view"
+            />
+            <p className="text-xs font-bold text-[#5a7a9a]">
+              {fmtDate(review.updated_at, lang)}
+            </p>
+          </div>
         </div>
 
         {/* Title */}

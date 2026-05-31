@@ -61,6 +61,19 @@ export default async function SeasonReviewPage({
   ]);
 
   const reviews = (reviewsData ?? []) as ReviewRow[];
+
+  // View counts — fetched separately so a missing view_count column (before the
+  // 20260529 migration runs) can't make the whole review list disappear.
+  if (reviews.length > 0) {
+    const { data: counts } = await supabaseAdmin
+      .from('season_reviews')
+      .select('id, view_count')
+      .in('id', reviews.map(r => r.id));
+    if (counts) {
+      const byId = new Map((counts as { id: string; view_count: number | null }[]).map(c => [c.id, c.view_count]));
+      for (const r of reviews) r.view_count = byId.get(r.id) ?? 0;
+    }
+  }
   const publishedTypes = new Set(reviews.map(r => r.review_type));
 
   const he = lang !== 'en';
