@@ -40,6 +40,9 @@ export async function POST(req: NextRequest) {
         home_score?: number | null;
         away_score?: number | null;
         date?: string | null;
+        cupGameId?: string;
+        seriesNumber?: number;
+        gameNumber?: number;
       } | null;
     };
 
@@ -118,6 +121,55 @@ export async function POST(req: NextRequest) {
     const teamNameById = new Map<string, string>(
       (teamsRaw ?? []).map((t) => [t.id as string, t.name as string])
     );
+
+    // ── Focused game box score (per-player stats for the single game) ────────
+    // When the editor picked a specific cup/playoff game, pull its box score so
+    // the article can LEAD with that game's stats, not the season aggregates.
+    let focusBoxScore = '';
+    if (focus) {
+      type StatRow = { player_id: string; team_id: string | null; points: number | null; three_pointers: number | null; fouls: number | null };
+      let rows: StatRow[] = [];
+      if (focus.competition === 'cup' && focus.cupGameId) {
+        const { data } = await supabaseAdmin
+          .from('cup_game_stats')
+          .select('player_id, team_id, points, three_pointers, fouls')
+          .eq('cup_game_id', focus.cupGameId);
+        rows = (data ?? []) as StatRow[];
+      } else if (focus.competition === 'playoff' && focus.seriesNumber != null && focus.gameNumber != null) {
+        const { data } = await supabaseAdmin
+          .from('playoff_game_stats')
+          .select('player_id, team_id, points, three_pointers, fouls')
+          .eq('season', targetSeason)
+          .eq('series_number', focus.seriesNumber)
+          .eq('game_number', focus.gameNumber);
+        rows = (data ?? []) as StatRow[];
+      }
+      if (rows.length > 0) {
+        // Group by team, list players sorted by points desc.
+        const byTeam = new Map<string, { name: string; players: { name: string; pts: number; threes: number; fouls: number }[] }>();
+        for (const r of rows) {
+          const teamName = r.team_id ? (teamNameById.get(r.team_id) ?? '—') : '—';
+          const slot = byTeam.get(teamName) ?? { name: teamName, players: [] };
+          slot.players.push({
+            name:   playerNameById.get(r.player_id) ?? '—',
+            pts:    r.points ?? 0,
+            threes: r.three_pointers ?? 0,
+            fouls:  r.fouls ?? 0,
+          });
+          byTeam.set(teamName, slot);
+        }
+        const blocks: string[] = [];
+        for (const { name, players } of byTeam.values()) {
+          const total = players.reduce((s, p) => s + p.pts, 0);
+          const line = players
+            .sort((a, b) => b.pts - a.pts)
+            .map(p => `${p.name} ${p.pts} נק'${p.threes ? ` (${p.threes} שלשות)` : ''}${p.fouls ? ` · ${p.fouls} עבירות` : ''}`)
+            .join(', ');
+          blocks.push(`${name} (${total} נק'): ${line}`);
+        }
+        focusBoxScore = blocks.join('\n');
+      }
+    }
 
     // ── Aggregate top scorers ───────────────────────────────────────────────
     type ScorerAgg = { name: string; teamName: string; points: number; games: number; threes: number };
@@ -218,21 +270,36 @@ export async function POST(req: NextRequest) {
     // that single game — override the tone with a tightly-scoped instruction.
     const toneInstruction = focus
       ? `כתוב כתבת ניתוח עיתונאית הממוקדת אך ורק במשחק בודד אחד: ${focusFacts}. ` +
-        `כל הכתבה חייבת לעסוק במשחק הספציפי הזה בלבד — התוצאה ומשמעותה, איך כל קבוצה הגיעה אליו והשלכותיו, וההקשר של שתי הקבוצות בטבלה/בעונה. ` +
-        `אל תכתוב סיכום עונה כללי ואל תסטה למשחקים אחרים אלא כרקע קצר בלבד. השתמש במספרים האמיתיים מהנתונים למטה.` +
+        (focusBoxScore
+          ? `הוֹבֵל את הכתבה על בסיס גיליון הקלעים של המשחק (ראה "גיליון הקלעים" למטה) — פתח והדגש את הקלעים המובילים, התרומות המכריעות והשלשות, וצטט מספרים מהמשחק עצמו. רק לאחר מכן, ובמידת הצורך, הוסף הקשר קצר מנתוני העונה. `
+          : `התבסס על תוצאת המשחק והקשר שתי הקבוצות בעונה. `) +
+        `כל הכתבה חייבת לעסוק במשחק הספציפי הזה בלבד — התוצאה ומשמעותה, התרומות המרכזיות, וההשלכות לשתי הקבוצות. ` +
+        `אל תכתוב סיכום עונה כללי ואל תסטה למשחקים אחרים אלא כרקע קצר בלבד. השתמש אך ורק במספרים האמיתיים מהנתונים למטה.` +
         (customNotes ? ` הנחיות נוספות מהעורך: ${customNotes}` : '')
       : (toneInstructions[reviewType] ?? toneInstructions.custom);
 
     const focusSection = focus
-      ? `\n== המשחק לסקירה (התמקד בזה בלבד) ==\n${focusFacts}\n`
+      ? `\n== המשחק לסקירה (התמקד בזה בלבד) ==\n${focusFacts}\n` +
+        (focusBoxScore
+          ? `\n== גיליון הקלעים של המשחק (הבסיס המרכזי לכתבה) ==\n${focusBoxScore}\n`
+          : '')
       : '';
 
-    const structure = focus
+    const focusStructure = focusBoxScore
       ? `מבנה הכתבה (חובה):
+1. **כותרת פנימית** (שורה אחת, ממוקדת במשחק הספציפי — ללא "כותרת:" לפניה, רק הטקסט)
+2. **פסקת פתיחה** — מי נגד מי, באיזה שלב/מחזור, והתוצאה
+3. **גיבורי המשחק** — בולטים עם \`-\` לקלעים המובילים מגיליון הקלעים: שם, קבוצה, נקודות (ושלשות אם רלוונטי)
+4. **גוף הכתבה** — 2–3 פסקאות על מהלך המשחק כפי שמשתקף מהסטטיסטיקה, ההכרעה, וההקשר העונתי הקצר של שתי הקבוצות
+5. **פסקת סיום** — מה המשחק אומר להמשך הדרך של שתי הקבוצות`
+      : `מבנה הכתבה (חובה):
 1. **כותרת פנימית** (שורה אחת, ממוקדת במשחק הספציפי — ללא "כותרת:" לפניה, רק הטקסט)
 2. **פסקת פתיחה** — הצגת המשחק: מי נגד מי, באיזה שלב/מחזור, והתוצאה
 3. **גוף הכתבה** — 2–3 פסקאות על המשחק עצמו: מה אמרה התוצאה, ההקשר העונתי של שתי הקבוצות (מקום בטבלה, מאזן), והמשמעות
-4. **פסקת סיום** — מה המשחק הזה אומר להמשך הדרך של שתי הקבוצות`
+4. **פסקת סיום** — מה המשחק הזה אומר להמשך הדרך של שתי הקבוצות`;
+
+    const structure = focus
+      ? focusStructure
       : `מבנה הכתבה (חובה):
 1. **כותרת פנימית** (שורה אחת, עוצמתית ומשפיעה — ללא "כותרת:" לפניה, רק הטקסט)
 2. **פסקת מבוא** — הצגת הנושא, ההקשר, ולמה זה חשוב

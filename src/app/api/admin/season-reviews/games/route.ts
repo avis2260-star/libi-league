@@ -18,6 +18,10 @@ export type FocusGame = {
   home_score: number | null;
   away_score: number | null;
   date: string | null;
+  // Identifiers so the generator can pull this game's box score:
+  cupGameId?: string;       // cup
+  seriesNumber?: number;    // playoff
+  gameNumber?: number;      // playoff
 };
 
 export async function GET(req: NextRequest) {
@@ -32,7 +36,7 @@ export async function GET(req: NextRequest) {
         .order('round', { ascending: false }),
       supabaseAdmin
         .from('cup_games')
-        .select('round, round_order, game_number, home_team, away_team, home_score, away_score, played, date')
+        .select('id, round, round_order, game_number, home_team, away_team, home_score, away_score, played, date')
         .eq('season', season)
         .order('round_order', { ascending: false })
         .order('game_number', { ascending: false }),
@@ -52,12 +56,13 @@ export async function GET(req: NextRequest) {
 
     // ── Cup (events) ──────────────────────────────────────────────────────
     for (const g of (cup ?? []) as {
-      round: string; home_team: string; away_team: string;
+      id: string; round: string; home_team: string; away_team: string;
       home_score: number | null; away_score: number | null; played: boolean; date: string | null;
     }[]) {
       if (!g.played || g.home_score == null || g.away_score == null) continue;
       games.push({
         competition: 'cup',
+        cupGameId: g.id,
         round: g.round,
         home_team: g.home_team,
         away_team: g.away_team,
@@ -85,6 +90,8 @@ export async function GET(req: NextRequest) {
       const away = g.game_number === 2 ? s.team_a : s.team_b;
       games.push({
         competition: 'playoff',
+        seriesNumber: g.series_number,
+        gameNumber: g.game_number,
         round: `סדרה ${g.series_number} · משחק ${g.game_number}`,
         home_team: home,
         away_team: away,

@@ -86,18 +86,23 @@ export default function SeasonReviewsTab({ reviews: initial, season: currentSeas
   }
 
   // ── Generate ──────────────────────────────────────────────────────────────
-  async function handleGenerate() {
+  type GenParams = {
+    reviewType: SeasonReview['review_type'];
+    season: string;
+    customNotes: string;
+    focus: FocusGame | null;
+  };
+  // Remembers the params of the last generation so "🔄 צור מחדש" can re-run
+  // the exact same request (same type / season / focus) from the editor.
+  const [lastGen, setLastGen] = useState<GenParams | null>(null);
+
+  async function runGenerate(params: GenParams) {
     setGenerating(true);
     try {
       const res  = await fetch('/api/admin/season-reviews/generate', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          reviewType: genType,
-          season: genSeason,
-          customNotes: genNotes,
-          focus: genType === 'custom' && focusIdx !== '' ? focusGames[focusIdx] : null,
-        }),
+        body: JSON.stringify(params),
       });
       const json = await res.json();
       if (!res.ok || json.error) throw new Error(json.error ?? 'שגיאת AI');
@@ -107,11 +112,30 @@ export default function SeasonReviewsTab({ reviews: initial, season: currentSeas
       setDraftPub(false);
       setEditingId('__new__');
       setShowCreate(false);
+      setLastGen(params);
     } catch (e) {
       flash(e instanceof Error ? e.message : 'שגיאה', false);
     } finally {
       setGenerating(false);
     }
+  }
+
+  function handleGenerate() {
+    runGenerate({
+      reviewType:  genType,
+      season:      genSeason,
+      customNotes: genNotes,
+      focus:       genType === 'custom' && focusIdx !== '' ? focusGames[focusIdx] : null,
+    });
+  }
+
+  function handleRegenerate() {
+    if (!lastGen) return;
+    if (draftContent.trim() &&
+        !confirm('פעולה זו תיצור טקסט חדש שיחליף את הנוכחי. להמשיך?')) {
+      return;
+    }
+    runGenerate(lastGen);
   }
 
   // ── Save new ──────────────────────────────────────────────────────────────
@@ -395,6 +419,16 @@ export default function SeasonReviewsTab({ reviews: initial, season: currentSeas
 
           {/* Actions */}
           <div className="flex flex-wrap gap-2 pt-1">
+            {lastGen && (
+              <button
+                onClick={handleRegenerate}
+                disabled={generating || busy}
+                title="צור מחדש עם אותם הגדרות (סוג / עונה / משחק ממוקד)"
+                className="rounded-xl border border-orange-500/40 bg-orange-500/10 px-4 py-2 text-sm font-black text-orange-300 hover:bg-orange-500/20 disabled:opacity-50 transition"
+              >
+                {generating ? '⏳ יוצר...' : '🔄 צור מחדש'}
+              </button>
+            )}
             {isEditingNew ? (
               <>
                 <button
