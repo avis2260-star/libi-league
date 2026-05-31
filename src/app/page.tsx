@@ -9,6 +9,7 @@ import ScoreboardStrip from '@/components/ScoreboardStrip';
 import LastRoundResults from '@/components/LastRoundResults';
 import UpcomingEvents, { type UpcomingEvent } from '@/components/UpcomingEvents';
 import ChampionBanner, { type ChampionBannerProps } from '@/components/ChampionBanner';
+import { deriveCupScores, type CupGameLike } from '@/lib/cup-derived-scores';
 import { getLang, st } from '@/lib/get-lang';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { getCurrentSeason } from '@/lib/current-season';
@@ -333,36 +334,54 @@ async function getCupChampion(season: string): Promise<CupChampion | null> {
     // a champion.
     const { data } = await supabaseAdmin
       .from('cup_games')
-      .select('id, home_team, away_team, home_score, away_score, date, video_url, played')
+      .select('id, home_team, away_team, home_score, away_score, date, video_url, played, home_quarters, away_quarters')
       .eq('season', season)
       .eq('round', 'גמר')
-      .not('home_score', 'is', null)
-      .not('away_score', 'is', null)
       .order('game_number', { ascending: false })
       .limit(1)
       .maybeSingle();
     if (!data) return null;
 
+    let homeScore = data.home_score as number | null;
+    let awayScore = data.away_score as number | null;
+
+    if (homeScore != null && awayScore != null) {
+      // Explicit score entered. Reveal once the final is decided: the admin
+      // marked it played, OR the scheduled date has already passed (so a
+      // forgotten "שוחק" tick doesn't hide a finished final).
+      const parsed = parseFlexibleDate(data.date, season);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const datePassed = parsed ? parsed.getTime() <= today.getTime() : false;
+      if (!data.played && !datePassed) return null;
+    } else {
+      // No explicit score — derive it from the per-player stats / quarter
+      // breakdown the admin entered. A derivable result IS the signal that
+      // the final happened, so no extra date/played gate is needed.
+      const [{ data: teams }, { data: stats }] = await Promise.all([
+        supabaseAdmin.from('teams').select('id, name'),
+        supabaseAdmin.from('cup_game_stats').select('cup_game_id, team_id, points').eq('cup_game_id', data.id),
+      ]);
+      const derived = deriveCupScores(
+        [data as CupGameLike],
+        (teams ?? []) as { id: string; name: string }[],
+        (stats ?? []) as { cup_game_id: string; team_id: string | null; points: number | null }[],
+      ).get(data.id);
+      if (!derived) return null; // nothing entered yet
+      homeScore = derived.home;
+      awayScore = derived.away;
+    }
+
     // Need a real result — a tie (incl. a placeholder 0:0) has no winner.
-    if (data.home_score === data.away_score) return null;
+    if (homeScore == null || awayScore == null || homeScore === awayScore) return null;
 
-    // Reveal the champion once the final is decided. "Decided" = the admin
-    // marked it played, OR the scheduled date has already passed. The
-    // date-passed fallback means a finished final still crowns a champion
-    // even if the admin entered the score but forgot to tick "שוחק".
-    const parsed = parseFlexibleDate(data.date, season);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const datePassed = parsed ? parsed.getTime() <= today.getTime() : false;
-    if (!data.played && !datePassed) return null;
-
-    const decidedAt = parsed ?? new Date();
+    const decidedAt = parseFlexibleDate(data.date, season) ?? new Date();
     return {
       id:         data.id,
       home_team:  data.home_team,
       away_team:  data.away_team,
-      home_score: data.home_score,
-      away_score: data.away_score,
+      home_score: homeScore,
+      away_score: awayScore,
       date:       data.date,
       video_url:  (data as { video_url: string | null }).video_url ?? null,
       decidedAt,

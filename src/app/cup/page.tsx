@@ -8,6 +8,7 @@ import { getLang, st } from '@/lib/get-lang';
 import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
 import SeasonPicker from '@/components/SeasonPicker';
 import ArchiveBanner from '@/components/ArchiveBanner';
+import { deriveCupScores } from '@/lib/cup-derived-scores';
 
 async function getLogoUrl() {
   try {
@@ -30,7 +31,7 @@ export default async function CupPage({
       .from('league_settings')
       .select('key,value')
       .eq('key', 'cup_tournament_teams'),
-    supabaseAdmin.from('cup_game_stats').select('cup_game_id').eq('season', viewing),
+    supabaseAdmin.from('cup_game_stats').select('cup_game_id, team_id, points').eq('season', viewing),
     getLogoUrl(),
     getLang(),
     listKnownSeasons(),
@@ -43,7 +44,20 @@ export default async function CupPage({
     if (t.name && t.logo_url) teamLogos[t.name] = t.logo_url;
   }
 
-  const cupGames = games ?? [];
+  // Enrich games with a score derived from per-player stats / quarters when
+  // the admin never typed an explicit home_score/away_score. Games with a
+  // derived result are marked played so the bracket shows the winner + the
+  // "אלוף הגביע" banner (the deriving function leaves official scores intact).
+  const rawCupGames = games ?? [];
+  const derivedScores = deriveCupScores(
+    rawCupGames,
+    teams ?? [],
+    (cupStatsData ?? []) as { cup_game_id: string; team_id: string | null; points: number | null }[],
+  );
+  const cupGames = rawCupGames.map((g) => {
+    const d = derivedScores.get(g.id);
+    return d ? { ...g, home_score: d.home, away_score: d.away, played: true } : g;
+  });
 
   // Participating teams (date + location were dropped — each game is played
   // at the home_team's venue and dates live per-game on cup_games).
