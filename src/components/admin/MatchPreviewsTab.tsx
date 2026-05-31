@@ -49,6 +49,9 @@ export default function MatchPreviewsTab({ cupGames, previews: initial }: Props)
   });
   const [busy, setBusy] = useState<{ id: string; action: string } | null>(null);
   const [msg, setMsg]   = useState<{ ok: boolean; text: string } | null>(null);
+  // One-level undo for "generate": stores the text that was in a side's box
+  // right before the AI replaced it, so the admin can restore it in one tap.
+  const [genBackup, setGenBackup] = useState<Record<string, { home_review?: string; away_review?: string }>>({});
   // Which cup game the admin is currently editing. Null = nothing picked
   // yet, so we show the picker prompt instead of any editor.
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
@@ -89,7 +92,28 @@ export default function MatchPreviewsTab({ cupGames, previews: initial }: Props)
     }));
   }
 
+  function restoreGenerated(cupGameId: string, side: 'home' | 'away') {
+    const field = side === 'home' ? 'home_review' : 'away_review';
+    const prevText = genBackup[cupGameId]?.[field];
+    if (prevText == null) return;
+    setDraftField(cupGameId, field, prevText);
+    setGenBackup(prev => {
+      const forGame = { ...prev[cupGameId] };
+      delete forGame[field];
+      return { ...prev, [cupGameId]: forGame };
+    });
+    flash('↩️ הפרשנות הקודמת שוחזרה', true);
+  }
+
   async function handleGenerate(g: CupGameLite, side: 'home' | 'away') {
+    const field = side === 'home' ? 'home_review' : 'away_review';
+    const current = getDraft(g.id)[field] as string;
+    // Never silently erase existing text — confirm before replacing. The
+    // previous text is also backed up so it can be restored in one tap.
+    if (current.trim() &&
+        !confirm('כבר קיימת פרשנות לצד הזה. ליצור פרשנות חדשה במקומה?\n(אפשר לשחזר את הקודמת מיד אחרי כן)')) {
+      return;
+    }
     setBusy({ id: g.id, action: `gen-${side}` });
     try {
       const teamName     = side === 'home' ? g.home_team : g.away_team;
@@ -105,7 +129,12 @@ export default function MatchPreviewsTab({ cupGames, previews: initial }: Props)
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'שגיאה');
-      setDraftField(g.id, side === 'home' ? 'home_review' : 'away_review', data.text);
+      // Back up the prior text (only when there was something) so the admin
+      // can undo this generation, then write the new text.
+      if (current.trim()) {
+        setGenBackup(prev => ({ ...prev, [g.id]: { ...prev[g.id], [field]: current } }));
+      }
+      setDraftField(g.id, field, data.text);
       flash(`✨ נוצר טור עבור ${teamName}`, true);
     } catch (err: unknown) {
       flash(err instanceof Error ? err.message : 'שגיאה', false);
@@ -423,6 +452,8 @@ export default function MatchPreviewsTab({ cupGames, previews: initial }: Props)
                       onChange={(v) => setDraftField(g.id, 'home_review', v)}
                       onGenerate={() => handleGenerate(g, 'home')}
                       generating={isBusy('gen-home')}
+                      canRestore={genBackup[g.id]?.home_review != null}
+                      onRestore={() => restoreGenerated(g.id, 'home')}
                     />
                     <ReviewBox
                       label={`📝 ${g.away_team} (חוץ)`}
@@ -430,6 +461,8 @@ export default function MatchPreviewsTab({ cupGames, previews: initial }: Props)
                       onChange={(v) => setDraftField(g.id, 'away_review', v)}
                       onGenerate={() => handleGenerate(g, 'away')}
                       generating={isBusy('gen-away')}
+                      canRestore={genBackup[g.id]?.away_review != null}
+                      onRestore={() => restoreGenerated(g.id, 'away')}
                     />
                   </div>
 
@@ -509,9 +542,12 @@ export default function MatchPreviewsTab({ cupGames, previews: initial }: Props)
                     <button
                       onClick={() => handleSave(g)}
                       disabled={isBusy('save') || (!dirty && !isUnsaved)}
+                      title={draft.is_published ? 'שמור את השינויים (הפרשנות מפורסמת)' : 'שמור טיוטה בלי לפרסם — לא תופיע ב-/events עד שתסמן פרסום'}
                       className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-bold text-white hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed transition"
                     >
-                      {isBusy('save') ? '⏳ שומר...' : '💾 שמור'}
+                      {isBusy('save')
+                        ? '⏳ שומר...'
+                        : draft.is_published ? '💾 שמור שינויים' : '📝 שמור טיוטה'}
                     </button>
                   </div>
                 </div>
@@ -525,25 +561,38 @@ export default function MatchPreviewsTab({ cupGames, previews: initial }: Props)
 }
 
 function ReviewBox({
-  label, value, onChange, onGenerate, generating,
+  label, value, onChange, onGenerate, generating, canRestore, onRestore,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   onGenerate: () => void;
   generating: boolean;
+  canRestore?: boolean;
+  onRestore?: () => void;
 }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-bold text-[#c8d8e8]">{label}</span>
-        <button
-          onClick={onGenerate}
-          disabled={generating}
-          className="rounded-lg border border-orange-500/40 bg-orange-500/[0.08] px-3 py-1 text-xs font-bold text-orange-300 hover:bg-orange-500/[0.18] transition disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {generating ? '⏳ מייצר...' : '✨ צור פרשנות'}
-        </button>
+        <div className="flex items-center gap-1.5">
+          {canRestore && onRestore && (
+            <button
+              onClick={onRestore}
+              title="שחזר את הפרשנות שהייתה כאן לפני היצירה"
+              className="rounded-lg border border-white/[0.12] bg-white/[0.04] px-2.5 py-1 text-xs font-bold text-[#c8d8e8] hover:bg-white/[0.08] transition"
+            >
+              ↩️ שחזר קודמת
+            </button>
+          )}
+          <button
+            onClick={onGenerate}
+            disabled={generating}
+            className="rounded-lg border border-orange-500/40 bg-orange-500/[0.08] px-3 py-1 text-xs font-bold text-orange-300 hover:bg-orange-500/[0.18] transition disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {generating ? '⏳ מייצר...' : '✨ צור פרשנות'}
+          </button>
+        </div>
       </div>
       <textarea
         value={value}
