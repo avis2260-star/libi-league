@@ -74,6 +74,19 @@ export async function POST(req: NextRequest) {
       supabaseAdmin.from('game_results').select('*').eq('season', season),
     ]);
 
+    // Cup snapshots for rollback — best-effort so a missing table/column never
+    // breaks the sync. Captures the bracket, per-player stats and previews
+    // BEFORE this sync runs.
+    const snapshotCup = async (table: string): Promise<unknown[]> => {
+      try {
+        const { data } = await supabaseAdmin.from(table).select('*').eq('season', season);
+        return data ?? [];
+      } catch { return []; }
+    };
+    const prevCupGames    = await snapshotCup('cup_games');
+    const prevCupStats    = await snapshotCup('cup_game_stats');
+    const prevCupPreviews = await snapshotCup('match_previews');
+
     // ── Replace standings for the current season ──
     const standingRows = [
       ...north.map((r) => ({ ...r, division: 'North', season })),
@@ -293,9 +306,11 @@ export async function POST(req: NextRequest) {
       }
     } catch { /* cup_games table not created yet — run SQL in Supabase */ }
 
-    // Insert sync log (silently skip if table doesn't exist yet)
+    // Insert sync log (silently skip if table doesn't exist yet). The cup
+    // snapshots are attached in a SEPARATE best-effort update so that, before
+    // the 20260530 migration adds those columns, the base log still records.
     try {
-      await supabaseAdmin.from('sync_logs').insert({
+      const { data: logRow } = await supabaseAdmin.from('sync_logs').insert({
         filename: file.name,
         north_count: north.length,
         south_count: south.length,
@@ -303,7 +318,17 @@ export async function POST(req: NextRequest) {
         snapshot_standings: prevStandings ?? [],
         snapshot_results: prevResults ?? [],
         season,
-      });
+      }).select('id').single();
+
+      if (logRow?.id) {
+        try {
+          await supabaseAdmin.from('sync_logs').update({
+            snapshot_cup_games:    prevCupGames,
+            snapshot_cup_stats:    prevCupStats,
+            snapshot_cup_previews: prevCupPreviews,
+          }).eq('id', logRow.id);
+        } catch { /* cup snapshot columns not added yet — base log still saved */ }
+      }
     } catch { /* sync_logs table not created yet — run SQL in Supabase */ }
 
     const parts = [];

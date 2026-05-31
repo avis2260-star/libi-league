@@ -59,6 +59,38 @@ export async function POST(req: NextRequest) {
       if (insGrErr) throw insGrErr;
     }
 
+    // Restore cup data (best-effort — older logs / pre-migration DBs won't have
+    // these snapshot columns). Deleting cup_games cascades to cup_game_stats and
+    // match_previews; we then reinsert all three from the snapshot (rows keep
+    // their original ids, so the foreign-key references line up again).
+    try {
+      const { data: cupLog } = await supabaseAdmin
+        .from('sync_logs')
+        .select('snapshot_cup_games, snapshot_cup_stats, snapshot_cup_previews')
+        .eq('id', id)
+        .single();
+      if (cupLog) {
+        const cupGamesSnap    = (cupLog.snapshot_cup_games    ?? []) as Record<string, unknown>[];
+        const cupStatsSnap    = (cupLog.snapshot_cup_stats    ?? []) as Record<string, unknown>[];
+        const cupPreviewsSnap = (cupLog.snapshot_cup_previews ?? []) as Record<string, unknown>[];
+
+        await supabaseAdmin.from('cup_games').delete().eq('season', season);
+        if (cupGamesSnap.length > 0) {
+          await supabaseAdmin.from('cup_games').insert(cupGamesSnap.map((r) => ({ ...r, season })));
+        }
+        if (cupStatsSnap.length > 0) {
+          await supabaseAdmin.from('cup_game_stats').insert(cupStatsSnap.map((r) => ({ ...r, season })));
+        }
+        if (cupPreviewsSnap.length > 0) {
+          await supabaseAdmin.from('match_previews').insert(cupPreviewsSnap.map((r) => ({ ...r, season })));
+        }
+      }
+    } catch (e) {
+      // Cup snapshot columns not present, or a cup table differs — the
+      // standings/results rollback above still succeeded.
+      console.error('[sync-logs rollback] cup restore skipped:', e);
+    }
+
     // Mark log as rolled back
     const { error: updErr } = await supabaseAdmin
       .from('sync_logs')
