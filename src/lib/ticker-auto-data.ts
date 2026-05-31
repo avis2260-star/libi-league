@@ -8,9 +8,12 @@ import { makeNameResolver } from './team-name-resolver';
 import {
   parseAutoConfig,
   computeStreaks,
+  lastRoundHighScorer,
   buildAutoTickerItems,
   type AutoTickerItem,
   type GameResultLike,
+  type GameStatLike,
+  type GameDateLike,
 } from './ticker-auto';
 
 type StandingRow = { name: string; division: string; pts: number | null; rank: number | null };
@@ -19,19 +22,14 @@ export async function getAutoTickerItems(season: string): Promise<AutoTickerItem
   try {
     const [
       { data: cfgRow },
-      { data: topRows },
       { data: standings },
       { data: results },
       { data: teams },
+      { data: games },
+      { data: gameStats },
+      { data: players },
     ] = await Promise.all([
       supabaseAdmin.from('league_settings').select('value').eq('key', 'ticker_auto').maybeSingle(),
-      supabaseAdmin
-        .from('players')
-        .select('id, name, points')
-        .eq('is_active', true)
-        .gt('points', 0)
-        .order('points', { ascending: false })
-        .limit(1),
       supabaseAdmin
         .from('standings')
         .select('name, division, pts, rank')
@@ -42,14 +40,28 @@ export async function getAutoTickerItems(season: string): Promise<AutoTickerItem
         .select('round, home_team, away_team, home_score, away_score, techni')
         .eq('season', season),
       supabaseAdmin.from('teams').select('id, name'),
+      // For the last-round high scorer: game dates + per-game player points.
+      supabaseAdmin.from('games').select('id, game_date').eq('season', season),
+      supabaseAdmin.from('game_stats').select('player_id, points, game_id').eq('season', season),
+      supabaseAdmin.from('players').select('id, name'),
     ]);
 
     const config = parseAutoConfig(cfgRow?.value ?? null);
     const resolve = makeNameResolver((teams ?? []) as { id: string; name: string }[]);
 
-    // Top scorer (player names aren't team names — no resolution needed)
-    const top = (topRows ?? [])[0] as { id: string; name: string; points: number } | undefined;
-    const topScorer = top ? { id: top.id, name: top.name, points: top.points } : null;
+    // Top scorer = the high scorer of the most recent round that has stats
+    // (not the season cumulative leader). Player names aren't team names, so
+    // no name resolution is needed.
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const winner = lastRoundHighScorer(
+      (gameStats ?? []) as GameStatLike[],
+      (games ?? []) as GameDateLike[],
+      todayIso,
+    );
+    const nameById = new Map(((players ?? []) as { id: string; name: string }[]).map(p => [p.id, p.name]));
+    const topScorer = winner && nameById.has(winner.playerId)
+      ? { id: winner.playerId, name: nameById.get(winner.playerId)!, points: winner.points }
+      : null;
 
     // Standings grouped by division, names resolved, kept rank-sorted.
     const divMap = new Map<string, { name: string; pts: number }[]>();

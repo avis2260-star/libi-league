@@ -2,6 +2,7 @@ import {
   parseAutoConfig,
   serializeAutoConfig,
   computeStreaks,
+  lastRoundHighScorer,
   buildAutoTickerItems,
   autoTickerMessage,
   DEFAULT_AUTO_CONFIG,
@@ -92,6 +93,76 @@ describe('computeStreaks', () => {
 
   it('ignores rows with null scores', () => {
     expect(computeStreaks([g(1, 'A', 'B', null, null)])).toEqual([]);
+  });
+});
+
+// ===========================================================================
+// lastRoundHighScorer
+// ===========================================================================
+
+describe('lastRoundHighScorer', () => {
+  const games = [
+    { id: 'g1', game_date: '2026-05-01' },
+    { id: 'g2', game_date: '2026-05-08' }, // latest played matchday
+    { id: 'g3', game_date: '2026-05-08' }, // same date, another game
+    { id: 'g4', game_date: null },         // undated — ignored
+    { id: 'g5', game_date: '2026-06-19' }, // future relative to TODAY
+  ];
+  const TODAY = '2026-05-31';
+
+  it('picks the top single-game score on the most recent played matchday', () => {
+    const stats = [
+      { player_id: 'A', points: 40, game_id: 'g1' }, // earlier date — ignored
+      { player_id: 'B', points: 22, game_id: 'g2' },
+      { player_id: 'C', points: 31, game_id: 'g3' }, // latest played date, highest
+      { player_id: 'D', points: 18, game_id: 'g2' },
+    ];
+    expect(lastRoundHighScorer(stats, games, TODAY)).toEqual({ playerId: 'C', points: 31 });
+  });
+
+  it('excludes future-dated games and falls back to the latest played scorer', () => {
+    const stats = [
+      { player_id: 'B', points: 22, game_id: 'g2' }, // 2026-05-08 (played)
+      { player_id: 'X', points: 99, game_id: 'g5' }, // 2026-06-19 (future) — ignored
+    ];
+    expect(lastRoundHighScorer(stats, games, TODAY)).toEqual({ playerId: 'B', points: 22 });
+  });
+
+  it('skips a latest date whose only stats are zero points', () => {
+    const stats = [
+      { player_id: 'A', points: 16, game_id: 'g1' }, // 2026-05-01 has a scorer
+      { player_id: 'Z', points: 0,  game_id: 'g2' }, // 2026-05-08 all zeros → skip
+    ];
+    expect(lastRoundHighScorer(stats, games, TODAY)).toEqual({ playerId: 'A', points: 16 });
+  });
+
+  it('ignores zero and null points', () => {
+    const stats = [
+      { player_id: 'B', points: 0, game_id: 'g2' },
+      { player_id: 'C', points: null, game_id: 'g2' },
+    ];
+    expect(lastRoundHighScorer(stats, games, TODAY)).toBeNull();
+  });
+
+  it('returns null with no stats', () => {
+    expect(lastRoundHighScorer([], games, TODAY)).toBeNull();
+  });
+
+  it('returns null when stats reference only unknown/undated/future games', () => {
+    const stats = [
+      { player_id: 'A', points: 25, game_id: 'unknown' },
+      { player_id: 'B', points: 10, game_id: 'g4' }, // undated
+      { player_id: 'X', points: 99, game_id: 'g5' }, // future
+    ];
+    expect(lastRoundHighScorer(stats, games, TODAY)).toBeNull();
+  });
+
+  it('keeps the first of equal top scores', () => {
+    const stats = [
+      { player_id: 'B', points: 20, game_id: 'g2' },
+      { player_id: 'C', points: 20, game_id: 'g3' },
+    ];
+    expect(lastRoundHighScorer(stats, games, TODAY)).toEqual({ playerId: 'B', points: 20 });
   });
 });
 

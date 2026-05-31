@@ -157,11 +157,53 @@ export function computeStreaks(games: GameResultLike[]): TeamStreak[] {
   return out;
 }
 
+// ── Last-round high scorer ───────────────────────────────────────────────────
+
+export type GameStatLike = { player_id: string; points: number | null; game_id: string };
+export type GameDateLike = { id: string; game_date: string | null };
+
+/**
+ * The single-game high scorer of the most recent *played* matchday. Rounds map
+ * 1:1 to dates in this league, so "last round" = the latest games.game_date —
+ * but we anchor on the latest date that is on/before `todayIso` AND has at
+ * least one positive scorer. That deliberately skips:
+ *   • future-dated rows (pre-entered or reschedule-drifted games), and
+ *   • dates whose only stats are zero-point rows (e.g. fouls-only entries),
+ * falling back to the most recent date that actually has a scorer.
+ * game_date is an ISO date ('YYYY-MM-DD'), so lexical comparison is
+ * chronological. Returns { playerId, points } of the top score, or null.
+ */
+export function lastRoundHighScorer(
+  stats: GameStatLike[],
+  games: GameDateLike[],
+  todayIso: string,
+): { playerId: string; points: number } | null {
+  const dateById = new Map<string, string>();
+  for (const g of games) if (g.game_date) dateById.set(g.id, g.game_date);
+
+  let latest = '';
+  for (const s of stats) {
+    const d = dateById.get(s.game_id);
+    if (!d || d > todayIso) continue;       // undated or future
+    if ((s.points ?? 0) <= 0) continue;     // no points scored
+    if (d > latest) latest = d;
+  }
+  if (!latest) return null;
+
+  let best: { playerId: string; points: number } | null = null;
+  for (const s of stats) {
+    if (dateById.get(s.game_id) !== latest) continue;
+    const pts = s.points ?? 0;
+    if (pts > 0 && (!best || pts > best.points)) best = { playerId: s.player_id, points: pts };
+  }
+  return best;
+}
+
 // ── Item builder ───────────────────────────────────────────────────────────
 
 export type AutoTickerBuildInput = {
   config: AutoTickerConfig;
-  /** Current scoring leader (name already resolved). null if none / 0 pts. */
+  /** Top scorer of the latest round (name already resolved). null if none. */
   topScorer: { id: string; name: string; points: number } | null;
   /** Standings grouped by division, each pre-sorted by rank ascending, names resolved. */
   divisions: { division: string; rows: { name: string; pts: number }[] }[];
