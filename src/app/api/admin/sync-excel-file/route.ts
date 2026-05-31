@@ -259,12 +259,37 @@ export async function POST(req: NextRequest) {
       // Don't fail the whole sync — auto-create is a nice-to-have
     }
 
-    // Replace cup games for the current season (silently skip if table doesn't exist yet)
+    // ── Cup games: NON-destructive sync ───────────────────────────────────
+    // The cup bracket is managed in the admin (scores, per-player stats,
+    // quarters, video, location, match previews). This used to delete every
+    // cup_games row for the season and reinsert from the Excel — which wiped
+    // all of that (and cascade-deleted cup_game_stats / match_previews via
+    // their ON DELETE CASCADE foreign keys). Now we ONLY insert matchups that
+    // don't already exist (matched by the unordered team pair — a cup is
+    // single-elimination, so each pair meets at most once). Existing rows are
+    // left untouched, so nothing the admin entered is ever erased.
+    let cupInserted = 0;
     try {
-      await supabaseAdmin.from('cup_games').delete().eq('season', season);
       if (cupGames.length > 0) {
-        const stampedCup = cupGames.map((g) => ({ ...g, season }));
-        await supabaseAdmin.from('cup_games').insert(stampedCup);
+        const { data: existingCup } = await supabaseAdmin
+          .from('cup_games')
+          .select('home_team, away_team')
+          .eq('season', season);
+
+        const pairKey = (a: string, b: string) =>
+          [normalizeTeamName(a), normalizeTeamName(b)].sort().join('|');
+        const existingPairs = new Set(
+          (existingCup ?? []).map((g) => pairKey(g.home_team as string, g.away_team as string)),
+        );
+
+        const newCup = cupGames
+          .filter((g) => !existingPairs.has(pairKey(g.home_team, g.away_team)))
+          .map((g) => ({ ...g, season }));
+
+        if (newCup.length > 0) {
+          const { error: cupErr } = await supabaseAdmin.from('cup_games').insert(newCup);
+          if (!cupErr) cupInserted = newCup.length;
+        }
       }
     } catch { /* cup_games table not created yet — run SQL in Supabase */ }
 
@@ -285,7 +310,7 @@ export async function POST(req: NextRequest) {
     if (north.length > 0) parts.push(`${north.length} קבוצות צפון`);
     if (south.length > 0) parts.push(`${south.length} קבוצות דרום`);
     if (resultsCount > 0) parts.push(`${resultsCount} תוצאות משחקים`);
-    if (cupGames.length > 0) parts.push(`${cupGames.length} משחקי גביע`);
+    if (cupInserted > 0) parts.push(`${cupInserted} משחקי גביע חדשים`);
     if (gamesCreated > 0) parts.push(`${gamesCreated} משחקים נוצרו אוטומטית`);
     if (gamesUpdated > 0) parts.push(`${gamesUpdated} משחקים עודכנו`);
     if (gamesDeleted > 0) parts.push(`${gamesDeleted} משחקים שמוקמו מחדש (שעה+מיקום נשמרו)`);
