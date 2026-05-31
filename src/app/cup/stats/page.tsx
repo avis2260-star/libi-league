@@ -6,6 +6,8 @@ import { getLang, st } from '@/lib/get-lang';
 import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
 import SeasonPicker from '@/components/SeasonPicker';
 import ArchiveBanner from '@/components/ArchiveBanner';
+import { deriveCupScores } from '@/lib/cup-derived-scores';
+import { makeNameResolver } from '@/lib/team-name-resolver';
 
 type ScorerRow = {
   id: string;
@@ -78,6 +80,8 @@ type CupGameRow = {
   away_score: number | null;
   played: boolean;
   round: string;
+  home_quarters?: number[] | null;
+  away_quarters?: number[] | null;
 };
 
 type TeamCupStats = {
@@ -89,9 +93,13 @@ type TeamCupStats = {
   points_against: number;
 };
 
-function aggregateTeamStats(games: CupGameRow[]): TeamCupStats[] {
+function aggregateTeamStats(games: CupGameRow[], canon: (n: string) => string): TeamCupStats[] {
   const map = new Map<string, TeamCupStats>();
-  const ensure = (team: string) => {
+  // Key by the canonical team name so name variants in cup_games (e.g.
+  // 'ראשון "גפן" לציון' vs 'ראשון גפן לציון') merge into one row instead of
+  // splitting a team's games across two entries.
+  const ensure = (rawTeam: string) => {
+    const team = canon(rawTeam);
     let t = map.get(team);
     if (!t) {
       t = { team, played: 0, wins: 0, losses: 0, points_for: 0, points_against: 0 };
@@ -133,15 +141,16 @@ export default async function CupStatsPage({
   const params = await searchParams;
   const { viewing, current, isArchive } = await resolveSeasonFromParams(params);
 
-  const [scorers, lang, seasons, { data: cupGamesData }, { data: teamsData }] = await Promise.all([
+  const [scorers, lang, seasons, { data: cupGamesData }, { data: teamsData }, { data: cupStatsData }] = await Promise.all([
     getCupScorers(viewing),
     getLang(),
     listKnownSeasons(),
     supabaseAdmin
       .from('cup_games')
-      .select('id, home_team, away_team, home_score, away_score, played, round')
+      .select('id, home_team, away_team, home_score, away_score, played, round, home_quarters, away_quarters')
       .eq('season', viewing),
-    supabaseAdmin.from('teams').select('name, logo_url'),
+    supabaseAdmin.from('teams').select('id, name, logo_url'),
+    supabaseAdmin.from('cup_game_stats').select('cup_game_id, team_id, points').eq('season', viewing),
   ]);
 
   const T = (he: string) => st(he, lang);
@@ -152,8 +161,23 @@ export default async function CupStatsPage({
     if (t.name && t.logo_url) teamLogos[t.name] = t.logo_url;
   }
 
-  const teamStats = aggregateTeamStats((cupGamesData ?? []) as CupGameRow[]);
-  const gamesPlayedTotal = ((cupGamesData ?? []) as CupGameRow[]).filter(g => g.played).length;
+  // Enrich games with a derived score (per-player stats / quarters) when the
+  // admin never typed an explicit final score, so the team summary counts
+  // those games too (e.g. a final whose result lives only in the box score).
+  const rawCupGames = (cupGamesData ?? []) as CupGameRow[];
+  const derivedScores = deriveCupScores(
+    rawCupGames,
+    (teamsData ?? []) as { id: string; name: string }[],
+    (cupStatsData ?? []) as { cup_game_id: string; team_id: string | null; points: number | null }[],
+  );
+  const enrichedCupGames: CupGameRow[] = rawCupGames.map((g) => {
+    const d = derivedScores.get(g.id);
+    return d ? { ...g, home_score: d.home, away_score: d.away, played: true } : g;
+  });
+
+  const resolveTeamName = makeNameResolver((teamsData ?? []) as { id: string; name: string }[]);
+  const teamStats = aggregateTeamStats(enrichedCupGames, resolveTeamName);
+  const gamesPlayedTotal = enrichedCupGames.filter(g => g.played).length;
 
   return (
     <div dir={dir} className="space-y-6">
