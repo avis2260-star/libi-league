@@ -32,11 +32,24 @@ export async function POST(req: NextRequest) {
       reviewType?: string;
       season?: string;
       customNotes?: string;
+      focus?: {
+        competition?: 'league' | 'cup' | 'playoff';
+        round?: string;
+        home_team?: string;
+        away_team?: string;
+        home_score?: number | null;
+        away_score?: number | null;
+        date?: string | null;
+      } | null;
     };
 
     const reviewType = body.reviewType ?? 'custom';
     const targetSeason = body.season?.trim() || await getCurrentSeason();
     const customNotes  = body.customNotes?.trim() ?? '';
+    // A focused single-game/event review only applies to the free ("custom") type.
+    const focus = reviewType === 'custom' && body.focus?.home_team && body.focus?.away_team
+      ? body.focus
+      : null;
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -177,7 +190,14 @@ export async function POST(req: NextRequest) {
     };
     const typeLabel = typeLabels[reviewType] ?? 'סקירה';
 
-    const defaultTitle = `${typeLabel} — עונת ${targetSeason}`;
+    const compLabel = (c?: string) => c === 'cup' ? 'גביע' : c === 'playoff' ? 'פלייאוף' : 'ליגה';
+    const focusFacts = focus
+      ? `${compLabel(focus.competition)} · ${focus.round}: ${focus.home_team} ${focus.home_score ?? '?'}–${focus.away_score ?? '?'} ${focus.away_team}${focus.date ? ` · ${focus.date}` : ''}`
+      : '';
+
+    const defaultTitle = focus
+      ? `${focus.home_team} מול ${focus.away_team} — ${compLabel(focus.competition)}`
+      : `${typeLabel} — עונת ${targetSeason}`;
 
     const toneInstructions: Record<string, string> = {
       pre_season:
@@ -194,13 +214,38 @@ export async function POST(req: NextRequest) {
         `זוהי סקירה עיתונאית על עונת ${targetSeason}.` +
         (customNotes ? ` הנחיות ספציפיות מהעורך: ${customNotes}` : ' כתוב סקירה מקיפה ומאוזנת.'),
     };
-    const toneInstruction = toneInstructions[reviewType] ?? toneInstructions.custom;
+    // When the editor picked a specific game/event, the whole article is about
+    // that single game — override the tone with a tightly-scoped instruction.
+    const toneInstruction = focus
+      ? `כתוב כתבת ניתוח עיתונאית הממוקדת אך ורק במשחק בודד אחד: ${focusFacts}. ` +
+        `כל הכתבה חייבת לעסוק במשחק הספציפי הזה בלבד — התוצאה ומשמעותה, איך כל קבוצה הגיעה אליו והשלכותיו, וההקשר של שתי הקבוצות בטבלה/בעונה. ` +
+        `אל תכתוב סיכום עונה כללי ואל תסטה למשחקים אחרים אלא כרקע קצר בלבד. השתמש במספרים האמיתיים מהנתונים למטה.` +
+        (customNotes ? ` הנחיות נוספות מהעורך: ${customNotes}` : '')
+      : (toneInstructions[reviewType] ?? toneInstructions.custom);
+
+    const focusSection = focus
+      ? `\n== המשחק לסקירה (התמקד בזה בלבד) ==\n${focusFacts}\n`
+      : '';
+
+    const structure = focus
+      ? `מבנה הכתבה (חובה):
+1. **כותרת פנימית** (שורה אחת, ממוקדת במשחק הספציפי — ללא "כותרת:" לפניה, רק הטקסט)
+2. **פסקת פתיחה** — הצגת המשחק: מי נגד מי, באיזה שלב/מחזור, והתוצאה
+3. **גוף הכתבה** — 2–3 פסקאות על המשחק עצמו: מה אמרה התוצאה, ההקשר העונתי של שתי הקבוצות (מקום בטבלה, מאזן), והמשמעות
+4. **פסקת סיום** — מה המשחק הזה אומר להמשך הדרך של שתי הקבוצות`
+      : `מבנה הכתבה (חובה):
+1. **כותרת פנימית** (שורה אחת, עוצמתית ומשפיעה — ללא "כותרת:" לפניה, רק הטקסט)
+2. **פסקת מבוא** — הצגת הנושא, ההקשר, ולמה זה חשוב
+3. **חלק ראשי** — 2–3 פסקאות עם ניתוח מעמיק, מספרים קונקרטיים, ציטוט מספרי ניקוד ותוצאות רלוונטיות
+4. **מובילי הניקוד** — בולטים עם \`-\` לכל שחקן: שם, קבוצה, נקודות
+5. **פסקת סיום** — מסקנה, מה זה אומר לליגה/לעונה הבאה`;
 
     const prompt = `אתה עיתונאי ספורט ותיק המתמחה בכדורסל ישראלי. ` +
-      `אתה כותב ${typeLabel} עבור ליגת כדורסל קהילתית — בסגנון מקצועי, חי, ומעמיק. ` +
+      `אתה כותב ${focus ? 'כתבת ניתוח על משחק בודד' : typeLabel} עבור ליגת כדורסל קהילתית — בסגנון מקצועי, חי, ומעמיק. ` +
       `השתמש בנתונים האמיתיים הבאים בלבד — אל תמציא שמות, מספרים או תוצאות.
 
 ${toneInstruction}
+${focusSection}
 
 == טבלת הליגה (עונת ${dataSeason}) ==
 ${standingLines || '(אין נתוני טבלה)'}
@@ -218,12 +263,7 @@ ${cupLines || '(אין נתוני גביע)'}
 ${hofLines || '(אין נתוני היסטוריה)'}
 ${customNotes && reviewType !== 'custom' ? `\n== הנחיות ספציפיות מהעורך ==\n${customNotes}` : ''}
 
-מבנה הכתבה (חובה):
-1. **כותרת פנימית** (שורה אחת, עוצמתית ומשפיעה — ללא "כותרת:" לפניה, רק הטקסט)
-2. **פסקת מבוא** — הצגת הנושא, ההקשר, ולמה זה חשוב
-3. **חלק ראשי** — 2–3 פסקאות עם ניתוח מעמיק, מספרים קונקרטיים, ציטוט מספרי ניקוד ותוצאות רלוונטיות
-4. **מובילי הניקוד** — בולטים עם \`-\` לכל שחקן: שם, קבוצה, נקודות
-5. **פסקת סיום** — מסקנה, מה זה אומר לליגה/לעונה הבאה
+${structure}
 
 הנחיות סגנון:
 - עברית עיתונאית תקנית, טון ניתוחי — לא פרסומת

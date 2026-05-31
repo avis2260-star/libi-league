@@ -1,6 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
+type FocusGame = {
+  competition: 'league' | 'cup' | 'playoff';
+  label: string;
+  round: string;
+  home_team: string;
+  away_team: string;
+  home_score: number | null;
+  away_score: number | null;
+  date: string | null;
+};
 
 export type SeasonReview = {
   id: string;
@@ -39,6 +50,28 @@ export default function SeasonReviewsTab({ reviews: initial, season: currentSeas
   const [genNotes,   setGenNotes]   = useState('');
   const [generating, setGenerating] = useState(false);
 
+  // Focus-on-a-specific-game (only for the free "custom" type).
+  const [focusGames, setFocusGames] = useState<FocusGame[]>([]);
+  const [focusIdx,   setFocusIdx]   = useState<number | ''>('');
+  const [loadingFocus, setLoadingFocus] = useState(false);
+
+  // Load the season's games/events when the free type + create panel are open.
+  useEffect(() => {
+    if (!showCreate || genType !== 'custom') {
+      setFocusGames([]);
+      setFocusIdx('');
+      return;
+    }
+    let cancelled = false;
+    setLoadingFocus(true);
+    fetch(`/api/admin/season-reviews/games?season=${encodeURIComponent(genSeason)}`)
+      .then(r => r.json())
+      .then(j => { if (!cancelled) { setFocusGames((j.games ?? []) as FocusGame[]); setFocusIdx(''); } })
+      .catch(() => { if (!cancelled) setFocusGames([]); })
+      .finally(() => { if (!cancelled) setLoadingFocus(false); });
+    return () => { cancelled = true; };
+  }, [showCreate, genType, genSeason]);
+
   // Edit draft state
   const [draftTitle,   setDraftTitle]   = useState('');
   const [draftContent, setDraftContent] = useState('');
@@ -59,7 +92,12 @@ export default function SeasonReviewsTab({ reviews: initial, season: currentSeas
       const res  = await fetch('/api/admin/season-reviews/generate', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reviewType: genType, season: genSeason, customNotes: genNotes }),
+        body: JSON.stringify({
+          reviewType: genType,
+          season: genSeason,
+          customNotes: genNotes,
+          focus: genType === 'custom' && focusIdx !== '' ? focusGames[focusIdx] : null,
+        }),
       });
       const json = await res.json();
       if (!res.ok || json.error) throw new Error(json.error ?? 'שגיאת AI');
@@ -255,6 +293,35 @@ export default function SeasonReviewsTab({ reviews: initial, season: currentSeas
               ))}
             </select>
           </div>
+
+          {/* Focus on a specific game / event — free type only */}
+          {genType === 'custom' && (
+            <div className="space-y-1.5">
+              <p className="text-[11px] font-bold text-[#5a7a9a] uppercase tracking-widest">
+                התמקד במשחק / אירוע ספציפי <span className="normal-case font-normal">(אופציונלי)</span>
+              </p>
+              <select
+                value={focusIdx}
+                onChange={e => setFocusIdx(e.target.value === '' ? '' : Number(e.target.value))}
+                disabled={loadingFocus}
+                className="w-full rounded-xl border border-white/[0.09] bg-[#0f1e30] px-3 py-2 text-sm text-white focus:border-orange-500/50 focus:outline-none disabled:opacity-50"
+              >
+                <option value="">
+                  {loadingFocus ? 'טוען משחקים…' : '— סקירה כללית (ללא משחק ספציפי) —'}
+                </option>
+                {focusGames.map((g, i) => (
+                  <option key={i} value={i} style={{ backgroundColor: '#0f1e30' }}>{g.label}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-[#4a6a8a]">
+                {focusIdx !== ''
+                  ? '✨ ה-AI יכתוב כתבה הממוקדת אך ורק במשחק שנבחר.'
+                  : focusGames.length > 0
+                    ? 'בחר משחק כדי שה-AI יכתוב כתבה ממוקדת עליו בלבד.'
+                    : loadingFocus ? '' : 'אין משחקים עם תוצאה בעונה זו — תיווצר סקירה כללית.'}
+              </p>
+            </div>
+          )}
 
           {/* Custom notes */}
           <div className="space-y-1.5">
