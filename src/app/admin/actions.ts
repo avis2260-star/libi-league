@@ -994,6 +994,28 @@ export async function saveTickerAuto(config: AutoTickerConfig): Promise<ActionRe
   return {};
 }
 
+// ── Cup champion banner: featured reviews ─────────────────────────────────────
+// Two season_review IDs (before / after the cup final) surfaced as links on the
+// home-page cup-holder hero card. Stored as JSON in league_settings (no
+// migration) — same pattern as the ticker config.
+
+export type CupHeroReviews = { before: string | null; after: string | null };
+
+export async function saveCupHeroReviews(value: CupHeroReviews): Promise<ActionResult> {
+  const clean: CupHeroReviews = {
+    before: value.before?.trim() || null,
+    after:  value.after?.trim()  || null,
+  };
+  const { error } = await supabaseAdmin
+    .from('league_settings')
+    .upsert({ key: 'cup_hero_reviews', value: JSON.stringify(clean) }, { onConflict: 'key' });
+
+  if (error) return { error: error.message };
+  revalidatePath('/');
+  revalidatePath('/admin');
+  return {};
+}
+
 // ── Terms & Privacy text ──────────────────────────────────────────────────────
 
 export async function saveTermsSetting(

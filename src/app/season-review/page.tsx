@@ -97,7 +97,7 @@ export default async function SeasonReviewPage({
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-3xl font-black text-white font-heading">
-            📰 {T('סקירות עונה', 'Season Reviews')}
+            📰 {T('סקירות הליגה', 'League Reviews')}
           </h1>
           <p className="mt-1 text-sm font-bold text-[#8aaac8] font-body">
             {T('ניתוח מעמיק על עונת הליגה', 'In-depth analysis of the league season')} · {viewing}

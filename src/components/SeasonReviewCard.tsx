@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import MarkdownLite from '@/components/MarkdownLite';
 import ArticleViewCounter from '@/components/ArticleViewCounter';
 
@@ -46,13 +46,26 @@ interface Props {
 
 export default function SeasonReviewCard({ review, lang, featured = false }: Props) {
   const [expanded, setExpanded] = useState(false);
+
+  // Deep link from elsewhere (e.g. the cup hero card): /season-review#review-<id>
+  // auto-expands this card and scrolls it into view.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.location.hash === `#review-${review.id}`) {
+      setExpanded(true);
+      const el = document.getElementById(`review-${review.id}`);
+      if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+    }
+  }, [review.id]);
+
   const meta  = TYPE_META[review.review_type];
   const label = lang === 'en' ? meta.enLabel : meta.heLabel;
   const excerpt = plainExcerpt(review.content);
 
   return (
     <article
-      className={`rounded-3xl border transition-all duration-200 ${meta.glow} ${
+      id={`review-${review.id}`}
+      className={`scroll-mt-24 rounded-3xl border transition-all duration-200 ${meta.glow} ${
         featured
           ? 'border-white/[0.1] bg-white/[0.03]'
           : 'border-white/[0.06] bg-white/[0.02]'

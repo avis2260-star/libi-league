@@ -456,13 +456,23 @@ export default async function AdminPage({
 
   // Season reviews tab
   let seasonReviews: SeasonReview[] = [];
+  let cupHeroReviews: { before: string | null; after: string | null } = { before: null, after: null };
   if (tab === 'seasonreviews') {
-    const { data } = await supabaseAdmin
-      .from('season_reviews')
-      .select('id, season, review_type, title, content, is_published, created_at, updated_at')
-      .eq('season', season)
-      .order('created_at', { ascending: false });
+    const [{ data }, { data: heroCfg }] = await Promise.all([
+      supabaseAdmin
+        .from('season_reviews')
+        .select('id, season, review_type, title, content, is_published, created_at, updated_at')
+        .eq('season', season)
+        .order('created_at', { ascending: false }),
+      supabaseAdmin.from('league_settings').select('value').eq('key', 'cup_hero_reviews').maybeSingle(),
+    ]);
     seasonReviews = (data ?? []) as SeasonReview[];
+    if (heroCfg?.value) {
+      try {
+        const p = JSON.parse(heroCfg.value) as { before?: string | null; after?: string | null };
+        cupHeroReviews = { before: p.before ?? null, after: p.after ?? null };
+      } catch { /* keep defaults */ }
+    }
   }
 
   // Match-previews tab — load every cup game in the current season and any
@@ -547,7 +557,7 @@ export default async function AdminPage({
       {tab === 'about'         && <AboutTab heroSubtitle={aboutHeroSubtitle} story={aboutStory} association={aboutAssociation} chairmanName={aboutChairmanName} />}
       {tab === 'accessibility' && <AccessibilityTab coordinatorName={a11yCoordinatorName} coordinatorEmail={a11yCoordinatorEmail} updatedAt={a11yUpdatedAt} />}
       {tab === 'halloffame'    && <HallOfFameTab seasons={hofSeasons} records={hofRecords} />}
-      {tab === 'seasonreviews' && <SeasonReviewsTab reviews={seasonReviews} season={season} knownSeasons={knownSeasons} />}
+      {tab === 'seasonreviews' && <SeasonReviewsTab reviews={seasonReviews} season={season} knownSeasons={knownSeasons} cupHeroReviews={cupHeroReviews} />}
     </>
   );
 }

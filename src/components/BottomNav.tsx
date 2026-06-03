@@ -75,7 +75,7 @@ const MORE_LINKS = [
   { href: '/submit',         label: 'הגשת תוצאות',  emoji: '📥' },
   { href: '/results',        label: 'תוצאות',       emoji: '📊' },
   { href: '/playoff',        label: 'פלייאוף',      emoji: '🏆' },
-  { href: '/season-review',  label: 'סקירות עונה',  emoji: '📰' },
+  { href: '/season-review',  label: 'סקירות הליגה',  emoji: '📰' },
   { href: '/hall-of-fame',   label: 'היכל התהילה',  emoji: '🏅' },
   { href: '/takanon',        label: 'תקנון',        emoji: '📋' },
   { href: '/about',          label: 'אודות',        emoji: 'ℹ️' },

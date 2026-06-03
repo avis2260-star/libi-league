@@ -29,7 +29,7 @@ const GROUPS = [
       { href: '/cup',             label: 'גביע' },
       { href: '/playoff',         label: 'פלייאוף' },
       { href: '/events',          label: '🎤 לקראת המשחק' },
-      { href: '/season-review',   label: '📰 סקירות עונה' },
+      { href: '/season-review',   label: '📰 סקירות הליגה' },
       { href: '/hall-of-fame',    label: '🏆 היכל התהילה' },
     ],
   },

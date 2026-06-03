@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
+import { saveCupHeroReviews } from '@/app/admin/actions';
 
 type FocusGame = {
   competition: 'league' | 'cup' | 'playoff';
@@ -28,7 +29,85 @@ type Props = {
   reviews: SeasonReview[];
   season: string;
   knownSeasons: string[];
+  cupHeroReviews: { before: string | null; after: string | null };
 };
+
+// ── Cup-hero featured reviews picker ─────────────────────────────────────────
+// Lets the admin choose which two reviews appear as links on the home-page
+// cup-holder hero card (before / after the final). Only published reviews are
+// shown publicly, but drafts are listed here (marked 🔒) so they can be
+// pre-selected before publishing.
+function CupHeroReviewsPanel({
+  reviews, initial,
+}: {
+  reviews: SeasonReview[];
+  initial: { before: string | null; after: string | null };
+}) {
+  const [before, setBefore] = useState<string>(initial.before ?? '');
+  const [after,  setAfter]  = useState<string>(initial.after ?? '');
+  const [saved,  setSaved]  = useState(false);
+  const [err,    setErr]    = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function handleSave() {
+    setErr(null); setSaved(false);
+    startTransition(async () => {
+      const res = await saveCupHeroReviews({ before: before || null, after: after || null });
+      if (res.error) { setErr(res.error); }
+      else { setSaved(true); setTimeout(() => setSaved(false), 3000); }
+    });
+  }
+
+  const optionLabel = (r: SeasonReview) =>
+    `${r.is_published ? '' : '🔒 '}${r.title?.trim() || '(ללא כותרת)'}`;
+
+  return (
+    <div className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.05] p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <p className="text-sm font-black text-amber-200">🏆 סקירות גמר הגביע</p>
+        <div className="flex items-center gap-2">
+          {saved && <span className="text-xs text-emerald-400">✓ נשמר</span>}
+          {err   && <span className="text-xs text-red-400">{err}</span>}
+          <button
+            onClick={handleSave}
+            disabled={pending}
+            className="rounded-lg bg-amber-500/80 px-3 py-1.5 text-xs font-black text-amber-950 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed transition"
+          >
+            {pending ? 'שומר...' : 'שמור'}
+          </button>
+        </div>
+      </div>
+      <p className="text-[11px] leading-relaxed text-[#8aaac8]">
+        בחרו אילו סקירות יוצגו ככפתורים בכרטיס מחזיקת הגביע בעמוד הבית — לפני ואחרי הגמר.
+        בעמוד הבית יוצגו רק סקירות <span className="text-amber-200">מפורסמות</span> של העונה הנוכחית.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1">
+          <label className="block text-[11px] font-bold text-[#5a7a9a]">📖 הסקירה שלפני הגמר</label>
+          <select
+            value={before}
+            onChange={e => { setBefore(e.target.value); setSaved(false); }}
+            className="w-full rounded-xl border border-white/[0.09] bg-[#0f1e30] px-3 py-2 text-sm text-white focus:border-amber-500/50 focus:outline-none"
+          >
+            <option value="">— ללא —</option>
+            {reviews.map(r => <option key={r.id} value={r.id}>{optionLabel(r)}</option>)}
+          </select>
+        </div>
+        <div className="space-y-1">
+          <label className="block text-[11px] font-bold text-[#5a7a9a]">📰 הסקירה שאחרי הגמר</label>
+          <select
+            value={after}
+            onChange={e => { setAfter(e.target.value); setSaved(false); }}
+            className="w-full rounded-xl border border-white/[0.09] bg-[#0f1e30] px-3 py-2 text-sm text-white focus:border-amber-500/50 focus:outline-none"
+          >
+            <option value="">— ללא —</option>
+            {reviews.map(r => <option key={r.id} value={r.id}>{optionLabel(r)}</option>)}
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const TYPE_META: Record<SeasonReview['review_type'], { label: string; emoji: string; color: string }> = {
   pre_season: { label: 'פתיחת עונה',  emoji: '🌱', color: 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10' },
@@ -39,7 +118,7 @@ const TYPE_META: Record<SeasonReview['review_type'], { label: string; emoji: str
 
 const REVIEW_TYPES = Object.entries(TYPE_META) as [SeasonReview['review_type'], typeof TYPE_META[keyof typeof TYPE_META]][];
 
-export default function SeasonReviewsTab({ reviews: initial, season: currentSeason, knownSeasons }: Props) {
+export default function SeasonReviewsTab({ reviews: initial, season: currentSeason, knownSeasons, cupHeroReviews }: Props) {
   const [reviews, setReviews]       = useState<SeasonReview[]>(initial);
   const [editingId, setEditingId]   = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -252,7 +331,7 @@ export default function SeasonReviewsTab({ reviews: initial, season: currentSeas
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h2 className="text-xl font-black text-white font-heading">📰 סקירות עונה</h2>
+          <h2 className="text-xl font-black text-white font-heading">📰 סקירות הליגה</h2>
           <p className="text-xs text-[#5a7a9a] mt-0.5">
             מאמרי ניתוח עונתיים — נוצרים עם AI על בסיס נתוני הליגה האמיתיים.
           </p>
@@ -271,6 +350,9 @@ export default function SeasonReviewsTab({ reviews: initial, season: currentSeas
           {msg.text}
         </div>
       )}
+
+      {/* ── Cup-hero featured reviews ───────────────────────────────────── */}
+      <CupHeroReviewsPanel reviews={reviews} initial={cupHeroReviews} />
 
       {/* ── Create / Generate panel ─────────────────────────────────────── */}
       {showCreate && (
@@ -476,7 +558,7 @@ export default function SeasonReviewsTab({ reviews: initial, season: currentSeas
       {reviews.length === 0 && !showCreate && !editingId ? (
         <div className="rounded-2xl border border-dashed border-white/[0.08] py-14 text-center">
           <p className="text-4xl mb-2">📰</p>
-          <p className="text-sm font-bold text-[#5a7a9a]">אין סקירות עונה עדיין.</p>
+          <p className="text-sm font-bold text-[#5a7a9a]">אין סקירות הליגה עדיין.</p>
           <p className="text-xs text-[#3a5a7a] mt-1">לחץ על "סקירה חדשה" כדי ליצור עם AI.</p>
         </div>
       ) : (

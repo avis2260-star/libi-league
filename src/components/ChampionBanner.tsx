@@ -45,6 +45,9 @@ export type ChampionBannerProps = {
     teamName: string;
     players: { name: string; points: number; threePointers: number; fouls: number }[];
   } | null;
+  // Optional review links shown on the cup hero — chosen by the admin.
+  beforeReview?: { title: string; href: string } | null;
+  afterReview?: { title: string; href: string } | null;
 };
 
 export default function ChampionBanner(props: ChampionBannerProps) {
@@ -169,6 +172,30 @@ function Hero(p: ChampionBannerProps) {
                 {bracketLabel}
               </Link>
             </div>
+
+            {/* Featured reviews — before / after the final (cup hero only) */}
+            {(p.beforeReview || p.afterReview) && (
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                {p.beforeReview && (
+                  <Link
+                    href={p.beforeReview.href}
+                    title={p.beforeReview.title}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-black/20 px-3 py-1.5 text-[11px] sm:text-xs font-bold text-amber-100 transition hover:border-amber-400/50 hover:bg-black/30"
+                  >
+                    📖 {en ? 'Before the Final' : 'הסקירה שלפני הגמר'}
+                  </Link>
+                )}
+                {p.afterReview && (
+                  <Link
+                    href={p.afterReview.href}
+                    title={p.afterReview.title}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-black/20 px-3 py-1.5 text-[11px] sm:text-xs font-bold text-amber-100 transition hover:border-amber-400/50 hover:bg-black/30"
+                  >
+                    📰 {en ? 'After the Final' : 'הסקירה שאחרי הגמר'}
+                  </Link>
+                )}
+              </div>
+            )}
           </div>
         );
 

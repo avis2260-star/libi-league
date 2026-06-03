@@ -48,6 +48,37 @@ async function getActiveAnnouncements(): Promise<ActiveAnnouncement[]> {
   }
 }
 
+// Admin-chosen reviews (before / after the cup final) for the cup hero card.
+// IDs live in league_settings.cup_hero_reviews; only current-season, published
+// reviews are surfaced so a stale cross-season pick silently drops out.
+type HeroReviewLink = { id: string; title: string };
+async function getCupHeroReviews(season: string): Promise<{ before: HeroReviewLink | null; after: HeroReviewLink | null }> {
+  try {
+    const { data: cfgRow } = await supabaseAdmin
+      .from('league_settings')
+      .select('value')
+      .eq('key', 'cup_hero_reviews')
+      .maybeSingle();
+    if (!cfgRow?.value) return { before: null, after: null };
+    const cfg = JSON.parse(cfgRow.value) as { before?: string | null; after?: string | null };
+    const ids = [cfg.before, cfg.after].filter((x): x is string => !!x);
+    if (ids.length === 0) return { before: null, after: null };
+
+    const { data } = await supabaseAdmin
+      .from('season_reviews')
+      .select('id, title')
+      .in('id', ids)
+      .eq('season', season)
+      .eq('is_published', true);
+    const byId = new Map(((data ?? []) as { id: string; title: string }[]).map(r => [r.id, r]));
+    const pick = (id?: string | null): HeroReviewLink | null =>
+      id && byId.has(id) ? { id, title: byId.get(id)!.title } : null;
+    return { before: pick(cfg.before), after: pick(cfg.after) };
+  } catch {
+    return { before: null, after: null };
+  }
+}
+
 type TopPlayer = {
   id: string;
   name: string;
@@ -727,7 +758,7 @@ function RecordCard({ icon, label, value, sub, detail, color }: { icon: string; 
 
 export default async function HomePage() {
   const season = await getCurrentSeason();
-  const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers, lang, dbRoundDates, cupFinal, upcomingCup, cupChampion, playoffChampion, autoTickerItems] = await Promise.all([
+  const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers, lang, dbRoundDates, cupFinal, upcomingCup, cupChampion, playoffChampion, autoTickerItems, cupHeroReviews] = await Promise.all([
     getLiveData(season),
     getActiveAnnouncements(),
     getTeams(),
@@ -740,6 +771,7 @@ export default async function HomePage() {
     getCupChampion(season),
     getPlayoffChampion(season),
     getAutoTickerItems(season),
+    getCupHeroReviews(season),
   ]);
 
   const nextRoundEarly = liveData.currentRound + 1;
@@ -797,6 +829,12 @@ export default async function HomePage() {
         mvp:             cupChampion.mvp,
         finalRoster:     cupChampion.finalRoster
           ? { teamName: dbDisplayName(cupChampion.finalRoster.teamName), players: cupChampion.finalRoster.players }
+          : null,
+        beforeReview:    cupHeroReviews.before
+          ? { title: cupHeroReviews.before.title, href: `/season-review#review-${cupHeroReviews.before.id}` }
+          : null,
+        afterReview:     cupHeroReviews.after
+          ? { title: cupHeroReviews.after.title, href: `/season-review#review-${cupHeroReviews.after.id}` }
           : null,
       };
     }

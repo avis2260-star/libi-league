@@ -51,7 +51,7 @@ const GROUPS = [
       { href: '/admin?tab=terms',          label: '📋 תנאי שימוש'  },
       { href: '/admin?tab=accessibility',  label: '♿ נגישות'        },
       { href: '/admin?tab=forms',          label: '📂 טפסים להורדה' },
-      { href: '/admin?tab=seasonreviews',  label: '📰 סקירות עונה'  },
+      { href: '/admin?tab=seasonreviews',  label: '📰 סקירות הליגה'  },
     ],
   },
   {
