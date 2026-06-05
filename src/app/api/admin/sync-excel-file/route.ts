@@ -286,7 +286,7 @@ export async function POST(req: NextRequest) {
       if (cupGames.length > 0) {
         const { data: existingCup } = await supabaseAdmin
           .from('cup_games')
-          .select('home_team, away_team')
+          .select('home_team, away_team, round')
           .eq('season', season);
 
         const pairKey = (a: string, b: string) =>
@@ -294,9 +294,15 @@ export async function POST(req: NextRequest) {
         const existingPairs = new Set(
           (existingCup ?? []).map((g) => pairKey(g.home_team as string, g.away_team as string)),
         );
+        // A cup is single-elimination: exactly ONE final ('גמר'). If a final
+        // already exists, never auto-insert another from the Excel sheet — a
+        // duplicate/incomplete final row would hide the real cup champion on
+        // the home-page hero card.
+        const hasFinal = (existingCup ?? []).some((g) => g.round === 'גמר');
 
         const newCup = cupGames
           .filter((g) => !existingPairs.has(pairKey(g.home_team, g.away_team)))
+          .filter((g) => !(g.round === 'גמר' && hasFinal))
           .map((g) => ({ ...g, season }));
 
         if (newCup.length > 0) {

@@ -330,13 +330,22 @@ type CupFinal = { date: string; home_team: string; away_team: string; home_score
 
 async function getCupFinal(season: string): Promise<CupFinal> {
   try {
+    // Multiple 'גמר' rows can exist if the Excel sync inserted a duplicate
+    // final — `.maybeSingle()` would error on >1 row. Fetch all and prefer the
+    // real, decided final (played + both scores) over any phantom/incomplete one.
     const { data } = await supabaseAdmin
       .from('cup_games')
-      .select('date, home_team, away_team, home_score, away_score, played')
+      .select('date, home_team, away_team, home_score, away_score, played, game_number')
       .eq('season', season)
       .eq('round', 'גמר')
-      .maybeSingle();
-    return data as CupFinal;
+      .order('game_number', { ascending: false });
+    const rows = (data ?? []) as NonNullable<CupFinal>[];
+    if (rows.length === 0) return null;
+    return (
+      rows.find((r) => r.played && r.home_score != null && r.away_score != null) ??
+      rows.find((r) => r.home_score != null && r.away_score != null) ??
+      rows[0]
+    );
   } catch { return null; }
 }
 
@@ -368,48 +377,72 @@ async function getCupChampion(season: string): Promise<CupChampion | null> {
     // Cup champion = the team that won the FINAL ('גמר' — exact match,
     // distinct from 'רבע גמר' / 'חצי גמר'). Earlier-round wins don't crown
     // a champion.
-    const { data } = await supabaseAdmin
+    // There should be one final per season, but the Excel cup sync can insert
+    // a duplicate/incomplete 'גמר' row (a different team pair). Evaluate ALL
+    // final rows and pick the one that is actually DECIDED, so a phantom row
+    // can never hide the real champion (previously `.limit(1)` picked the
+    // highest game_number even if it was incomplete → banner vanished).
+    const { data: finalsData } = await supabaseAdmin
       .from('cup_games')
-      .select('id, home_team, away_team, home_score, away_score, date, video_url, played, home_quarters, away_quarters')
+      .select('id, home_team, away_team, home_score, away_score, date, video_url, played, game_number, home_quarters, away_quarters')
       .eq('season', season)
       .eq('round', 'גמר')
-      .order('game_number', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (!data) return null;
+      .order('game_number', { ascending: false });
+    type FinalRow = {
+      id: string; home_team: string; away_team: string;
+      home_score: number | null; away_score: number | null;
+      date: string | null; video_url: string | null;
+      played: boolean | null; game_number: number | null;
+      home_quarters: number[] | null; away_quarters: number[] | null;
+    };
+    const finals = (finalsData ?? []) as FinalRow[];
+    if (finals.length === 0) return null;
 
-    let homeScore = data.home_score as number | null;
-    let awayScore = data.away_score as number | null;
+    const todayMid = new Date();
+    todayMid.setHours(0, 0, 0, 0);
 
-    if (homeScore != null && awayScore != null) {
-      // Explicit score entered. Reveal once the final is decided: the admin
-      // marked it played, OR the scheduled date has already passed (so a
-      // forgotten "שוחק" tick doesn't hide a finished final).
-      const parsed = parseFlexibleDate(data.date, season);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const datePassed = parsed ? parsed.getTime() <= today.getTime() : false;
-      if (!data.played && !datePassed) return null;
-    } else {
-      // No explicit score — derive it from the per-player stats / quarter
-      // breakdown the admin entered. A derivable result IS the signal that
-      // the final happened, so no extra date/played gate is needed.
-      const [{ data: teams }, { data: stats }] = await Promise.all([
+    // Batch-derive scores for any finals that have no explicit score yet.
+    const needDerive = finals.filter((f) => f.home_score == null || f.away_score == null);
+    let derivedById = new Map<string, { home: number; away: number }>();
+    if (needDerive.length > 0) {
+      const [{ data: teamsD }, { data: statsD }] = await Promise.all([
         supabaseAdmin.from('teams').select('id, name'),
-        supabaseAdmin.from('cup_game_stats').select('cup_game_id, team_id, points').eq('cup_game_id', data.id),
+        supabaseAdmin.from('cup_game_stats').select('cup_game_id, team_id, points').in('cup_game_id', needDerive.map((f) => f.id)),
       ]);
-      const derived = deriveCupScores(
-        [data as CupGameLike],
-        (teams ?? []) as { id: string; name: string }[],
-        (stats ?? []) as { cup_game_id: string; team_id: string | null; points: number | null }[],
-      ).get(data.id);
-      if (!derived) return null; // nothing entered yet
-      homeScore = derived.home;
-      awayScore = derived.away;
+      derivedById = deriveCupScores(
+        needDerive as unknown as CupGameLike[],
+        (teamsD ?? []) as { id: string; name: string }[],
+        (statsD ?? []) as { cup_game_id: string; team_id: string | null; points: number | null }[],
+      );
     }
 
-    // Need a real result — a tie (incl. a placeholder 0:0) has no winner.
-    if (homeScore == null || awayScore == null || homeScore === awayScore) return null;
+    const decidedFinals: { row: FinalRow; homeScore: number; awayScore: number; decidedAt: Date }[] = [];
+    for (const f of finals) {
+      let hs = f.home_score;
+      let aw = f.away_score;
+      if (hs != null && aw != null) {
+        // Explicit score — reveal once played OR the scheduled date has passed.
+        const parsed = parseFlexibleDate(f.date, season);
+        const datePassed = parsed ? parsed.getTime() <= todayMid.getTime() : false;
+        if (!f.played && !datePassed) continue;
+      } else {
+        const d = derivedById.get(f.id);
+        if (!d) continue;          // nothing entered for this row
+        hs = d.home; aw = d.away;
+      }
+      if (hs == null || aw == null || hs === aw) continue;  // no winner (incl. 0:0 tie)
+      decidedFinals.push({ row: f, homeScore: hs, awayScore: aw, decidedAt: parseFlexibleDate(f.date, season) ?? new Date() });
+    }
+    if (decidedFinals.length === 0) return null;
+
+    // Most recently decided wins (tiebreak: higher game_number).
+    decidedFinals.sort((a, b) =>
+      (b.decidedAt.getTime() - a.decidedAt.getTime()) ||
+      ((b.row.game_number ?? 0) - (a.row.game_number ?? 0)),
+    );
+    const data = decidedFinals[0].row;
+    const homeScore = decidedFinals[0].homeScore;
+    const awayScore = decidedFinals[0].awayScore;
 
     const championName = homeScore > awayScore ? data.home_team : data.away_team;
 
