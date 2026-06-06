@@ -157,6 +157,60 @@ function PlayerCard({ player }: { player: EnrichedPlayer }) {
 type ActiveFilter = 'all' | 'active' | 'inactive';
 type ViewMode = 'teams' | 'players';
 
+/* ── Compact list row (alternative to the card grid) ──────────────────────── */
+function PlayerListRow({ player }: { player: EnrichedPlayer }) {
+  const { t, lang } = useLang();
+  const inactive = !player.is_active;
+  const POSITIONS = lang === 'en' ? POSITIONS_EN : POSITIONS_HE;
+  const staff = player.staff_role ? STAFF_INFO[player.staff_role] : null;
+  const staffLabel = staff ? (lang === 'en' ? staff.en : staff.he) : null;
+  const sub = staffLabel ?? (player.position ? (POSITIONS[player.position] ?? player.position) : null);
+
+  return (
+    <Link
+      href={`/players/${player.id}`}
+      className={`group flex items-center gap-3 rounded-xl border px-3 py-2 transition-all ${
+        inactive
+          ? 'border-white/[0.04] bg-[#0a1520] opacity-60 hover:opacity-80'
+          : 'border-white/[0.07] bg-[#0c1825] hover:border-orange-500/30 hover:shadow-[0_0_20px_rgba(249,115,22,0.06)]'
+      }`}
+    >
+      {/* Jersey */}
+      <span className="w-8 shrink-0 text-center font-stats text-sm font-black text-orange-400">
+        {player.jersey_number !== null ? `#${player.jersey_number}` : '—'}
+      </span>
+
+      <Avatar name={player.name} photoUrl={player.photo_url} size={40} />
+
+      {/* Name + team / role */}
+      <div className="flex-1 min-w-0">
+        <p className="truncate font-heading font-black text-white text-sm group-hover:text-orange-400 transition-colors">
+          {player.name}
+        </p>
+        <p className="truncate text-xs font-bold text-[#8aaac8]">
+          {player.team ? t(player.team.name) : ''}{sub ? ` · ${sub}` : ''}
+        </p>
+      </div>
+
+      {/* Stats */}
+      <div className="flex items-center gap-1.5 shrink-0 text-center">
+        <div className="w-10 shrink-0">
+          <p className="font-stats text-base font-black text-orange-400">{player.points ?? 0}</p>
+          <p className="font-body text-[9px] font-bold text-[#8aaac8]">{t('נק׳')}</p>
+        </div>
+        <div className="w-10 shrink-0">
+          <p className="font-stats text-base font-black text-[#e0c97a]">{player.three_pointers ?? 0}</p>
+          <p className="font-body text-[9px] font-bold text-[#8aaac8]">3PT</p>
+        </div>
+        <div className="w-10 shrink-0">
+          <p className="font-stats text-base font-black text-red-400">{player.fouls ?? 0}</p>
+          <p className="font-body text-[9px] font-bold text-[#8aaac8]">{t('פאולים')}</p>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 /* ── Team List View ─────────────────────────────────────────────────────────── */
 function TeamListView({
   players,
@@ -254,7 +308,8 @@ function PlayerGridView({
   const [search, setSearch]           = useState('');
   const [teamFilter, setTeamFilter]   = useState(initialTeamId);
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>('active');
-  const [sortBy, setSortBy]           = useState<'name' | 'points' | 'jersey'>('name');
+  const [sortBy, setSortBy]           = useState<'points' | 'name' | 'jersey'>('points');
+  const [layout, setLayout]           = useState<'grid' | 'list'>('grid');
 
   const activeCount   = players.filter(p => p.is_active).length;
   const inactiveCount = players.filter(p => !p.is_active).length;
@@ -278,13 +333,20 @@ function PlayerGridView({
 
     list.sort((a, b) => {
       // Staff always at the top, in the order: Manager → Coach → Asst Coach.
-      // Players (no staff_role) fall through to the user-chosen secondary sort.
+      // Players (no staff_role) fall through to the chosen sort below.
       const sa = staffRank(a.staff_role);
       const sb = staffRank(b.staff_role);
       if (sa !== sb) return sa - sb;
-      if (sortBy === 'points') return (b.points ?? 0) - (a.points ?? 0);
-      if (sortBy === 'jersey') return (a.jersey_number ?? 99) - (b.jersey_number ?? 99);
-      return a.name.localeCompare(b.name, 'he');
+
+      // Shared tiebreakers.
+      const byJersey = (a.jersey_number ?? 9999) - (b.jersey_number ?? 9999);
+      const byName   = a.name.localeCompare(b.name, 'he');
+
+      // Default — leading scorer first; ties fall back to jersey number, then
+      // the first letter of the player's name.
+      if (sortBy === 'points') return ((b.points ?? 0) - (a.points ?? 0)) || byJersey || byName;
+      if (sortBy === 'jersey') return byJersey || byName;
+      return byName || byJersey;
     });
 
     return list;
@@ -368,10 +430,32 @@ function PlayerGridView({
           onChange={e => setSortBy(e.target.value as typeof sortBy)}
           className="rounded-xl border border-white/[0.08] bg-[#0c1825] px-3 py-2 text-sm text-[#8aaac8] focus:border-orange-500/40 focus:outline-none"
         >
-          <option value="name">{t('מיין: שם')}</option>
           <option value="points">{t('מיין: נקודות')}</option>
           <option value="jersey">{t('מיין: מספר חולצה')}</option>
+          <option value="name">{t('מיין: שם')}</option>
         </select>
+
+        {/* Grid / list view toggle */}
+        <div className="flex items-center rounded-xl border border-white/[0.08] bg-[#0c1825] p-0.5">
+          <button
+            type="button"
+            onClick={() => setLayout('grid')}
+            aria-label={lang === 'en' ? 'Grid view' : 'תצוגת כרטיסים'}
+            title={lang === 'en' ? 'Grid view' : 'תצוגת כרטיסים'}
+            className={`flex items-center justify-center rounded-lg px-2.5 py-1.5 transition ${layout === 'grid' ? 'bg-orange-500 text-white' : 'text-[#8aaac8] hover:text-white'}`}
+          >
+            <svg viewBox="0 0 16 16" className="h-4 w-4" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1.2" /><rect x="9" y="1" width="6" height="6" rx="1.2" /><rect x="1" y="9" width="6" height="6" rx="1.2" /><rect x="9" y="9" width="6" height="6" rx="1.2" /></svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => setLayout('list')}
+            aria-label={lang === 'en' ? 'List view' : 'תצוגת רשימה'}
+            title={lang === 'en' ? 'List view' : 'תצוגת רשימה'}
+            className={`flex items-center justify-center rounded-lg px-2.5 py-1.5 transition ${layout === 'list' ? 'bg-orange-500 text-white' : 'text-[#8aaac8] hover:text-white'}`}
+          >
+            <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="2.5" y1="4" x2="13.5" y2="4" /><line x1="2.5" y1="8" x2="13.5" y2="8" /><line x1="2.5" y1="12" x2="13.5" y2="12" /></svg>
+          </button>
+        </div>
       </div>
 
       {/* Cards grid */}
@@ -379,6 +463,12 @@ function PlayerGridView({
         <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] py-16 text-center">
           <p className="text-4xl mb-3">🏀</p>
           <p className="text-[#5a7a9a]">{lang === 'en' ? 'No players found' : 'לא נמצאו שחקנים'}</p>
+        </div>
+      ) : layout === 'list' ? (
+        <div className="space-y-2">
+          {filtered.map(p => (
+            <PlayerListRow key={p.id} player={p} />
+          ))}
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
