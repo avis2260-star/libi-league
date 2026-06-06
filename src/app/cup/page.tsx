@@ -91,8 +91,15 @@ export default async function CupPage({
           site); trim the <main> padding so the bracket sits closer to the
           header. These styles are only in the DOM while /cup is mounted. */}
       <style>{`
-        main { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
         footer { display: none !important; }
+        main { padding-top: 0.75rem !important; }
+        /* Trim the bottom padding only on tablet/desktop, where the bracket is
+           meant to fill the viewport. On mobile we KEEP the layout's pb-24 so
+           the champion banner clears the fixed bottom nav — otherwise the cup
+           champion is hidden behind it. */
+        @media (min-width: 640px) {
+          main { padding-bottom: 0.75rem !important; }
+        }
       `}</style>
 
       <div className="space-y-3" dir={dir}>
