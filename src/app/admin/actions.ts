@@ -927,6 +927,43 @@ function cleanQuarters(q: number[] | null | undefined): number[] | null {
   return cleaned.length ? cleaned : null;
 }
 
+// ── Regular-season per-game quarter scores ───────────────────────────────────
+// Writes the home_quarters / away_quarters int[] columns on the games row. The
+// public game page (/games/[round]/[home]) renders these as a "תוצאות לפי רבעים"
+// line score. The games table enforces symmetry + length >= 4, so we normalise
+// both sides to the same length (padding the shorter/empty side with zeros, and
+// topping up to at least 4 periods) — or clear both to NULL together.
+
+export async function saveGameQuarters(input: {
+  gameId: string;
+  homeQuarters: number[] | null;
+  awayQuarters: number[] | null;
+}): Promise<ActionResult> {
+  if (!input.gameId) return { error: 'game required' };
+
+  let home = cleanQuarters(input.homeQuarters);
+  let away = cleanQuarters(input.awayQuarters);
+  if (home || away) {
+    const len = Math.max(4, home?.length ?? 0, away?.length ?? 0);
+    const pad = (q: number[] | null) =>
+      Array.from({ length: len }, (_, i) => q?.[i] ?? 0);
+    home = pad(home);
+    away = pad(away);
+  }
+
+  const { error } = await supabaseAdmin
+    .from('games')
+    .update({ home_quarters: home, away_quarters: away })
+    .eq('id', input.gameId);
+  if (error) return { error: error.message };
+
+  revalidatePath('/admin');
+  revalidatePath('/');
+  revalidatePath('/games');
+  revalidatePath('/results');
+  return {};
+}
+
 export async function saveCupGameQuarters(input: {
   cupGameId: string;
   homeQuarters: number[] | null;

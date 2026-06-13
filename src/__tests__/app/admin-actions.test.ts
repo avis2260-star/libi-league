@@ -48,6 +48,7 @@ import {
   setMessageHandled,
   deleteMessage,
   saveBoxScore,
+  saveGameQuarters,
   bulkImportGames,
 } from '@/app/admin/actions';
 
@@ -521,5 +522,76 @@ describe('bulkImportGames', () => {
     fromMock.mockReturnValue(queryResult({ data: null, error: { message: 'teams load failed' } }));
     const res = await bulkImportGames();
     expect(res.error).toBe('teams load failed');
+  });
+});
+
+// ===========================================================================
+// saveGameQuarters
+// ===========================================================================
+
+describe('saveGameQuarters', () => {
+  // Capturing builder: records the payload passed to .update().
+  function captureUpdate(response: { error: unknown } = { error: null }) {
+    const calls: Record<string, unknown>[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const builder: any = {
+      update: (payload: Record<string, unknown>) => { calls.push(payload); return builder; },
+      eq: () => builder,
+      then: (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) =>
+        Promise.resolve(response).then(res, rej),
+    };
+    return { builder, calls };
+  }
+
+  it('rejects a missing gameId without touching the DB', async () => {
+    const res = await saveGameQuarters({ gameId: '', homeQuarters: [10, 10, 10, 10], awayQuarters: [9, 9, 9, 9] });
+    expect(res).toEqual({ error: 'game required' });
+    expect(fromMock).not.toHaveBeenCalled();
+  });
+
+  it('writes both quarter arrays on a normal save', async () => {
+    const { builder, calls } = captureUpdate();
+    fromMock.mockReturnValue(builder);
+    const res = await saveGameQuarters({ gameId: 'g1', homeQuarters: [20, 18, 22, 15], awayQuarters: [19, 21, 12, 18] });
+    expect(res).toEqual({});
+    expect(calls[0]).toEqual({ home_quarters: [20, 18, 22, 15], away_quarters: [19, 21, 12, 18] });
+  });
+
+  it('clears both columns to null when both sides are empty', async () => {
+    const { builder, calls } = captureUpdate();
+    fromMock.mockReturnValue(builder);
+    await saveGameQuarters({ gameId: 'g1', homeQuarters: null, awayQuarters: null });
+    expect(calls[0]).toEqual({ home_quarters: null, away_quarters: null });
+  });
+
+  it('pads the empty side with zeros to keep the columns symmetric', async () => {
+    const { builder, calls } = captureUpdate();
+    fromMock.mockReturnValue(builder);
+    await saveGameQuarters({ gameId: 'g1', homeQuarters: [20, 18, 22, 15], awayQuarters: null });
+    expect(calls[0]).toEqual({ home_quarters: [20, 18, 22, 15], away_quarters: [0, 0, 0, 0] });
+  });
+
+  it('keeps overtime periods and pads both sides to the longer length', async () => {
+    const { builder, calls } = captureUpdate();
+    fromMock.mockReturnValue(builder);
+    await saveGameQuarters({ gameId: 'g1', homeQuarters: [20, 18, 22, 15, 8], awayQuarters: [19, 21, 12, 23] });
+    expect(calls[0]).toEqual({
+      home_quarters: [20, 18, 22, 15, 8],
+      away_quarters: [19, 21, 12, 23, 0],
+    });
+  });
+
+  it('clamps negative / fractional values to non-negative integers', async () => {
+    const { builder, calls } = captureUpdate();
+    fromMock.mockReturnValue(builder);
+    await saveGameQuarters({ gameId: 'g1', homeQuarters: [-5, 18.7, 22, 15], awayQuarters: [19, 21, 12, 18] });
+    expect(calls[0]).toMatchObject({ home_quarters: [0, 18, 22, 15] });
+  });
+
+  it('propagates a DB error', async () => {
+    const { builder } = captureUpdate({ error: { message: 'update boom' } });
+    fromMock.mockReturnValue(builder);
+    const res = await saveGameQuarters({ gameId: 'g1', homeQuarters: [10, 10, 10, 10], awayQuarters: [9, 9, 9, 9] });
+    expect(res).toEqual({ error: 'update boom' });
   });
 });

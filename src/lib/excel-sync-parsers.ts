@@ -509,3 +509,113 @@ export function parseCupGames(rows: unknown[][]): CupGameRow[] {
   games.sort((a, b) => a.round_order - b.round_order || a.game_number - b.game_number);
   return games;
 }
+
+// ---------------------------------------------------------------------------
+// parseGameStatsSheet — per-game player box score (admin Excel upload)
+// ---------------------------------------------------------------------------
+
+/** One player's line parsed from an uploaded per-game stats sheet. */
+export type ParsedPlayerStat = {
+  name: string;
+  jersey: number | null;
+  points: number;
+  three_pointers: number;
+  fouls: number;
+};
+
+type StatColumn = 'name' | 'jersey' | 'three' | 'points' | 'fouls';
+
+/**
+ * Header keywords (lower-cased substrings, Hebrew + English). Categories are
+ * tested in STAT_COLUMN_ORDER, with `three` BEFORE `points` so a "3 נקודות"
+ * header is read as three-pointers rather than points.
+ */
+const STAT_HEADER_KEYWORDS: Record<StatColumn, string[]> = {
+  name:   ['שם', 'שחקן', 'name', 'player'],
+  jersey: ['מספר', 'חולצה', '#', 'jersey', 'number'],
+  three:  ['שלש', '3', 'three'],
+  points: ['נקוד', 'נק', 'points', 'pts'],
+  fouls:  ['עביר', 'פאול', 'foul'],
+};
+
+const STAT_COLUMN_ORDER: StatColumn[] = ['name', 'jersey', 'three', 'points', 'fouls'];
+
+/** Parse one cell into a non-negative integer, or null when blank/non-numeric. */
+function toStatInt(v: unknown): number | null {
+  if (typeof v === 'number') return Number.isFinite(v) ? Math.max(0, Math.floor(v)) : null;
+  const s = String(v ?? '').trim();
+  if (s === '') return null;
+  const n = parseInt(s.replace(/[^\d-]/g, ''), 10);
+  return Number.isNaN(n) ? null : Math.max(0, n);
+}
+
+/** Map a header row to column indices. Returns null unless name + points exist. */
+function detectStatColumns(headerRow: unknown[]): Record<StatColumn, number | null> | null {
+  const cols: Record<StatColumn, number | null> = {
+    name: null, jersey: null, three: null, points: null, fouls: null,
+  };
+  for (let c = 0; c < headerRow.length; c++) {
+    const h = String(headerRow[c] ?? '').trim().toLowerCase();
+    if (!h) continue;
+    for (const cat of STAT_COLUMN_ORDER) {
+      if (cols[cat] !== null) continue;
+      if (STAT_HEADER_KEYWORDS[cat].some((k) => h.includes(k))) {
+        cols[cat] = c;
+        break;
+      }
+    }
+  }
+  return cols.name !== null && cols.points !== null ? cols : null;
+}
+
+/**
+ * Parse a per-game player box score from the raw rows of an uploaded sheet.
+ *
+ * The column layout is detected from a header row (the first row that yields
+ * both a "name" and a "points" column), so the file can be the downloadable
+ * template or the admin's own as long as it has recognisable Hebrew/English
+ * headers, e.g.:  שם השחקן | מספר | נקודות | שלשות | עבירות
+ *
+ * Rows whose stat cells are all blank (team section headers, players with no
+ * recorded line) are skipped. Team affiliation is intentionally NOT read from
+ * the sheet — the import route matches each name against the game's two
+ * rosters, so a single flat list of all players in the game works.
+ */
+export function parseGameStatsSheet(rows: unknown[][]): ParsedPlayerStat[] {
+  if (!Array.isArray(rows) || rows.length === 0) return [];
+
+  // Find the header row within the first handful of rows.
+  let headerIdx = -1;
+  let cols: Record<StatColumn, number | null> | null = null;
+  for (let i = 0; i < Math.min(rows.length, 15); i++) {
+    const detected = Array.isArray(rows[i]) ? detectStatColumns(rows[i]) : null;
+    if (detected) { headerIdx = i; cols = detected; break; }
+  }
+  if (headerIdx === -1 || !cols) return [];
+
+  const out: ParsedPlayerStat[] = [];
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!Array.isArray(row)) continue;
+
+    const name = String(row[cols.name!] ?? '').trim();
+    if (!name) continue;
+
+    const points = toStatInt(row[cols.points!]);
+    const three  = cols.three !== null ? toStatInt(row[cols.three]) : null;
+    const fouls  = cols.fouls !== null ? toStatInt(row[cols.fouls]) : null;
+
+    // No numeric stat cells at all → section header or empty line. Skip.
+    if (points === null && three === null && fouls === null) continue;
+
+    const jersey = cols.jersey !== null ? toStatInt(row[cols.jersey]) : null;
+    out.push({
+      name,
+      jersey,
+      points: points ?? 0,
+      three_pointers: three ?? 0,
+      fouls: fouls ?? 0,
+    });
+  }
+  return out;
+}

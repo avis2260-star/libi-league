@@ -1,7 +1,9 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
-import { upsertPlayerGameStat } from '@/app/admin/actions';
+import { useEffect, useMemo, useRef, useState, useTransition, type ChangeEvent } from 'react';
+import { useRouter } from 'next/navigation';
+import { upsertPlayerGameStat, saveGameQuarters } from '@/app/admin/actions';
+import { QuarterEditor } from './GameStatsEditor';
 
 // ── Types from the server ─────────────────────────────────────────────────────
 
@@ -19,6 +21,8 @@ export type PerGameInfo = {
   awayTeamName: string;
   homeScore: number | null;
   awayScore: number | null;
+  homeQuarters: number[] | null;
+  awayQuarters: number[] | null;
   homePlayers: PerGamePlayer[];
   awayPlayers: PerGamePlayer[];
 };
@@ -172,17 +176,118 @@ function RosterTable({
               </tr>
             </thead>
             <tbody>
-              {players.map(p => (
-                <PlayerRow
-                  key={`${gameId}|${p.id}`}
-                  player={p}
-                  gameId={gameId}
-                  existing={statsByKey[`${gameId}|${p.id}`]}
-                  onSaved={values => onPlayerSaved(p.id, values)}
-                />
-              ))}
+              {players.map(p => {
+                const e = statsByKey[`${gameId}|${p.id}`];
+                // Encode the saved values into the key so a row re-mounts (and
+                // re-reads its inputs) when an Excel import refreshes the data.
+                const rowKey = `${gameId}|${p.id}|${e?.points ?? 0}-${e?.three_pointers ?? 0}-${e?.fouls ?? 0}`;
+                return (
+                  <PlayerRow
+                    key={rowKey}
+                    player={p}
+                    gameId={gameId}
+                    existing={e}
+                    onSaved={values => onPlayerSaved(p.id, values)}
+                  />
+                );
+              })}
             </tbody>
           </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Excel import/export for one game ─────────────────────────────────────────
+//
+// "Download template" returns an .xlsx pre-filled with both rosters; the admin
+// fills in נקודות / שלשות / עבירות and re-uploads. The upload replaces this
+// game's box score and refreshes the page so the new numbers appear here and
+// on the public site (player pages, scorers, box scores).
+
+type ImportReport =
+  | { ok: true; matched: number; unmatched: string[] }
+  | { ok: false; error: string; unmatched?: string[] };
+
+function GameExcelTools({ game }: { game: PerGameInfo }) {
+  const router = useRouter();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [report, setReport] = useState<ImportReport | null>(null);
+
+  async function handleFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same filename
+    if (!file) return;
+
+    setBusy(true);
+    setReport(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('gameId', game.id);
+      const res = await fetch('/api/admin/game-stats/import', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setReport({ ok: false, error: data.error ?? 'שגיאה בייבוא', unmatched: data.unmatched });
+      } else {
+        setReport({ ok: true, matched: data.matched ?? 0, unmatched: data.unmatched ?? [] });
+        router.refresh(); // pull freshly-saved stats back into the editor
+      }
+    } catch (err) {
+      setReport({ ok: false, error: err instanceof Error ? err.message : 'שגיאת רשת' });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.03] p-3 space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-black text-emerald-300">📊 ייבוא סטטיסטיקה מ-Excel</span>
+        <div className="flex-1" />
+        <a
+          href={`/api/admin/game-stats/template?gameId=${game.id}`}
+          className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs font-bold text-[#c8d8e8] transition hover:border-emerald-500/40 hover:text-emerald-300"
+        >
+          ⬇️ הורד תבנית
+        </a>
+        <button
+          onClick={() => fileRef.current?.click()}
+          disabled={busy}
+          className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-emerald-400 disabled:opacity-40"
+        >
+          {busy ? 'מעלה…' : '⬆️ העלה קובץ'}
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".xlsx,.xls"
+          onChange={handleFile}
+          className="hidden"
+        />
+      </div>
+
+      <p className="text-[11px] leading-relaxed text-[#5a7a9a]">
+        הורד את התבנית (כוללת את סגלי שתי הקבוצות), מלא נקודות / שלשות / עבירות לכל שחקן, והעלה חזרה.
+        הייבוא יחליף את הסטטיסטיקות הקיימות למשחק זה ויעדכן את האתר.
+      </p>
+
+      {report?.ok && (
+        <div className="rounded-lg bg-green-900/30 px-3 py-2 text-xs font-bold text-green-300">
+          ✅ נשמרו {report.matched} שחקנים.
+          {report.unmatched.length > 0 && (
+            <span className="text-yellow-300"> לא זוהו: {report.unmatched.join(', ')}</span>
+          )}
+        </div>
+      )}
+      {report && !report.ok && (
+        <div className="rounded-lg bg-red-900/30 px-3 py-2 text-xs font-bold text-red-300">
+          ❌ {report.error}
+          {report.unmatched && report.unmatched.length > 0 && (
+            <span className="mt-1 block text-yellow-300">לא זוהו: {report.unmatched.join(', ')}</span>
+          )}
         </div>
       )}
     </div>
@@ -218,6 +323,25 @@ function GameCard({
     setLivePoints(prev => ({ ...prev, [playerId]: values.points }));
   }
 
+  // After an Excel import refreshes the page, statsByKey carries the new saved
+  // points — re-seed the running totals so the scoreboard matches the rows.
+  // A signature of just this game's saved points keeps the effect from firing
+  // on unrelated single-row saves (which don't change the prop).
+  const savedPointsSig = useMemo(
+    () => [...game.homePlayers, ...game.awayPlayers]
+      .map(p => `${p.id}:${statsByKey[`${game.id}|${p.id}`]?.points ?? 0}`)
+      .join('|'),
+    [game, statsByKey],
+  );
+  useEffect(() => {
+    const m: Record<string, number> = {};
+    for (const p of [...game.homePlayers, ...game.awayPlayers]) {
+      m[p.id] = statsByKey[`${game.id}|${p.id}`]?.points ?? 0;
+    }
+    setLivePoints(m);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedPointsSig]);
+
   const homeTotal = game.homePlayers.reduce((s, p) => s + (livePoints[p.id] ?? 0), 0);
   const awayTotal = game.awayPlayers.reduce((s, p) => s + (livePoints[p.id] ?? 0), 0);
 
@@ -251,6 +375,8 @@ function GameCard({
 
       {open && (
         <div className="p-3 space-y-3">
+          <GameExcelTools game={game} />
+
           <ScoreboardSummary
             homeTeamName={game.homeTeamName}
             awayTeamName={game.awayTeamName}
@@ -260,6 +386,16 @@ function GameCard({
             officialAway={game.awayScore}
             homeMatch={homeMatch}
             awayMatch={awayMatch}
+          />
+
+          <QuarterEditor
+            homeTeamName={game.homeTeamName}
+            awayTeamName={game.awayTeamName}
+            initialHome={game.homeQuarters}
+            initialAway={game.awayQuarters}
+            officialHome={game.homeScore}
+            officialAway={game.awayScore}
+            onSave={(home, away) => saveGameQuarters({ gameId: game.id, homeQuarters: home, awayQuarters: away })}
           />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">

@@ -139,14 +139,20 @@ function RosterTable({
 }
 
 // ── Quarter score editor ───────────────────────────────────────────────────
-function QuarterEditor({
+// Exported so the regular-season per-game tab (PerGameStatsTab) can reuse the
+// same UI that the Cup and Playoff editors use.
+export function QuarterEditor({
   homeTeamName, awayTeamName, initialHome, initialAway, onSave,
+  officialHome = null, officialAway = null,
 }: {
   homeTeamName: string;
   awayTeamName: string;
   initialHome: number[] | null;
   initialAway: number[] | null;
   onSave: (home: number[] | null, away: number[] | null) => Promise<SaveResult>;
+  /** Official final score — when provided, the period sums are checked against it. */
+  officialHome?: number | null;
+  officialAway?: number | null;
 }) {
   // Periods = max(4, existing length). Both sides share the same count.
   const initialCount = Math.max(4, initialHome?.length ?? 0, initialAway?.length ?? 0);
@@ -182,6 +188,16 @@ function QuarterEditor({
 
   const homeSum = home.reduce((s, v) => s + (parseInt(v || '0', 10) || 0), 0);
   const awaySum = away.reduce((s, v) => s + (parseInt(v || '0', 10) || 0), 0);
+
+  // Compare the live period sums to the official final score — but only once
+  // the admin has actually entered quarter values, so an untouched editor
+  // doesn't show a misleading "✗" against the real score. Same ✓/✗ idea as the
+  // player-points scoreboard.
+  const hasOfficial = officialHome != null && officialAway != null;
+  const hasAnyValue = home.some(v => v.trim() !== '') || away.some(v => v.trim() !== '');
+  const homeMatch = hasOfficial && hasAnyValue ? homeSum === officialHome : null;
+  const awayMatch = hasOfficial && hasAnyValue ? awaySum === officialAway : null;
+  const allMatch  = homeMatch === true && awayMatch === true;
 
   function toArr(strs: string[]): number[] | null {
     const allEmpty = strs.every(s => s.trim() === '');
@@ -224,8 +240,11 @@ function QuarterEditor({
             </tr>
           </thead>
           <tbody>
-            {([['home', homeTeamName, home, homeSum], ['away', awayTeamName, away, awaySum]] as const).map(
-              ([side, name, vals, sum]) => (
+            {([
+              ['home', homeTeamName, home, homeSum, homeMatch],
+              ['away', awayTeamName, away, awaySum, awayMatch],
+            ] as const).map(
+              ([side, name, vals, sum, match]) => (
                 <tr key={side} className="border-t border-white/[0.05]">
                   <td className="px-2 py-1.5 font-bold text-white text-xs truncate max-w-[120px]">{name || '—'}</td>
                   {vals.map((v, i) => (
@@ -237,7 +256,9 @@ function QuarterEditor({
                       />
                     </td>
                   ))}
-                  <td className="px-2 py-1.5 text-center font-black text-orange-400 tabular-nums">{sum}</td>
+                  <td className={`px-2 py-1.5 text-center font-black tabular-nums ${
+                    match === true ? 'text-green-400' : match === false ? 'text-red-400' : 'text-orange-400'
+                  }`}>{sum}</td>
                 </tr>
               ),
             )}
@@ -245,7 +266,7 @@ function QuarterEditor({
         </table>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <button
           onClick={save}
           disabled={pending}
@@ -255,6 +276,17 @@ function QuarterEditor({
         </button>
         {msg && (
           <span className={`text-xs font-bold ${msg.ok ? 'text-green-400' : 'text-red-400'}`}>{msg.text}</span>
+        )}
+        {hasOfficial && (
+          <span className="flex items-center gap-1.5 text-[11px] font-bold">
+            <span className="text-[#8aaac8]">תוצאה רשמית:</span>
+            <span className="text-[#c8d8e8] tabular-nums">{officialHome} : {officialAway}</span>
+            {hasAnyValue && (
+              <span className={allMatch ? 'text-green-400' : 'text-red-400'}>
+                {allMatch ? '✓ תואם' : '✗ לא תואם'}
+              </span>
+            )}
+          </span>
         )}
       </div>
     </div>
@@ -311,6 +343,8 @@ export default function GameStatsEditor({
         awayTeamName={awayTeamName}
         initialHome={initialHomeQuarters}
         initialAway={initialAwayQuarters}
+        officialHome={homeScore}
+        officialAway={awayScore}
         onSave={onSaveQuarters}
       />
 

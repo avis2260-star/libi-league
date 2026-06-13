@@ -8,6 +8,7 @@ import {
   parseRoundDates,
   parseResults,
   parseCupGames,
+  parseGameStatsSheet,
   NORTH_NAMES,
   SOUTH_NAMES,
 } from '@/lib/excel-sync-parsers';
@@ -661,5 +662,92 @@ describe('integration: a workbook with standings + results + cup sheets', () => 
     const { north, south } = parseStandings(readSheetRows(buffer, 'טבלאות'));
     expect(north).toHaveLength(0);
     expect(south).toHaveLength(0);
+  });
+});
+
+// ===========================================================================
+// parseGameStatsSheet — per-game player box score
+// ===========================================================================
+
+describe('parseGameStatsSheet', () => {
+  it('parses a Hebrew header + player rows', () => {
+    const rows = [
+      ['שם השחקן', 'מספר', 'נקודות', 'שלשות', 'עבירות'],
+      ['יוסי כהן', 7, 18, 2, 3],
+      ['דוד לוי', 11, 9, 1, 4],
+    ];
+    expect(parseGameStatsSheet(rows)).toEqual([
+      { name: 'יוסי כהן', jersey: 7,  points: 18, three_pointers: 2, fouls: 3 },
+      { name: 'דוד לוי',  jersey: 11, points: 9,  three_pointers: 1, fouls: 4 },
+    ]);
+  });
+
+  it('reads "3 נקודות" as three-pointers, not points', () => {
+    const rows = [
+      ['שחקן', 'נקודות', '3 נקודות', 'עבירות'],
+      ['אבי', 20, 4, 2],
+    ];
+    expect(parseGameStatsSheet(rows)[0]).toMatchObject({
+      points: 20, three_pointers: 4, fouls: 2,
+    });
+  });
+
+  it('skips section-header and blank-stat rows', () => {
+    const rows = [
+      ['שם השחקן', 'מספר', 'נקודות', 'שלשות', 'עבירות'],
+      ['— בית: הפועל —', '', '', '', ''],   // section header → skipped
+      ['רון', 5, 12, 0, 1],
+      ['פלוני', '', '', '', ''],            // no stats at all → skipped
+      ['— חוץ: מכבי —', '', '', '', ''],
+      ['גיא', 8, 7, 1, 2],
+    ];
+    expect(parseGameStatsSheet(rows).map((r) => r.name)).toEqual(['רון', 'גיא']);
+  });
+
+  it('defaults missing optional columns to 0 and keeps an explicit 0', () => {
+    const rows = [
+      ['שם', 'נקודות'],          // no jersey / three / fouls columns
+      ['דני', 0],                 // played, scored 0 → still recorded
+    ];
+    expect(parseGameStatsSheet(rows)).toEqual([
+      { name: 'דני', jersey: null, points: 0, three_pointers: 0, fouls: 0 },
+    ]);
+  });
+
+  it('finds the header even with a title row above it', () => {
+    const rows = [
+      ['גליון סטטיסטיקה - מחזור 5', '', ''],
+      ['שם', 'נקודות', 'עבירות'],
+      ['משה', 14, 3],
+    ];
+    expect(parseGameStatsSheet(rows)).toEqual([
+      { name: 'משה', jersey: null, points: 14, three_pointers: 0, fouls: 3 },
+    ]);
+  });
+
+  it('returns [] when there is no points column', () => {
+    const rows = [
+      ['שם', 'מספר'],
+      ['רון', 5],
+    ];
+    expect(parseGameStatsSheet(rows)).toEqual([]);
+  });
+
+  it('returns [] for empty input', () => {
+    expect(parseGameStatsSheet([])).toEqual([]);
+  });
+
+  it('round-trips through a real .xlsx workbook', () => {
+    const buffer = buildWorkbookBuffer({
+      'סטטיסטיקה': [
+        ['שם השחקן', 'מספר', 'נקודות', 'שלשות', 'עבירות'],
+        ['— בית: הפועל —', '', '', '', ''],
+        ['יוסי כהן', 7, 18, 2, 3],
+      ],
+    });
+    const parsed = parseGameStatsSheet(readSheetRows(buffer, 'סטטיסטיקה'));
+    expect(parsed).toEqual([
+      { name: 'יוסי כהן', jersey: 7, points: 18, three_pointers: 2, fouls: 3 },
+    ]);
   });
 });

@@ -334,6 +334,8 @@ export default async function AdminPage({
       away_team_id: string | null;
       home_score: number | null;
       away_score: number | null;
+      home_quarters: number[] | null;
+      away_quarters: number[] | null;
       home_team: { id: string; name: string } | { id: string; name: string }[] | null;
       away_team: { id: string; name: string } | { id: string; name: string }[] | null;
     };
@@ -342,7 +344,7 @@ export default async function AdminPage({
     const [{ data: gamesRows }, { data: playersRows }, { data: pgsRows }, { data: teamsList }] = await Promise.all([
       supabaseAdmin
         .from('games')
-        .select('id,game_date,home_team_id,away_team_id,home_score,away_score,home_team:teams!games_home_team_id_fkey(id,name),away_team:teams!games_away_team_id_fkey(id,name)')
+        .select('id,game_date,home_team_id,away_team_id,home_score,away_score,home_quarters,away_quarters,home_team:teams!games_home_team_id_fkey(id,name),away_team:teams!games_away_team_id_fkey(id,name)')
         .eq('season', season)
         .order('game_date'),
       supabaseAdmin
@@ -426,6 +428,8 @@ export default async function AdminPage({
           awayTeamName: best.away.name,
           homeScore: best.row.home_score,
           awayScore: best.row.away_score,
+          homeQuarters: best.row.home_quarters ?? null,
+          awayQuarters: best.row.away_quarters ?? null,
           homePlayers: playersByTeam.get(best.home.id) ?? [],
           awayPlayers: playersByTeam.get(best.away.id) ?? [],
         } as PerGameInfo;
