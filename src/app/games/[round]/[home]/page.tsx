@@ -349,6 +349,59 @@ export default async function GamePreviewPage({
         </div>
       </div>
 
+      {/* Game info row */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] p-5">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#5a7a9a]">📅 {en ? 'Date' : 'תאריך'}</p>
+          <p className="text-lg font-black text-white">{dateStr}</p>
+          {dayOfWeek && <p className="mt-0.5 text-xs text-[#8aaac8]">{en ? dayOfWeek : `יום ${dayOfWeek}`}</p>}
+        </div>
+        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] p-5">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#5a7a9a]">⏰ {en ? 'Time' : 'שעה'}</p>
+          {gameTime
+            ? <p className="text-lg font-black text-white">{gameTime.slice(0, 5)}</p>
+            : <><p className="text-lg font-black text-[#3a5a7a]">TBD</p><p className="mt-0.5 text-xs text-[#3a5a7a]">{T('טרם נקבע')}</p></>
+          }
+        </div>
+        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] p-5">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#5a7a9a]">📍 {en ? 'Location' : 'מיקום'}</p>
+          {gameLocation
+            ? <p className="text-lg font-black text-white">{gameLocation}</p>
+            : <><p className="text-lg font-black text-[#3a5a7a]">{en ? 'Coming soon' : 'יתווסף בקרוב'}</p><p className="mt-0.5 text-xs text-[#3a5a7a]">{T('טרם נקבע')}</p></>
+          }
+        </div>
+      </div>
+
+      {/* Stats comparison */}
+      {(homeStats || awayStats) && (
+        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] overflow-hidden">
+          <div className="border-b border-white/[0.06] px-5 py-4">
+            <h2 className="text-base font-black text-white">📊 {en ? 'Team Comparison' : 'השוואת קבוצות'}</h2>
+          </div>
+
+          {/* Column headers */}
+          <div className="grid grid-cols-3 border-b border-white/[0.05] px-5 py-2.5 text-xs font-black uppercase tracking-widest text-[#8aaac8]">
+            <span className={en ? 'text-left' : 'text-right'}>{T(homeDisplayName)}</span>
+            <span className="text-center">{en ? 'Stat' : 'סטט'}</span>
+            <span className={en ? 'text-right' : 'text-left'}>{T(awayDisplayName)}</span>
+          </div>
+
+          {[
+            { label: en ? 'G (Wins)' : 'מ׳ (ניצחונות)', home: homeStats ? (en ? `${homeStats.wins}W / ${homeStats.losses}L` : `${homeStats.wins}נ / ${homeStats.losses}ה`) : '—', away: awayStats ? (en ? `${awayStats.wins}W / ${awayStats.losses}L` : `${awayStats.wins}נ / ${awayStats.losses}ה`) : '—', rtl: !en },
+            { label: en ? 'League Points' : 'נקודות ליגה', home: homeStats?.pts  != null ? String(homeStats.pts)  : '—', away: awayStats?.pts  != null ? String(awayStats.pts)  : '—' },
+            { label: en ? 'Point Diff' : 'הפרש נקודות', home: homeStats?.diff != null ? (homeStats.diff > 0 ? `+${homeStats.diff}` : String(homeStats.diff)) : '—', away: awayStats?.diff != null ? (awayStats.diff > 0 ? `+${awayStats.diff}` : String(awayStats.diff)) : '—' },
+            { label: en ? 'PPG' : 'ממוצע נק׳ למשחק', home: homeStats?.games ? (homeStats.pf / homeStats.games).toFixed(1) : '—', away: awayStats?.games ? (awayStats.pf / awayStats.games).toFixed(1) : '—' },
+            { label: en ? 'OPP PPG' : 'ממוצע ספיגה', home: homeStats?.games ? (homeStats.pa / homeStats.games).toFixed(1) : '—', away: awayStats?.games ? (awayStats.pa / awayStats.games).toFixed(1) : '—' },
+          ].map(({ label, home, away, rtl }) => (
+            <div key={label} className="grid grid-cols-3 border-b border-white/[0.04] px-5 py-3.5 last:border-0">
+              <span dir={rtl ? 'rtl' : 'ltr'} className={`text-base font-black text-white ${en ? 'text-left' : 'text-right'}`}>{home}</span>
+              <span className="text-center text-xs font-semibold text-[#5a7a9a] self-center">{label}</span>
+              <span dir={rtl ? 'rtl' : 'ltr'} className={`text-base font-bold text-[#c8d8e8] ${en ? 'text-right' : 'text-left'}`}>{away}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Quarter-by-quarter line score */}
       {isPlayed && homeQuarters && awayQuarters && (() => {
         const periods = homeQuarters.length;
@@ -402,59 +455,6 @@ export default async function GamePreviewPage({
           </div>
         );
       })()}
-
-      {/* Game info row */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] p-5">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#5a7a9a]">📅 {en ? 'Date' : 'תאריך'}</p>
-          <p className="text-lg font-black text-white">{dateStr}</p>
-          {dayOfWeek && <p className="mt-0.5 text-xs text-[#8aaac8]">{en ? dayOfWeek : `יום ${dayOfWeek}`}</p>}
-        </div>
-        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] p-5">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#5a7a9a]">⏰ {en ? 'Time' : 'שעה'}</p>
-          {gameTime
-            ? <p className="text-lg font-black text-white">{gameTime.slice(0, 5)}</p>
-            : <><p className="text-lg font-black text-[#3a5a7a]">TBD</p><p className="mt-0.5 text-xs text-[#3a5a7a]">{T('טרם נקבע')}</p></>
-          }
-        </div>
-        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] p-5">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#5a7a9a]">📍 {en ? 'Location' : 'מיקום'}</p>
-          {gameLocation
-            ? <p className="text-lg font-black text-white">{gameLocation}</p>
-            : <><p className="text-lg font-black text-[#3a5a7a]">{en ? 'Coming soon' : 'יתווסף בקרוב'}</p><p className="mt-0.5 text-xs text-[#3a5a7a]">{T('טרם נקבע')}</p></>
-          }
-        </div>
-      </div>
-
-      {/* Stats comparison */}
-      {(homeStats || awayStats) && (
-        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] overflow-hidden">
-          <div className="border-b border-white/[0.06] px-5 py-4">
-            <h2 className="text-base font-black text-white">📊 {en ? 'Team Comparison' : 'השוואת קבוצות'}</h2>
-          </div>
-
-          {/* Column headers */}
-          <div className="grid grid-cols-3 border-b border-white/[0.05] px-5 py-2.5 text-xs font-black uppercase tracking-widest text-[#8aaac8]">
-            <span className={en ? 'text-left' : 'text-right'}>{T(homeDisplayName)}</span>
-            <span className="text-center">{en ? 'Stat' : 'סטט'}</span>
-            <span className={en ? 'text-right' : 'text-left'}>{T(awayDisplayName)}</span>
-          </div>
-
-          {[
-            { label: en ? 'G (Wins)' : 'מ׳ (ניצחונות)', home: homeStats ? (en ? `${homeStats.wins}W / ${homeStats.losses}L` : `${homeStats.wins}נ / ${homeStats.losses}ה`) : '—', away: awayStats ? (en ? `${awayStats.wins}W / ${awayStats.losses}L` : `${awayStats.wins}נ / ${awayStats.losses}ה`) : '—', rtl: !en },
-            { label: en ? 'League Points' : 'נקודות ליגה', home: homeStats?.pts  != null ? String(homeStats.pts)  : '—', away: awayStats?.pts  != null ? String(awayStats.pts)  : '—' },
-            { label: en ? 'Point Diff' : 'הפרש נקודות', home: homeStats?.diff != null ? (homeStats.diff > 0 ? `+${homeStats.diff}` : String(homeStats.diff)) : '—', away: awayStats?.diff != null ? (awayStats.diff > 0 ? `+${awayStats.diff}` : String(awayStats.diff)) : '—' },
-            { label: en ? 'PPG' : 'ממוצע נק׳ למשחק', home: homeStats?.games ? (homeStats.pf / homeStats.games).toFixed(1) : '—', away: awayStats?.games ? (awayStats.pf / awayStats.games).toFixed(1) : '—' },
-            { label: en ? 'OPP PPG' : 'ממוצע ספיגה', home: homeStats?.games ? (homeStats.pa / homeStats.games).toFixed(1) : '—', away: awayStats?.games ? (awayStats.pa / awayStats.games).toFixed(1) : '—' },
-          ].map(({ label, home, away, rtl }) => (
-            <div key={label} className="grid grid-cols-3 border-b border-white/[0.04] px-5 py-3.5 last:border-0">
-              <span dir={rtl ? 'rtl' : 'ltr'} className={`text-base font-black text-white ${en ? 'text-left' : 'text-right'}`}>{home}</span>
-              <span className="text-center text-xs font-semibold text-[#5a7a9a] self-center">{label}</span>
-              <span dir={rtl ? 'rtl' : 'ltr'} className={`text-base font-bold text-[#c8d8e8] ${en ? 'text-right' : 'text-left'}`}>{away}</span>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Box score — per-player stats for finished games */}
       {isPlayed && (
