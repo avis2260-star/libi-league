@@ -42,6 +42,7 @@ export interface Game {
   home_score: number;
   away_score: number;
   status: GameStatus;
+  delayed?: boolean;   // postponed/makeup game — surfaced on the home page until played
   created_at: string;
   // Joined
   home_team?: Team;

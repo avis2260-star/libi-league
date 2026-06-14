@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { updateGameScore, updateGameDetails, resetAllGameDetails } from '@/app/admin/actions';
+import { updateGameScore, updateGameDetails, resetAllGameDetails, setGameDelayed } from '@/app/admin/actions';
 import type { GameStatus, GameWithTeams } from '@/types';
 import BulkImportButton from './BulkImportButton';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
@@ -344,10 +344,21 @@ function GameScoreCard({ game }: { game: GameWithTeams }) {
   const [status, setStatus] = useState<GameStatus>(game.status);
   const [gameTime, setGameTime] = useState(game.game_time ?? '');
   const [location, setLocation] = useState(game.location ?? '');
+  const [delayed, setDelayed] = useState<boolean>(!!game.delayed);
   const [feedback, setFeedback] = useState<{ ok?: boolean; msg?: string }>({});
   const [detailsFeedback, setDetailsFeedback] = useState<{ ok?: boolean; msg?: string }>({});
   const [isPending, startTransition] = useTransition();
   const [isDetailsPending, startDetailsTransition] = useTransition();
+  const [isDelayedPending, startDelayedTransition] = useTransition();
+
+  function handleToggleDelayed() {
+    const next = !delayed;
+    setDelayed(next); // optimistic
+    startDelayedTransition(async () => {
+      const result = await setGameDelayed(game.id, next);
+      if (result?.error) setDelayed(!next); // revert on failure
+    });
+  }
 
   function handleSave() {
     const hs = parseInt(homeScore, 10);
@@ -404,6 +415,11 @@ function GameScoreCard({ game }: { game: GameWithTeams }) {
               {game.home_score} – {game.away_score}
             </span>
           )}
+          {delayed && (
+            <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-xs font-semibold text-amber-400">
+              ⏱️ דחוי
+            </span>
+          )}
           <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_COLORS[game.status]}`}>
             {game.status}
           </span>
@@ -441,6 +457,25 @@ function GameScoreCard({ game }: { game: GameWithTeams }) {
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="mb-5">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">משחק דחוי</p>
+            <button
+              onClick={handleToggleDelayed}
+              disabled={isDelayedPending}
+              aria-pressed={delayed}
+              className={`flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold transition active:scale-95 disabled:opacity-60 ${
+                delayed
+                  ? 'bg-amber-500 text-black'
+                  : 'border border-gray-700 text-gray-400 hover:border-gray-500'
+              }`}
+            >
+              {isDelayedPending ? '…' : delayed ? '⏱️ מסומן כדחוי — לחץ לביטול' : '⏱️ סמן כמשחק דחוי'}
+            </button>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-gray-600">
+              משחק דחוי נשמר מיד ויוצג בדף הבית — ככרטיס ממתין כל עוד לא שוחק, ולאחר עדכון התוצאה כתוצאה המתויגת במספר המחזור, עד שהמחזור הבא ישוחק.
+            </p>
           </div>
 
           <div className="mb-2 grid grid-cols-2 gap-4">

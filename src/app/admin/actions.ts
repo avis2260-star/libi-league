@@ -128,6 +128,25 @@ export async function updateGameScore(
   return {};
 }
 
+// ── Delayed / postponed flag ──────────────────────────────────────────────────
+// Toggled on its own (not bundled with the score) so a game can be marked
+// delayed before it has a result. The public home page reads this flag to keep
+// the game surfaced after its round is over.
+
+export async function setGameDelayed(gameId: string, delayed: boolean): Promise<ActionResult> {
+  const { error } = await supabaseAdmin
+    .from('games')
+    .update({ delayed })
+    .eq('id', gameId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath('/admin');
+  revalidatePath('/');
+  revalidatePath('/games');
+  return {};
+}
+
 // ── Game time + location ──────────────────────────────────────────────────────
 
 export async function updateGameDetails(

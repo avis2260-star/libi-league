@@ -7,6 +7,8 @@ import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import { getTeams } from '@/lib/supabase';
 import ScoreboardStrip from '@/components/ScoreboardStrip';
 import PlayoffScoreboardStrip, { type PlayoffStripGame } from '@/components/PlayoffScoreboardStrip';
+import DelayedGames, { type DelayedPendingCard, type DelayedFinishedCard } from '@/components/DelayedGames';
+import { scheduleEntryForFixture } from '@/lib/game-round';
 import LastRoundResults from '@/components/LastRoundResults';
 import UpcomingEvents, { type UpcomingEvent } from '@/components/UpcomingEvents';
 import ChampionBanner, { type ChampionBannerProps } from '@/components/ChampionBanner';
@@ -695,6 +697,66 @@ async function getUpcomingPlayoffGames(season: string): Promise<{ games: RawPlay
   }
 }
 
+// ── Delayed / postponed games (home-page surface) ────────────────────────────
+// Reads games flagged `delayed` in the admin games table (not game_results),
+// resolving each game's round from the static schedule. Defensive: if the
+// `delayed` column hasn't been migrated yet the query throws and we return [].
+
+type DelayedGameRow = {
+  round: number;
+  homeTeam: string;
+  awayTeam: string;
+  status: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  gameDate: string | null;
+  gameTime: string | null;
+  location: string | null;
+};
+
+async function getDelayedGames(season: string): Promise<DelayedGameRow[]> {
+  try {
+    const { data } = await supabaseAdmin
+      .from('games')
+      .select('home_score, away_score, status, game_date, game_time, location, home_team:teams!games_home_team_id_fkey(name), away_team:teams!games_away_team_id_fkey(name)')
+      .eq('season', season)
+      .eq('delayed', true)
+      .order('game_date', { ascending: true });
+
+    type Row = {
+      home_score: number | null; away_score: number | null; status: string;
+      game_date: string | null; game_time: string | null; location: string | null;
+      home_team: { name: string } | { name: string }[] | null;
+      away_team: { name: string } | { name: string }[] | null;
+    };
+    const nameOf = (tm: Row['home_team']): string => {
+      if (!tm) return '';
+      return Array.isArray(tm) ? (tm[0]?.name ?? '') : (tm.name ?? '');
+    };
+
+    const out: DelayedGameRow[] = [];
+    for (const r of (data ?? []) as Row[]) {
+      const home = nameOf(r.home_team);
+      const away = nameOf(r.away_team);
+      if (!home || !away) continue;
+      out.push({
+        round:     scheduleEntryForFixture(home, away)?.round ?? 0,
+        homeTeam:  home,
+        awayTeam:  away,
+        status:    r.status,
+        homeScore: r.home_score,
+        awayScore: r.away_score,
+        gameDate:  r.game_date,
+        gameTime:  (r.game_time && r.game_time !== '00:00:00') ? r.game_time.slice(0, 5) : null,
+        location:  (r.location && r.location !== 'TBD') ? r.location : null,
+      });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 function daysBetween(from: Date, to: Date): number {
   const ms = to.getTime() - from.getTime();
   return Math.floor(ms / 86_400_000);
@@ -900,7 +962,7 @@ function RecordCard({ icon, label, value, sub, detail, color }: { icon: string; 
 
 export default async function HomePage() {
   const season = await getCurrentSeason();
-  const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers, lang, dbRoundDates, cupFinal, upcomingCup, cupChampion, playoffChampion, autoTickerItems, cupHeroReviews, seasonPhaseSetting, playoffUpcoming] = await Promise.all([
+  const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers, lang, dbRoundDates, cupFinal, upcomingCup, cupChampion, playoffChampion, autoTickerItems, cupHeroReviews, seasonPhaseSetting, playoffUpcoming, delayedGames] = await Promise.all([
     getLiveData(season),
     getActiveAnnouncements(),
     getTeams(),
@@ -916,6 +978,7 @@ export default async function HomePage() {
     getCupHeroReviews(season),
     getSeasonPhaseSetting(),
     getUpcomingPlayoffGames(season),
+    getDelayedGames(season),
   ]);
 
   const nextRoundEarly = liveData.currentRound + 1;
@@ -1108,6 +1171,60 @@ export default async function HomePage() {
   });
   const showPlayoffStrip = seasonPhase === 'playoffs' && playoffStripGames.length > 0;
 
+  // ── Delayed / postponed games ─────────────────────────────────────────────
+  // Pending delayed games surface as a strip until played; finished ones show
+  // their result (tagged with the round) only until the next round is played.
+  const fmtDelayed = (iso: string | null): { dateLabel: string; dayLabel: string } => {
+    const d = parseFlexibleDate(iso, season);
+    if (!d) return { dateLabel: '', dayLabel: '' };
+    return {
+      dateLabel: `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`,
+      dayLabel: (lang === 'en' ? enDayNames : heDayNames)[d.getDay()],
+    };
+  };
+  const delayedHref = (round: number, home: string) =>
+    round > 0 ? `/games/${round}/${encodeURIComponent(home)}` : '/games';
+
+  const delayedPending: DelayedPendingCard[] = delayedGames
+    .filter((g) => g.status !== 'Finished')
+    .map((g) => {
+      const home = dbDisplayName(g.homeTeam);
+      const away = dbDisplayName(g.awayTeam);
+      const { dateLabel, dayLabel } = fmtDelayed(g.gameDate);
+      return {
+        round: g.round,
+        homeTeam: home, awayTeam: away,
+        homeLogo: logoMap[norm(home)] ?? logoMap[norm(g.homeTeam)] ?? null,
+        awayLogo: logoMap[norm(away)] ?? logoMap[norm(g.awayTeam)] ?? null,
+        dateLabel, dayLabel,
+        time: g.gameTime,
+        location: g.location,
+        href: delayedHref(g.round, home),
+      };
+    });
+
+  const delayedFinished: DelayedFinishedCard[] = delayedGames
+    .filter((g) => g.status === 'Finished' && g.homeScore != null && g.awayScore != null)
+    // Keep showing only until the next round is played: while no round later
+    // than this game's belongs-to round has results yet (currentRound = max
+    // round in game_results). Round 0 = unmatched fixture — keep showing.
+    .filter((g) => g.round === 0 || currentRound <= g.round)
+    .map((g) => {
+      const home = dbDisplayName(g.homeTeam);
+      const away = dbDisplayName(g.awayTeam);
+      const { dateLabel } = fmtDelayed(g.gameDate);
+      return {
+        round: g.round,
+        homeTeam: home, awayTeam: away,
+        homeLogo: logoMap[norm(home)] ?? logoMap[norm(g.homeTeam)] ?? null,
+        awayLogo: logoMap[norm(away)] ?? logoMap[norm(g.awayTeam)] ?? null,
+        homeScore: g.homeScore!,
+        awayScore: g.awayScore!,
+        dateLabel,
+        href: delayedHref(g.round, home),
+      };
+    });
+
   // Build the upcoming cup-games list. Sits between the league scoreboard
   // strip (next-round games above) and the last-round results (below). Pure
   // "what cup matches are coming" reminder — league rounds are already
@@ -1210,6 +1327,9 @@ export default async function HomePage() {
           teamRosters={teamRosters}
         />
       )}
+
+      {/* ── Delayed / postponed games (pending strip + make-up results) ── */}
+      <DelayedGames pending={delayedPending} finished={delayedFinished} />
 
       {/* ── Unified upcoming events (rounds + cup, sorted by date) ── */}
       {upcomingEvents.length > 0 && (
