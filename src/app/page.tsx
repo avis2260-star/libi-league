@@ -6,9 +6,11 @@ import { NORTH_TABLE, SOUTH_TABLE, CURRENT_ROUND, TOTAL_ROUNDS } from '@/lib/lea
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import { getTeams } from '@/lib/supabase';
 import ScoreboardStrip from '@/components/ScoreboardStrip';
+import PlayoffScoreboardStrip, { type PlayoffStripGame } from '@/components/PlayoffScoreboardStrip';
 import LastRoundResults from '@/components/LastRoundResults';
 import UpcomingEvents, { type UpcomingEvent } from '@/components/UpcomingEvents';
 import ChampionBanner, { type ChampionBannerProps } from '@/components/ChampionBanner';
+import { getSeasonPhaseSetting, resolveSeasonPhase } from '@/lib/season-phase';
 import { deriveCupScores, type CupGameLike } from '@/lib/cup-derived-scores';
 import { getLang, st } from '@/lib/get-lang';
 import { makeNameResolver } from '@/lib/team-name-resolver';
@@ -586,6 +588,113 @@ async function getPlayoffChampion(season: string): Promise<PlayoffChampion | nul
   } catch { return null; }
 }
 
+// ── Upcoming playoff games (home-page strip) ─────────────────────────────────
+// Returns the next unplayed game of each still-active series, plus a flag for
+// whether any playoff games exist at all (used to auto-detect the playoff phase
+// when the admin hasn't set it explicitly). Team names are resolved from the
+// stored series teams, falling back to the seed label → live standings (so a
+// quarter-final "🟠 דרום #1" resolves to the actual #1 seed as soon as the
+// regular season table is final). Series whose teams aren't known yet are
+// skipped — we never render a half-empty matchup.
+
+type RawPlayoffUpcoming = {
+  seriesNumber: number;
+  stageKey: 'qf' | 'sf' | 'final';
+  gameNumber: number;
+  teamA: string;
+  teamB: string;
+  homeIsTeamA: boolean;
+  winsA: number;
+  winsB: number;
+  date: string | null;
+  location: string | null;
+};
+
+function stageKeyForSeries(n: number): 'qf' | 'sf' | 'final' {
+  if (n >= 7) return 'final';   // series 7 = גמר   (matches /playoff convention)
+  if (n >= 5) return 'sf';      // series 5-6 = חצי גמר
+  return 'qf';                  // series 1-4 = רבע גמר
+}
+
+async function getUpcomingPlayoffGames(season: string): Promise<{ games: RawPlayoffUpcoming[]; hasAnyGames: boolean }> {
+  try {
+    const [{ data: seriesData }, { data: gamesData }, { data: standingsData }] = await Promise.all([
+      supabaseAdmin.from('playoff_series').select('series_number, team_a, team_b, team_a_label, team_b_label').eq('season', season).order('series_number'),
+      supabaseAdmin.from('playoff_games').select('series_number, game_number, home_score, away_score, played, game_date, location').eq('season', season).order('series_number').order('game_number'),
+      supabaseAdmin.from('standings').select('name, division, rank').eq('season', season).order('rank', { ascending: true }),
+    ]);
+
+    const series = (seriesData ?? []) as { series_number: number; team_a: string | null; team_b: string | null; team_a_label: string | null; team_b_label: string | null }[];
+    const games  = (gamesData ?? []) as { series_number: number; game_number: number; home_score: number | null; away_score: number | null; played: boolean | null; game_date: string | null; location: string | null }[];
+    const hasAnyGames = games.length > 0;
+    if (series.length === 0) return { games: [], hasAnyGames };
+
+    const standings = (standingsData ?? []) as { name: string; division: string; rank: number }[];
+    const resolveFromLabel = (label: string | null): string => {
+      if (!label) return '';
+      const isNorth = label.includes('צפון');
+      const isSouth = label.includes('דרום');
+      if (!isNorth && !isSouth) return '';
+      const m = label.match(/#(\d+)/);
+      if (!m) return '';
+      const div  = isNorth ? 'North' : 'South';
+      const rank = parseInt(m[1], 10);
+      return standings.find((s) => s.division === div && s.rank === rank)?.name ?? '';
+    };
+
+    // game 2 swaps home/away (mirrors /playoff homeForGame).
+    const homeForGame = (teamA: string, teamB: string, gNum: number) => (gNum === 2 ? teamB : teamA);
+
+    const out: RawPlayoffUpcoming[] = [];
+    for (const s of series) {
+      const teamA = s.team_a?.trim() || resolveFromLabel(s.team_a_label);
+      const teamB = s.team_b?.trim() || resolveFromLabel(s.team_b_label);
+      if (!teamA || !teamB) continue;
+
+      const seriesGames = games.filter((g) => g.series_number === s.series_number);
+
+      // Series tally from played games.
+      let winsA = 0, winsB = 0;
+      for (const g of seriesGames) {
+        if (!g.played || g.home_score == null || g.away_score == null) continue;
+        const home    = homeForGame(teamA, teamB, g.game_number);
+        const homeWon = g.home_score > g.away_score;
+        if ((homeWon && home === teamA) || (!homeWon && home !== teamA)) winsA++;
+        else winsB++;
+      }
+
+      // Final is a single game; quarters/semis are best-of-3.
+      const isFinal = stageKeyForSeries(s.series_number) === 'final';
+      const decided = isFinal ? (winsA >= 1 || winsB >= 1) : (winsA >= 2 || winsB >= 2);
+      if (decided) continue;
+
+      // Next game = lowest-numbered unplayed game in the series.
+      const next = [...seriesGames].filter((g) => !g.played).sort((a, b) => a.game_number - b.game_number)[0];
+      if (!next) continue;
+
+      out.push({
+        seriesNumber: s.series_number,
+        stageKey:     stageKeyForSeries(s.series_number),
+        gameNumber:   next.game_number,
+        teamA, teamB,
+        homeIsTeamA:  next.game_number !== 2,
+        winsA, winsB,
+        date:         next.game_date,
+        location:     next.location,
+      });
+    }
+
+    out.sort((a, b) => {
+      const da = parseFlexibleDate(a.date, season)?.getTime() ?? Infinity;
+      const db = parseFlexibleDate(b.date, season)?.getTime() ?? Infinity;
+      return (da - db) || (a.seriesNumber - b.seriesNumber);
+    });
+    return { games: out.slice(0, 8), hasAnyGames };
+  } catch {
+    return { games: [], hasAnyGames: false };
+  }
+}
+
 function daysBetween(from: Date, to: Date): number {
   const ms = to.getTime() - from.getTime();
   return Math.floor(ms / 86_400_000);
@@ -791,7 +900,7 @@ function RecordCard({ icon, label, value, sub, detail, color }: { icon: string; 
 
 export default async function HomePage() {
   const season = await getCurrentSeason();
-  const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers, lang, dbRoundDates, cupFinal, upcomingCup, cupChampion, playoffChampion, autoTickerItems, cupHeroReviews] = await Promise.all([
+  const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers, lang, dbRoundDates, cupFinal, upcomingCup, cupChampion, playoffChampion, autoTickerItems, cupHeroReviews, seasonPhaseSetting, playoffUpcoming] = await Promise.all([
     getLiveData(season),
     getActiveAnnouncements(),
     getTeams(),
@@ -805,6 +914,8 @@ export default async function HomePage() {
     getPlayoffChampion(season),
     getAutoTickerItems(season),
     getCupHeroReviews(season),
+    getSeasonPhaseSetting(),
+    getUpcomingPlayoffGames(season),
   ]);
 
   const nextRoundEarly = liveData.currentRound + 1;
@@ -959,6 +1070,44 @@ export default async function HomePage() {
   const nextRoundTeamNames = allNextGames.flatMap(g => [g.home, g.away]);
   const teamRosters = await getTeamRosters(nextRoundTeamNames);
 
+  // ── Season phase + playoff strip ──────────────────────────────────────────
+  // Admin's explicit league_settings.season_phase wins; otherwise we auto-flip
+  // to 'playoffs' once the regular season is complete and playoff games exist.
+  // During playoffs the playoff strip replaces the regular next-round strip
+  // (which is empty anyway once nextRound passes TOTAL_ROUNDS).
+  const seasonPhase = resolveSeasonPhase({
+    setting: seasonPhaseSetting,
+    regularSeasonComplete: currentRound >= TOTAL_ROUNDS,
+    hasPlayoffGames: playoffUpcoming.hasAnyGames,
+  });
+
+  const heDayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+  const enDayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const playoffStripGames: PlayoffStripGame[] = playoffUpcoming.games.map((g) => {
+    const home     = g.homeIsTeamA ? g.teamA : g.teamB;
+    const away     = g.homeIsTeamA ? g.teamB : g.teamA;
+    const homeName = dbDisplayName(home);
+    const awayName = dbDisplayName(away);
+    const d = parseFlexibleDate(g.date, season);
+    const dateLabel = d ? `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}` : '';
+    const dayLabel  = d ? (lang === 'en' ? enDayNames : heDayNames)[d.getDay()] : '';
+    return {
+      seriesNumber: g.seriesNumber,
+      stageKey:     g.stageKey,
+      gameNumber:   g.gameNumber,
+      homeTeam:     homeName,
+      awayTeam:     awayName,
+      homeLogo:     logoMap[norm(homeName)] ?? logoMap[norm(home)] ?? null,
+      awayLogo:     logoMap[norm(awayName)] ?? logoMap[norm(away)] ?? null,
+      homeWins:     g.homeIsTeamA ? g.winsA : g.winsB,
+      awayWins:     g.homeIsTeamA ? g.winsB : g.winsA,
+      dateLabel,
+      dayLabel,
+      location:     g.location,
+    };
+  });
+  const showPlayoffStrip = seasonPhase === 'playoffs' && playoffStripGames.length > 0;
+
   // Build the upcoming cup-games list. Sits between the league scoreboard
   // strip (next-round games above) and the last-round results (below). Pure
   // "what cup matches are coming" reminder — league rounds are already
@@ -1048,8 +1197,11 @@ export default async function HomePage() {
       {/* ── Champion banner (cup or league) ── */}
       {championProps && <ChampionBanner {...championProps} />}
 
-      {/* ── NBA-style Scoreboard Strip ── */}
-      {allNextGames.length > 0 && nextRound <= TOTAL_ROUNDS && (
+      {/* ── Playoff scoreboard strip (season phase = playoffs) ── */}
+      {showPlayoffStrip && <PlayoffScoreboardStrip games={playoffStripGames} />}
+
+      {/* ── NBA-style Scoreboard Strip (regular season) ── */}
+      {!showPlayoffStrip && allNextGames.length > 0 && nextRound <= TOTAL_ROUNDS && (
         <ScoreboardStrip
           games={allNextGames}
           nextRound={nextRound}

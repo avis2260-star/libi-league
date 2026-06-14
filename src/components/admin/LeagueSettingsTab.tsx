@@ -21,12 +21,50 @@ const CATEGORIES = [
   { label: 'משמעת', keys: ['technical_suspension_threshold'] },
 ];
 
+// Drives what the public home page leads with. Keep these values in sync with
+// SeasonPhase in src/lib/season-phase.ts.
+const PHASE_OPTIONS: { value: string; label: string; hint: string; icon: string }[] = [
+  { value: 'regular',  label: 'עונה סדירה', icon: '🏀', hint: 'הדף הראשי מציג את משחקי המחזור הקרוב' },
+  { value: 'playoffs', label: 'פלייאוף',    icon: '🏆', hint: 'הדף הראשי מציג את משחקי הפלייאוף הקרובים' },
+  { value: 'offseason',label: 'בין העונות', icon: '🌴', hint: 'אין משחקים קרובים בדף הראשי' },
+];
+
 export default function LeagueSettingsTab({ settings: initial }: { settings: Setting[] }) {
   const [values, setValues] = useState<Record<string, string>>(
     Object.fromEntries(initial.map((s) => [s.key, s.value]))
   );
   const [status, setStatus] = useState<Record<string, { ok: boolean; text: string } | null>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
+
+  /* ── Season phase ── */
+  const [phase, setPhase] = useState<string>(
+    initial.find((s) => s.key === 'season_phase')?.value?.trim() || 'regular'
+  );
+  const [phaseSaving, setPhaseSaving] = useState(false);
+  const [phaseMsg, setPhaseMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function savePhase(next: string) {
+    const prev = phase;
+    setPhase(next);            // optimistic
+    setPhaseSaving(true);
+    setPhaseMsg(null);
+    try {
+      const res = await fetch('/api/admin/league-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'season_phase', value: next }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'שגיאה');
+      setPhaseMsg({ ok: true, text: '✅ נשמר' });
+      setTimeout(() => setPhaseMsg(null), 2000);
+    } catch (err) {
+      setPhase(prev);          // revert on failure
+      setPhaseMsg({ ok: false, text: err instanceof Error ? err.message : 'שגיאה' });
+    } finally {
+      setPhaseSaving(false);
+    }
+  }
 
   /* ── Logo upload state ── */
   const [logoUrl, setLogoUrl]         = useState<string | null>(null);
@@ -205,6 +243,52 @@ export default function LeagueSettingsTab({ settings: initial }: { settings: Set
               {logoMsg.text}
             </p>
           )}
+        </div>
+      </div>
+
+      {/* ── Season phase ──────────────────────────────────────────────────── */}
+      <div className="rounded-xl border border-gray-700 bg-gray-900/60 overflow-hidden">
+        <div className="bg-gray-800/70 px-4 py-3 border-b border-gray-700 sm:px-5">
+          <h3 className="font-semibold text-orange-400">🗓️ שלב העונה</h3>
+        </div>
+        <div className="p-4 sm:p-5">
+          <p className="mb-4 text-sm text-gray-400">
+            קובע מה מוצג בראש הדף הראשי. בזמן &quot;פלייאוף&quot; מוחלף סרגל משחקי המחזור בסרגל משחקי הפלייאוף הקרובים.
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {PHASE_OPTIONS.map((opt) => {
+              const active = phase === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => savePhase(opt.value)}
+                  disabled={phaseSaving}
+                  aria-pressed={active}
+                  className={`rounded-xl border p-4 text-right transition disabled:opacity-60 ${
+                    active
+                      ? 'border-orange-500 bg-orange-500/10 ring-1 ring-orange-500/40'
+                      : 'border-gray-700 bg-gray-800/40 hover:border-gray-500 hover:bg-gray-800/70'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl">{opt.icon}</span>
+                    {active && <span className="text-xs font-bold text-orange-400">● פעיל</span>}
+                  </div>
+                  <p className={`mt-2 text-sm font-bold ${active ? 'text-white' : 'text-gray-200'}`}>{opt.label}</p>
+                  <p className="mt-1 text-xs text-gray-500">{opt.hint}</p>
+                </button>
+              );
+            })}
+          </div>
+          {phaseMsg && (
+            <p className={`mt-3 rounded-lg px-3 py-2 text-sm font-medium ${phaseMsg.ok ? 'bg-green-900/40 text-green-300' : 'bg-red-900/40 text-red-300'}`}>
+              {phaseMsg.text}
+            </p>
+          )}
+          <p className="mt-3 text-xs text-gray-600">
+            אם לא נבחר שלב, המערכת תזהה אוטומטית פלייאוף כשהעונה הסדירה הסתיימה ויש משחקי פלייאוף.
+          </p>
         </div>
       </div>
 
