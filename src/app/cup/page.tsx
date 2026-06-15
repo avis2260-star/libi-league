@@ -9,6 +9,7 @@ import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season'
 import SeasonPicker from '@/components/SeasonPicker';
 import ArchiveBanner from '@/components/ArchiveBanner';
 import { deriveCupScores } from '@/lib/cup-derived-scores';
+import CupChampionCelebration from '@/components/CupChampionCelebration';
 
 async function getLogoUrl() {
   try {
@@ -47,7 +48,7 @@ export default async function CupPage({
   // Enrich games with a score derived from per-player stats / quarters when
   // the admin never typed an explicit home_score/away_score. Games with a
   // derived result are marked played so the bracket shows the winner + the
-  // "אלוף הגביע" banner (the deriving function leaves official scores intact).
+  // "מחזיקת הגביע" banner (the deriving function leaves official scores intact).
   const rawCupGames = games ?? [];
   const derivedScores = deriveCupScores(
     rawCupGames,
@@ -58,6 +59,31 @@ export default async function CupPage({
     const d = derivedScores.get(g.id);
     return d ? { ...g, home_score: d.home, away_score: d.away, played: true } : g;
   });
+
+  // ── Cup champion = winner of the final ('גמר', exact — not רבע/חצי גמר) ──
+  // Drives the arrival celebration. Pick the decided final (played, both scores,
+  // a winner), preferring the highest game_number if a duplicate row exists.
+  const decidedFinal = cupGames
+    .filter((g) => g.round === 'גמר' && g.played && g.home_score != null && g.away_score != null && g.home_score !== g.away_score)
+    .sort((a, b) => (b.game_number ?? 0) - (a.game_number ?? 0))[0] ?? null;
+
+  let cupChampion: { champion: string; opponent: string; scoreWinner: number; scoreLoser: number; date: string; logo: string | null } | null = null;
+  if (decidedFinal) {
+    const homeWon = decidedFinal.home_score > decidedFinal.away_score;
+    const champName = homeWon ? decidedFinal.home_team : decidedFinal.away_team;
+    const normName = (s: string) => s.replace(/["""״'']/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const champLogo = teamLogos[champName]
+      ?? Object.entries(teamLogos).find(([k]) => normName(k) === normName(champName))?.[1]
+      ?? logoUrl;
+    cupChampion = {
+      champion:    champName,
+      opponent:    homeWon ? decidedFinal.away_team : decidedFinal.home_team,
+      scoreWinner: homeWon ? decidedFinal.home_score : decidedFinal.away_score,
+      scoreLoser:  homeWon ? decidedFinal.away_score : decidedFinal.home_score,
+      date:        decidedFinal.date ?? '',
+      logo:        champLogo,
+    };
+  }
 
   // Participating teams (date + location were dropped — each game is played
   // at the home_team's venue and dates live per-game on cup_games).
@@ -101,6 +127,21 @@ export default async function CupPage({
           main { padding-bottom: 0.75rem !important; }
         }
       `}</style>
+
+      {/* Cup champion celebration — auto-plays on arrival (current season only).
+          Every cup entry point (tab, hero-card bracket link, home "גמר הגביע"
+          card) lands here, so this covers all of them. */}
+      {!isArchive && cupChampion && (
+        <CupChampionCelebration
+          champion={cupChampion.champion}
+          opponent={cupChampion.opponent}
+          scoreWinner={cupChampion.scoreWinner}
+          scoreLoser={cupChampion.scoreLoser}
+          date={cupChampion.date}
+          logoUrl={cupChampion.logo}
+          season={viewing}
+        />
+      )}
 
       <div className="space-y-3" dir={dir}>
         <div className="text-center">

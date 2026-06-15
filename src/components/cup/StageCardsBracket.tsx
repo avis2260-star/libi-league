@@ -214,7 +214,7 @@ function ChampionBanner({ teamName, teamLogos }: { teamName: string; teamLogos: 
         <img src={url} alt={teamName} className="h-12 w-12 rounded-full border-2 border-yellow-400/50 object-cover shadow-lg shrink-0" />
       )}
       <div className="flex flex-col items-start">
-        <p className="text-[10px] font-black uppercase tracking-widest text-[#a08020]">{t('אלוף הגביע 2025–2026')}</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-[#a08020]">{t('מחזיקת הגביע 2025–2026')}</p>
         <p className="text-lg font-black text-yellow-400">{t(teamName)}</p>
       </div>
     </div>
@@ -227,7 +227,7 @@ function TBDBanner() {
     <div className="mt-2 flex flex-row items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-[#1e3a5f] bg-[#080f18]/60 px-6 py-3 max-w-md mx-auto">
       <div className="text-2xl">🏆</div>
       <div className="flex flex-col items-start">
-        <p className="text-[10px] font-black uppercase tracking-widest text-[#3a5a7a]">{t('אלוף הגביע')}</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-[#3a5a7a]">{t('מחזיקת הגביע')}</p>
         <p className="text-sm font-bold text-[#2a4a6a]">{t('טרם נקבע — ממתין לגמר')}</p>
       </div>
     </div>
