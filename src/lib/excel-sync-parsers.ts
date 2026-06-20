@@ -619,3 +619,166 @@ export function parseGameStatsSheet(rows: unknown[][]): ParsedPlayerStat[] {
   }
   return out;
 }
+
+// ---------------------------------------------------------------------------
+// parseSummarySheet — official "סיכום" referee scoresheet box score
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse player box scores from the "סיכום" (Summary) sheet of the official
+ * Libi referee scoresheet ("טופס שיפוט כדורסל").
+ *
+ * The sheet stacks TWO team sections, each laid out as:
+ *   • a team section header   ("קבוצה א' (מארחת): …")  — skipped
+ *   • a column-header row:      מס' שחקן | שם השחקן | רבע 1..4 | הארכה |
+ *                               1 נק' | 2 נק' | 3 נק' | סה"כ נק' | עבירות | טכ' | ב"ס
+ *   • up to ~14 player rows
+ *   • a "סה"כ קבוצה" team-total row  — ends the section
+ *
+ * Per player we read: name (שם), jersey (מס'), points (סה"כ נק' — the TOTAL,
+ * deliberately NOT the 1/2-point split), three-pointers (3 נק') and fouls
+ * (עבירות). Both sections are flattened into one list; the import route matches
+ * each name against the game's two rosters, so team affiliation isn't needed.
+ *
+ * The source cells are formula-driven; XLSX reads their cached values, so a
+ * filled, spreadsheet-saved workbook yields the computed names/points. A blank
+ * form (no players recorded) yields [].
+ */
+type SummaryCols = {
+  name: number; jersey: number | null; points: number;
+  three: number | null; fouls: number | null;
+  /** Indices of the per-quarter columns (רבע 1..4, then הארכה) in sheet order. */
+  quarters: number[];
+};
+
+function detectSummaryColumns(row: unknown[]): SummaryCols | null {
+  let name: number | null = null;
+  let jersey: number | null = null;
+  let points: number | null = null;
+  let three: number | null = null;
+  let fouls: number | null = null;
+  const quarters: number[] = [];
+
+  for (let c = 0; c < row.length; c++) {
+    const h = String(row[c] ?? '').trim();
+    if (!h) continue;
+    if (name === null && h.includes('שם')) { name = c; continue; }                 // שם השחקן
+    if (jersey === null && h.startsWith('מס')) { jersey = c; continue; }            // מס' שחקן
+    if (points === null && h.includes('סה')) { points = c; continue; }             // סה"כ נק'  (TOTAL — before 1/2 נק')
+    if (three === null && ((h.includes('3') && h.includes('נק')) || h.includes('שלש'))) { three = c; continue; } // 3 נק' (not "רבע 3")
+    if (fouls === null && h.includes('עביר')) { fouls = c; continue; }             // עבירות
+    if (/רבע/.test(h) || h.includes('הארכה')) { quarters.push(c); continue; }       // רבע 1..4 + הארכה
+  }
+  // A real column-header row has both a name and a total-points column.
+  return name !== null && points !== null ? { name, jersey, points, three, fouls, quarters } : null;
+}
+
+/** True for the "סה"כ קבוצה" team-total row that ends a section. */
+function isSummaryTotalRow(name: string): boolean {
+  return /סה[\s"׳״']*כ|סך|קבוצה/.test(name);
+}
+
+/**
+ * Read a team section header ("קבוצה א' (מארחת): ידרסל חדרה  |  …") into the
+ * team name + whether it's the host (home) or guest (away) side. Returns null
+ * for any non-section row.
+ */
+function parseSectionHeader(row: unknown[]): { teamName: string; isHome: boolean } | null {
+  for (const cell of row) {
+    const s = String(cell ?? '').trim();
+    if (!s || !s.includes('קבוצה')) continue;
+    if (!s.includes('מארחת') && !s.includes('מתארחת')) continue;
+    const isHome = !s.includes('מתארחת');                 // מתארחת = guest/away
+    const teamName = s.slice(s.indexOf(':') + 1).split('|')[0].trim();
+    return { teamName, isHome };
+  }
+  return null;
+}
+
+export function parseSummarySheet(rows: unknown[][]): ParsedPlayerStat[] {
+  if (!Array.isArray(rows) || rows.length === 0) return [];
+  const out: ParsedPlayerStat[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const cols = Array.isArray(rows[i]) ? detectSummaryColumns(rows[i]) : null;
+    if (!cols) continue;
+
+    // Read player rows until the team-total row or the next section header.
+    let j = i + 1;
+    for (; j < rows.length; j++) {
+      const row = rows[j];
+      if (!Array.isArray(row)) continue;
+      if (detectSummaryColumns(row)) break;               // next section header
+
+      const name = String(row[cols.name] ?? '').trim();
+      if (isSummaryTotalRow(name)) { j++; break; }         // end of this section
+      if (!name) continue;                                 // empty player slot
+
+      const points = toStatInt(row[cols.points]);
+      const three  = cols.three !== null ? toStatInt(row[cols.three]) : null;
+      const fouls  = cols.fouls !== null ? toStatInt(row[cols.fouls]) : null;
+      if (points === null && three === null && fouls === null) continue;
+
+      const jersey = cols.jersey !== null ? toStatInt(row[cols.jersey]) : null;
+      out.push({
+        name,
+        jersey,
+        points: points ?? 0,
+        three_pointers: three ?? 0,
+        fouls: fouls ?? 0,
+      });
+    }
+    i = j - 1; // resume right after the rows this section consumed
+  }
+  return out;
+}
+
+/** Per-team quarter line score read from the "סיכום" sheet's team-total rows. */
+export type SummaryTeamQuarters = { teamName: string; isHome: boolean; quarters: number[] };
+
+/**
+ * Extract each team's per-quarter points from the "סיכום" sheet. The team-total
+ * row ("סה"כ קבוצה") of each section carries the team's points in רבע 1..4 (and
+ * הארכה / overtime) — exactly the game line score. Returns one entry per team
+ * section, in sheet order; `isHome` reflects the form's מארחת (host) / מתארחת
+ * (guest) label so the caller can orient home vs away.
+ */
+export function parseSummaryTeamQuarters(rows: unknown[][]): SummaryTeamQuarters[] {
+  if (!Array.isArray(rows) || rows.length === 0) return [];
+  const out: SummaryTeamQuarters[] = [];
+  let section: { teamName: string; isHome: boolean } | null = null;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (!Array.isArray(row)) continue;
+
+    const sec = parseSectionHeader(row);
+    if (sec) { section = sec; continue; }
+
+    const cols = detectSummaryColumns(row);
+    if (!cols || cols.quarters.length === 0) continue;
+
+    // Column-header row found — scan down for this section's team-total row.
+    let j = i + 1;
+    for (; j < rows.length; j++) {
+      const r = rows[j];
+      if (!Array.isArray(r)) continue;
+      if (parseSectionHeader(r) || detectSummaryColumns(r)) break;
+      const nm = String(r[cols.name] ?? '').trim();
+      if (isSummaryTotalRow(nm)) {
+        if (section) {
+          out.push({
+            teamName: section.teamName,
+            isHome:   section.isHome,
+            quarters: cols.quarters.map((qc) => toStatInt(r[qc]) ?? 0),
+          });
+        }
+        j++;
+        break;
+      }
+    }
+    i = j - 1;
+    section = null;
+  }
+  return out;
+}

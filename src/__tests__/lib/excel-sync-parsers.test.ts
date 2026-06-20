@@ -9,6 +9,8 @@ import {
   parseResults,
   parseCupGames,
   parseGameStatsSheet,
+  parseSummarySheet,
+  parseSummaryTeamQuarters,
   NORTH_NAMES,
   SOUTH_NAMES,
 } from '@/lib/excel-sync-parsers';
@@ -749,5 +751,113 @@ describe('parseGameStatsSheet', () => {
     expect(parsed).toEqual([
       { name: 'יוסי כהן', jersey: 7, points: 18, three_pointers: 2, fouls: 3 },
     ]);
+  });
+});
+
+// ===========================================================================
+// parseSummarySheet — official "סיכום" referee scoresheet
+// ===========================================================================
+
+describe('parseSummarySheet', () => {
+  // The exact column layout of the real "סיכום" sheet (14 columns).
+  const HEADER = [
+    "מס' שחקן", 'שם השחקן', 'רבע 1', 'רבע 2', 'רבע 3', 'רבע 4', 'הארכה',
+    "1 נק'", "2 נק'", "3 נק'", 'סה"כ נק\'', 'עבירות', "טכ'", 'ב"ס',
+  ];
+
+  it('parses both team sections and reads the TOTAL points + 3PT columns', () => {
+    const rows = [
+      ['סיכום משחק — ליגת לב"י'],
+      ['מחוז: צפון      תאריך: —      ידרסל חדרה (בית)  נגד  בני נתניה (חוץ)'],
+      ['תוצאה סופית: ...'],
+      ["קבוצה א' (מארחת): ידרסל חדרה      |   טיים-אאוט: 0   |   עבירות קבוצתיות: 0"],
+      HEADER,
+      [8,  'יוחאי דדון', 2, 0, 4, 5, 0, 1, 4, 2, 17, 3, 0, 0],
+      [33, 'בניהו ספיר', 0, 3, 0, 0, 0, 0, 0, 1,  3, 2, 0, 0],
+      ['', '', '', '', '', '', '', '', '', '', '', '', '', ''], // empty player slot
+      ['', 'סה"כ קבוצה', 2, 3, 4, 5, 0, 1, 4, 3, 20, 5, 0, 0],  // team total → ends section
+      [],
+      ["קבוצה ב' (מתארחת): בני נתניה      |   טיים-אאוט: 0   |   עבירות קבוצתיות: 0"],
+      HEADER,
+      [7, 'דני כהן', 0, 0, 0, 0, 0, 2, 6, 0, 8, 1, 0, 0],
+      ['', 'סה"כ קבוצה', 0, 0, 0, 0, 0, 2, 6, 0, 8, 1, 0, 0],
+    ];
+    expect(parseSummarySheet(rows)).toEqual([
+      // points = "סה\"כ נק'" (17), NOT 1 נק'(1)/2 נק'(4); three = "3 נק'"(2), NOT "רבע 3"(4)
+      { name: 'יוחאי דדון', jersey: 8,  points: 17, three_pointers: 2, fouls: 3 },
+      { name: 'בניהו ספיר', jersey: 33, points: 3,  three_pointers: 1, fouls: 2 },
+      { name: 'דני כהן',    jersey: 7,  points: 8,  three_pointers: 0, fouls: 1 },
+    ]);
+  });
+
+  it('returns [] for a blank form (headers present, no players filled)', () => {
+    const rows = [
+      ["קבוצה א' (מארחת): ידרסל חדרה"],
+      HEADER,
+      ['', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+      ['', 'סה"כ קבוצה', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ];
+    expect(parseSummarySheet(rows)).toEqual([]);
+  });
+
+  it('returns [] for empty input', () => {
+    expect(parseSummarySheet([])).toEqual([]);
+  });
+
+  it('round-trips through a real .xlsx "סיכום" sheet', () => {
+    const buffer = buildWorkbookBuffer({
+      'טופס משחק': [['(game form)']],
+      'סיכום': [
+        ["קבוצה א' (מארחת): ידרסל חדרה"],
+        HEADER,
+        [8, 'יוחאי דדון', 2, 0, 4, 5, 0, 1, 4, 2, 17, 3, 0, 0],
+        ['', 'סה"כ קבוצה', 2, 0, 4, 5, 0, 1, 4, 2, 17, 3, 0, 0],
+      ],
+    });
+    expect(parseSummarySheet(readSheetRows(buffer, 'סיכום'))).toEqual([
+      { name: 'יוחאי דדון', jersey: 8, points: 17, three_pointers: 2, fouls: 3 },
+    ]);
+  });
+});
+
+// ===========================================================================
+// parseSummaryTeamQuarters — per-team quarter line score from "סיכום"
+// ===========================================================================
+
+describe('parseSummaryTeamQuarters', () => {
+  const HEADER = [
+    "מס' שחקן", 'שם השחקן', 'רבע 1', 'רבע 2', 'רבע 3', 'רבע 4', 'הארכה',
+    "1 נק'", "2 נק'", "3 נק'", 'סה"כ נק\'', 'עבירות', "טכ'", 'ב"ס',
+  ];
+
+  it("reads each team's per-quarter points + host/guest label from the total row", () => {
+    const rows = [
+      ["קבוצה א' (מארחת): ידרסל חדרה      |   טיים-אאוט: 0"],
+      HEADER,
+      [8, 'יוחאי דדון', 5, 4, 0, 6, 0, 1, 4, 2, 17, 3, 0, 0], // player row → ignored here
+      ['', 'סה"כ קבוצה', 18, 12, 20, 19, 0, 5, 20, 3, 69, 14, 0, 0],
+      [],
+      ["קבוצה ב' (מתארחת): בני נתניה      |   טיים-אאוט: 0"],
+      HEADER,
+      [7, 'דני כהן', 0, 0, 0, 0, 0, 2, 6, 0, 8, 1, 0, 0],
+      ['', 'סה"כ קבוצה', 14, 15, 16, 14, 0, 3, 22, 1, 59, 12, 0, 0],
+    ];
+    expect(parseSummaryTeamQuarters(rows)).toEqual([
+      { teamName: 'ידרסל חדרה', isHome: true,  quarters: [18, 12, 20, 19, 0] },
+      { teamName: 'בני נתניה',  isHome: false, quarters: [14, 15, 16, 14, 0] },
+    ]);
+  });
+
+  it('captures an overtime value when present', () => {
+    const rows = [
+      ["קבוצה א' (מארחת): א"],
+      HEADER,
+      ['', 'סה"כ קבוצה', 20, 20, 20, 18, 7, 0, 0, 0, 85, 10, 0, 0],
+    ];
+    expect(parseSummaryTeamQuarters(rows)[0].quarters).toEqual([20, 20, 20, 18, 7]);
+  });
+
+  it('returns [] for empty input', () => {
+    expect(parseSummaryTeamQuarters([])).toEqual([]);
   });
 });
