@@ -48,6 +48,9 @@ describe('parseAutoConfig', () => {
       topScorer: { enabled: true,  prefix: '  hi  ',       prefixEn: '  hey  ' },
       hotStreak: { enabled: false, prefix: 'x'.repeat(100), prefixEn: 'y'.repeat(100) },
       titleRace: { enabled: true,  prefix: 'race',          prefixEn: 'race-en' },
+      seasonTopScorer: { enabled: true,  prefix: 'season', prefixEn: 'season-en' },
+      cupHolder:       { enabled: true,  prefix: 'cup',    prefixEn: 'cup-en' },
+      playoffsLive:    { enabled: false, prefix: 'po',     prefixEn: 'po-en' },
     };
     const s = serializeAutoConfig(cfg);
     expect(s.topScorer.prefix).toBe('hi');
@@ -277,5 +280,42 @@ describe('buildAutoTickerItems', () => {
     expect(top.enabled).toBe(false);
     expect(autoTickerMessage(top, 'he')).toBe('P x — 5 נק׳');
     expect(autoTickerMessage(top, 'en')).toBe('PE x — 5 pts');
+  });
+
+  // ── Season-end / playoff lines ──────────────────────────────────────────
+  it('builds the season top-scorer, cup-holder and playoffs lines when data is present', () => {
+    const items = buildAutoTickerItems({
+      config: DEFAULT_AUTO_CONFIG,
+      topScorer: null,
+      divisions: [],
+      streaks: [],
+      seasonTopScorer: { id: 'p9', name: 'דני', points: 412 },
+      cupHolder: 'ידרסל חדרה',
+      playoffsActive: true,
+    });
+
+    const season = find(items, 'seasonTopScorer');
+    expect(season.valueHe).toBe('דני — 412 נק׳');
+    expect(autoTickerMessage(season, 'he')).toBe('🏅 קלע העונה: דני — 412 נק׳');
+    expect(season.href).toBe('/players/p9');
+
+    const cup = find(items, 'cupHolder');
+    expect(cup.valueHe).toBe('ידרסל חדרה');
+    expect(autoTickerMessage(cup, 'he')).toBe('🏆 מחזיקת הגביע: ידרסל חדרה');
+    expect(cup.href).toBe('/cup');
+
+    const po = find(items, 'playoffsLive');
+    expect(autoTickerMessage(po, 'he')).toBe('🏆 הפלייאוף יצא לדרך — צפו בעץ');
+    expect(po.href).toBe('/playoff');
+  });
+
+  it('keeps the season-end / playoff lines silent when their data is absent', () => {
+    const items = buildAutoTickerItems({ config: DEFAULT_AUTO_CONFIG, topScorer: null, divisions: [], streaks: [] });
+    for (const type of ['seasonTopScorer', 'cupHolder', 'playoffsLive']) {
+      const it = find(items, type);
+      expect(it.valueHe).toBeNull();
+      expect(autoTickerMessage(it, 'he')).toBeNull();
+      expect(it.href).toBeNull();
+    }
   });
 });

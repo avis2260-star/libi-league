@@ -287,7 +287,7 @@ export default function LeagueSettingsTab({ settings: initial }: { settings: Set
             </p>
           )}
           <p className="mt-3 text-xs text-gray-600">
-            אם לא נבחר שלב, המערכת תזהה אוטומטית פלייאוף כשהעונה הסדירה הסתיימה ויש משחקי פלייאוף.
+            אם לא נבחר שלב, המערכת תזהה אוטומטית פלייאוף כשכל משחקי העונה הסדירה הסתיימו (כולל משחקים דחויים) ויש משחקי פלייאוף.
           </p>
         </div>
       </div>

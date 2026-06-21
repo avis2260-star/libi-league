@@ -9,7 +9,9 @@
 // This module is intentionally PURE (no DB, no React) so it can be unit-tested
 // in isolation. The DB-backed wrapper lives in ./ticker-auto-data.ts.
 
-export type AutoTickerType = 'topScorer' | 'hotStreak' | 'titleRace';
+export type AutoTickerType =
+  | 'topScorer' | 'hotStreak' | 'titleRace'           // regular season
+  | 'seasonTopScorer' | 'cupHolder' | 'playoffsLive'; // season-end / playoffs
 
 export type AutoTickerTypeConfig = {
   enabled: boolean;
@@ -22,13 +24,19 @@ export type AutoTickerTypeConfig = {
 export type AutoTickerConfig = Record<AutoTickerType, AutoTickerTypeConfig>;
 
 /** Render order (also the order shown in the admin panel). */
-export const AUTO_TICKER_ORDER: AutoTickerType[] = ['topScorer', 'hotStreak', 'titleRace'];
+export const AUTO_TICKER_ORDER: AutoTickerType[] = [
+  'topScorer', 'hotStreak', 'titleRace',
+  'seasonTopScorer', 'cupHolder', 'playoffsLive',
+];
 
 /** Human label per type for the admin UI. */
 export const AUTO_TICKER_LABELS: Record<AutoTickerType, string> = {
   topScorer: 'קלע המחזור',
   hotStreak: 'רצף ניצחונות',
   titleRace: 'מאבק צמרת',
+  seasonTopScorer: 'קלע העונה',
+  cupHolder: 'מחזיקת הגביע',
+  playoffsLive: 'פלייאוף',
 };
 
 /** Dot color (key into BG_COLOR_CLASSES on the home page) per type. */
@@ -36,12 +44,20 @@ export const AUTO_TICKER_BG: Record<AutoTickerType, string> = {
   topScorer: 'orange',
   hotStreak: 'red',
   titleRace: 'blue',
+  seasonTopScorer: 'orange',
+  cupHolder: 'green',
+  playoffsLive: 'blue',
 };
 
 export const DEFAULT_AUTO_CONFIG: AutoTickerConfig = {
   topScorer: { enabled: true,  prefix: '🏀 קלע המחזור:', prefixEn: '🏀 Top scorer:' },
   hotStreak: { enabled: true,  prefix: '🔥 רצף חם:',     prefixEn: '🔥 Hot streak:' },
   titleRace: { enabled: false, prefix: '⚔️ מאבק צמרת:',  prefixEn: '⚔️ Title race:' },
+  // Season-end / playoff lines — only surface once their data exists, so they
+  // can stay enabled year-round and simply stay quiet during the regular season.
+  seasonTopScorer: { enabled: true, prefix: '🏅 קלע העונה:',    prefixEn: '🏅 Season top scorer:' },
+  cupHolder:       { enabled: true, prefix: '🏆 מחזיקת הגביע:', prefixEn: '🏆 Cup Holder:' },
+  playoffsLive:    { enabled: true, prefix: '🏆',               prefixEn: '🏆' },
 };
 
 /** Longest prefix we persist (guards against pathological input). */
@@ -62,11 +78,8 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
  * fields fall back safely and newly-added types keep working on old data.
  */
 export function parseAutoConfig(raw: string | null | undefined): AutoTickerConfig {
-  const out: AutoTickerConfig = {
-    topScorer: { ...DEFAULT_AUTO_CONFIG.topScorer },
-    hotStreak: { ...DEFAULT_AUTO_CONFIG.hotStreak },
-    titleRace: { ...DEFAULT_AUTO_CONFIG.titleRace },
-  };
+  const out = {} as AutoTickerConfig;
+  for (const type of AUTO_TICKER_ORDER) out[type] = { ...DEFAULT_AUTO_CONFIG[type] };
   if (!raw) return out;
 
   let parsed: unknown;
@@ -209,6 +222,12 @@ export type AutoTickerBuildInput = {
   divisions: { division: string; rows: { name: string; pts: number }[] }[];
   /** Active streaks (names resolved). */
   streaks: TeamStreak[];
+  /** Season cumulative scoring leader. null/omitted = no line. */
+  seasonTopScorer?: { id: string; name: string; points: number } | null;
+  /** Current cup holder (team name, resolved). null/omitted until the final is decided. */
+  cupHolder?: string | null;
+  /** True while ≥1 playoff game is still unplayed this season. */
+  playoffsActive?: boolean;
 };
 
 export type Lang = 'he' | 'en';
@@ -283,12 +302,35 @@ export function buildAutoTickerItems(input: AutoTickerBuildInput): AutoTickerIte
     }
   }
 
-  const heByType: Record<AutoTickerType, string | null> = { topScorer: topHe, hotStreak: hotHe, titleRace: titleRaceHe };
-  const enByType: Record<AutoTickerType, string | null> = { topScorer: topEn, hotStreak: hotEn, titleRace: titleRaceEn };
+  // Season cumulative scoring leader
+  const seasonTop = input.seasonTopScorer ?? null;
+  const hasSeasonTop = !!seasonTop && seasonTop.points > 0;
+  const seasonTopHe = hasSeasonTop ? `${seasonTop!.name} — ${seasonTop!.points} נק׳` : null;
+  const seasonTopEn = hasSeasonTop ? `${seasonTop!.name} — ${seasonTop!.points} pts` : null;
+
+  // Cup holder (team name, already resolved)
+  const cupHolder = input.cupHolder ?? null;
+
+  // Playoffs underway (≥1 unplayed playoff game)
+  const playoffsActive = input.playoffsActive ?? false;
+  const playoffsHe = playoffsActive ? 'הפלייאוף יצא לדרך — צפו בעץ' : null;
+  const playoffsEn = playoffsActive ? 'Playoffs are underway — see the bracket' : null;
+
+  const heByType: Record<AutoTickerType, string | null> = {
+    topScorer: topHe, hotStreak: hotHe, titleRace: titleRaceHe,
+    seasonTopScorer: seasonTopHe, cupHolder, playoffsLive: playoffsHe,
+  };
+  const enByType: Record<AutoTickerType, string | null> = {
+    topScorer: topEn, hotStreak: hotEn, titleRace: titleRaceEn,
+    seasonTopScorer: seasonTopEn, cupHolder, playoffsLive: playoffsEn,
+  };
   const hrefByType: Record<AutoTickerType, string | null> = {
     topScorer: hasTop ? `/players/${topScorer!.id}` : null,
     hotStreak: '/standings',
     titleRace: '/standings',
+    seasonTopScorer: hasSeasonTop ? `/players/${seasonTop!.id}` : null,
+    cupHolder: cupHolder ? '/cup' : null,
+    playoffsLive: playoffsActive ? '/playoff' : null,
   };
 
   return AUTO_TICKER_ORDER.map((type) => {

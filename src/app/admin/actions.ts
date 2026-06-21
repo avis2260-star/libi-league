@@ -153,11 +153,18 @@ export async function updateGameDetails(
   gameId: string,
   gameTime: string,
   location: string,
+  gameDate?: string,
 ): Promise<ActionResult> {
   const update: Record<string, unknown> = {
     game_time: gameTime || '00:00:00',
     location:  location || 'TBD',
   };
+  // Optional reschedule: a new game date (for postponed / makeup games). Only
+  // applied when a valid YYYY-MM-DD is provided, so normal time/location edits
+  // never clear the existing date.
+  if (gameDate && /^\d{4}-\d{2}-\d{2}$/.test(gameDate)) {
+    update.game_date = gameDate;
+  }
 
   const { error } = await supabaseAdmin
     .from('games')
@@ -169,6 +176,7 @@ export async function updateGameDetails(
   revalidatePath('/admin');
   revalidatePath('/');
   revalidatePath('/games');
+  revalidatePath('/results');
   return {};
 }
 

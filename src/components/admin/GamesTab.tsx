@@ -344,6 +344,7 @@ function GameScoreCard({ game }: { game: GameWithTeams }) {
   const [status, setStatus] = useState<GameStatus>(game.status);
   const [gameTime, setGameTime] = useState(game.game_time ?? '');
   const [location, setLocation] = useState(game.location ?? '');
+  const [gameDate, setGameDate] = useState(game.game_date ?? '');
   const [delayed, setDelayed] = useState<boolean>(!!game.delayed);
   const [feedback, setFeedback] = useState<{ ok?: boolean; msg?: string }>({});
   const [detailsFeedback, setDetailsFeedback] = useState<{ ok?: boolean; msg?: string }>({});
@@ -382,7 +383,7 @@ function GameScoreCard({ game }: { game: GameWithTeams }) {
   function handleSaveDetails() {
     setDetailsFeedback({});
     startDetailsTransition(async () => {
-      const result = await updateGameDetails(game.id, gameTime, location);
+      const result = await updateGameDetails(game.id, gameTime, location, gameDate);
       if (result?.error) {
         setDetailsFeedback({ ok: false, msg: result.error });
       } else {
@@ -478,6 +479,16 @@ function GameScoreCard({ game }: { game: GameWithTeams }) {
             </p>
           </div>
 
+          <div className="mb-4">
+            <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">תאריך המשחק <span className="normal-case text-amber-400/80">(לקביעת מועד חדש לדחיות)</span></p>
+            <input
+              type="date"
+              value={gameDate}
+              onChange={e => setGameDate(e.target.value)}
+              className="h-11 w-full rounded-xl border border-gray-700 bg-gray-900 px-3 text-sm text-white focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+            />
+          </div>
+
           <div className="mb-2 grid grid-cols-2 gap-4">
             <div>
               <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">Time</p>
@@ -510,7 +521,7 @@ function GameScoreCard({ game }: { game: GameWithTeams }) {
             disabled={isDetailsPending}
             className="mb-5 h-10 w-full rounded-xl border border-blue-600 text-sm font-semibold text-blue-400 transition hover:bg-blue-600 hover:text-white active:scale-[0.98] disabled:opacity-60"
           >
-            {isDetailsPending ? 'Applying…' : '📍 Apply Time & Location'}
+            {isDetailsPending ? 'Applying…' : '📅 Apply Date, Time & Location'}
           </button>
 
           {feedback.msg && (

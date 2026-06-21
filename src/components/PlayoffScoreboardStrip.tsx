@@ -1,6 +1,5 @@
 'use client';
 
-import { useRef } from 'react';
 import Link from 'next/link';
 import { useLang } from '@/components/TranslationProvider';
 
@@ -15,8 +14,8 @@ export type PlayoffStripGame = {
   /** Series tally oriented to this card's home/away teams. */
   homeWins: number;
   awayWins: number;
-  dateLabel: string;   // "29.06" — empty when no date yet
-  dayLabel: string;    // "ראשון" / "Sun" — empty when no date yet
+  dateLabel: string;   // "29.06" — empty when no date
+  dayLabel: string;    // "ראשון" / "Sun" — empty when no date
   location: string | null;
 };
 
@@ -26,16 +25,16 @@ const STAGE_LABEL: Record<'he' | 'en', Record<PlayoffStripGame['stageKey'], stri
 };
 
 // Accent per stage — quarters cool blue, semis orange, final gold.
-const STAGE_ACCENT: Record<PlayoffStripGame['stageKey'], { text: string; dot: string }> = {
-  qf:    { text: 'text-sky-400',    dot: 'bg-sky-400' },
-  sf:    { text: 'text-orange-400', dot: 'bg-orange-400' },
-  final: { text: 'text-[#e0c97a]',  dot: 'bg-[#e0c97a]' },
+const STAGE_ACCENT: Record<PlayoffStripGame['stageKey'], { text: string; dot: string; bg: string; border: string }> = {
+  qf:    { text: 'text-sky-400',    dot: 'bg-sky-400',    bg: 'bg-sky-400/10',    border: '#38bdf8' },
+  sf:    { text: 'text-orange-400', dot: 'bg-orange-400', bg: 'bg-orange-400/10', border: '#fb923c' },
+  final: { text: 'text-[#e0c97a]',  dot: 'bg-[#e0c97a]',  bg: 'bg-[#e0c97a]/10',  border: '#e0c97a' },
 };
 
 function TeamLogo({ logo, name }: { logo: string | null; name: string }) {
   const { t } = useLang();
   return (
-    <div className="h-7 w-7 shrink-0 rounded-full border border-white/10 bg-white/[0.05] overflow-hidden flex items-center justify-center text-[10px]">
+    <div className="h-9 w-9 shrink-0 rounded-full border border-white/10 bg-white/[0.05] overflow-hidden flex items-center justify-center text-xs">
       {logo
         // eslint-disable-next-line @next/next/no-img-element
         ? <img src={logo} alt={t(name)} className="h-full w-full object-cover" />
@@ -45,121 +44,90 @@ function TeamLogo({ logo, name }: { logo: string | null; name: string }) {
 }
 
 /* ── Playoff scoreboard strip ──────────────────────────────────────────────
-   Drops into the home page in place of the regular-season ScoreboardStrip when
-   the season phase is 'playoffs'. Shows the next upcoming game of each active
-   series (best-of-3 tally included); each card links to its series page. */
+   Replaces the regular-season ScoreboardStrip on the home page during the
+   playoffs. Cards stretch to fill the strip's full width (responsive auto-fit
+   grid) and show each active series' next game with its best-of-3 tally. */
 export default function PlayoffScoreboardStrip({ games }: { games: PlayoffStripGame[] }) {
   const { t, lang } = useLang();
   const en = lang === 'en';
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  function scroll(dir: 'left' | 'right') {
-    scrollRef.current?.scrollBy({ left: dir === 'left' ? -300 : 300, behavior: 'smooth' });
-  }
 
   if (games.length === 0) return null;
 
   return (
-    <div className="rounded-xl overflow-hidden border border-[#e0c97a]/20 bg-gradient-to-b from-[#12100a] to-[#0d1a28]">
+    <section className="rounded-xl overflow-hidden border border-[#e0c97a]/20 bg-gradient-to-b from-[#14110a] to-[#0d1a28]">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-white/[0.05] px-3 py-2">
-        <div className="shrink-0 flex items-center gap-1.5">
-          <span className="text-base leading-none">🏆</span>
-          <p className="text-sm font-black tracking-wide text-[#e0c97a] font-heading">
-            {en ? 'Playoffs' : 'פלייאוף'}
-          </p>
-        </div>
-        <div className="h-6 w-px bg-white/[0.06] shrink-0" />
-        <p className="flex-1 text-sm font-black text-[#8aaac8] font-body">{en ? 'Upcoming games' : 'משחקים קרובים'}</p>
-
-        {/* Scroll arrows */}
-        <button
-          onClick={() => scroll('right')}
-          className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.04] text-[#8aaac8] hover:bg-white/[0.08] hover:text-white transition-colors"
-          aria-label="scroll right"
-        >
-          ›
-        </button>
-        <button
-          onClick={() => scroll('left')}
-          className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.04] text-[#8aaac8] hover:bg-white/[0.08] hover:text-white transition-colors"
-          aria-label="scroll left"
-        >
-          ‹
-        </button>
-
+      <div className="flex items-center gap-2 border-b border-white/[0.06] px-4 py-2.5">
+        <span className="text-base leading-none">🏆</span>
+        <p className="text-sm font-black tracking-wide text-[#e0c97a] font-heading">{en ? 'Playoffs' : 'פלייאוף'}</p>
+        <span className="text-[#3a5a7a]">·</span>
+        <p className="text-sm font-black text-[#8aaac8] font-body">{en ? 'Upcoming games' : 'משחקים קרובים'}</p>
         <Link
           href="/playoff"
-          className="shrink-0 text-[11px] font-bold text-[#e0c97a] hover:text-yellow-300 transition-colors pr-1"
+          className="ms-auto shrink-0 text-[11px] font-bold text-[#e0c97a] hover:text-yellow-300 transition-colors"
         >
-          {en ? '← Bracket' : '← לעץ הפלייאוף'}
+          {en ? 'Bracket →' : 'לעץ הפלייאוף ←'}
         </Link>
       </div>
 
-      {/* Scrollable cards */}
-      <div
-        ref={scrollRef}
-        className="flex overflow-x-auto"
-        style={{ scrollbarWidth: 'none' }}
-      >
-        {games.map((g, i) => {
-          const accent = STAGE_ACCENT[g.stageKey];
-          const started = g.homeWins > 0 || g.awayWins > 0;
+      {/* Stretched, responsive cards — auto-fit columns fill the full width. */}
+      <div className="grid gap-px bg-white/[0.06] grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
+        {games.map((g) => {
+          const accent    = STAGE_ACCENT[g.stageKey];
+          const started   = g.homeWins > 0 || g.awayWins > 0;
+          const homeLeads = g.homeWins > g.awayWins;
+          const awayLeads = g.awayWins > g.homeWins;
           return (
             <Link
               key={`${g.seriesNumber}-${g.gameNumber}`}
               href={`/playoff/series/${g.seriesNumber}`}
-              className={`relative group shrink-0 w-48 p-3 text-right transition-colors hover:bg-white/[0.04] ${
-                i < games.length - 1 ? 'border-l border-white/[0.05]' : ''
-              }`}
+              className="group bg-[#0b1622] p-3 text-right transition-colors hover:bg-white/[0.03] border-t-2"
+              style={{ borderTopColor: accent.border }}
             >
-              {/* Stage badge */}
-              <div className={`mb-2.5 flex items-center gap-1 text-[9px] font-bold ${accent.text}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${accent.dot}`} />
-                {STAGE_LABEL[en ? 'en' : 'he'][g.stageKey]}
-                <span className="text-[#3a5a7a]">· {en ? `Game ${g.gameNumber}` : `משחק ${g.gameNumber}`}</span>
+              {/* Stage badge + game number */}
+              <div className="mb-3 flex items-center justify-between gap-1">
+                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${accent.text} ${accent.bg}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${accent.dot}`} />
+                  {STAGE_LABEL[en ? 'en' : 'he'][g.stageKey]}
+                </span>
+                <span className="text-[10px] font-bold text-[#5a7a9a]">{en ? `Game ${g.gameNumber}` : `משחק ${g.gameNumber}`}</span>
               </div>
 
-              {/* Home team + series tally */}
-              <div className="flex items-center gap-2 mb-1">
+              {/* Home team + series wins */}
+              <div className="flex items-center gap-2 mb-2">
                 <TeamLogo logo={g.homeLogo} name={g.homeTeam} />
-                <p className="truncate text-xs font-black text-[#e8edf5] group-hover:text-[#e0c97a] transition-colors leading-snug flex-1 font-heading">
+                <p className={`flex-1 truncate text-sm font-black leading-tight font-heading transition-colors group-hover:text-[#e0c97a] ${homeLeads ? 'text-white' : 'text-[#c8d8e8]'}`}>
                   {t(g.homeTeam)}
                 </p>
-                <span className={`shrink-0 text-xs font-black font-stats ${started ? 'text-white' : 'text-[#3a5a7a]'}`}>{g.homeWins}</span>
+                <span className={`shrink-0 text-lg font-black tabular-nums font-stats ${homeLeads ? 'text-[#e0c97a]' : started ? 'text-white' : 'text-[#3a5a7a]'}`}>{g.homeWins}</span>
               </div>
 
-              {/* VS divider */}
-              <div className="my-1.5 flex items-center gap-1.5 pr-9">
-                <div className="h-px flex-1 bg-white/[0.06]" />
-                <span className="text-[9px] font-black text-[#3a5a7a]">VS</span>
-                <div className="h-px flex-1 bg-white/[0.06]" />
-              </div>
-
-              {/* Away team + series tally */}
+              {/* Away team + series wins */}
               <div className="flex items-center gap-2">
                 <TeamLogo logo={g.awayLogo} name={g.awayTeam} />
-                <p className="truncate text-xs font-black text-[#e8edf5] group-hover:text-[#e0c97a] transition-colors leading-snug flex-1 font-heading">
+                <p className={`flex-1 truncate text-sm font-black leading-tight font-heading transition-colors group-hover:text-[#e0c97a] ${awayLeads ? 'text-white' : 'text-[#c8d8e8]'}`}>
                   {t(g.awayTeam)}
                 </p>
-                <span className={`shrink-0 text-xs font-black font-stats ${started ? 'text-white' : 'text-[#3a5a7a]'}`}>{g.awayWins}</span>
+                <span className={`shrink-0 text-lg font-black tabular-nums font-stats ${awayLeads ? 'text-[#e0c97a]' : started ? 'text-white' : 'text-[#3a5a7a]'}`}>{g.awayWins}</span>
               </div>
 
-              {/* Footer: date + best-of-3 hint + location */}
-              <p className="mt-2 text-xs font-black text-[#8aaac8] font-body">
-                {g.dateLabel
-                  ? <span className="font-stats text-[#c8d8e8]">{g.dayLabel ? `${g.dayLabel} · ` : ''}{g.dateLabel}</span>
-                  : <span className="text-[#5a7a9a]">{en ? 'TBD' : 'טרם נקבע'}</span>}
-                <span className="mx-1 text-[#3a5a7a]">·</span>
-                <span className={accent.text}>{g.stageKey === 'final' ? (en ? 'Single game' : 'משחק אחד') : (en ? 'Best of 3' : 'הטוב מ-3')}</span>
-              </p>
+              {/* Footer: date + format */}
+              <div className="mt-3 flex items-center justify-between gap-1 border-t border-white/[0.05] pt-2">
+                <span className="truncate text-[10px] font-bold text-[#8aaac8] font-body">
+                  {g.dateLabel
+                    ? <span className="font-stats text-[#c8d8e8]">{g.dayLabel ? `${g.dayLabel} · ` : ''}{g.dateLabel}</span>
+                    : <span className="text-[#5a7a9a]">{en ? 'TBD' : 'טרם נקבע'}</span>}
+                </span>
+                <span className={`shrink-0 text-[10px] font-black ${accent.text}`}>
+                  {g.stageKey === 'final' ? (en ? 'Single game' : 'משחק אחד') : (en ? 'Best of 3' : 'הטוב מ-3')}
+                </span>
+              </div>
               {g.location && (
-                <p className="mt-0.5 truncate text-[10px] font-bold text-[#5a7a9a] font-body">📍 {g.location}</p>
+                <p className="mt-1 truncate text-[10px] font-bold text-[#5a7a9a] font-body">📍 {g.location}</p>
               )}
             </Link>
           );
         })}
       </div>
-    </div>
+    </section>
   );
 }

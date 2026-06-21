@@ -1138,9 +1138,15 @@ export default async function HomePage() {
   // to 'playoffs' once the regular season is complete and playoff games exist.
   // During playoffs the playoff strip replaces the regular next-round strip
   // (which is empty anyway once nextRound passes TOTAL_ROUNDS).
+  // The regular season counts as complete only when every round is in AND no
+  // postponed (delayed) game is still awaiting a result — so the playoff
+  // transition and the season-summary framing never fire while a makeup game
+  // is still pending.
+  const hasPendingPostponed = delayedGames.some((g) => g.status !== 'Finished');
+  const regularSeasonComplete = currentRound >= TOTAL_ROUNDS && !hasPendingPostponed;
   const seasonPhase = resolveSeasonPhase({
     setting: seasonPhaseSetting,
-    regularSeasonComplete: currentRound >= TOTAL_ROUNDS,
+    regularSeasonComplete,
     hasPlayoffGames: playoffUpcoming.hasAnyGames,
   });
 
@@ -1170,6 +1176,26 @@ export default async function HomePage() {
     };
   });
   const showPlayoffStrip = seasonPhase === 'playoffs' && playoffStripGames.length > 0;
+
+  // ── Phase-aware overview ──────────────────────────────────────────────────
+  // During the playoffs the home overview is reframed as a regular-season
+  // summary, and the "rounds remaining" stat (now 0) becomes a playoff-stage
+  // indicator linking to the bracket.
+  // Only reframe the overview as "regular season complete" once the season is
+  // genuinely finished (all rounds in + no postponed game pending) — even if the
+  // admin has flipped the phase to show the playoff strip early.
+  const inPlayoffs = seasonPhase === 'playoffs' && regularSeasonComplete;
+  const playoffStageKey = playoffUpcoming.games.length
+    ? (playoffUpcoming.games.some((g) => g.stageKey === 'qf') ? 'qf'
+      : playoffUpcoming.games.some((g) => g.stageKey === 'sf') ? 'sf' : 'final')
+    : null;
+  const PLAYOFF_STAGE_LABEL = {
+    he: { qf: 'רבע גמר', sf: 'חצי גמר', final: 'גמר' },
+    en: { qf: 'Quarterfinals', sf: 'Semifinals', final: 'Final' },
+  } as const;
+  const playoffStageLabel = playoffStageKey
+    ? PLAYOFF_STAGE_LABEL[lang === 'en' ? 'en' : 'he'][playoffStageKey]
+    : (lang === 'en' ? 'In progress' : 'בעיצומו');
 
   // ── Delayed / postponed games ─────────────────────────────────────────────
   // Pending delayed games surface as a strip until played; finished ones show
@@ -1340,8 +1366,14 @@ export default async function HomePage() {
       <LastRoundResults />
 
       <div>
-        <h1 className="text-3xl font-black text-white font-heading">{T('סקירה כללית')}</h1>
-        <p className="mt-1 text-sm font-bold text-[#8aaac8] font-body">{lang === 'en' ? `Season 2025–2026 · Through Round ${currentRound}` : `עונת 2025–2026 · עד מחזור ${currentRound}`}</p>
+        <h1 className="text-3xl font-black text-white font-heading">
+          {inPlayoffs ? (lang === 'en' ? 'Regular-Season Summary' : 'סיכום עונה סדירה') : T('סקירה כללית')}
+        </h1>
+        <p className="mt-1 text-sm font-bold text-[#8aaac8] font-body">
+          {inPlayoffs
+            ? (lang === 'en' ? 'Season 2025–2026 · Regular season complete' : 'עונת 2025–2026 · העונה הסדירה הסתיימה')
+            : (lang === 'en' ? `Season 2025–2026 · Through Round ${currentRound}` : `עונת 2025–2026 · עד מחזור ${currentRound}`)}
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -1357,8 +1389,8 @@ export default async function HomePage() {
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         {[
-          { label: T('🥇 מוביל צפון'), team: northLeader },
-          { label: T('🥇 מוביל דרום'), team: southLeader },
+          { label: inPlayoffs ? (lang === 'en' ? '🥇 North · 1st' : '🥇 מקום ראשון צפון') : T('🥇 מוביל צפון'), team: northLeader },
+          { label: inPlayoffs ? (lang === 'en' ? '🥇 South · 1st' : '🥇 מקום ראשון דרום') : T('🥇 מוביל דרום'), team: southLeader },
         ].map(({ label, team }) => (
           <div key={label} className="rounded-2xl border border-white/[0.07] bg-white/[0.04]" style={{ borderTop: '3px solid #e0c97a' }}>
             <div className="p-5">
@@ -1530,11 +1562,22 @@ export default async function HomePage() {
               </>
             )}
           </Link>
-          <div className="p-5">
-            <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">{T('מחזורים שנותרו')}</p>
-            <p className="text-3xl font-black text-blue-400 font-stats">{TOTAL_ROUNDS - currentRound}</p>
-            <p className="text-sm font-bold text-[#8aaac8] font-body">{lang === 'en' ? `out of ${TOTAL_ROUNDS} rounds` : `מתוך ${TOTAL_ROUNDS} מחזורים`}</p>
-          </div>
+          {inPlayoffs ? (
+            <Link href="/playoff" className="group block p-5 transition-colors hover:bg-white/[0.03]">
+              <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">
+                {lang === 'en' ? 'Playoffs' : 'פלייאוף'}
+                <span className="ms-1 text-[#e0c97a] opacity-0 transition-opacity group-hover:opacity-100">←</span>
+              </p>
+              <p className="text-2xl font-black text-[#e0c97a] font-heading transition-colors group-hover:text-yellow-300">{playoffStageLabel}</p>
+              <p className="text-sm font-bold text-[#8aaac8] font-body">{lang === 'en' ? 'See the bracket' : 'צפו בעץ הפלייאוף'}</p>
+            </Link>
+          ) : (
+            <div className="p-5">
+              <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">{T('מחזורים שנותרו')}</p>
+              <p className="text-3xl font-black text-blue-400 font-stats">{TOTAL_ROUNDS - currentRound}</p>
+              <p className="text-sm font-bold text-[#8aaac8] font-body">{lang === 'en' ? `out of ${TOTAL_ROUNDS} rounds` : `מתוך ${TOTAL_ROUNDS} מחזורים`}</p>
+            </div>
+          )}
         </div>
       </section>
 

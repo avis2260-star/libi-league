@@ -28,6 +28,8 @@ export async function getAutoTickerItems(season: string): Promise<AutoTickerItem
       { data: games },
       { data: gameStats },
       { data: players },
+      { data: cupFinals },
+      { data: playoffGames },
     ] = await Promise.all([
       supabaseAdmin.from('league_settings').select('value').eq('key', 'ticker_auto').maybeSingle(),
       supabaseAdmin
@@ -43,7 +45,10 @@ export async function getAutoTickerItems(season: string): Promise<AutoTickerItem
       // For the last-round high scorer: game dates + per-game player points.
       supabaseAdmin.from('games').select('id, game_date').eq('season', season),
       supabaseAdmin.from('game_stats').select('player_id, points, game_id').eq('season', season),
-      supabaseAdmin.from('players').select('id, name'),
+      supabaseAdmin.from('players').select('id, name, points, is_active'),
+      // Season-end / playoff lines:
+      supabaseAdmin.from('cup_games').select('home_team, away_team, home_score, away_score, played').eq('season', season).eq('round', 'גמר'),
+      supabaseAdmin.from('playoff_games').select('played').eq('season', season),
     ]);
 
     const config = parseAutoConfig(cfgRow?.value ?? null);
@@ -81,7 +86,30 @@ export async function getAutoTickerItems(season: string): Promise<AutoTickerItem
     }));
     const streaks = computeStreaks(resolvedResults);
 
-    return buildAutoTickerItems({ config, topScorer, divisions, streaks });
+    // Playoffs underway = at least one unplayed playoff game this season.
+    const playoffsActive = ((playoffGames ?? []) as { played: boolean | null }[]).some((g) => !g.played);
+
+    // Season cumulative scoring leader — only surfaced once the season is
+    // winding down (playoffs underway); during the regular season the
+    // "קלע המחזור" round line already covers scoring.
+    const seasonLeader = ((players ?? []) as { id: string; name: string; points: number | null; is_active?: boolean }[])
+      .filter((p) => p.is_active !== false)
+      .reduce<{ id: string; name: string; points: number } | null>(
+        (best, p) => ((p.points ?? 0) > (best?.points ?? 0) ? { id: p.id, name: p.name, points: p.points ?? 0 } : best),
+        null,
+      );
+    const seasonTopScorer = playoffsActive && seasonLeader && seasonLeader.points > 0 ? seasonLeader : null;
+
+    // Cup holder = decided cup-final winner (resolved to the canonical team name).
+    type CupFinalRow = { home_team: string; away_team: string; home_score: number | null; away_score: number | null; played: boolean | null };
+    const decidedCup = ((cupFinals ?? []) as CupFinalRow[]).find(
+      (f) => f.played && f.home_score != null && f.away_score != null && f.home_score !== f.away_score,
+    );
+    const cupHolder = decidedCup
+      ? resolve(decidedCup.home_score! > decidedCup.away_score! ? decidedCup.home_team : decidedCup.away_team)
+      : null;
+
+    return buildAutoTickerItems({ config, topScorer, divisions, streaks, seasonTopScorer, cupHolder, playoffsActive });
   } catch {
     // On any failure, return nothing auto-generated rather than breaking the
     // page or the admin tab.
