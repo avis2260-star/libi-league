@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { NORTH_TABLE, SOUTH_TABLE } from '@/lib/league-data';
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { getLang, st } from '@/lib/get-lang';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
@@ -180,7 +181,7 @@ export default async function TeamStatsPage({
     }
     return {
       round: g.round, date: g.date, isHome, myScore, oppScore, oppName, won,
-      techni, isDoubleLoss,
+      techni, isDoubleLoss, homeTeam: g.home_team,
     };
   });
 
@@ -289,13 +290,17 @@ export default async function TeamStatsPage({
           </div>
           <div className="divide-y divide-white/[0.04]">
             {[...gameDetails].sort((a, b) => b.round - a.round).map((g, i) => (
-              <div key={i} className={`flex items-center gap-3 px-4 py-3 ${g.won ? 'bg-green-500/[0.03]' : ''}`}>
+              <Link
+                key={i}
+                href={`/games/${g.round}/${encodeURIComponent(g.homeTeam)}`}
+                className={`group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.06] ${g.won ? 'bg-green-500/[0.03]' : ''}`}
+              >
                 <span className={`shrink-0 rounded-full w-6 h-6 flex items-center justify-center text-[10px] font-black ${
                   g.won ? 'bg-green-500/20 text-green-400' : 'bg-red-500/15 text-red-400'
                 }`}>{g.won ? (lang === 'en' ? 'W' : 'נ') : (lang === 'en' ? 'L' : 'ה')}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-white truncate flex items-center gap-2">
-                    <span className="truncate">{g.isHome ? T('בית') : T('חוץ')} {T('נגד')} {T(g.oppName)}</span>
+                    <span className="truncate group-hover:text-orange-400 transition-colors">{g.isHome ? T('בית') : T('חוץ')} {T('נגד')} {T(g.oppName)}</span>
                     {g.techni && (
                       <span className="shrink-0 rounded-md bg-yellow-400/15 text-yellow-300 text-[10px] font-black px-1.5 py-0.5 ring-1 ring-yellow-400/30">
                         {g.isDoubleLoss ? T('הפסד טכני הדדי') : (g.won ? T('ניצחון טכני') : T('הפסד טכני'))}
@@ -309,7 +314,10 @@ export default async function TeamStatsPage({
                   <span className="text-[#8aaac8] mx-1">–</span>
                   <span className="text-lg font-black text-[#8aaac8] font-stats">{g.oppScore}</span>
                 </div>
-              </div>
+                <span className="shrink-0 text-[#5a7a9a] group-hover:text-orange-400 transition-colors" aria-hidden>
+                  {en ? '›' : '‹'}
+                </span>
+              </Link>
             ))}
           </div>
         </div>
