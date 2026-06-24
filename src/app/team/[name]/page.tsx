@@ -48,6 +48,12 @@ function normName(s: string) {
   return s.replace(/["""״'']/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
+// A forfeit is recorded as 20:0. Treat that score as technical even when the
+// admin sheet never set the techni flag, so the log badges it consistently
+// with the results page (and it's excluded from scoring averages).
+const isTechniScore = (sh: number, sa: number) =>
+  (sh === 20 && sa === 0) || (sh === 0 && sa === 20);
+
 /* ── Page ───────────────────────────────────────────────────────────────────── */
 export default async function TeamStatsPage({
   params,
@@ -161,17 +167,20 @@ export default async function TeamStatsPage({
     const myScore  = isHome ? g.home_score : g.away_score;
     const oppScore = isHome ? g.away_score : g.home_score;
     const oppName  = resolveName(isHome ? g.away_team : g.home_team);
-    const isDoubleLoss = g.techni && g.home_score === 0 && g.away_score === 0;
+    // Flag OR forfeit score (20:0) — matches the results page so a row the
+    // sheet forgot to mark still badges and stays out of the averages.
+    const techni = !!g.techni || isTechniScore(g.home_score, g.away_score);
+    const isDoubleLoss = techni && g.home_score === 0 && g.away_score === 0;
     const won = isDoubleLoss ? false : myScore > oppScore;
     if (won) wins++; else losses++;
-    if (!g.techni) {
+    if (!techni) {
       totalPts += myScore;
       totalAllowed += oppScore;
       nonTechniGames++;
     }
     return {
       round: g.round, date: g.date, isHome, myScore, oppScore, oppName, won,
-      techni: g.techni, isDoubleLoss,
+      techni, isDoubleLoss,
     };
   });
 

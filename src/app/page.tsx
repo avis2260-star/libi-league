@@ -415,7 +415,11 @@ async function getLiveData(season: string) {
     const northTopScorer = [...north].sort((a, b) => (b.pf ?? 0) - (a.pf ?? 0))[0] ?? NORTH_TABLE[0];
 
     const games = (results ?? []) as GameRow[];
-    const gamesPlayed  = games.filter((g) => !g.techni).length;
+    // Flag OR forfeit score (20:0) — a forfeit the sheet forgot to flag must
+    // still be excluded, else its margin-20 would surface as "biggest win".
+    const isTechni = (g: GameRow) =>
+      g.techni || (g.home_score === 20 && g.away_score === 0) || (g.home_score === 0 && g.away_score === 20);
+    const gamesPlayed  = games.filter((g) => !isTechni(g)).length;
     const currentRound = games.length > 0 ? Math.max(...games.map((g) => g.round)) : CURRENT_ROUND;
 
     // Season records
@@ -425,7 +429,7 @@ async function getLiveData(season: string) {
     let closestCount = 0;
 
     for (const g of games) {
-      if (g.techni) continue;
+      if (isTechni(g)) continue;
       const combined = g.home_score + g.away_score;
       const margin   = Math.abs(g.home_score - g.away_score);
 

@@ -23,6 +23,11 @@ function normalize(s: string) {
   return s.replace(/["""''`״׳]/g, '').replace(/\s+/g, ' ').trim();
 }
 
+// A forfeit is recorded as 20:0 — treat that score as technical even when the
+// sheet never set the flag, so the badge matches the results page.
+const isTechniScore = (sh: number, sa: number) =>
+  (sh === 20 && sa === 0) || (sh === 0 && sa === 20);
+
 type StandingRow = {
   name: string; rank: number; wins: number; losses: number;
   diff: number; pts: number; games: number; pf: number; pa: number;
@@ -169,7 +174,8 @@ export default async function GamePreviewPage({
   const isPlayed = !!resultRow;
   const homeScore = resultRow?.home_score ?? null;
   const awayScore = resultRow?.away_score ?? null;
-  const techni = resultRow?.techni ?? false;
+  const techni = !!resultRow?.techni ||
+    (homeScore != null && awayScore != null && isTechniScore(homeScore, awayScore));
   const homeWon = isPlayed && (homeScore as number) > (awayScore as number);
   const awayWon = isPlayed && (awayScore as number) > (homeScore as number);
 
