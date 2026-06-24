@@ -254,9 +254,16 @@ export default async function GamePreviewPage({
     awayBox = rows.filter(r => r.player.team_id === awayTeamObj.id).map(toBox);
   }
 
-  const dateStr    = ROUND_DATES[round] ?? game.date;
-  const dayOfWeek  = game.date
-    ? (en ? EN_DAYS[new Date(game.date).getDay()] : HE_DAYS[new Date(game.date).getDay()])
+  // Prefer the real scheduled date from the DB games row (admin-editable, so
+  // it reflects postponements) over the static per-round date. Time and
+  // location already come from this same row — the date should too, otherwise
+  // a rescheduled game shows the stale round date next to its updated time.
+  const dbIso = dbMatch?.game_date ? dbMatch.game_date.slice(0, 10) : null;
+  const toDmy = (iso: string) => { const [y, m, d] = iso.split('-'); return `${d}.${m}.${y.slice(2)}`; };
+  const dateStr    = dbIso ? toDmy(dbIso) : (ROUND_DATES[round] ?? game.date);
+  const dowDate    = dbIso ?? game.date;
+  const dayOfWeek  = dowDate
+    ? (en ? EN_DAYS[new Date(dowDate).getDay()] : HE_DAYS[new Date(dowDate).getDay()])
     : '';
   const divLabel   = game.division === 'North' ? T('מחוז צפון') : T('מחוז דרום');
   const divColor   = game.division === 'North' ? 'text-blue-400' : 'text-orange-400';
