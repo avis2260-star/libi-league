@@ -330,6 +330,11 @@ export default async function TeamStatsPage({
               const hasScores = myScore !== null && oppScore !== null;
               const won = hasScores && (myScore as number) > (oppScore as number);
               const isPlayed = g.played || hasScores;
+              // Cup games have no techni flag — infer a forfeit from the score:
+              // 20:0 (single-side) or a played 0:0 (mutual).
+              const techni = (hasScores && isTechniScore(myScore as number, oppScore as number))
+                || (g.played === true && myScore === 0 && oppScore === 0);
+              const isDoubleLoss = techni && myScore === 0 && oppScore === 0;
               return (
                 <div key={i} className="flex items-center gap-3 px-4 py-3">
                   <span className={`shrink-0 rounded-full w-6 h-6 flex items-center justify-center text-[10px] font-black ${
@@ -337,7 +342,14 @@ export default async function TeamStatsPage({
                     won ? 'bg-green-500/20 text-green-400' : 'bg-red-500/15 text-red-400'
                   }`}>{!isPlayed ? '?' : won ? (lang === 'en' ? 'W' : 'נ') : (lang === 'en' ? 'L' : 'ה')}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-white truncate">{T('גביע')} — {T(g.round)} {T('נגד')} {T(oppName)}</p>
+                    <p className="text-sm font-bold text-white truncate flex items-center gap-2">
+                      <span className="truncate">{T('גביע')} — {T(g.round)} {T('נגד')} {T(oppName)}</span>
+                      {techni && (
+                        <span className="shrink-0 rounded-md bg-yellow-400/15 text-yellow-300 text-[10px] font-black px-1.5 py-0.5 ring-1 ring-yellow-400/30">
+                          {isDoubleLoss ? T('הפסד טכני הדדי') : (won ? T('ניצחון טכני') : T('הפסד טכני'))}
+                        </span>
+                      )}
+                    </p>
                   </div>
                   {hasScores ? (
                     <div dir="ltr" className="shrink-0">
