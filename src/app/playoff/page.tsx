@@ -455,8 +455,14 @@ export default async function PlayoffPage({
           <img src={logoUrl} alt="ליגת ליבי" className="h-12 w-12 object-contain rounded-full" />
         </div>
         <p className="text-sm text-[#5a7a9a] font-body">{lang === 'en' ? `${viewing} · Quarters & Semis: Best of 3 · Final: Single Game` : `${viewing} · רבע גמר וחצי גמר: הטוב מ-3 · גמר: משחק אחד`}</p>
-        <div className="mt-3 flex justify-center">
+        <div className="mt-3 flex justify-center items-center gap-2 flex-wrap">
           <SeasonPicker current={current} viewing={viewing} seasons={seasonsList} />
+          <Link
+            href="/playoff/stats"
+            className="inline-flex items-center gap-1.5 rounded-full border border-orange-500/40 bg-orange-500/[0.08] px-3 py-1 text-[11px] font-black text-orange-300 hover:bg-orange-500/[0.15] transition-colors"
+          >
+            📊 {lang === 'en' ? 'Playoff Stats' : 'סטטיסטיקה פלייאוף'}
+          </Link>
         </div>
       </div>
 

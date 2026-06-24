@@ -258,6 +258,132 @@ async function getTopScorers(): Promise<TopPlayer[]> {
   }
 }
 
+// Playoff scoring leaders (top 5 by total playoff points), same shape as
+// getTopScorers so the home top-scorers section can render either list. Read
+// from playoff_game_stats — kept separate from the regular-season leaderboard.
+async function getPlayoffTopScorers(season: string): Promise<TopPlayer[]> {
+  try {
+    const { data: stats } = await supabaseAdmin
+      .from('playoff_game_stats')
+      .select('player_id, points, three_pointers, fouls')
+      .eq('season', season);
+    const rows = (stats ?? []) as { player_id: string; points: number | null; three_pointers: number | null; fouls: number | null }[];
+    if (rows.length === 0) return [];
+
+    const agg = new Map<string, { points: number; three_pointers: number; fouls: number }>();
+    for (const r of rows) {
+      const a = agg.get(r.player_id) ?? { points: 0, three_pointers: 0, fouls: 0 };
+      a.points         += r.points         ?? 0;
+      a.three_pointers += r.three_pointers ?? 0;
+      a.fouls          += r.fouls          ?? 0;
+      agg.set(r.player_id, a);
+    }
+    const top = [...agg.entries()]
+      .filter(([, a]) => a.points > 0)
+      .sort((x, y) => y[1].points - x[1].points)
+      .slice(0, 5);
+    if (top.length === 0) return [];
+
+    const { data: players } = await supabaseAdmin
+      .from('players')
+      .select('id, name, photo_url, jersey_number, team:teams(name)')
+      .in('id', top.map(([id]) => id));
+    const byId = new Map(((players ?? []) as unknown as {
+      id: string; name: string; photo_url: string | null; jersey_number: number | null; team: { name: string } | null;
+    }[]).map((p) => [p.id, p]));
+
+    return top.map(([id, a]) => {
+      const p = byId.get(id);
+      return {
+        id,
+        name:           p?.name ?? '—',
+        photo_url:      p?.photo_url ?? null,
+        jersey_number:  p?.jersey_number ?? null,
+        team_name:      p?.team?.name ?? null,
+        points:         a.points,
+        three_pointers: a.three_pointers,
+        fouls:          a.fouls,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+// Playoff highlights for the home overview / records / facts when the season is
+// over: games played, teams & series counts, and the playoff records (highest
+// team score, biggest margin, best single-game scorer). Team names are the
+// series' raw names (resolved at render via dbDisplayName). Stage is a key.
+type PlayoffStageKey = 'qf' | 'sf' | 'final';
+type PlayoffHighlights = {
+  gamesPlayed: number;
+  teams: number;
+  seriesTotal: number;
+  highScore:     { score: number; team: string; opp: string; stageKey: PlayoffStageKey } | null;
+  biggestMargin: { margin: number; winner: string; loser: string; stageKey: PlayoffStageKey } | null;
+  topGame:       { id: string; name: string; points: number; teamName: string | null; stageKey: PlayoffStageKey } | null;
+};
+
+async function getPlayoffHighlights(season: string): Promise<PlayoffHighlights> {
+  const empty: PlayoffHighlights = { gamesPlayed: 0, teams: 0, seriesTotal: 0, highScore: null, biggestMargin: null, topGame: null };
+  try {
+    const [{ data: seriesData }, { data: gamesData }, { data: statsData }] = await Promise.all([
+      supabaseAdmin.from('playoff_series').select('series_number, team_a, team_b').eq('season', season),
+      supabaseAdmin.from('playoff_games').select('series_number, game_number, home_score, away_score, played').eq('season', season),
+      supabaseAdmin.from('playoff_game_stats').select('player_id, series_number, points').eq('season', season),
+    ]);
+
+    const series = (seriesData ?? []) as { series_number: number; team_a: string | null; team_b: string | null }[];
+    const seriesByNum = new Map(series.map((s) => [s.series_number, s]));
+    const teamsSet = new Set<string>();
+    for (const s of series) {
+      if (s.team_a?.trim()) teamsSet.add(s.team_a.trim());
+      if (s.team_b?.trim()) teamsSet.add(s.team_b.trim());
+    }
+
+    const games = (gamesData ?? []) as { series_number: number; game_number: number; home_score: number | null; away_score: number | null; played: boolean | null }[];
+    const played = games.filter((g) => g.played && g.home_score != null && g.away_score != null);
+
+    let highScore: PlayoffHighlights['highScore'] = null;
+    let biggestMargin: PlayoffHighlights['biggestMargin'] = null;
+    for (const g of played) {
+      const s = seriesByNum.get(g.series_number);
+      if (!s) continue;
+      const homeTeam = (g.game_number === 2 ? s.team_b : s.team_a)?.trim() ?? '';
+      const awayTeam = (g.game_number === 2 ? s.team_a : s.team_b)?.trim() ?? '';
+      if (!homeTeam || !awayTeam) continue;
+      const stageKey = stageKeyForSeries(g.series_number);
+      if (g.home_score! > (highScore?.score ?? -1)) highScore = { score: g.home_score!, team: homeTeam, opp: awayTeam, stageKey };
+      if (g.away_score! > (highScore?.score ?? -1)) highScore = { score: g.away_score!, team: awayTeam, opp: homeTeam, stageKey };
+      const margin = Math.abs(g.home_score! - g.away_score!);
+      if (margin > (biggestMargin?.margin ?? -1)) {
+        const homeWon = g.home_score! > g.away_score!;
+        biggestMargin = { margin, winner: homeWon ? homeTeam : awayTeam, loser: homeWon ? awayTeam : homeTeam, stageKey };
+      }
+    }
+
+    const stats = (statsData ?? []) as { player_id: string; series_number: number; points: number | null }[];
+    let topStat: { player_id: string; series_number: number; points: number } | null = null;
+    for (const r of stats) {
+      if ((r.points ?? 0) > (topStat?.points ?? -1)) topStat = { player_id: r.player_id, series_number: r.series_number, points: r.points ?? 0 };
+    }
+    let topGame: PlayoffHighlights['topGame'] = null;
+    if (topStat && topStat.points > 0) {
+      const { data: pl } = await supabaseAdmin
+        .from('players')
+        .select('id, name, team:teams(name)')
+        .eq('id', topStat.player_id)
+        .maybeSingle();
+      const p = pl as unknown as { id: string; name: string; team: { name: string } | null } | null;
+      topGame = { id: topStat.player_id, name: p?.name ?? '—', points: topStat.points, teamName: p?.team?.name ?? null, stageKey: stageKeyForSeries(topStat.series_number) };
+    }
+
+    return { gamesPlayed: played.length, teams: teamsSet.size, seriesTotal: series.length, highScore, biggestMargin, topGame };
+  } catch {
+    return empty;
+  }
+}
+
 async function getTickerSpeed(): Promise<number> {
   try {
     const { data } = await supabaseAdmin
@@ -962,7 +1088,7 @@ function RecordCard({ icon, label, value, sub, detail, color }: { icon: string; 
 
 export default async function HomePage() {
   const season = await getCurrentSeason();
-  const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers, lang, dbRoundDates, cupFinal, upcomingCup, cupChampion, playoffChampion, autoTickerItems, cupHeroReviews, seasonPhaseSetting, playoffUpcoming, delayedGames] = await Promise.all([
+  const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers, lang, dbRoundDates, cupFinal, upcomingCup, cupChampion, playoffChampion, autoTickerItems, cupHeroReviews, seasonPhaseSetting, playoffUpcoming, delayedGames, playoffTopScorers, playoffHighlights] = await Promise.all([
     getLiveData(season),
     getActiveAnnouncements(),
     getTeams(),
@@ -979,6 +1105,8 @@ export default async function HomePage() {
     getSeasonPhaseSetting(),
     getUpcomingPlayoffGames(season),
     getDelayedGames(season),
+    getPlayoffTopScorers(season),
+    getPlayoffHighlights(season),
   ]);
 
   const nextRoundEarly = liveData.currentRound + 1;
@@ -1184,7 +1312,23 @@ export default async function HomePage() {
   // Only reframe the overview as "regular season complete" once the season is
   // genuinely finished (all rounds in + no postponed game pending) — even if the
   // admin has flipped the phase to show the playoff strip early.
-  const inPlayoffs = seasonPhase === 'playoffs' && regularSeasonComplete;
+  // The home sections (overview / records / facts / top-scorers) adapt to the
+  // playoffs only once there are DETERMINED playoff games — i.e. games actually
+  // played with a result — not merely because the season ended or the phase was
+  // flipped. (The upcoming-games playoff strip is separate and still announces
+  // scheduled games.)
+  const inPlayoffs = seasonPhase === 'playoffs' && regularSeasonComplete && playoffHighlights.gamesPlayed > 0;
+
+  // Top-scorers section: once the season is over (playoffs), swap the league
+  // scoring leaders for the playoff leaders — but only when playoff stats exist,
+  // so the section never goes empty in the gap before the first playoff game.
+  const showPlayoffScorers = inPlayoffs && playoffTopScorers.length > 0;
+  const scorers = showPlayoffScorers ? playoffTopScorers : topScorers;
+  const scorersTitle = showPlayoffScorers ? 'קלעי הפלייאוף' : 'קלעי הליגה';
+  const scorersHref = showPlayoffScorers ? '/playoff/stats' : '/scorers';
+  const scorersLinkLabel = showPlayoffScorers
+    ? (lang === 'en' ? 'Playoff Scorers →' : 'רשימת קלעי הפלייאוף ←')
+    : (lang === 'en' ? 'League Scorers →' : 'רשימת קלעי הליגה ←');
   const playoffStageKey = playoffUpcoming.games.length
     ? (playoffUpcoming.games.some((g) => g.stageKey === 'qf') ? 'qf'
       : playoffUpcoming.games.some((g) => g.stageKey === 'sf') ? 'sf' : 'final')
@@ -1196,6 +1340,13 @@ export default async function HomePage() {
   const playoffStageLabel = playoffStageKey
     ? PLAYOFF_STAGE_LABEL[lang === 'en' ? 'en' : 'he'][playoffStageKey]
     : (lang === 'en' ? 'In progress' : 'בעיצומו');
+  const phLabel = (k: PlayoffStageKey) => PLAYOFF_STAGE_LABEL[lang === 'en' ? 'en' : 'he'][k];
+
+  // Overview / records / facts adapt to the playoffs once the season is over.
+  // Records & the facts scorer need actual playoff data, so they gate on it and
+  // otherwise fall back to the regular-season versions (never empty).
+  const showPlayoffRecords = inPlayoffs && playoffHighlights.gamesPlayed > 0;
+  const showPlayoffFacts   = inPlayoffs && playoffTopScorers.length > 0;
 
   // ── Delayed / postponed games ─────────────────────────────────────────────
   // Pending delayed games surface as a strip until played; finished ones show
@@ -1367,24 +1518,41 @@ export default async function HomePage() {
 
       <div>
         <h1 className="text-3xl font-black text-white font-heading">
-          {inPlayoffs ? (lang === 'en' ? 'Regular-Season Summary' : 'סיכום עונה סדירה') : T('סקירה כללית')}
+          {inPlayoffs ? (lang === 'en' ? 'Playoff Overview' : 'סקירת פלייאוף') : T('סקירה כללית')}
         </h1>
         <p className="mt-1 text-sm font-bold text-[#8aaac8] font-body">
           {inPlayoffs
-            ? (lang === 'en' ? 'Season 2025–2026 · Regular season complete' : 'עונת 2025–2026 · העונה הסדירה הסתיימה')
+            ? `${lang === 'en' ? 'Season 2025–2026' : 'עונת 2025–2026'} · ${playoffStageLabel}`
             : (lang === 'en' ? `Season 2025–2026 · Through Round ${currentRound}` : `עונת 2025–2026 · עד מחזור ${currentRound}`)}
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <a href="/teams" className="block hover:opacity-80 transition-opacity">
-          <StatCard value="15"                    label={T('קבוצות')}        icon="🏀" colorClass="bg-gradient-to-l from-transparent to-orange-500" />
-        </a>
-        <a href="/games?filter=finished" className="block hover:opacity-80 transition-opacity">
-          <StatCard value={String(gamesPlayed)}   label={T('משחקי ליגה')}    icon="📊" colorClass="bg-gradient-to-l from-transparent to-green-500"  />
-        </a>
-        <StatCard value={String(currentRound)}  label={T('מחזורים עד כה')} icon="📆" colorClass="bg-gradient-to-l from-transparent to-yellow-400" />
-        <StatCard value={String(TOTAL_ROUNDS)}  label={T('מחזורי עונה')}   icon="🗓" colorClass="bg-gradient-to-l from-transparent to-blue-500"   />
+        {inPlayoffs ? (
+          <>
+            <a href="/playoff" className="block hover:opacity-80 transition-opacity">
+              <StatCard value={String(playoffHighlights.teams || 8)} label={lang === 'en' ? 'Playoff teams' : 'קבוצות בפלייאוף'} icon="🏀" colorClass="bg-gradient-to-l from-transparent to-orange-500" />
+            </a>
+            <a href="/playoff/stats" className="block hover:opacity-80 transition-opacity">
+              <StatCard value={String(playoffHighlights.gamesPlayed)} label={lang === 'en' ? 'Playoff games' : 'משחקי פלייאוף'} icon="📊" colorClass="bg-gradient-to-l from-transparent to-green-500" />
+            </a>
+            <StatCard value={String(playoffHighlights.seriesTotal)} label={lang === 'en' ? 'Series' : 'סדרות'} icon="🏆" colorClass="bg-gradient-to-l from-transparent to-yellow-400" />
+            <a href="/playoff" className="block hover:opacity-80 transition-opacity">
+              <StatCard value={playoffStageLabel} label={lang === 'en' ? 'Stage' : 'שלב'} icon="🗓" colorClass="bg-gradient-to-l from-transparent to-blue-500" />
+            </a>
+          </>
+        ) : (
+          <>
+            <a href="/teams" className="block hover:opacity-80 transition-opacity">
+              <StatCard value="15"                    label={T('קבוצות')}        icon="🏀" colorClass="bg-gradient-to-l from-transparent to-orange-500" />
+            </a>
+            <a href="/games?filter=finished" className="block hover:opacity-80 transition-opacity">
+              <StatCard value={String(gamesPlayed)}   label={T('משחקי ליגה')}    icon="📊" colorClass="bg-gradient-to-l from-transparent to-green-500"  />
+            </a>
+            <StatCard value={String(currentRound)}  label={T('מחזורים עד כה')} icon="📆" colorClass="bg-gradient-to-l from-transparent to-yellow-400" />
+            <StatCard value={String(TOTAL_ROUNDS)}  label={T('מחזורי עונה')}   icon="🗓" colorClass="bg-gradient-to-l from-transparent to-blue-500"   />
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -1408,31 +1576,59 @@ export default async function HomePage() {
       <section>
         <h2 className="mb-4 flex items-center gap-2 text-lg font-black text-white font-heading">
           <span className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-700 px-2 py-1 text-sm">🏆</span>
-          {T('ביצועי שיא עונה')}
+          {showPlayoffRecords ? (lang === 'en' ? 'Playoff Records' : 'שיאי הפלייאוף') : T('ביצועי שיא עונה')}
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <RecordCard icon="🏀" label={T('שיא סלים במשחק')} value={String(highScore.score)}
-            sub={`${T(dbDisplayName(highScore.team))} ${lang === 'en' ? 'vs' : 'נגד'} ${T(dbDisplayName(highScore.opp))}`}
-            detail={`${T('מחזור')} ${highScore.round} · ${highScore.date}`} color="#FF6B1A" />
-          <RecordCard icon="🔢" label={T('שיא סלים משני הצדדים')} value={String(highCombined.sh + highCombined.sa)}
-            sub={`${T(dbDisplayName(highCombined.home))} ${highCombined.sh} – ${highCombined.sa} ${T(dbDisplayName(highCombined.away))}`}
-            detail={`${T('מחזור')} ${highCombined.round} · ${highCombined.date}`} color="#e0c97a" />
-          <RecordCard icon="💥" label={T('הפרש גדול ביותר')} value={`+${biggestMargin}`}
-            sub={`${T(dbDisplayName(biggestWinner))} ${lang === 'en' ? 'vs' : 'נגד'} ${T(dbDisplayName(biggestLoser))}`}
-            detail={`${T('מחזור')} ${biggestWin.round} · ${biggestWin.date}`} color="#4ec97a" />
-          <a href="/games?filter=close" className="block hover:opacity-80 transition-opacity">
-            <RecordCard icon="📉" label={T('משחקים שהוכרעו ב-3 נקודות או פחות')} value={String(closestCount)}
-              sub={lang === 'en' ? 'Small margin' : 'הפרש קטן'} detail={lang === 'en' ? 'All season so far' : 'כל עונה עד כה'} color="#e05a5a" />
-          </a>
+          {showPlayoffRecords ? (
+            <>
+              {playoffHighlights.highScore && (
+                <RecordCard icon="🏀" label={lang === 'en' ? 'Top score in a game' : 'שיא נקודות במשחק'} value={String(playoffHighlights.highScore.score)}
+                  sub={`${T(dbDisplayName(playoffHighlights.highScore.team))} ${lang === 'en' ? 'vs' : 'נגד'} ${T(dbDisplayName(playoffHighlights.highScore.opp))}`}
+                  detail={phLabel(playoffHighlights.highScore.stageKey)} color="#FF6B1A" />
+              )}
+              {playoffHighlights.biggestMargin && (
+                <RecordCard icon="💥" label={lang === 'en' ? 'Biggest margin' : 'הפרש גדול ביותר'} value={`+${playoffHighlights.biggestMargin.margin}`}
+                  sub={`${T(dbDisplayName(playoffHighlights.biggestMargin.winner))} ${lang === 'en' ? 'vs' : 'נגד'} ${T(dbDisplayName(playoffHighlights.biggestMargin.loser))}`}
+                  detail={phLabel(playoffHighlights.biggestMargin.stageKey)} color="#4ec97a" />
+              )}
+              {playoffHighlights.topGame && (
+                <a href={`/players/${playoffHighlights.topGame.id}`} className="block hover:opacity-80 transition-opacity">
+                  <RecordCard icon="🏅" label={lang === 'en' ? 'Best individual game' : 'ביצוע אישי שיא'} value={String(playoffHighlights.topGame.points)}
+                    sub={playoffHighlights.topGame.name}
+                    detail={`${playoffHighlights.topGame.teamName ? `${T(dbDisplayName(playoffHighlights.topGame.teamName))} · ` : ''}${phLabel(playoffHighlights.topGame.stageKey)}`} color="#e0c97a" />
+                </a>
+              )}
+              <a href="/playoff/stats" className="block hover:opacity-80 transition-opacity">
+                <RecordCard icon="🏀" label={lang === 'en' ? 'Playoff games' : 'משחקי פלייאוף'} value={String(playoffHighlights.gamesPlayed)}
+                  sub={lang === 'en' ? 'Played so far' : 'שוחקו עד כה'} detail={lang === 'en' ? 'See playoff stats →' : 'לסטטיסטיקת הפלייאוף ←'} color="#e05a5a" />
+              </a>
+            </>
+          ) : (
+            <>
+              <RecordCard icon="🏀" label={T('שיא סלים במשחק')} value={String(highScore.score)}
+                sub={`${T(dbDisplayName(highScore.team))} ${lang === 'en' ? 'vs' : 'נגד'} ${T(dbDisplayName(highScore.opp))}`}
+                detail={`${T('מחזור')} ${highScore.round} · ${highScore.date}`} color="#FF6B1A" />
+              <RecordCard icon="🔢" label={T('שיא סלים משני הצדדים')} value={String(highCombined.sh + highCombined.sa)}
+                sub={`${T(dbDisplayName(highCombined.home))} ${highCombined.sh} – ${highCombined.sa} ${T(dbDisplayName(highCombined.away))}`}
+                detail={`${T('מחזור')} ${highCombined.round} · ${highCombined.date}`} color="#e0c97a" />
+              <RecordCard icon="💥" label={T('הפרש גדול ביותר')} value={`+${biggestMargin}`}
+                sub={`${T(dbDisplayName(biggestWinner))} ${lang === 'en' ? 'vs' : 'נגד'} ${T(dbDisplayName(biggestLoser))}`}
+                detail={`${T('מחזור')} ${biggestWin.round} · ${biggestWin.date}`} color="#4ec97a" />
+              <a href="/games?filter=close" className="block hover:opacity-80 transition-opacity">
+                <RecordCard icon="📉" label={T('משחקים שהוכרעו ב-3 נקודות או פחות')} value={String(closestCount)}
+                  sub={lang === 'en' ? 'Small margin' : 'הפרש קטן'} detail={lang === 'en' ? 'All season so far' : 'כל עונה עד כה'} color="#e05a5a" />
+              </a>
+            </>
+          )}
         </div>
       </section>
 
       {/* ── Top Scorers ────────────────────────────────────────────────── */}
-      {topScorers.length > 0 && (
+      {scorers.length > 0 && (
         <section>
           <h2 className="mb-4 flex items-center gap-2 text-lg font-black text-white font-heading">
             <span className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-700 px-2 py-1 text-sm">🏅</span>
-            {T('קלעי הליגה')}
+            {T(scorersTitle)}
           </h2>
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] overflow-hidden">
             {/* Column header — desktop only */}
@@ -1445,11 +1641,11 @@ export default async function HomePage() {
               <span className="w-12 text-center">{T('פאולים')}</span>
             </div>
 
-            {topScorers.map((p, i) => {
+            {scorers.map((p, i) => {
               const MEDAL  = ['🥇', '🥈', '🥉'];
               const medal  = MEDAL[i] ?? null;
               const rankColors = ['text-yellow-400', 'text-slate-300', 'text-amber-600'];
-              const maxPts = topScorers[0].points || 1;
+              const maxPts = scorers[0].points || 1;
               return (
                 <a
                   key={p.id}
@@ -1516,8 +1712,8 @@ export default async function HomePage() {
             })}
           </div>
           <div className="mt-2 text-right">
-            <a href="/scorers" className="text-sm font-bold text-[#8aaac8] hover:text-orange-400 transition-colors">
-              {lang === 'en' ? 'League Scorers →' : 'רשימת קלעי הליגה ←'}
+            <a href={scorersHref} className="text-sm font-bold text-[#8aaac8] hover:text-orange-400 transition-colors">
+              {scorersLinkLabel}
             </a>
           </div>
         </section>
@@ -1525,18 +1721,28 @@ export default async function HomePage() {
 
       <section className="rounded-2xl border border-white/[0.07] bg-white/[0.04]">
         <div className="border-b border-white/[0.06] px-5 py-4">
-          <h2 className="text-base font-bold text-[#e0c97a] font-heading">📋 {T('עובדות עונה')}</h2>
+          <h2 className="text-base font-bold text-[#e0c97a] font-heading">📋 {inPlayoffs ? (lang === 'en' ? 'Playoff Facts' : 'עובדות פלייאוף') : T('עובדות עונה')}</h2>
         </div>
         <div className="grid grid-cols-1 divide-y divide-white/[0.05] sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:divide-x-reverse">
-          <div className="p-5">
-            <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">{T('מוביל סלים בליגה')}</p>
-            <Link href={`/team/${encodeURIComponent(dbDisplayName(leagueTopScorer.name))}`} className="text-base font-black text-green-400 hover:underline underline-offset-2 transition-colors font-heading">
-              {T(dbDisplayName(leagueTopScorer.name))}
+          {showPlayoffFacts ? (
+            <Link href={`/players/${playoffTopScorers[0].id}`} className="group block p-5 transition-colors hover:bg-white/[0.03]">
+              <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">{lang === 'en' ? 'Playoff top scorer' : 'מוביל קלעי הפלייאוף'}</p>
+              <p className="text-base font-black text-green-400 group-hover:underline underline-offset-2 transition-colors font-heading">{playoffTopScorers[0].name}</p>
+              <p className="text-sm font-bold text-[#8aaac8] font-stats">
+                {playoffTopScorers[0].points} <span className="font-body">{T('נק׳')}</span>
+              </p>
             </Link>
-            <p className="text-sm font-bold text-[#8aaac8] font-stats">
-              {leagueTopScorer.pf ?? 0} <span className="font-body">{T('סלים')}</span>
-            </p>
-          </div>
+          ) : (
+            <div className="p-5">
+              <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">{T('מוביל סלים בליגה')}</p>
+              <Link href={`/team/${encodeURIComponent(dbDisplayName(leagueTopScorer.name))}`} className="text-base font-black text-green-400 hover:underline underline-offset-2 transition-colors font-heading">
+                {T(dbDisplayName(leagueTopScorer.name))}
+              </Link>
+              <p className="text-sm font-bold text-[#8aaac8] font-stats">
+                {leagueTopScorer.pf ?? 0} <span className="font-body">{T('סלים')}</span>
+              </p>
+            </div>
+          )}
           <Link href="/cup" className="group block p-5 transition-colors hover:bg-white/[0.03]">
             <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">
               {T('גמר הגביע')}

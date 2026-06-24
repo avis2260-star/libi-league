@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import { upsertPlayoffGameStat, savePlayoffGameQuarters } from '@/app/admin/actions';
 import GameStatsEditor, { type RosterPlayer } from '@/components/admin/GameStatsEditor';
 
@@ -406,6 +407,7 @@ export default function PlayoffTab() {
                         const awayScore = d.as !== '' ? parseInt(d.as) : (row?.away_score ?? null);
                         return (
                           <div dir="rtl" className="rounded-xl border border-orange-500/20 bg-orange-500/[0.03] p-3 mt-1">
+                            <PlayoffStatsUpload seriesNumber={s.series_number} gameNumber={gNum} />
                             <GameStatsEditor
                               homeTeamName={homeTeam}
                               awayTeamName={awayTeam}
@@ -435,6 +437,56 @@ export default function PlayoffTab() {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ── Per-game Excel upload (official "סיכום" scoresheet → playoff box score) ──
+function PlayoffStatsUpload({ seriesNumber, gameNumber }: { seriesNumber: number; gameNumber: number }) {
+  const router = useRouter();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function handleFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('seriesNumber', String(seriesNumber));
+      fd.append('gameNumber', String(gameNumber));
+      const res = await fetch('/api/admin/playoff-stats/import', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error ?? 'שגיאה בייבוא');
+      setMsg({ ok: true, text: data.message ?? '✅ יובא' });
+      router.refresh();
+    } catch (err) {
+      setMsg({ ok: false, text: err instanceof Error ? err.message : 'שגיאה' });
+    } finally {
+      setBusy(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  }
+
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] px-3 py-2">
+      <span className="text-xs font-black text-emerald-300">📊 ייבוא מטופס השיפוט</span>
+      <span className="text-[11px] text-[#5a7a9a]">גליון &quot;סיכום&quot; ימלא את גיליון המשחק</span>
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        disabled={busy}
+        className="ms-auto rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-emerald-400 disabled:opacity-40"
+      >
+        {busy ? 'מעלה…' : '⬆️ העלה קובץ'}
+      </button>
+      <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile} className="hidden" />
+      {msg && (
+        <p className={`w-full text-[11px] font-medium ${msg.ok ? 'text-green-400' : 'text-red-400'}`}>{msg.text}</p>
+      )}
     </div>
   );
 }
