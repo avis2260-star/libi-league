@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useLang } from '@/components/TranslationProvider';
+import PlayoffPlate from '@/components/PlayoffPlate';
 
 export type RosterPlayer = { name: string; jersey_number: number | null };
 
@@ -235,7 +236,7 @@ export default function PlayoffSeriesCard({
         {/* Winner strip */}
         {winner && (
           <div className="border-t border-green-500/15 bg-green-500/[0.05] px-4 py-2 text-center">
-            <span className="text-[11px] font-black text-green-400">🏆 {t(winner)} {t('ניצח בסדרה')}</span>
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-black text-green-400"><PlayoffPlate size={15} />{t(winner)} {t('ניצח בסדרה')}</span>
           </div>
         )}
       </Link>

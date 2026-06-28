@@ -6,6 +6,7 @@ import { getLang, st } from '@/lib/get-lang';
 import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
 import SeasonPicker from '@/components/SeasonPicker';
 import ArchiveBanner from '@/components/ArchiveBanner';
+import PlayoffPlate from '@/components/PlayoffPlate';
 
 type ScorerRow = {
   id: string;
@@ -111,7 +112,7 @@ export default async function PlayoffStatsPage({
             {en ? '← Back to Playoff' : '← חזרה לפלייאוף'}
           </Link>
           <h1 className="text-2xl font-black text-white flex items-center gap-2 font-heading">
-            <span className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-700 px-2 py-1 text-sm">🏆</span>
+            <span className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-700 px-2 py-1 inline-flex items-center"><PlayoffPlate size={18} /></span>
             {en ? 'Playoff Stats' : 'סטטיסטיקה פלייאוף'}
           </h1>
           <p className="text-sm font-bold text-[#8aaac8] mt-0.5 font-body">

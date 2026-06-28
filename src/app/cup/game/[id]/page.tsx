@@ -73,6 +73,7 @@ export default async function CupGameBoxScorePage({
         <PublicBoxScore
           lang={lang as 'he' | 'en'}
           gameLabel={T(game.round)}
+          award={<span className="text-base" aria-hidden>🏆</span>}
           homeTeamName={T(game.home_team)}
           awayTeamName={T(game.away_team)}
           homeScore={game.home_score}

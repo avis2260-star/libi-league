@@ -6,6 +6,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { NORTH_TABLE, SOUTH_TABLE } from '@/lib/league-data';
 import SeriesFlyerCard from '@/components/SeriesFlyerCard';
 import PublicBoxScore from '@/components/PublicBoxScore';
+import PlayoffPlate from '@/components/PlayoffPlate';
 import { getLang, st } from '@/lib/get-lang';
 import { getCurrentSeason } from '@/lib/current-season';
 import { makeNameResolver } from '@/lib/team-name-resolver';
@@ -189,18 +190,20 @@ export default async function SeriesFlyerPage({
         winner={winner}
         games={gameData}
         hasTeams={hasTeams}
+        boxScoreGames={boxScores.map((b) => b.gNum)}
       />
 
       {boxScores.length > 0 && (
-        <div className="mt-6 w-full max-w-2xl space-y-2">
+        <div id="box-scores" className="mt-6 w-full max-w-2xl space-y-2">
           <h2 className="text-sm font-black uppercase tracking-widest text-[#8aaac8]">
             📋 {lang === 'en' ? 'Box Scores' : 'גיליונות משחק'}
           </h2>
           {boxScores.map((b) => (
-            <div key={b.gNum} className="space-y-2">
+            <div key={b.gNum} id={`game-${b.gNum}`} className="space-y-2 scroll-mt-24">
               <PublicBoxScore
                 lang={lang as 'he' | 'en'}
                 gameLabel={lang === 'en' ? `Game ${b.gNum}` : `משחק ${b.gNum}`}
+                award={<PlayoffPlate size={18} />}
                 homeTeamName={b.homeName}
                 awayTeamName={b.awayName}
                 homeScore={b.homeScore}

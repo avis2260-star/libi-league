@@ -1,6 +1,8 @@
 'use client';
 
+import type { MouseEvent } from 'react';
 import { useLang } from '@/components/TranslationProvider';
+import PlayoffPlate from '@/components/PlayoffPlate';
 
 interface GameData {
   gameNumber: number;
@@ -23,15 +25,28 @@ interface Props {
   winner: string | null;
   games: GameData[];
   hasTeams: boolean;
+  /** game numbers that have a box score on the page (so the card can link to it) */
+  boxScoreGames?: number[];
 }
 
 export default function SeriesFlyerCard({
   roundLabel, seriesNum,
   teamA, teamB, logoA, logoB,
   winsA, winsB, winner, games, hasTeams,
+  boxScoreGames = [],
 }: Props) {
   const { t, lang } = useLang();
   const waitingLabel = lang === 'en' ? 'TBD' : 'ממתין';
+
+  function scrollToGame(e: MouseEvent<HTMLAnchorElement>, gameNumber: number) {
+    const el = document.getElementById(`game-${gameNumber}`);
+    if (el) {
+      e.preventDefault();
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      el.classList.add('animate-stat-flash');
+      window.setTimeout(() => el.classList.remove('animate-stat-flash'), 1400);
+    }
+  }
   return (
     <div
       className="w-full max-w-xl overflow-hidden rounded-3xl relative animate-fade-in-scale animate-glow-pulse"
@@ -143,60 +158,90 @@ export default function SeriesFlyerCard({
 
       {/* Games breakdown */}
       <div className="px-4 pb-5 grid grid-cols-3 gap-2">
-        {games.map((g, idx) => (
-          <div
-            key={g.gameNumber}
-            className="rounded-xl flex flex-col items-center gap-1.5 py-3 px-1 animate-fade-in-up"
-            style={{
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.05)',
-              animationDelay: `${0.3 + idx * 0.1}s`,
-            }}
-          >
-            <p className="text-[11px] sm:text-sm font-black uppercase tracking-wide text-[#7a9aba]">
-              {lang === 'en' ? `Game ${g.gameNumber}` : `משחק ${g.gameNumber}`}
-            </p>
-
-            {g.played ? (
-              <>
-                <div className="flex items-center gap-1.5">
-                  <span className={`text-xl font-black tabular-nums font-stats ${g.aWon ? 'text-orange-400' : 'text-white'}`}>
-                    {g.aScore}
-                  </span>
-                  <span className="text-xs text-[#2a4a6a] font-black">-</span>
-                  <span className={`text-xl font-black tabular-nums font-stats ${!g.aWon ? 'text-orange-400' : 'text-white'}`}>
-                    {g.bScore}
-                  </span>
-                </div>
-                <div
-                  className="h-3 w-3 rounded-full"
-                  style={{
-                    background: g.aWon ? '#f97316' : '#4a6a8a',
-                    boxShadow: g.aWon ? '0 0 8px rgba(249,115,22,0.7)' : 'none',
-                  }}
-                />
-                <p className={`text-[9px] font-bold text-center leading-tight ${g.aWon ? 'text-orange-400' : 'text-[#5a7a9a]'}`}>
-                  {g.aWon ? (hasTeams ? t(teamA) : 'A') : (hasTeams ? t(teamB) : 'B')}
-                </p>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xl font-black text-[#1a2e45]">–</span>
-                  <span className="text-xs text-[#1a2e45] font-black">-</span>
-                  <span className="text-xl font-black text-[#1a2e45]">–</span>
-                </div>
-                <div className="h-3 w-3 rounded-full border border-white/[0.08] bg-transparent" />
-                <p className="text-[11px] sm:text-xs font-bold text-[#6a86a4]">{t('טרם שוחק')}</p>
-              </>
-            )}
-            {g.location && (
-              <p className="text-[11px] sm:text-xs font-bold text-[#9ab6d4] text-center leading-tight w-full px-0.5" title={g.location}>
-                📍 {g.location}
+        {games.map((g, idx) => {
+          const hasStats = boxScoreGames.includes(g.gameNumber);
+          const inner = (
+            <>
+              <p className={`text-[11px] sm:text-sm font-black uppercase tracking-wide transition-colors ${hasStats ? 'text-[#9ab6d4] group-hover:text-orange-300' : 'text-[#7a9aba]'}`}>
+                {lang === 'en' ? `Game ${g.gameNumber}` : `משחק ${g.gameNumber}`}
               </p>
-            )}
-          </div>
-        ))}
+
+              {g.played ? (
+                <>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-xl font-black tabular-nums font-stats ${g.aWon ? 'text-orange-400' : 'text-white'}`}>
+                      {g.aScore}
+                    </span>
+                    <span className="text-xs text-[#2a4a6a] font-black">-</span>
+                    <span className={`text-xl font-black tabular-nums font-stats ${!g.aWon ? 'text-orange-400' : 'text-white'}`}>
+                      {g.bScore}
+                    </span>
+                  </div>
+                  <div
+                    className="h-3 w-3 rounded-full"
+                    style={{
+                      background: g.aWon ? '#f97316' : '#4a6a8a',
+                      boxShadow: g.aWon ? '0 0 8px rgba(249,115,22,0.7)' : 'none',
+                    }}
+                  />
+                  <p className={`text-[9px] font-bold text-center leading-tight ${g.aWon ? 'text-orange-400' : 'text-[#5a7a9a]'}`}>
+                    {g.aWon ? (hasTeams ? t(teamA) : 'A') : (hasTeams ? t(teamB) : 'B')}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xl font-black text-[#1a2e45]">–</span>
+                    <span className="text-xs text-[#1a2e45] font-black">-</span>
+                    <span className="text-xl font-black text-[#1a2e45]">–</span>
+                  </div>
+                  <div className="h-3 w-3 rounded-full border border-white/[0.08] bg-transparent" />
+                  <p className="text-[11px] sm:text-xs font-bold text-[#6a86a4]">{t('טרם שוחק')}</p>
+                </>
+              )}
+              {g.location && (
+                <p className="text-[11px] sm:text-xs font-bold text-[#9ab6d4] text-center leading-tight w-full px-0.5" title={g.location}>
+                  📍 {g.location}
+                </p>
+              )}
+              {hasStats && (
+                <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-orange-400/30 bg-orange-400/10 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-black text-orange-300/90 transition-colors group-hover:border-orange-400/60 group-hover:bg-orange-400/20 group-hover:text-orange-200">
+                  📊 {lang === 'en' ? 'View stats' : 'צפה בגיליון'}
+                  <span className="transition-transform group-hover:-translate-x-0.5 rtl:group-hover:translate-x-0">{lang === 'en' ? '→' : '←'}</span>
+                </span>
+              )}
+            </>
+          );
+
+          if (hasStats) {
+            return (
+              <a
+                key={g.gameNumber}
+                href={`#game-${g.gameNumber}`}
+                onClick={(e) => scrollToGame(e, g.gameNumber)}
+                aria-label={lang === 'en' ? `View Game ${g.gameNumber} stats` : `צפה בגיליון משחק ${g.gameNumber}`}
+                className="group relative rounded-xl flex flex-col items-center gap-1.5 py-3 px-1 cursor-pointer animate-fade-in-up border border-orange-400/25 bg-white/[0.03] transition-all duration-300 hover:-translate-y-1 hover:border-orange-400/70 hover:bg-orange-400/[0.06] hover:shadow-[0_10px_30px_rgba(249,115,22,0.3)]"
+                style={{ animationDelay: `${0.3 + idx * 0.1}s` }}
+              >
+                {inner}
+              </a>
+            );
+          }
+
+          return (
+            <div
+              key={g.gameNumber}
+              className="rounded-xl flex flex-col items-center gap-1.5 py-3 px-1 animate-fade-in-up"
+              style={{
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.05)',
+                animationDelay: `${0.3 + idx * 0.1}s`,
+              }}
+            >
+              {inner}
+            </div>
+          );
+        })}
       </div>
 
       {/* Winner banner */}
@@ -209,8 +254,9 @@ export default function SeriesFlyerCard({
             animationDelay: '0.6s',
           }}
         >
-          <p className="text-sm font-black text-green-400">
-            {lang === 'en' ? `🏆 ${t(winner)} won the series!` : `🏆 ${winner} ניצחו בסדרה!`}
+          <p className="inline-flex items-center justify-center gap-2 text-sm font-black text-green-400">
+            <PlayoffPlate size={18} />
+            {lang === 'en' ? `${t(winner)} won the series!` : `${winner} ניצחו בסדרה!`}
           </p>
         </div>
       )}

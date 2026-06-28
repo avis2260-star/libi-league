@@ -6,6 +6,7 @@ import { NORTH_TABLE, SOUTH_TABLE } from '@/lib/league-data';
 import ChampionshipPlate from '@/components/ChampionshipPlate';
 import ChampionReveal from '@/components/ChampionReveal';
 import PlayoffSeriesCard, { type RosterPlayer } from '@/components/PlayoffSeriesCard';
+import PlayoffPlate from '@/components/PlayoffPlate';
 import { getLang, st } from '@/lib/get-lang';
 import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
 import SeasonPicker from '@/components/SeasonPicker';
@@ -294,7 +295,7 @@ function ScoreboardCard({
       {/* Winner strip */}
       {winner && (
         <div className="border-t border-green-500/15 bg-green-500/[0.05] px-4 py-2 text-center">
-          <span className="text-[11px] font-black text-green-400">🏆 {winner} ניצחו בסדרה</span>
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-black text-green-400"><PlayoffPlate size={15} />{winner} ניצחו בסדרה</span>
         </div>
       )}
     </div>
@@ -450,7 +451,7 @@ export default async function PlayoffPage({
         <div className="flex items-center justify-center gap-3 mb-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={logoUrl} alt="ליגת ליבי" className="h-12 w-12 object-contain rounded-full" />
-          <h1 className="text-3xl font-black text-white font-heading">🏆 {lang === 'en' ? 'Libi League Playoffs' : 'פלייאוף ליגת ליבי'}</h1>
+          <h1 className="flex items-center gap-2 text-3xl font-black text-white font-heading"><PlayoffPlate size={30} />{lang === 'en' ? 'Libi League Playoffs' : 'פלייאוף ליגת ליבי'}</h1>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={logoUrl} alt="ליגת ליבי" className="h-12 w-12 object-contain rounded-full" />
         </div>
