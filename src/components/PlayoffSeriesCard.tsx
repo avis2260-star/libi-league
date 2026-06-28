@@ -78,8 +78,8 @@ function GameDots({ series, allGames }: { series: Series; allGames: Game[] }) {
         const aWon = played && ((homeWon && home === series.team_a) || (!homeWon && home !== series.team_a));
         return (
           <div key={gNum} className="flex flex-col items-center gap-0.5">
-            <div className={`h-2 w-2 rounded-full ${!played ? 'border border-white/[0.12] bg-transparent' : aWon ? 'bg-orange-400' : 'bg-[#4a6a8a]'}`} />
-            <span className="text-[8px] text-[#2a4a6a]">{gNum}</span>
+            <div className={`h-2.5 w-2.5 rounded-full ${!played ? 'border border-white/[0.12] bg-transparent' : aWon ? 'bg-orange-400' : 'bg-[#4a6a8a]'}`} />
+            <span className="text-[11px] font-bold text-[#6a86a4]">{gNum}</span>
           </div>
         );
       })}
@@ -90,16 +90,16 @@ function GameDots({ series, allGames }: { series: Series; allGames: Game[] }) {
 function RosterList({ roster, teamName }: { roster: RosterPlayer[]; teamName: string }) {
   const { t } = useLang();
   if (!roster.length) return (
-    <p className="text-xs text-[#3a5a7a] text-center py-2">{t('לא נמצאו שחקנים')}</p>
+    <p className="text-sm text-[#5a7a9a] text-center py-2">{t('לא נמצאו שחקנים')}</p>
   );
   return (
     <ul className="space-y-1">
       {roster.map((p, i) => (
         <li key={i} className="flex items-center gap-2">
           {p.jersey_number !== null && (
-            <span className="w-6 shrink-0 text-[10px] font-black text-orange-400/70 text-center font-stats">{p.jersey_number}</span>
+            <span className="w-7 shrink-0 text-xs font-black text-orange-400 text-center font-stats">{p.jersey_number}</span>
           )}
-          <span className="text-xs text-[#c8d8e8] truncate font-heading">{p.name}</span>
+          <span className="text-sm text-[#dce8f4] truncate font-heading">{p.name}</span>
         </li>
       ))}
     </ul>
@@ -137,14 +137,14 @@ export default function PlayoffSeriesCard({
     return (
       <div className={`rounded-2xl border overflow-hidden ${isFinal ? 'border-yellow-400/20 bg-[#0f1c2a]' : 'border-white/[0.08] bg-[#0c1825]'}`}>
         <div className={`flex items-center justify-between px-4 py-2.5 border-b ${isFinal ? 'border-yellow-400/10' : 'border-white/[0.05]'}`}>
-          <span className={`text-[11px] font-black tracking-widest uppercase ${isFinal ? 'text-yellow-400' : 'text-[#4a6a8a]'}`}>{roundLabel}</span>
-          {series && <span className="text-[10px] text-[#2a4a6a] font-semibold">· {t('סדרה')} {series.series_number}</span>}
-          <span className="rounded-full bg-white/[0.04] border border-white/[0.07] px-2.5 py-0.5 text-[10px] font-black text-[#3a5a7a]">{t('טרם נקבע')}</span>
+          <span className={`text-sm font-black tracking-widest uppercase ${isFinal ? 'text-yellow-400' : 'text-[#6a8aaa]'}`}>{roundLabel}</span>
+          {series && <span className="text-xs text-[#5a7a9a] font-bold">· {t('סדרה')} {series.series_number}</span>}
+          <span className="rounded-full bg-white/[0.04] border border-white/[0.07] px-2.5 py-0.5 text-[11px] font-black text-[#5a7a9a]">{t('טרם נקבע')}</span>
         </div>
         <div className="px-3 sm:px-6 py-4 sm:py-5 flex items-center gap-2 sm:gap-4">
           <div className="flex-1 min-w-0 flex flex-col items-center gap-2">
             <div className="h-11 w-11 rounded-full bg-[#1a2e45] border-2 border-white/[0.07] flex items-center justify-center text-[#2a4a6a] text-lg font-black">?</div>
-            {lA && <p className="text-[10px] text-[#1e3a5f] text-center">{lA.full}</p>}
+            {lA && <p className="text-[11px] sm:text-xs text-[#4a6a8a] font-bold text-center">{lA.full}</p>}
           </div>
           <div className="flex flex-col items-center gap-1 shrink-0 px-1">
             <div className="flex items-center gap-1.5 sm:gap-3">
@@ -152,11 +152,11 @@ export default function PlayoffSeriesCard({
               <span className="text-base sm:text-lg text-[#1a2e45] font-black leading-none">:</span>
               <span className="text-3xl sm:text-5xl font-black text-[#1a2e45] tabular-nums leading-none">–</span>
             </div>
-            {!isFinal && <p className="text-[8px] sm:text-[9px] text-[#1e3a5f] tracking-widest uppercase font-bold mt-0.5">{t('הטוב מ-3')}</p>}
+            {!isFinal && <p className="text-[10px] sm:text-xs text-[#3a5a7a] tracking-widest uppercase font-bold mt-0.5">{t('הטוב מ-3')}</p>}
           </div>
           <div className="flex-1 min-w-0 flex flex-col items-center gap-2">
             <div className="h-11 w-11 rounded-full bg-[#1a2e45] border-2 border-white/[0.07] flex items-center justify-center text-[#2a4a6a] text-lg font-black">?</div>
-            {lB && <p className="text-[10px] text-[#1e3a5f] text-center">{lB.full}</p>}
+            {lB && <p className="text-[11px] sm:text-xs text-[#4a6a8a] font-bold text-center">{lB.full}</p>}
           </div>
         </div>
       </div>
@@ -179,8 +179,8 @@ export default function PlayoffSeriesCard({
       {/* Header */}
       <div className={`flex items-center justify-between px-4 py-2.5 border-b ${isFinal ? 'border-orange-500/15 bg-orange-500/[0.05]' : 'border-white/[0.05]'}`}>
         <div className="flex items-center gap-2">
-          <span className={`text-[11px] font-black tracking-widest uppercase ${isFinal ? 'text-yellow-400' : 'text-[#4a6a8a]'}`}>{roundLabel}</span>
-          <span className="text-[10px] text-[#2a4a6a] font-semibold">· {t('סדרה')} {series.series_number}</span>
+          <span className={`text-sm font-black tracking-widest uppercase ${isFinal ? 'text-yellow-400' : 'text-[#6a8aaa]'}`}>{roundLabel}</span>
+          <span className="text-xs text-[#5a7a9a] font-bold">· {t('סדרה')} {series.series_number}</span>
         </div>
         <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black tracking-wide ${
           winner
@@ -201,7 +201,7 @@ export default function PlayoffSeriesCard({
             <TeamLogo name={series.team_a} logos={teamLogos} size="md" />
             <div className="text-center w-full px-1">
               <p className={`text-xs sm:text-sm font-black leading-tight break-words font-heading ${aWon ? 'text-orange-400' : 'text-white'}`}>{t(series.team_a)}</p>
-              <p className="text-[9px] text-[#4a6a8a] mt-0.5 font-semibold font-body">{lA.full}</p>
+              <p className="text-[11px] sm:text-xs text-[#7a9aba] mt-0.5 font-bold font-body">{lA.full}</p>
             </div>
           </div>
 
@@ -216,7 +216,7 @@ export default function PlayoffSeriesCard({
               </span>
             </div>
             {!isFinal && (
-              <p className="text-[8px] sm:text-[9px] text-[#2a4a6a] tracking-widest uppercase font-bold mt-0.5">
+              <p className="text-[10px] sm:text-xs text-[#6a86a4] tracking-widest uppercase font-bold mt-0.5">
                 {started ? t('ניצחונות') : t('הטוב מ-3')}
               </p>
             )}
@@ -227,7 +227,7 @@ export default function PlayoffSeriesCard({
             <TeamLogo name={series.team_b} logos={teamLogos} size="md" />
             <div className="text-center w-full px-1">
               <p className={`text-xs sm:text-sm font-black leading-tight break-words font-heading ${bWon ? 'text-orange-400' : 'text-white'}`}>{t(series.team_b)}</p>
-              <p className="text-[9px] text-[#4a6a8a] mt-0.5 font-semibold font-body">{lB.full}</p>
+              <p className="text-[11px] sm:text-xs text-[#7a9aba] mt-0.5 font-bold font-body">{lB.full}</p>
             </div>
           </div>
         </div>
@@ -245,7 +245,7 @@ export default function PlayoffSeriesCard({
         <div className="border-t border-white/[0.05]">
           <button
             onClick={() => setRosterOpen(o => !o)}
-            className="w-full flex items-center justify-center gap-2 py-2.5 text-[11px] font-bold text-[#5a7a9a] hover:text-orange-400 hover:bg-white/[0.02] transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-3 text-sm font-bold text-[#7a9aba] hover:text-orange-400 hover:bg-white/[0.02] transition-colors"
           >
             <span className={`transition-transform duration-200 ${rosterOpen ? 'rotate-180' : ''}`}>▾</span>
             {rosterOpen ? t('הסתר הרכבים') : t('הצג הרכבים')}
@@ -256,14 +256,14 @@ export default function PlayoffSeriesCard({
               <div className="grid grid-cols-2 gap-4 divide-x divide-x-reverse divide-white/[0.05]">
                 {/* Team A roster */}
                 <div className="pr-4">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-[#3a5a7a] mb-2">
+                  <p className="text-xs sm:text-sm font-black uppercase tracking-widest text-[#8aaac8] mb-2.5">
                     {t(series.team_a)}
                   </p>
                   <RosterList roster={rosterA} teamName={series.team_a} />
                 </div>
                 {/* Team B roster */}
                 <div className="pl-4">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-[#3a5a7a] mb-2">
+                  <p className="text-xs sm:text-sm font-black uppercase tracking-widest text-[#8aaac8] mb-2.5">
                     {t(series.team_b)}
                   </p>
                   <RosterList roster={rosterB} teamName={series.team_b} />

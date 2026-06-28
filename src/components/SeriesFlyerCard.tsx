@@ -120,7 +120,7 @@ export default function SeriesFlyerCard({
               {winsB}
             </span>
           </div>
-          <p className="text-[9px] font-black uppercase tracking-wide text-[#3a5a7a] text-center">
+          <p className="text-[11px] sm:text-sm font-black uppercase tracking-wide text-[#7a9aba] text-center">
             {t('ניצחונות')} · {t('הטוב מ-3')}
           </p>
         </div>
@@ -153,7 +153,7 @@ export default function SeriesFlyerCard({
               animationDelay: `${0.3 + idx * 0.1}s`,
             }}
           >
-            <p className="text-[9px] font-black uppercase tracking-wide text-[#3a5a7a]">
+            <p className="text-[11px] sm:text-sm font-black uppercase tracking-wide text-[#7a9aba]">
               {lang === 'en' ? `Game ${g.gameNumber}` : `משחק ${g.gameNumber}`}
             </p>
 
@@ -187,11 +187,11 @@ export default function SeriesFlyerCard({
                   <span className="text-xl font-black text-[#1a2e45]">–</span>
                 </div>
                 <div className="h-3 w-3 rounded-full border border-white/[0.08] bg-transparent" />
-                <p className="text-[9px] font-bold text-[#2a4a6a]">{t('טרם שוחק')}</p>
+                <p className="text-[11px] sm:text-xs font-bold text-[#6a86a4]">{t('טרם שוחק')}</p>
               </>
             )}
             {g.location && (
-              <p className="text-[9px] font-bold text-[#5a7a9a] text-center leading-tight truncate w-full px-0.5" title={g.location}>
+              <p className="text-[11px] sm:text-xs font-bold text-[#9ab6d4] text-center leading-tight w-full px-0.5" title={g.location}>
                 📍 {g.location}
               </p>
             )}

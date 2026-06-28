@@ -488,7 +488,7 @@ export default async function PlayoffPage({
               <div className="h-px flex-1 bg-white/[0.04]" />
             </div>
 
-            <div className={`grid grid-cols-1 gap-4 ${round.cols}`}>
+            <div className={`grid grid-cols-1 gap-4 items-start ${round.cols}`}>
               {round.series.map((sr, i) => (
                 <PlayoffSeriesCard
                   key={i}
