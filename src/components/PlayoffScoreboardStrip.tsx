@@ -112,9 +112,9 @@ export default function PlayoffScoreboardStrip({ games }: { games: PlayoffStripG
 
               {/* Footer: date + format */}
               <div className="mt-3 flex items-center justify-between gap-1 border-t border-white/[0.05] pt-2">
-                <span className="truncate text-[10px] font-bold text-[#8aaac8] font-body">
+                <span className="truncate text-base font-black text-white font-heading">
                   {g.dateLabel
-                    ? <span className="font-stats text-[#c8d8e8]">{g.dayLabel ? `${g.dayLabel} · ` : ''}{g.dateLabel}</span>
+                    ? <span>{g.dayLabel ? `${g.dayLabel} · ` : ''}{g.dateLabel}</span>
                     : <span className="text-[#5a7a9a]">{en ? 'TBD' : 'טרם נקבע'}</span>}
                 </span>
                 <span className={`shrink-0 text-[10px] font-black ${accent.text}`}>
@@ -122,7 +122,7 @@ export default function PlayoffScoreboardStrip({ games }: { games: PlayoffStripG
                 </span>
               </div>
               {g.location && (
-                <p className="mt-1 truncate text-[10px] font-bold text-[#5a7a9a] font-body">📍 {g.location}</p>
+                <p className="mt-1 truncate text-sm font-black text-[#9ab6d4] font-body">📍 {g.location}</p>
               )}
             </Link>
           );
