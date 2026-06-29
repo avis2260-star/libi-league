@@ -11,6 +11,7 @@ interface GameData {
   bScore: number | null;
   aWon: boolean;
   location?: string | null;
+  time?: string | null;
 }
 
 interface Props {
@@ -202,6 +203,11 @@ export default function SeriesFlyerCard({
               {g.location && (
                 <p className="text-[11px] sm:text-xs font-bold text-[#9ab6d4] text-center leading-tight w-full px-0.5" title={g.location}>
                   📍 {g.location}
+                </p>
+              )}
+              {g.time && (
+                <p className="text-[11px] sm:text-xs font-black text-[#c8d8e8] text-center leading-tight w-full px-0.5">
+                  🕐 {g.time}
                 </p>
               )}
               {hasStats && (

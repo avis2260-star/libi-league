@@ -19,6 +19,7 @@ interface Game {
   home_quarters: number[] | null; away_quarters: number[] | null;
   video_url: string | null;
   location: string | null;
+  game_time: string | null;
 }
 interface Series {
   series_number: number; team_a: string; team_b: string;
@@ -113,7 +114,8 @@ export default async function SeriesFlyerPage({
     const aWon   = played && ((homeWon && home === series.team_a) || (!homeWon && home !== series.team_a));
     const aScore = played ? (home === series.team_a ? g!.home_score : g!.away_score) : null;
     const bScore = played ? (home === series.team_a ? g!.away_score : g!.home_score) : null;
-    return { gameNumber: gNum, played, aScore, bScore, aWon, location: g?.location ?? null };
+    const time = (g?.game_time && g.game_time !== '00:00:00') ? g.game_time.slice(0, 5) : null;
+    return { gameNumber: gNum, played, aScore, bScore, aWon, location: g?.location ?? null, time };
   });
 
   const roundLabel = seriesNum <= 4 ? T('רבע גמר') : seriesNum <= 6 ? T('חצי גמר') : T('גמר');
