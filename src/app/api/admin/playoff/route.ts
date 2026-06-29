@@ -61,12 +61,19 @@ export async function PUT(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const season = await getCurrentSeason();
   const body = await req.json();
-  const { series_number, game_number, home_score, away_score, played, game_date, video_url, location } = body;
+  const { series_number, game_number, home_score, away_score, played, game_date, game_time, video_url, location } = body;
 
   const update: Record<string, unknown> = { played: played ?? false };
   if (home_score !== undefined) update.home_score = home_score;
   if (away_score !== undefined) update.away_score = away_score;
   if (game_date  !== undefined) update.game_date  = game_date;
+  if (game_time  !== undefined) {
+    const trimmed = typeof game_time === 'string' ? game_time.trim() : '';
+    if (trimmed && !/^\d{1,2}:\d{2}$/.test(trimmed)) {
+      return NextResponse.json({ error: 'שעה חייבת להיות בפורמט HH:MM' }, { status: 400 });
+    }
+    update.game_time = trimmed || null;
+  }
   if (video_url  !== undefined) {
     const trimmed = typeof video_url === 'string' ? video_url.trim() : '';
     if (trimmed && !/^https?:\/\/.+/.test(trimmed)) {
@@ -82,9 +89,19 @@ export async function PATCH(req: NextRequest) {
   // Upsert keyed on (season, series_number, game_number) — the same shape as
   // the unique constraint added in 20260521_add_season_column.sql. Two seasons
   // can have a row for series 1 game 1 without one stomping the other.
-  const { error } = await supabaseAdmin
+  let { error } = await supabaseAdmin
     .from('playoff_games')
     .upsert({ series_number, game_number, season, ...update }, { onConflict: 'season,series_number,game_number' });
+
+  // Tolerate the game_time column not existing yet (migration not applied):
+  // retry without it so saving scores/dates still works.
+  if (error && 'game_time' in update) {
+    const rest = { ...update };
+    delete rest.game_time;
+    ({ error } = await supabaseAdmin
+      .from('playoff_games')
+      .upsert({ series_number, game_number, season, ...rest }, { onConflict: 'season,series_number,game_number' }));
+  }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });

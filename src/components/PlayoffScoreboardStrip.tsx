@@ -16,6 +16,7 @@ export type PlayoffStripGame = {
   awayWins: number;
   dateLabel: string;   // "29.06" — empty when no date
   dayLabel: string;    // "ראשון" / "Sun" — empty when no date
+  timeLabel: string;   // "20:30" — empty when no time
   location: string | null;
 };
 
@@ -114,7 +115,7 @@ export default function PlayoffScoreboardStrip({ games }: { games: PlayoffStripG
               <div className="mt-3 flex items-center justify-between gap-1 border-t border-white/[0.05] pt-2">
                 <span className="truncate text-base font-black text-white font-heading">
                   {g.dateLabel
-                    ? <span>{g.dayLabel ? `${g.dayLabel} · ` : ''}{g.dateLabel}</span>
+                    ? <span>{g.dayLabel ? `${g.dayLabel} · ` : ''}{g.dateLabel}{g.timeLabel ? ` · ${g.timeLabel}` : ''}</span>
                     : <span className="text-[#5a7a9a]">{en ? 'TBD' : 'טרם נקבע'}</span>}
                 </span>
                 <span className={`shrink-0 text-[10px] font-black ${accent.text}`}>

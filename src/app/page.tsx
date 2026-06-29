@@ -739,6 +739,7 @@ type RawPlayoffUpcoming = {
   winsA: number;
   winsB: number;
   date: string | null;
+  time: string | null;
   location: string | null;
 };
 
@@ -750,14 +751,26 @@ function stageKeyForSeries(n: number): 'qf' | 'sf' | 'final' {
 
 async function getUpcomingPlayoffGames(season: string): Promise<{ games: RawPlayoffUpcoming[]; hasAnyGames: boolean }> {
   try {
-    const [{ data: seriesData }, { data: gamesData }, { data: standingsData }] = await Promise.all([
+    const gameCols = 'series_number, game_number, home_score, away_score, played, game_date, game_time, location';
+    const [{ data: seriesData }, gamesRes, { data: standingsData }] = await Promise.all([
       supabaseAdmin.from('playoff_series').select('series_number, team_a, team_b, team_a_label, team_b_label').eq('season', season).order('series_number'),
-      supabaseAdmin.from('playoff_games').select('series_number, game_number, home_score, away_score, played, game_date, location').eq('season', season).order('series_number').order('game_number'),
+      supabaseAdmin.from('playoff_games').select(gameCols).eq('season', season).order('series_number').order('game_number'),
       supabaseAdmin.from('standings').select('name, division, rank').eq('season', season).order('rank', { ascending: true }),
     ]);
 
+    // Tolerate the game_time column not existing yet (migration not applied):
+    // fall back to the same query without it so the strip never goes blank.
+    type GameRow = { series_number: number; game_number: number; home_score: number | null; away_score: number | null; played: boolean | null; game_date: string | null; game_time?: string | null; location: string | null };
+    let gamesData = (gamesRes.data ?? null) as GameRow[] | null;
+    if (gamesRes.error) {
+      gamesData = ((await supabaseAdmin
+        .from('playoff_games')
+        .select('series_number, game_number, home_score, away_score, played, game_date, location')
+        .eq('season', season).order('series_number').order('game_number')).data ?? null) as GameRow[] | null;
+    }
+
     const series = (seriesData ?? []) as { series_number: number; team_a: string | null; team_b: string | null; team_a_label: string | null; team_b_label: string | null }[];
-    const games  = (gamesData ?? []) as { series_number: number; game_number: number; home_score: number | null; away_score: number | null; played: boolean | null; game_date: string | null; location: string | null }[];
+    const games  = (gamesData ?? []) as GameRow[];
     const hasAnyGames = games.length > 0;
     if (series.length === 0) return { games: [], hasAnyGames };
 
@@ -812,6 +825,7 @@ async function getUpcomingPlayoffGames(season: string): Promise<{ games: RawPlay
         homeIsTeamA:  next.game_number !== 2,
         winsA, winsB,
         date:         next.game_date,
+        time:         next.game_time ?? null,
         location:     next.location,
       });
     }
@@ -1292,6 +1306,7 @@ export default async function HomePage() {
     const d = parseFlexibleDate(g.date, season);
     const dateLabel = d ? `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}` : '';
     const dayLabel  = d ? (lang === 'en' ? enDayNames : heDayNames)[d.getDay()] : '';
+    const timeLabel = (g.time && g.time !== '00:00:00') ? g.time.slice(0, 5) : '';
     return {
       seriesNumber: g.seriesNumber,
       stageKey:     g.stageKey,
@@ -1304,6 +1319,7 @@ export default async function HomePage() {
       awayWins:     g.homeIsTeamA ? g.winsB : g.winsA,
       dateLabel,
       dayLabel,
+      timeLabel,
       location:     g.location,
     };
   });
