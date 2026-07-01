@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import type { EnrichedPlayer, TeamOption } from './page';
 import { useLang } from '@/components/TranslationProvider';
+import { displayName } from '@/lib/names';
 
 const POSITIONS_HE: Record<string, string> = {
   PG: 'פוינט גארד',
@@ -103,15 +104,15 @@ function PlayerCard({ player }: { player: EnrichedPlayer }) {
 
       {/* Photo / avatar */}
       <div className={`flex justify-center pt-8 pb-4 bg-gradient-to-b ${inactive ? 'from-[#0c1520] to-[#0a1520]' : 'from-[#0f1e30] to-[#0c1825]'}`}>
-        <Avatar name={player.name} photoUrl={player.photo_url} size={88} />
+        <Avatar name={displayName(player.name, lang)} photoUrl={player.photo_url} size={88} />
       </div>
 
       {/* Info */}
       <div className="px-4 pb-5 text-center space-y-1">
-        <p className="font-heading font-black text-white text-base leading-tight">{player.name}</p>
+        <p className="font-heading font-black text-white text-base leading-tight">{displayName(player.name, lang)}</p>
 
         {player.team && (
-          <p className="text-sm font-bold text-[#8aaac8]">{t(player.team.name)}</p>
+          <p className="text-sm font-bold text-[#8aaac8]">{displayName(player.team.name, lang)}</p>
         )}
 
         {(() => {
@@ -180,15 +181,15 @@ function PlayerListRow({ player }: { player: EnrichedPlayer }) {
         {player.jersey_number !== null ? `#${player.jersey_number}` : '—'}
       </span>
 
-      <Avatar name={player.name} photoUrl={player.photo_url} size={40} />
+      <Avatar name={displayName(player.name, lang)} photoUrl={player.photo_url} size={40} />
 
       {/* Name + team / role */}
       <div className="flex-1 min-w-0">
         <p className="truncate font-heading font-black text-white text-sm group-hover:text-orange-400 transition-colors">
-          {player.name}
+          {displayName(player.name, lang)}
         </p>
         <p className="truncate text-xs font-bold text-[#8aaac8]">
-          {player.team ? t(player.team.name) : ''}{sub ? ` · ${sub}` : ''}
+          {player.team ? displayName(player.team.name, lang) : ''}{sub ? ` · ${sub}` : ''}
         </p>
       </div>
 
@@ -270,10 +271,10 @@ function TeamListView({
           >
             {/* Team logo placeholder */}
             <div className="h-12 w-12 shrink-0 rounded-full bg-[#0f1e30] border-2 border-white/10 flex items-center justify-center text-lg font-black text-[#3a5a7a]">
-              {[...t(team.name)].find(c => /\S/.test(c)) ?? '?'}
+              {[...displayName(team.name, lang)].find(c => /\S/.test(c)) ?? '?'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-black text-white text-sm truncate group-hover:text-orange-400 transition-colors">{t(team.name)}</p>
+              <p className="font-black text-white text-sm truncate group-hover:text-orange-400 transition-colors">{displayName(team.name, lang)}</p>
               <div className="flex items-center gap-3 mt-1">
                 <span className="text-xs font-bold text-green-400">{active} {t('פעילים')}</span>
                 {total > active && (
@@ -314,7 +315,7 @@ function PlayerGridView({
   const activeCount   = players.filter(p => p.is_active).length;
   const inactiveCount = players.filter(p => !p.is_active).length;
 
-  const selectedTeamName = teams.find(t => t.id === teamFilter)?.name ?? '';
+  const selectedTeamName = displayName(teams.find(t => t.id === teamFilter)?.name ?? '', lang);
 
   const filtered = useMemo(() => {
     let list = [...players];

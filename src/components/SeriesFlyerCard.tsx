@@ -3,6 +3,7 @@
 import type { MouseEvent } from 'react';
 import { useLang } from '@/components/TranslationProvider';
 import PlayoffPlate from '@/components/PlayoffPlate';
+import { displayName } from '@/lib/names';
 
 interface GameData {
   gameNumber: number;
@@ -202,7 +203,7 @@ export default function SeriesFlyerCard({
               )}
               {g.location && (
                 <p className="text-[11px] sm:text-xs font-bold text-[#9ab6d4] text-center leading-tight w-full px-0.5" title={g.location}>
-                  📍 {g.location}
+                  📍 {displayName(g.location, lang)}
                 </p>
               )}
               {g.time && (

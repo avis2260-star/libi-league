@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useLang } from '@/components/TranslationProvider';
+import { displayName } from '@/lib/names';
 
 export type PlayoffStripGame = {
   seriesNumber: number;
@@ -123,7 +124,7 @@ export default function PlayoffScoreboardStrip({ games }: { games: PlayoffStripG
                 </span>
               </div>
               {g.location && (
-                <p className="mt-1 truncate text-sm font-black text-[#9ab6d4] font-body">📍 {g.location}</p>
+                <p className="mt-1 truncate text-sm font-black text-[#9ab6d4] font-body">📍 {displayName(g.location, lang)}</p>
               )}
             </Link>
           );

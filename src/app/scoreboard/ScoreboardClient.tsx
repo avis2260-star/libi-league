@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import type { ScoreboardGame, ScoreboardPlayer } from './page';
 import { DICT } from '@/lib/dict';
+import { displayName as translateName } from '@/lib/names';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type PS  = { name: string; jersey: number | null; pts: number; fouls: number };
@@ -97,9 +98,10 @@ export default function ScoreboardClient({
 
   // Player name display helper
   function displayName(name: string): string {
-    if (nameMode === 'first') return name.split(' ')[0];
-    if (nameMode === 'last')  return name.split(' ').slice(-1)[0];
-    return name;
+    const n = translateName(name, lang);
+    if (nameMode === 'first') return n.split(' ')[0];
+    if (nameMode === 'last')  return n.split(' ').slice(-1)[0];
+    return n;
   }
   const nameModeLabel = lang === 'en'
     ? { full: 'Full Name', first: 'First Name', last: 'Last Name', num: 'Number Only' } as const
@@ -352,7 +354,7 @@ export default function ScoreboardClient({
                       <span className="text-[11px] font-mono w-6 shrink-0" style={{ color: accent }}>
                         #{p.jersey_number ?? '–'}
                       </span>
-                      <span className="flex-1 text-[13px] font-semibold text-white truncate">{p.name}</span>
+                      <span className="flex-1 text-[13px] font-semibold text-white truncate">{displayName(p.name)}</span>
                     </button>
                   );
                 })

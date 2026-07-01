@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import type { Position } from '@/types';
 import { useLang } from '@/components/TranslationProvider';
+import { displayName } from '@/lib/names';
 
 const POSITION_LABELS: Record<Position, string> = {
   PG: 'Point Guard',
@@ -95,7 +96,7 @@ export default function CollapsibleTeamSection({ teamName, teamLogo, players, de
 
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-[#e8edf5] group-hover:text-orange-400 transition-colors">
-                    {player.name}
+                    {displayName(player.name, lang)}
                   </p>
                   {player.position && (
                     <span className={`mt-0.5 inline-block rounded border px-1.5 py-0.5 text-[10px] font-medium ${POSITION_COLORS[player.position]}`}>

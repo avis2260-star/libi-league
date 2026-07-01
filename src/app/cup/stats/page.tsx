@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getLang, st } from '@/lib/get-lang';
+import { displayName } from '@/lib/names';
 import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
 import SeasonPicker from '@/components/SeasonPicker';
 import ArchiveBanner from '@/components/ArchiveBanner';
@@ -274,14 +275,14 @@ export default async function CupStatsPage({
                     </div>
                     <div className="min-w-0">
                       <p className="truncate font-bold text-white group-hover:text-orange-300 transition-colors leading-tight font-heading">
-                        {p.name}
+                        {displayName(p.name, lang)}
                       </p>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         {p.jersey_number !== null && (
                           <span className="text-[10px] font-bold text-orange-400/80 shrink-0 font-stats">#{p.jersey_number}</span>
                         )}
                         {p.team_name && (
-                          <span className="truncate text-xs font-bold text-[#8aaac8] font-body">{p.team_name}</span>
+                          <span className="truncate text-xs font-bold text-[#8aaac8] font-body">{displayName(p.team_name, lang)}</span>
                         )}
                       </div>
                       <div className="mt-1.5 h-1 w-full rounded-full bg-white/[0.06]">

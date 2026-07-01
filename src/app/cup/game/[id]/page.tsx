@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import PublicBoxScore from '@/components/PublicBoxScore';
 import { getLang, st } from '@/lib/get-lang';
+import { displayName } from '@/lib/names';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { bucketGameStats, type RawStat } from '@/lib/box-score';
 
@@ -61,7 +62,7 @@ export default async function CupGameBoxScorePage({
             {T(game.home_team)} <span className="text-[#5a7a9a]">vs</span> {T(game.away_team)}
           </h1>
           {game.location && (
-            <p className="mt-1 text-xs font-bold text-[#8aaac8]">📍 {game.location}</p>
+            <p className="mt-1 text-xs font-bold text-[#8aaac8]">📍 {displayName(game.location, lang)}</p>
           )}
         </div>
         <Link href="/cup" className="shrink-0 text-xs font-bold text-amber-300 hover:text-amber-200 transition">

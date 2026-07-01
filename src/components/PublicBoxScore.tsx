@@ -3,6 +3,7 @@
 // Shared by the public /cup and /playoff series pages.
 
 import type { ReactNode } from 'react';
+import { displayName } from '@/lib/names';
 
 export type BoxPlayer = {
   name: string;
@@ -33,7 +34,7 @@ function PlayerTable({
       <div className="flex items-center justify-between gap-2 px-3 py-2.5 bg-gradient-to-l from-orange-500/[0.16] to-orange-500/[0.03] border-b border-white/[0.07]">
         <p className="flex items-center gap-1.5 text-sm font-black text-white truncate">
           {isWinner && <span className="text-[#e0a030]" aria-hidden>👑</span>}
-          {teamName || '—'}
+          {teamName ? displayName(teamName, en ? 'en' : 'he') : '—'}
         </p>
         <span className="shrink-0 font-stats text-lg font-black text-orange-400 tabular-nums">
           {teamScore}<span className="ms-1 text-[10px] font-bold text-[#7a9aba]">{en ? 'PTS' : 'נק׳'}</span>
@@ -60,7 +61,7 @@ function PlayerTable({
                   className={`border-t border-white/[0.04] ${isStar ? 'bg-gradient-to-l from-orange-500/[0.20] to-orange-500/[0.04]' : ''}`}
                 >
                   <td className="px-3 py-2">
-                    <span className={`text-sm ${isStar ? 'font-black text-[#ffe6d2]' : 'font-semibold text-white'}`}>{p.name}</span>
+                    <span className={`text-sm ${isStar ? 'font-black text-[#ffe6d2]' : 'font-semibold text-white'}`}>{displayName(p.name, en ? 'en' : 'he')}</span>
                     {p.jersey_number !== null && (
                       <span className="mr-1.5 text-[11px] font-bold text-orange-400/75">#{p.jersey_number}</span>
                     )}
@@ -120,7 +121,7 @@ function QuarterTable({
         <tbody>
           {rows.map((row, r) => (
             <tr key={r} className="border-t border-white/[0.04]">
-              <td className="px-3 py-2 font-black text-white text-xs truncate max-w-[150px]">{row.name || '—'}</td>
+              <td className="px-3 py-2 font-black text-white text-xs truncate max-w-[150px]">{row.name ? displayName(row.name, en ? 'en' : 'he') : '—'}</td>
               {Array.from({ length: count }, (_, i) => {
                 const v = cell(row.arr, i);
                 const ov = cell(row.other, i);
@@ -193,7 +194,7 @@ export default function PublicBoxScore({
           {award && <span className="shrink-0 inline-flex items-center" aria-hidden>{award}</span>}
           <span className="text-sm font-black text-white truncate">
             {gameLabel && <span className="text-[#8aaac8] font-bold ms-1">{gameLabel} · </span>}
-            {homeTeamName} <span className="text-[#5a7a9a]">vs</span> {awayTeamName}
+            {displayName(homeTeamName, en ? 'en' : 'he')} <span className="text-[#5a7a9a]">vs</span> {displayName(awayTeamName, en ? 'en' : 'he')}
           </span>
         </div>
         <span className="shrink-0 font-stats text-base font-black tabular-nums">

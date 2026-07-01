@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getLang, st } from '@/lib/get-lang';
+import { displayName } from '@/lib/names';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { getCurrentSeason } from '@/lib/current-season';
 
@@ -491,7 +492,7 @@ export default async function HallOfFamePage() {
                 <div className="flex justify-between items-end border-t border-slate-800 pt-4">
                   <div>
                     <p className="text-xs font-black text-slate-300 uppercase font-body">{T('MVP של העונה')}</p>
-                    <p className="font-heading font-black text-white">{season.mvp_name ?? '—'}</p>
+                    <p className="font-heading font-black text-white">{season.mvp_name ? displayName(season.mvp_name, lang) : '—'}</p>
                     <p className="font-stats text-lg font-black text-orange-400">{season.mvp_stats ?? ''}</p>
                   </div>
                   <div className="bg-orange-500 text-black px-3 py-1 rounded-full text-xs font-black font-heading">
@@ -578,8 +579,8 @@ export default async function HallOfFamePage() {
                           )}
                         </div>
                       </td>
-                      <td className="p-4 font-body font-bold text-white">{record.holder ? T(record.holder) : '—'}</td>
-                      <td className="p-4 text-center font-stats text-3xl text-orange-500">{record.value ?? '—'}</td>
+                      <td className="p-4 font-body font-bold text-white">{record.holder ? record.holder.split(/(\s·\s|,\s)/).map((part) => displayName(part, lang)).join('') : '—'}</td>
+                      <td className="p-4 text-center font-stats text-3xl text-orange-500">{record.value ? (lang === 'en' ? record.value.replace('נק׳', 'pts') : record.value) : '—'}</td>
                     </tr>
                   ))}
                 </tbody>

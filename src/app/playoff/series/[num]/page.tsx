@@ -7,6 +7,7 @@ import { NORTH_TABLE, SOUTH_TABLE } from '@/lib/league-data';
 import SeriesFlyerCard from '@/components/SeriesFlyerCard';
 import PublicBoxScore from '@/components/PublicBoxScore';
 import PlayoffPlate from '@/components/PlayoffPlate';
+import { displayName } from '@/lib/names';
 import { getLang, st } from '@/lib/get-lang';
 import { getCurrentSeason } from '@/lib/current-season';
 import { makeNameResolver } from '@/lib/team-name-resolver';
@@ -216,7 +217,7 @@ export default async function SeriesFlyerPage({
                 awayPlayers={b.awayPlayers}
               />
               {b.location && (
-                <p className="text-center text-xs font-bold text-[#8aaac8]">📍 {b.location}</p>
+                <p className="text-center text-xs font-bold text-[#8aaac8]">📍 {displayName(b.location, lang)}</p>
               )}
               {b.videoUrl && (
                 <a

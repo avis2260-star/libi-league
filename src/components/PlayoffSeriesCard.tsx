@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useLang } from '@/components/TranslationProvider';
 import PlayoffPlate from '@/components/PlayoffPlate';
+import { displayName } from '@/lib/names';
 
 export type RosterPlayer = { name: string; jersey_number: number | null };
 
@@ -89,7 +90,7 @@ function GameDots({ series, allGames }: { series: Series; allGames: Game[] }) {
 }
 
 function RosterList({ roster, teamName }: { roster: RosterPlayer[]; teamName: string }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   if (!roster.length) return (
     <p className="text-sm text-[#5a7a9a] text-center py-2">{t('לא נמצאו שחקנים')}</p>
   );
@@ -100,7 +101,7 @@ function RosterList({ roster, teamName }: { roster: RosterPlayer[]; teamName: st
           {p.jersey_number !== null && (
             <span className="w-7 shrink-0 text-xs font-black text-orange-400 text-center font-stats">{p.jersey_number}</span>
           )}
-          <span className="text-sm text-[#dce8f4] truncate font-heading">{p.name}</span>
+          <span className="text-sm text-[#dce8f4] truncate font-heading">{displayName(p.name, lang)}</span>
         </li>
       ))}
     </ul>

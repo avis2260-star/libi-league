@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useLang } from '@/components/TranslationProvider';
+import { displayName } from '@/lib/names';
 
 type Game = {
   home: string;
@@ -148,7 +149,7 @@ function GameModal({
                         {p.jersey_number !== null && (
                           <span className="w-5 shrink-0 text-[10px] font-black text-orange-400/70 text-left">{p.jersey_number}</span>
                         )}
-                        <span className="text-xs text-[#c8d8e8] truncate">{p.name}</span>
+                        <span className="text-xs text-[#c8d8e8] truncate">{displayName(p.name, lang)}</span>
                       </li>
                     ))}
                   </ul>
@@ -167,7 +168,7 @@ function GameModal({
                         {p.jersey_number !== null && (
                           <span className="w-5 shrink-0 text-[10px] font-black text-orange-400/70 text-left">{p.jersey_number}</span>
                         )}
-                        <span className="text-xs text-[#c8d8e8] truncate">{p.name}</span>
+                        <span className="text-xs text-[#c8d8e8] truncate">{displayName(p.name, lang)}</span>
                       </li>
                     ))}
                   </ul>

@@ -15,6 +15,7 @@ import ChampionBanner, { type ChampionBannerProps } from '@/components/ChampionB
 import { getSeasonPhaseSetting, resolveSeasonPhase } from '@/lib/season-phase';
 import { deriveCupScores, type CupGameLike } from '@/lib/cup-derived-scores';
 import { getLang, st } from '@/lib/get-lang';
+import { displayName } from '@/lib/names';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { getCurrentSeason } from '@/lib/current-season';
 import { getAutoTickerItems } from '@/lib/ticker-auto-data';
@@ -1692,14 +1693,14 @@ export default async function HomePage() {
                   {/* Name + team + bar */}
                   <div className="flex-1 min-w-0">
                     <p className="truncate text-sm font-bold text-white group-hover:text-orange-300 transition-colors leading-tight font-heading">
-                      {p.name}
+                      {displayName(p.name, lang)}
                     </p>
                     <div className="flex items-center gap-1 mt-0.5">
                       {p.jersey_number !== null && (
                         <span className="text-[10px] font-bold text-orange-400/70 shrink-0 font-stats">#{p.jersey_number}</span>
                       )}
                       {p.team_name && (
-                        <span className="truncate text-[11px] font-bold text-[#8aaac8] font-body">{T(p.team_name)}</span>
+                        <span className="truncate text-[11px] font-bold text-[#8aaac8] font-body">{displayName(p.team_name, lang)}</span>
                       )}
                     </div>
                     <div className="mt-1 h-0.5 w-full rounded-full bg-white/[0.06]">

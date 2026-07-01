@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useLang } from './TranslationProvider';
+import { displayName } from '@/lib/names';
 
 type TeamHit = {
   kind: 'team';
@@ -318,12 +319,12 @@ export default function SearchButton() {
                             {p.jersey_number !== null && (
                               <span className="text-[10px] font-black text-orange-400 font-stats">#{p.jersey_number}</span>
                             )}
-                            <span className="truncate">{p.name}</span>
+                            <span className="truncate">{displayName(p.name, lang)}</span>
                             {!p.is_active && (
                               <span className="text-[10px] font-bold text-[#8aaac8] shrink-0">{t('· לא פעיל')}</span>
                             )}
                           </p>
-                          <p className="truncate text-xs font-semibold text-[#8aaac8]">{p.team_name ? t(p.team_name) : t('שחקן')}</p>
+                          <p className="truncate text-xs font-semibold text-[#8aaac8]">{p.team_name ? displayName(p.team_name, lang) : t('שחקן')}</p>
                         </div>
                       </Row>
                     );

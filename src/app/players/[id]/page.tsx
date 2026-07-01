@@ -9,6 +9,7 @@ import type { GameStatWithGame, Position } from '@/types';
 import VideoGallery from '@/components/player/VideoGallery';
 import PlayerStatsChart from '@/components/player/PlayerStatsChart';
 import { getLang, st } from '@/lib/get-lang';
+import { displayName } from '@/lib/names';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
@@ -161,7 +162,7 @@ export default async function PlayerProfilePage({
     .filter((s) => s.game.video_url)
     .map((s) => ({
       url: s.game.video_url!,
-      label: `vs ${getOpponent(s, player.team_id!).name}`,
+      label: `vs ${displayName(getOpponent(s, player.team_id!).name, lang)}`,
       date: s.game.game_date,
     }));
 
@@ -172,7 +173,7 @@ export default async function PlayerProfilePage({
     .sort((a, b) => a.game.game_date.localeCompare(b.game.game_date))
     .map((s, i) => ({
       game: `G${i + 1}`,
-      opponent: getOpponent(s, player.team_id!).name,
+      opponent: displayName(getOpponent(s, player.team_id!).name, lang),
       points: s.points,
       threePt: s.three_pointers,
       fouls: s.fouls,
@@ -263,12 +264,12 @@ export default async function PlayerProfilePage({
 
             {/* Name */}
             <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl font-heading">
-              {player.name}
+              {displayName(player.name, lang)}
             </h1>
 
             {/* Team */}
             {player.team && (
-              <p className="mt-1 text-sm text-[#8aaac8] font-heading">{T(player.team.name)}</p>
+              <p className="mt-1 text-sm text-[#8aaac8] font-heading">{displayName(player.team.name, lang)}</p>
             )}
           </div>
         </div>
@@ -335,7 +336,7 @@ export default async function PlayerProfilePage({
                         <td className="whitespace-nowrap px-4 py-3 text-[#8aaac8]">{dateStr}</td>
                         <td className="px-4 py-3 font-medium text-[#e8edf5] font-heading">
                           <span className="text-[#5a7a9a] text-xs ml-1 font-body">{isHome ? T('נגד') : '@'}</span>
-                          {T(opp.name)}
+                          {displayName(opp.name, lang)}
                         </td>
                         <td className="px-4 py-3 text-center tabular-nums text-[#8aaac8] font-stats">
                           {(stat.game.status === 'Finished' || (myScore + theirScore > 0))

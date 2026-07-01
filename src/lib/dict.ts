@@ -1,5 +1,10 @@
 // Shared Hebrew → English dictionary used by both client (TranslationProvider) and server (getLang)
+import { PLAYER_NAMES } from './player-names';
+
 export const DICT: Record<string, string> = {
+  // Player name transliterations (UI keys below override on any collision)
+  ...PLAYER_NAMES,
+
   // Nav
   'בית': 'Home',
   'משחקים': 'Games',
@@ -495,4 +500,90 @@ export const DICT: Record<string, string> = {
   // Footer
   'הצהרת נגישות': 'Accessibility Statement',
   'נגישות': 'Accessibility',
+  'טפסים': 'Forms',
+
+  // Cup page
+  'טורניר הגביע העונתי': 'Seasonal Cup Tournament',
+  'סטטיסטיקה גביע': 'Cup Stats',
+
+  // Cup stats page
+  '← חזרה לעמוד הגביע': '← Back to Cup',
+  'מובילי הגביע וסיכומי קבוצות': 'Cup leaders & team summaries',
+  'שחקנים פעילים': 'Active players',
+  'מובילי הגביע': 'Cup Leaders',
+  'עדיין אין סטטיסטיקה לגביע': 'No cup statistics yet',
+  'ממוצע נק׳': 'Avg PTS',
+  'ממוצע 3נק׳': 'Avg 3PT',
+  'ממוצע פאולים': 'Avg PF',
+  'למשחק': 'per game',
+  'סובב למצב אופקי לצפייה בממוצעים': 'Rotate to landscape to view averages',
+  'סיכום קבוצות בגביע': 'Cup Team Summary',
+  'נצ': 'W',
+  'הפ': 'L',
+  'הפרש': 'Diff',
+
+  // Events / match previews page
+  'לקראת המשחק': 'Match Preview',
+  'פרשנות מקצועית למשחקי הגביע': 'Professional commentary on cup games',
+  'עדיין לא פורסמו כתבות.': 'No articles published yet.',
+  'עקוב אחרי המסך הזה לקראת משחקי הגביע הקרובים — פרשנות מלאה תופיע כאן.':
+    'Follow this space ahead of upcoming cup games — full commentary will appear here.',
+
+  // Forms page
+  'טפסים להורדה': 'Downloadable Forms',
+  'טפסים זמינים': 'forms available',
+  'אין טפסים זמינים כרגע': 'No forms available right now',
+  'עדיין לא הועלו טפסים.': 'No forms uploaded yet.',
+  'בקרוב יתווספו טפסים ניתנים להורדה.': 'Downloadable forms will be added soon.',
+  'הורדה': 'Download',
+  'הקבצים נפתחים בלשונית חדשה. אם הדפדפן לא הוריד אוטומטית, שמור עם קליק ימני → שמירה בשם.':
+    'Files open in a new tab. If the browser did not download automatically, save with right-click → Save As.',
+
+  // Hall of fame — record labels + notes
+  'שיא נקודות במשחק': 'Most points in a game',
+  'שיא שלשות במשחק': 'Most threes in a game',
+  'שיא נקודות לקבוצה במשחק': 'Most team points in a game',
+  'שיא הפרש במשחק': 'Largest margin in a game',
+  'מלך הסלים העונתי': 'Season scoring leader',
+  'מלך השלשות העונתי': 'Season threes leader',
+  'הכי הרבה ניצחונות בעונה': 'Most wins in a season',
+  'הפרש סלים מצטבר הטוב ביותר': 'Best cumulative point differential',
+  'אוטומטי': 'Auto',
+  'שיא זה מחושב אוטומטית מהנתונים הזמינים. ניתן לדרוס ידנית דרך לוח הניהול.':
+    'This record is computed automatically from available data. It can be overridden manually via the admin panel.',
+  '⚡ סימון "אוטומטי" = השיא נגזר מהנתונים הקיימים בליגה.':
+    '⚡ The "Auto" tag = the record is derived from existing league data.',
+
+  // Player profile page
+  'ממוצע': 'Average',
+  'סה״כ נקודות': 'Total points',
+  'סטטיסטיקת עונה': 'Season stats',
+  'אין מספיק משחקים להצגת הגרף עדיין.': 'Not enough games to show the chart yet.',
+
+  // Scorers page
+  'טבלת מובילי הנקודות': 'Top scorers table',
+
+  // Season review page
+  'סקירות הליגה': 'League Reviews',
+  'ניתוח מעמיק על עונת הליגה': 'In-depth analysis of the league season',
+  'סקירות נוספות': 'More reviews',
+  'בקרוב': 'Coming soon',
+
+  // Team page — technical results
+  'הפסד טכני הדדי': 'Mutual technical loss',
+  'ניצחון טכני': 'Technical win',
+
+  // Season picker
+  'עונה:': 'Season:',
+  'נוכחית': 'current',
+
+  // Report-error button
+  'דווח על שגיאה': 'Report an error',
+  'דיווח על שגיאה': 'Report an error',
+  'כתובת הדף': 'Page URL',
+  'תיאור השגיאה': 'Error description',
+  'תאר בקצרה מה לא עובד...': 'Briefly describe what is not working...',
+  'תודה! הדיווח נשלח בהצלחה.': 'Thanks! Your report was sent successfully.',
+  'שגיאה בשליחה. נסה שוב.': 'Sending failed. Please try again.',
+  'שלח דיווח': 'Send report',
 };

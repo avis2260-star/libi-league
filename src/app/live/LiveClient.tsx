@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import type { LiveGame, LivePlayer } from './page';
 import { useLang } from '@/components/TranslationProvider';
+import { displayName } from '@/lib/names';
 
 const SCOREBOARD_URL = 'https://game-scoreboard-libi.vercel.app';
 
@@ -334,7 +335,7 @@ export default function LiveClient({
                                         {hPlayers.map((p, i) => (
                                           <li key={i} className="flex items-center gap-1.5 text-[10px] text-[#8aaac8]">
                                             <span className="w-5 text-center font-mono text-[#4a6a8a] font-stats">{p.jersey_number ?? '–'}</span>
-                                            <span className="truncate font-heading">{p.name}</span>
+                                            <span className="truncate font-heading">{displayName(p.name, lang)}</span>
                                           </li>
                                         ))}
                                       </ul>
@@ -353,7 +354,7 @@ export default function LiveClient({
                                         {aPlayers.map((p, i) => (
                                           <li key={i} className="flex items-center gap-1.5 text-[10px] text-[#8aaac8]">
                                             <span className="w-5 text-center font-mono text-[#4a6a8a] font-stats">{p.jersey_number ?? '–'}</span>
-                                            <span className="truncate font-heading">{p.name}</span>
+                                            <span className="truncate font-heading">{displayName(p.name, lang)}</span>
                                           </li>
                                         ))}
                                       </ul>

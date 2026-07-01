@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import { useLang } from '@/components/TranslationProvider';
 
 export default function ReportErrorButton() {
   const pathname = usePathname();
+  const { t, lang } = useLang();
   const [open, setOpen] = useState(false);
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
@@ -53,11 +55,11 @@ export default function ReportErrorButton() {
           it expands back to a pill with the full label. */}
       <button
         onClick={() => setOpen(true)}
-        aria-label="דווח על שגיאה"
+        aria-label={t('דווח על שגיאה')}
         className="fixed bottom-24 right-4 sm:bottom-6 sm:right-6 z-40 flex h-11 w-11 sm:h-auto sm:w-auto items-center justify-center sm:gap-2 rounded-full border border-white/10 bg-[#1a2a3a] sm:px-4 sm:py-2.5 text-sm font-bold text-[#8aaac8] shadow-lg transition-all hover:border-orange-500/40 hover:text-orange-400"
       >
         <span className="text-base leading-none">⚠</span>
-        <span className="hidden sm:inline">דווח על שגיאה</span>
+        <span className="hidden sm:inline">{t('דווח על שגיאה')}</span>
       </button>
 
       {/* Modal */}
@@ -67,16 +69,16 @@ export default function ReportErrorButton() {
           onClick={handleClose}
         >
           <div
-            dir="rtl"
+            dir={lang === 'en' ? 'ltr' : 'rtl'}
             className="w-full max-w-md rounded-2xl border border-white/[0.08] bg-[#0f1923] p-6 shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-lg font-black text-white">דיווח על שגיאה</h2>
+              <h2 className="text-lg font-black text-white">{t('דיווח על שגיאה')}</h2>
               <button
                 onClick={handleClose}
-                aria-label="סגור"
+                aria-label={t('סגור')}
                 className="text-xl leading-none text-[#5a7a9a] transition-colors hover:text-white"
               >
                 ✕
@@ -86,18 +88,18 @@ export default function ReportErrorButton() {
             {status === 'success' ? (
               <div className="py-6 text-center">
                 <p className="mb-3 text-4xl">✅</p>
-                <p className="font-bold text-white">תודה! הדיווח נשלח בהצלחה.</p>
+                <p className="font-bold text-white">{t('תודה! הדיווח נשלח בהצלחה.')}</p>
                 <button
                   onClick={handleClose}
                   className="mt-4 text-sm text-orange-400 hover:underline"
                 >
-                  סגור
+                  {t('סגור')}
                 </button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="mb-1.5 block text-xs font-bold text-[#5a7a9a]">כתובת הדף</label>
+                  <label className="mb-1.5 block text-xs font-bold text-[#5a7a9a]">{t('כתובת הדף')}</label>
                   <input
                     type="text"
                     value={pageUrl}
@@ -108,12 +110,12 @@ export default function ReportErrorButton() {
 
                 <div>
                   <label className="mb-1.5 block text-xs font-bold text-[#5a7a9a]">
-                    תיאור השגיאה <span className="text-orange-400">*</span>
+                    {t('תיאור השגיאה')} <span className="text-orange-400">*</span>
                   </label>
                   <textarea
                     value={description}
                     onChange={e => setDescription(e.target.value)}
-                    placeholder="תאר בקצרה מה לא עובד..."
+                    placeholder={t('תאר בקצרה מה לא עובד...')}
                     rows={4}
                     required
                     className="w-full resize-none rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white placeholder:text-[#3a5a7a] transition-colors focus:border-orange-500/40 focus:outline-none"
@@ -121,7 +123,7 @@ export default function ReportErrorButton() {
                 </div>
 
                 {status === 'error' && (
-                  <p className="text-sm text-red-400">שגיאה בשליחה. נסה שוב.</p>
+                  <p className="text-sm text-red-400">{t('שגיאה בשליחה. נסה שוב.')}</p>
                 )}
 
                 <button
@@ -129,7 +131,7 @@ export default function ReportErrorButton() {
                   disabled={status === 'sending' || !description.trim()}
                   className="w-full rounded-xl bg-orange-500 py-2.5 text-sm font-black text-white transition-colors hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {status === 'sending' ? 'שולח...' : 'שלח דיווח'}
+                  {status === 'sending' ? t('שולח...') : t('שלח דיווח')}
                 </button>
               </form>
             )}

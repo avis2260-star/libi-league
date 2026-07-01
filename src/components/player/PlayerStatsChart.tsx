@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
   type TooltipProps,
 } from 'recharts';
+import { useLang } from '@/components/TranslationProvider';
 
 export interface ChartDataPoint {
   game: string;       // "G1", "G2", …
@@ -55,10 +56,11 @@ function CustomTooltip({ active, payload, label }: TooltipProps<number, string>)
 // ── Chart ─────────────────────────────────────────────────────────────────────
 
 export default function PlayerStatsChart({ data }: Props) {
+  const { t } = useLang();
   if (data.length < 2) {
     return (
       <p className="py-8 text-center text-sm text-gray-500">
-        אין מספיק משחקים להצגת הגרף עדיין.
+        {t('אין מספיק משחקים להצגת הגרף עדיין.')}
       </p>
     );
   }

@@ -6,6 +6,7 @@ import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import { getTeams } from '@/lib/supabase';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getLang, st } from '@/lib/get-lang';
+import { displayName } from '@/lib/names';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { getCurrentSeason } from '@/lib/current-season';
 
@@ -379,7 +380,7 @@ export default async function GamePreviewPage({
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] p-5">
           <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#5a7a9a]">📍 {en ? 'Location' : 'מיקום'}</p>
           {gameLocation
-            ? <p className="text-lg font-black text-white">{gameLocation}</p>
+            ? <p className="text-lg font-black text-white">{displayName(gameLocation, lang)}</p>
             : <><p className="text-lg font-black text-[#3a5a7a]">{en ? 'Coming soon' : 'יתווסף בקרוב'}</p><p className="mt-0.5 text-xs text-[#3a5a7a]">{T('טרם נקבע')}</p></>
           }
         </div>
@@ -451,7 +452,7 @@ export default async function GamePreviewPage({
                       <tr key={i} className="border-b border-white/[0.04] last:border-0">
                         <td className={`py-2 text-sm font-bold text-white ${en ? 'text-left' : 'text-right'}`}>
                           <Link href={row.player ? `/players/${row.player.id}` : '#'} className="hover:text-orange-400 transition-colors">
-                            {row.player?.name ?? '—'}
+                            {row.player ? displayName(row.player.name, lang) : '—'}
                           </Link>
                         </td>
                         <td className="py-2 text-center text-sm text-[#8aaac8] font-stats tabular-nums">{row.player?.jersey_number ?? '—'}</td>
@@ -493,7 +494,7 @@ export default async function GamePreviewPage({
                       <tr key={i} className="border-b border-white/[0.04] last:border-0">
                         <td className={`py-2 text-sm font-bold text-white ${en ? 'text-left' : 'text-right'}`}>
                           <Link href={row.player ? `/players/${row.player.id}` : '#'} className="hover:text-orange-400 transition-colors">
-                            {row.player?.name ?? '—'}
+                            {row.player ? displayName(row.player.name, lang) : '—'}
                           </Link>
                         </td>
                         <td className="py-2 text-center text-sm text-[#8aaac8] font-stats tabular-nums">{row.player?.jersey_number ?? '—'}</td>
@@ -573,7 +574,7 @@ export default async function GamePreviewPage({
                 <span className="text-base">🏆</span>
                 <span className="font-bold text-[#8aaac8]">{en ? 'Top Scorer:' : 'מוביל הסלים:'}</span>
                 <Link href={`/players/${top.player.id}`} className="font-black text-white hover:text-orange-400 transition-colors">
-                  {top.player.name}
+                  {displayName(top.player.name, lang)}
                 </Link>
                 <span className="text-[#5a7a9a]">·</span>
                 <span className="text-[#5a7a9a] text-xs">{T(teamName)}</span>

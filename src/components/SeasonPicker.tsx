@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useTransition } from 'react';
+import { useLang } from '@/components/TranslationProvider';
 
 /**
  * Season picker — drops a dropdown that flips the `?season=` URL param.
@@ -27,6 +28,7 @@ export default function SeasonPicker({
   const pathname       = usePathname();
   const searchParams   = useSearchParams();
   const [pending, startTransition] = useTransition();
+  const { t, lang } = useLang();
 
   function onChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const next = e.target.value;
@@ -43,8 +45,8 @@ export default function SeasonPicker({
   }
 
   return (
-    <label className="inline-flex items-center gap-2 text-xs font-bold text-[#8aaac8]" dir="rtl">
-      <span className="select-none">📅 עונה:</span>
+    <label className="inline-flex items-center gap-2 text-xs font-bold text-[#8aaac8]" dir={lang === 'en' ? 'ltr' : 'rtl'}>
+      <span className="select-none">📅 {t('עונה:')}</span>
       <select
         value={viewing}
         onChange={onChange}
@@ -54,7 +56,7 @@ export default function SeasonPicker({
       >
         {seasons.map((s) => (
           <option key={s} value={s}>
-            {s}{s === current ? ' · נוכחית' : ''}
+            {s}{s === current ? ` · ${t('נוכחית')}` : ''}
           </option>
         ))}
       </select>

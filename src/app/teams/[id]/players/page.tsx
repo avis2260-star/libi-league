@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getPlayersByTeam, getTeams } from '@/lib/supabase';
 import { getLang, st } from '@/lib/get-lang';
+import { displayName } from '@/lib/names';
 import type { Player, Team } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -77,7 +78,7 @@ function PlayerCard({ player, T, en }: { player: Player & { team?: Team }; T: (h
             <img src={player.team.logo_url} alt={teamName} className="h-20 w-20 rounded-full object-cover border-2 border-white/20" />
           ) : (
             <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-white/10 bg-white/5 text-4xl font-black text-[#2a4a6a]">
-              {[...player.name].find(c => c.trim()) ?? '?'}
+              {[...displayName(player.name, en ? 'en' : 'he')].find(c => c.trim()) ?? '?'}
             </div>
           )}
           {/* Glow effect */}
@@ -87,7 +88,7 @@ function PlayerCard({ player, T, en }: { player: Player & { team?: Team }; T: (h
         {/* Player name + position */}
         <div className="relative px-4 pb-1 pt-2 text-center">
           <p className="text-base font-black leading-tight text-white group-hover:text-orange-400 transition-colors">
-            {player.name}
+            {displayName(player.name, en ? 'en' : 'he')}
           </p>
           {position && (
             <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#5a7a9a]">
@@ -189,7 +190,7 @@ export default async function TeamPlayersPage({ params }: { params: Promise<{ id
         <div className="flex-1">
           <p className="font-bold text-white group-hover:text-orange-400 transition-colors">{translatedTeamName}</p>
           {team.captain_name && team.captain_name !== 'TBD' && (
-            <p className="text-sm text-[#5a7a9a]">{T('קפטן')}: <span className="text-[#8aaac8]">{team.captain_name}</span></p>
+            <p className="text-sm text-[#5a7a9a]">{T('קפטן')}: <span className="text-[#8aaac8]">{displayName(team.captain_name, lang)}</span></p>
           )}
           {team.contact_info && (
             <p className="text-sm text-[#5a7a9a]">{en ? 'Contact' : 'פרטי קשר'}: <span className="text-[#8aaac8]">{team.contact_info}</span></p>
