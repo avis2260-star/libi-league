@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/require-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCurrentSeason } from '@/lib/current-season';
@@ -5,6 +6,9 @@ import { getCurrentSeason } from '@/lib/current-season';
 const ALLOWED_TYPES = ['technical', 'unsportsmanlike', 'ejection', 'suspension'];
 
 export async function GET() {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   try {
     const season = await getCurrentSeason();
     const { data, error } = await supabaseAdmin
@@ -20,6 +24,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   try {
     const season = await getCurrentSeason();
     const { player_id, player_name, team_name, type, round, notes, suspension_until_round } = await req.json();
@@ -54,6 +61,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   try {
     const body = await req.json();
     const { id, ...fields } = body;
@@ -96,6 +106,9 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   try {
     const id = new URL(req.url).searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'חסר id' }, { status: 400 });

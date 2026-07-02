@@ -1,8 +1,12 @@
+import { requireAdmin } from '@/lib/require-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
 // GET all teams
 export async function GET() {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   const { data, error } = await supabaseAdmin
     .from('teams')
     .select('id,name,logo_url,captain_name,contact_info')
@@ -13,6 +17,9 @@ export async function GET() {
 
 // PATCH — update logo_url and/or name for a team
 export async function PATCH(req: NextRequest) {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   try {
     const body = await req.json() as { id?: string; logo_url?: string; name?: string };
     const { id, logo_url, name } = body;

@@ -1,10 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getClientIp } from '@/lib/mfa';
+import { rateLimit } from '@/lib/rate-limit';
 
 export const maxDuration = 60;
 
+// Public endpoint (part of the /submit flow) that proxies to Gemini — rate
+// limited per IP and payload-capped, same as analyze-scoresheet.
+const RATE_LIMIT = 20;              // calls per minute per IP
+const MAX_BASE64_CHARS = 8_000_000; // ~6 MB of image data
+// Any image/* subtype — see analyze-scoresheet for rationale.
+const MEDIA_TYPE_RE = /^image\/[\w.+-]{1,30}$/;
+
 export async function POST(req: NextRequest) {
   try {
+    const ip = getClientIp(req) || 'unknown';
+    if (!rateLimit(`extract:${ip}`, RATE_LIMIT, 60_000)) {
+      return NextResponse.json({ error: 'יותר מדי בקשות — נסו שוב בעוד דקה' }, { status: 429 });
+    }
+
     const { imageBase64, mediaType = 'image/jpeg', homeName, awayName, homePlayers, awayPlayers } = await req.json();
+    if (!imageBase64 || typeof imageBase64 !== 'string') {
+      return NextResponse.json({ error: 'No image provided' }, { status: 400 });
+    }
+    if (imageBase64.length > MAX_BASE64_CHARS) {
+      return NextResponse.json({ error: 'התמונה גדולה מדי' }, { status: 413 });
+    }
+    if (!MEDIA_TYPE_RE.test(mediaType)) {
+      return NextResponse.json({ error: 'סוג קובץ לא נתמך' }, { status: 400 });
+    }
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return NextResponse.json({ error: 'GEMINI_API_KEY not set' }, { status: 500 });

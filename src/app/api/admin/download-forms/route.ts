@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/require-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
@@ -19,6 +20,9 @@ const ALLOWED_TYPES = new Set([
 
 // GET — list all forms, newest first within the configured sort order.
 export async function GET() {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   const { data, error } = await supabaseAdmin
     .from('download_forms')
     .select('id, label, filename, file_url, file_type, size_bytes, sort_order, created_at')
@@ -33,6 +37,9 @@ export async function GET() {
 
 // POST — upload a new file + insert metadata row.
 export async function POST(req: NextRequest) {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
@@ -89,6 +96,9 @@ export async function POST(req: NextRequest) {
 
 // DELETE — remove a form by id (also wipes the underlying storage object).
 export async function DELETE(req: NextRequest) {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   try {
     const id = new URL(req.url).searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'חסר id' }, { status: 400 });

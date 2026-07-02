@@ -1,11 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getClientIp } from '@/lib/mfa';
+import { rateLimit } from '@/lib/rate-limit';
 
 export const maxDuration = 60;
 
+// This endpoint is public (the /submit flow uses it before a game rep has any
+// session), which makes it a proxy to our Gemini quota — so it is rate-limited
+// per IP and caps the payload it will forward.
+const RATE_LIMIT = 20;              // calls per minute per IP
+const MAX_BASE64_CHARS = 8_000_000; // ~6 MB of image data
+// Any image/* subtype is allowed — the submit flow forwards the picked file's
+// type verbatim, so a strict subtype list would reject photos that work today.
+// Unsupported image formats still fail at Gemini, same as before.
+const MEDIA_TYPE_RE = /^image\/[\w.+-]{1,30}$/;
+
 export async function POST(req: NextRequest) {
   try {
+    const ip = getClientIp(req) || 'unknown';
+    if (!rateLimit(`analyze:${ip}`, RATE_LIMIT, 60_000)) {
+      return NextResponse.json({ error: 'יותר מדי בקשות — נסו שוב בעוד דקה' }, { status: 429 });
+    }
+
     const { imageBase64, mediaType = 'image/jpeg' } = await req.json();
-    if (!imageBase64) return NextResponse.json({ error: 'No image provided' }, { status: 400 });
+    if (!imageBase64 || typeof imageBase64 !== 'string') {
+      return NextResponse.json({ error: 'No image provided' }, { status: 400 });
+    }
+    if (imageBase64.length > MAX_BASE64_CHARS) {
+      return NextResponse.json({ error: 'התמונה גדולה מדי' }, { status: 413 });
+    }
+    if (!MEDIA_TYPE_RE.test(mediaType)) {
+      return NextResponse.json({ error: 'סוג קובץ לא נתמך' }, { status: 400 });
+    }
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return NextResponse.json({ error: 'GEMINI_API_KEY not set' }, { status: 500 });

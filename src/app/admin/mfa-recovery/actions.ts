@@ -11,14 +11,12 @@ export async function removeMfaFactorsAction(): Promise<void> {
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
+  // FAIL CLOSED: an unset/empty ADMIN_EMAILS denies everyone.
   const adminEmails = (process.env.ADMIN_EMAILS ?? '')
     .split(',')
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
-  if (
-    adminEmails.length > 0 &&
-    !adminEmails.includes(user.email?.toLowerCase() ?? '')
-  ) {
+  if (!adminEmails.includes(user.email?.toLowerCase() ?? '')) {
     redirect('/403');
   }
 

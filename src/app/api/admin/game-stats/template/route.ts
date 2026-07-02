@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/require-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCurrentSeason } from '@/lib/current-season';
@@ -23,6 +24,9 @@ type GameTemplateRow = {
 };
 
 export async function GET(req: NextRequest) {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   try {
     const gameId = req.nextUrl.searchParams.get('gameId');
     if (!gameId) return NextResponse.json({ error: 'gameId required' }, { status: 400 });

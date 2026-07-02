@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/require-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCurrentSeason } from '@/lib/current-season';
@@ -5,6 +6,9 @@ import { revalidatePath } from 'next/cache';
 
 // GET — all reviews for a season (defaults to current).
 export async function GET(req: NextRequest) {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   try {
     const season = new URL(req.url).searchParams.get('season') || await getCurrentSeason();
     const { data, error } = await supabaseAdmin
@@ -21,6 +25,9 @@ export async function GET(req: NextRequest) {
 
 // POST — create a new review.
 export async function POST(req: NextRequest) {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   try {
     const body = await req.json() as {
       season?: string;
@@ -51,6 +58,9 @@ export async function POST(req: NextRequest) {
 
 // PATCH — update title, content, or is_published by id.
 export async function PATCH(req: NextRequest) {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   try {
     const body = await req.json() as {
       id?: string;
@@ -83,6 +93,9 @@ export async function PATCH(req: NextRequest) {
 
 // DELETE — remove a review by id.
 export async function DELETE(req: NextRequest) {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   try {
     const id = new URL(req.url).searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'חסר id' }, { status: 400 });

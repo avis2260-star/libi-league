@@ -13,11 +13,13 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { queryResult, postJson } from '../helpers/supabase-mock';
 import { POST as contactPOST } from '@/app/api/contact/route';
 import { POST as reportPOST } from '@/app/api/report-error/route';
+import { resetRateLimiter } from '@/lib/rate-limit';
 
 const fromMock = supabaseAdmin.from as jest.Mock;
 
 beforeEach(() => {
   mockSend.mockResolvedValue({ id: 'email-1' });
+  resetRateLimiter(); // both routes are per-IP rate limited; tests share one "IP"
 });
 
 // ===========================================================================

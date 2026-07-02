@@ -34,26 +34,35 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // ── Protect /admin ──────────────────────────────────────────────────────────
-  if (pathname.startsWith('/admin')) {
+  // ── Protect /admin pages AND /api/admin route handlers ─────────────────────
+  // API callers get a 401 JSON response (a redirect would hand fetch() an HTML
+  // login page); browser page loads keep the original redirect flows.
+  // NOTE: this is defense-in-depth — every /api/admin handler ALSO calls
+  // requireAdmin() itself (see src/lib/require-admin.ts), so a middleware
+  // bypass alone can't reach the service-role client.
+  const isAdminApi = pathname.startsWith('/api/admin');
+  if (pathname.startsWith('/admin') || isAdminApi) {
+    const deny = (redirectTo: URL) =>
+      isAdminApi
+        ? NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        : NextResponse.redirect(redirectTo);
+
     if (!user) {
       const loginUrl = request.nextUrl.clone();
       loginUrl.pathname = '/login';
       loginUrl.searchParams.set('next', pathname);
-      return NextResponse.redirect(loginUrl);
+      return deny(loginUrl);
     }
 
-    // Admin email allowlist check
+    // Admin email allowlist check. FAIL CLOSED: an unset/empty ADMIN_EMAILS
+    // denies everyone rather than letting any authenticated user through.
     const adminEmails = (process.env.ADMIN_EMAILS ?? '')
       .split(',')
       .map((e) => e.trim().toLowerCase())
       .filter(Boolean);
 
-    if (
-      adminEmails.length > 0 &&
-      !adminEmails.includes(user.email?.toLowerCase() ?? '')
-    ) {
-      return NextResponse.redirect(new URL('/403', request.url));
+    if (!adminEmails.includes(user.email?.toLowerCase() ?? '')) {
+      return deny(new URL('/403', request.url));
     }
 
     // MFA gate: required when request is from an untrusted IP.
@@ -67,7 +76,7 @@ export async function middleware(request: NextRequest) {
           const url = request.nextUrl.clone();
           url.pathname = '/login/mfa';
           url.searchParams.set('next', pathname);
-          return NextResponse.redirect(url);
+          return deny(url);
         }
       }
     }
@@ -91,5 +100,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/login/:path*'],
+  matcher: ['/admin/:path*', '/login/:path*', '/api/admin/:path*'],
 };

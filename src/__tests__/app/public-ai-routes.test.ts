@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { POST as analyzePOST } from '@/app/api/analyze-scoresheet/route';
 import { POST as extractPOST } from '@/app/api/extract-stats/route';
-import { GET as listModelsGET } from '@/app/api/list-models/route';
+import { resetRateLimiter } from '@/lib/rate-limit';
 
 function jsonReq(body: unknown): NextRequest {
   return new NextRequest('https://libi.test/api/ai', {
@@ -28,6 +28,7 @@ beforeEach(() => {
   process.env.GEMINI_API_KEY = 'test-key';
   fetchMock = jest.fn();
   global.fetch = fetchMock as unknown as typeof fetch;
+  resetRateLimiter(); // the routes are per-IP rate limited; tests share one "IP"
 });
 afterAll(() => {
   if (ORIGINAL_KEY === undefined) delete process.env.GEMINI_API_KEY;
@@ -142,35 +143,28 @@ describe('extract-stats POST', () => {
 });
 
 // ===========================================================================
-// list-models
+// abuse guards (rate limit / size cap / media type)
 // ===========================================================================
 
-describe('list-models GET', () => {
-  it('returns an error object when GEMINI_API_KEY is missing', async () => {
-    delete process.env.GEMINI_API_KEY;
-    const res = await listModelsGET();
-    expect(await res.json()).toEqual({ error: 'GEMINI_API_KEY not set' });
+describe('AI route abuse guards', () => {
+  it('rejects an oversized base64 payload with 413', async () => {
+    const res = await analyzePOST(jsonReq({ imageBase64: 'x'.repeat(8_000_001) }));
+    expect(res.status).toBe(413);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('returns only models that support generateContent', async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        models: [
-          { name: 'models/gemini-2.5-flash', supportedGenerationMethods: ['generateContent'] },
-          { name: 'models/embedding-001', supportedGenerationMethods: ['embedContent'] },
-          { name: 'models/gemini-pro', supportedGenerationMethods: ['generateContent', 'countTokens'] },
-        ],
-      }),
-    });
-    const body = await (await listModelsGET()).json();
-    expect(body.available).toEqual(['models/gemini-2.5-flash', 'models/gemini-pro']);
+  it('rejects a non-image media type', async () => {
+    const res = await analyzePOST(jsonReq({ imageBase64: 'abc', mediaType: 'application/pdf' }));
+    expect(res.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('handles a response with no models array', async () => {
-    fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) });
-    const body = await (await listModelsGET()).json();
-    expect(body.available).toEqual([]);
+  it('returns 429 once the per-IP rate limit is exhausted', async () => {
+    fetchMock.mockResolvedValue(geminiOk({ status: 'pass' }));
+    for (let i = 0; i < 20; i++) {
+      expect((await analyzePOST(jsonReq({ imageBase64: 'abc' }))).status).toBe(200);
+    }
+    const res = await analyzePOST(jsonReq({ imageBase64: 'abc' }));
+    expect(res.status).toBe(429);
   });
 });

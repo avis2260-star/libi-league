@@ -92,10 +92,43 @@ describe('middleware: /admin protection', () => {
     expect(res.headers.get('location')).toBeNull();
   });
 
-  it('does not enforce the email allowlist when ADMIN_EMAILS is empty', async () => {
+  it('FAILS CLOSED: denies everyone when ADMIN_EMAILS is empty', async () => {
     process.env.ADMIN_EMAILS = '';
     setSupabase({ user: { email: 'anyone@example.com' }, aal: 'aal2' });
     const res = await middleware(request('/admin', TRUSTED_IP));
+    expect(res.status).toBe(307);
+    expect(new URL(res.headers.get('location')!).pathname).toBe('/403');
+  });
+});
+
+// ===========================================================================
+// /api/admin protection — 401 JSON instead of redirects
+// ===========================================================================
+
+describe('middleware: /api/admin protection', () => {
+  it('returns 401 JSON for an unauthenticated API request', async () => {
+    setSupabase({ user: null });
+    const res = await middleware(request('/api/admin/teams'));
+    expect(res.status).toBe(401);
+    expect(res.headers.get('location')).toBeNull();
+  });
+
+  it('returns 401 JSON for a non-allowlisted user', async () => {
+    setSupabase({ user: { email: 'random@example.com' }, aal: 'aal2' });
+    const res = await middleware(request('/api/admin/teams', TRUSTED_IP));
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 401 JSON when AAL is aal1 from an untrusted IP', async () => {
+    setSupabase({ user: { email: ADMIN_EMAIL }, aal: 'aal1' });
+    const res = await middleware(request('/api/admin/teams', '10.0.0.1'));
+    expect(res.status).toBe(401);
+  });
+
+  it('lets an allowlisted aal2 admin through', async () => {
+    setSupabase({ user: { email: ADMIN_EMAIL }, aal: 'aal2' });
+    const res = await middleware(request('/api/admin/teams', '10.0.0.1'));
+    expect(res.status).toBe(200);
     expect(res.headers.get('location')).toBeNull();
   });
 });

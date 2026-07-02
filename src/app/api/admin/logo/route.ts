@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/require-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
@@ -13,6 +14,9 @@ async function ensureBucket() {
 
 // POST — upload new league logo
 export async function POST(req: NextRequest) {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
@@ -54,6 +58,9 @@ export async function POST(req: NextRequest) {
 
 // GET — return current logo URL
 export async function GET() {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   const { data } = await supabaseAdmin
     .from('league_settings')
     .select('value')
@@ -65,6 +72,9 @@ export async function GET() {
 
 // DELETE — revert to default logo
 export async function DELETE() {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   try {
     await supabaseAdmin.storage.from(BUCKET).remove([LOGO_PATH]);
     await supabaseAdmin.from('league_settings').delete().eq('key', SETTING_KEY);

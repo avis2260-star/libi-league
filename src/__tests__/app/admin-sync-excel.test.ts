@@ -1,3 +1,10 @@
+// The admin guard is unit-tested separately (require-admin.test.ts); here we
+// bypass it so each suite tests the handler logic itself.
+jest.mock('@/lib/require-admin', () => ({
+  requireAdmin: jest.fn().mockResolvedValue(null),
+  assertAdmin: jest.fn().mockResolvedValue(undefined),
+}));
+
 /**
  * Tests for /api/admin/sync-excel
  *

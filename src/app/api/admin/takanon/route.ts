@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/require-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
@@ -6,6 +7,9 @@ const BUCKET = 'takanon';
 
 // POST — upload a new takanon file
 export async function POST(req: NextRequest) {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
@@ -49,6 +53,9 @@ export async function POST(req: NextRequest) {
 
 // DELETE — remove current takanon file from storage and clear settings
 export async function DELETE() {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   try {
     // Get current file URL to extract path
     const { data } = await supabaseAdmin
@@ -83,6 +90,9 @@ export async function DELETE() {
 
 // GET — return current takanon info
 export async function GET() {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   const { data } = await supabaseAdmin
     .from('league_settings')
     .select('key,value')

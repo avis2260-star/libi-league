@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/require-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCurrentSeason } from '@/lib/current-season';
@@ -6,6 +7,9 @@ import { buildRostersByName } from '@/lib/build-rosters';
 // GET — series + games + top 4 from each division for dropdowns,
 //       plus rosters (for stat entry) and existing per-game player stats.
 export async function GET() {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   const season = await getCurrentSeason();
   const [{ data: series }, { data: games }, { data: standings }, { data: teams }, { data: players }, { data: stats }] =
     await Promise.all([
@@ -45,6 +49,9 @@ export async function GET() {
 
 // PUT — update a series team names
 export async function PUT(req: NextRequest) {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   const season = await getCurrentSeason();
   const body = await req.json();
   const { series_number, team_a, team_b } = body;
@@ -59,6 +66,9 @@ export async function PUT(req: NextRequest) {
 
 // PATCH — update a single game result
 export async function PATCH(req: NextRequest) {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   const season = await getCurrentSeason();
   const body = await req.json();
   const { series_number, game_number, home_score, away_score, played, game_date, game_time, video_url, location } = body;

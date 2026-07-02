@@ -7,6 +7,7 @@ import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import { findPlayerForExtracted, type ExtractedPlayer } from '@/lib/match-player';
 import { getCurrentSeason, clearCurrentSeasonCache } from '@/lib/current-season';
 import { serializeAutoConfig, type AutoTickerConfig } from '@/lib/ticker-auto';
+import { assertAdmin } from '@/lib/require-admin';
 
 type ActionResult = { error?: string };
 
@@ -20,6 +21,7 @@ export type ImportResult = {
 };
 
 export async function bulkImportGames(): Promise<ImportResult> {
+  await assertAdmin();
   // 1. Load all teams from DB
   const { data: teams, error: teamsError } = await supabaseAdmin
     .from('teams')
@@ -108,6 +110,7 @@ export async function updateGameScore(
   gameTime?: string,
   location?: string,
 ): Promise<ActionResult> {
+  await assertAdmin();
   if (homeScore < 0 || awayScore < 0) return { error: 'Scores cannot be negative.' };
 
   const update: Record<string, unknown> = { home_score: homeScore, away_score: awayScore, status };
@@ -134,6 +137,7 @@ export async function updateGameScore(
 // the game surfaced after its round is over.
 
 export async function setGameDelayed(gameId: string, delayed: boolean): Promise<ActionResult> {
+  await assertAdmin();
   const { error } = await supabaseAdmin
     .from('games')
     .update({ delayed })
@@ -155,6 +159,7 @@ export async function updateGameDetails(
   location: string,
   gameDate?: string,
 ): Promise<ActionResult> {
+  await assertAdmin();
   const update: Record<string, unknown> = {
     game_time: gameTime || '00:00:00',
     location:  location || 'TBD',
@@ -183,6 +188,7 @@ export async function updateGameDetails(
 // ── Reset ALL games time + location ──────────────────────────────────────────
 
 export async function resetAllGameDetails(): Promise<ActionResult> {
+  await assertAdmin();
   // Only reset games that have NOT yet been played — preserve location/time
   // on finished games so the game-preview page can still display them.
   const season = await getCurrentSeason();
@@ -215,6 +221,7 @@ export type ResetSeasonResult = {
 };
 
 export async function resetSeason(opts: ResetSeasonOptions): Promise<ResetSeasonResult> {
+  await assertAdmin();
   const done: string[] = [];
   const season = await getCurrentSeason();
 
@@ -281,6 +288,7 @@ export async function resetSeason(opts: ResetSeasonOptions): Promise<ResetSeason
 export type StartSeasonResult = { error?: string; previous?: string; current?: string };
 
 export async function startNewSeason(nextSeason: string): Promise<StartSeasonResult> {
+  await assertAdmin();
   const trimmed = nextSeason.trim();
   // Accept the common Hebrew league format "YYYY-YYYY" (e.g. "2026-2027").
   if (!/^\d{4}-\d{4}$/.test(trimmed)) {
@@ -339,6 +347,7 @@ export async function updateVideoUrl(
   gameId: string,
   videoUrl: string,
 ): Promise<ActionResult> {
+  await assertAdmin();
   const trimmed = videoUrl.trim();
 
   // Basic URL validation (allow empty to clear)
@@ -371,6 +380,9 @@ export type SubmitGameResultInput = {
   scoresheetImageUrl?: string;
 };
 
+// NOTE: deliberately NOT admin-guarded — this is the one action invoked by the
+// PUBLIC scoresheet submission flow (/submit, SubmitFlow.tsx). Abuse is bounded
+// by the one-active-submission-per-game lock below.
 export async function submitGameResult(input: SubmitGameResultInput): Promise<ActionResult> {
   const season = await getCurrentSeason();
   // Enforce lock: only one active submission per game
@@ -406,6 +418,7 @@ export async function submitGameResult(input: SubmitGameResultInput): Promise<Ac
 }
 
 export async function approveSubmission(submissionId: string): Promise<ActionResult> {
+  await assertAdmin();
   // Fetch submission
   const { data: sub, error: fetchErr } = await supabaseAdmin
     .from('game_submissions')
@@ -657,6 +670,7 @@ async function revokeApprovalEffects(submissionId: string): Promise<void> {
 }
 
 export async function rejectSubmission(submissionId: string, notes?: string): Promise<ActionResult> {
+  await assertAdmin();
   // Undo any stats/score written when this submission was previously approved
   await revokeApprovalEffects(submissionId);
 
@@ -674,6 +688,7 @@ export async function rejectSubmission(submissionId: string, notes?: string): Pr
 }
 
 export async function clearSubmission(submissionId: string): Promise<ActionResult> {
+  await assertAdmin();
   const { error } = await supabaseAdmin
     .from('game_submissions')
     .delete()
@@ -691,6 +706,7 @@ export async function changeSubmissionStatus(
   status: 'pending' | 'needs_review' | 'approved' | 'rejected',
   notes?: string,
 ): Promise<ActionResult> {
+  await assertAdmin();
   // Approving → run full pipeline (game score + game_stats + player totals)
   if (status === 'approved') {
     return approveSubmission(submissionId);
@@ -735,6 +751,7 @@ export async function upsertPlayerGameStat(input: {
   threePointers: number;
   fouls: number;
 }): Promise<ActionResult> {
+  await assertAdmin();
   if (!input.playerId || !input.gameId) {
     return { error: 'player + game required' };
   }
@@ -858,6 +875,7 @@ export async function upsertCupGameStat(input: {
   threePointers: number;
   fouls: number;
 }): Promise<ActionResult> {
+  await assertAdmin();
   if (!input.playerId || !input.cupGameId) return { error: 'player + game required' };
   const season = await getCurrentSeason();
   const next = cleanStatValues(input);
@@ -902,6 +920,7 @@ export async function upsertPlayoffGameStat(input: {
   threePointers: number;
   fouls: number;
 }): Promise<ActionResult> {
+  await assertAdmin();
   if (!input.playerId || !input.seriesNumber || !input.gameNumber) {
     return { error: 'player + series + game required' };
   }
@@ -966,6 +985,7 @@ export async function saveGameQuarters(input: {
   homeQuarters: number[] | null;
   awayQuarters: number[] | null;
 }): Promise<ActionResult> {
+  await assertAdmin();
   if (!input.gameId) return { error: 'game required' };
 
   let home = cleanQuarters(input.homeQuarters);
@@ -996,6 +1016,7 @@ export async function saveCupGameQuarters(input: {
   homeQuarters: number[] | null;
   awayQuarters: number[] | null;
 }): Promise<ActionResult> {
+  await assertAdmin();
   if (!input.cupGameId) return { error: 'game required' };
   const { error } = await supabaseAdmin
     .from('cup_games')
@@ -1013,6 +1034,7 @@ export async function savePlayoffGameQuarters(input: {
   homeQuarters: number[] | null;
   awayQuarters: number[] | null;
 }): Promise<ActionResult> {
+  await assertAdmin();
   if (!input.seriesNumber || !input.gameNumber) return { error: 'series + game required' };
   const season = await getCurrentSeason();
   const { error } = await supabaseAdmin
@@ -1030,6 +1052,7 @@ export async function savePlayoffGameQuarters(input: {
 // ── Ticker speed ─────────────────────────────────────────────────────────────
 
 export async function saveTickerSpeed(seconds: number): Promise<ActionResult> {
+  await assertAdmin();
   const clamped = Math.max(5, Math.min(120, Math.round(seconds)));
   const { error } = await supabaseAdmin
     .from('league_settings')
@@ -1047,6 +1070,7 @@ export async function saveTickerSpeed(seconds: number): Promise<ActionResult> {
 // src/lib/ticker-auto.ts / ticker-auto-data.ts.
 
 export async function saveTickerAuto(config: AutoTickerConfig): Promise<ActionResult> {
+  await assertAdmin();
   const clean = serializeAutoConfig(config);
   const { error } = await supabaseAdmin
     .from('league_settings')
@@ -1066,6 +1090,7 @@ export async function saveTickerAuto(config: AutoTickerConfig): Promise<ActionRe
 export type CupHeroReviews = { before: string | null; after: string | null };
 
 export async function saveCupHeroReviews(value: CupHeroReviews): Promise<ActionResult> {
+  await assertAdmin();
   const clean: CupHeroReviews = {
     before: value.before?.trim() || null,
     after:  value.after?.trim()  || null,
@@ -1086,6 +1111,7 @@ export async function saveTermsSetting(
   key: 'terms_of_use' | 'privacy_policy',
   value: string,
 ): Promise<ActionResult> {
+  await assertAdmin();
   const { error } = await supabaseAdmin
     .from('league_settings')
     .upsert({ key, value }, { onConflict: 'key' });
@@ -1111,6 +1137,7 @@ export type ReprocessReport = {
 };
 
 export async function reprocessApprovedSubmissions(): Promise<ReprocessReport> {
+  await assertAdmin();
   const report: ReprocessReport = {
     submissionsProcessed: 0,
     gamesUpdated: 0,
@@ -1234,6 +1261,7 @@ export async function saveAccessibilitySetting(
   key: AccessibilitySettingKey,
   value: string,
 ): Promise<ActionResult> {
+  await assertAdmin();
   const { error } = await supabaseAdmin
     .from('league_settings')
     .upsert({ key, value }, { onConflict: 'key' });
@@ -1254,6 +1282,7 @@ export async function saveCupSetting(
   key: CupSettingKey,
   value: string,
 ): Promise<ActionResult> {
+  await assertAdmin();
   const { error } = await supabaseAdmin
     .from('league_settings')
     .upsert({ key, value }, { onConflict: 'key' });
@@ -1275,6 +1304,7 @@ export async function saveAboutSetting(
   key: AboutSettingKey,
   value: string,
 ): Promise<ActionResult> {
+  await assertAdmin();
   const { error } = await supabaseAdmin
     .from('league_settings')
     .upsert({ key, value }, { onConflict: 'key' });
@@ -1287,6 +1317,7 @@ export async function saveAboutSetting(
 // ── Contact messages ─────────────────────────────────────────────────────────
 
 export async function markMessageRead(id: string): Promise<ActionResult> {
+  await assertAdmin();
   const { error } = await supabaseAdmin
     .from('contact_submissions')
     .update({ is_read: true })
@@ -1299,6 +1330,7 @@ export async function markMessageRead(id: string): Promise<ActionResult> {
 // Mark / unmark a message as handled. Sets is_read=true alongside so a
 // handled-but-never-opened message can't end up in "טרם נקרא".
 export async function setMessageHandled(id: string, handled: boolean): Promise<ActionResult> {
+  await assertAdmin();
   const update = handled
     ? { is_handled: true,  is_read: true }
     : { is_handled: false };
@@ -1312,6 +1344,7 @@ export async function setMessageHandled(id: string, handled: boolean): Promise<A
 }
 
 export async function deleteMessage(id: string): Promise<ActionResult> {
+  await assertAdmin();
   const { error } = await supabaseAdmin
     .from('contact_submissions')
     .delete()
@@ -1335,6 +1368,7 @@ export async function saveBoxScore(
   gameId: string,
   stats: PlayerStatInput[],
 ): Promise<ActionResult> {
+  await assertAdmin();
   if (!stats.length) return { error: 'No stats provided.' };
 
   const season = await getCurrentSeason();
