@@ -686,7 +686,7 @@ async function getPlayoffChampion(season: string): Promise<PlayoffChampion | nul
     let winsA = 0, winsB = 0;
     let deciding: typeof rows[number] | null = null;
     for (const g of rows) {
-      if (!g.played || g.home_score == null || g.away_score == null) continue;
+      if (g.home_score == null || g.away_score == null) continue;
       const home = homeForGame(g.game_number);
       const homeWon = g.home_score > g.away_score;
       const aWon = (homeWon && home === series.team_a) || (!homeWon && home !== series.team_a);
@@ -799,10 +799,11 @@ async function getUpcomingPlayoffGames(season: string): Promise<{ games: RawPlay
 
       const seriesGames = games.filter((g) => g.series_number === s.series_number);
 
-      // Series tally from played games.
+      // Series tally from games with a result (both scores entered counts,
+      // even if the admin didn't tick "shown").
       let winsA = 0, winsB = 0;
       for (const g of seriesGames) {
-        if (!g.played || g.home_score == null || g.away_score == null) continue;
+        if (g.home_score == null || g.away_score == null) continue;
         const home    = homeForGame(teamA, teamB, g.game_number);
         const homeWon = g.home_score > g.away_score;
         if ((homeWon && home === teamA) || (!homeWon && home !== teamA)) winsA++;
@@ -814,8 +815,11 @@ async function getUpcomingPlayoffGames(season: string): Promise<{ games: RawPlay
       const decided = isFinal ? (winsA >= 1 || winsB >= 1) : (winsA >= 2 || winsB >= 2);
       if (decided) continue;
 
-      // Next game = lowest-numbered unplayed game in the series.
-      const next = [...seriesGames].filter((g) => !g.played).sort((a, b) => a.game_number - b.game_number)[0];
+      // Next game = lowest-numbered game without a result yet (no scores and
+      // not marked shown).
+      const next = [...seriesGames]
+        .filter((g) => !g.played && (g.home_score == null || g.away_score == null))
+        .sort((a, b) => a.game_number - b.game_number)[0];
       if (!next) continue;
 
       out.push({

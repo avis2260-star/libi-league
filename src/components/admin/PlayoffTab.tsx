@@ -37,9 +37,13 @@ interface PlayoffStatRow {
 function homeFor(s: Series, gNum: number) { return gNum === 2 ? s.team_b : s.team_a; }
 function awayFor(s: Series, gNum: number) { return gNum === 2 ? s.team_a : s.team_b; }
 
+// Matches the public site: a game counts once both scores are in, even if the
+// "shown" flag wasn't ticked (saving auto-publishes it anyway).
+function isPlayed(g: Game) { return g.played || (g.home_score !== null && g.away_score !== null); }
+
 function seriesWins(s: Series, games: Game[]) {
   let winsA = 0; let winsB = 0;
-  for (const g of games.filter(g => g.series_number === s.series_number && g.played)) {
+  for (const g of games.filter(g => g.series_number === s.series_number && isPlayed(g))) {
     const home = homeFor(s, g.game_number);
     const homeWon = (g.home_score ?? 0) > (g.away_score ?? 0);
     if ((homeWon && home === s.team_a) || (!homeWon && home !== s.team_a)) winsA++;
@@ -203,6 +207,11 @@ export default function PlayoffTab() {
   async function saveGame(sNum: number, gNum: number) {
     const d = getGD(sNum, gNum);
     const key = `game-${sNum}-${gNum}`;
+    // Auto-publish: a game with both scores entered is a real result, so mark it
+    // "shown" automatically. Saves the admin from having to also tick הוצג —
+    // forgetting it used to silently hide the scores from the public site.
+    const played = d.played || (d.hs !== '' && d.as !== '');
+    if (played !== d.played) setGD(sNum, gNum, { played });
     setSaving(key); setMsg(null);
     const res = await fetch('/api/admin/playoff', {
       method: 'PATCH',
@@ -211,7 +220,7 @@ export default function PlayoffTab() {
         series_number: sNum, game_number: gNum,
         home_score: d.hs !== '' ? parseInt(d.hs) : null,
         away_score: d.as !== '' ? parseInt(d.as) : null,
-        played: d.played,
+        played,
         game_date: d.date || null,
         game_time: d.time || null,
         video_url: d.vu.trim() || null,
@@ -225,7 +234,7 @@ export default function PlayoffTab() {
         series_number: sNum, game_number: gNum,
         home_score: d.hs !== '' ? parseInt(d.hs) : null,
         away_score: d.as !== '' ? parseInt(d.as) : null,
-        played: d.played, game_date: d.date || null, game_time: d.time || null,
+        played, game_date: d.date || null, game_time: d.time || null,
         home_quarters: prevGame?.home_quarters ?? null,
         away_quarters: prevGame?.away_quarters ?? null,
         video_url: d.vu.trim() || null,

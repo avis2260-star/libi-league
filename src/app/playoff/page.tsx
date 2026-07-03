@@ -45,9 +45,13 @@ const SERIES_FEED: Record<number, [number, number]> = {
 /* ── Score helpers ──────────────────────────────────────────────────────── */
 function homeForGame(s: Series, gNum: number) { return gNum === 2 ? s.team_b : s.team_a; }
 
+// A game counts once it has a result — either explicitly published (played) or
+// simply both scores filled in — so scores show even without ticking "shown".
+function isPlayed(g: Game) { return g.played || (g.home_score !== null && g.away_score !== null); }
+
 function seriesScore(s: Series, games: Game[]) {
   let winsA = 0, winsB = 0;
-  for (const g of games.filter(g => g.series_number === s.series_number && g.played)) {
+  for (const g of games.filter(g => g.series_number === s.series_number && isPlayed(g))) {
     const home    = homeForGame(s, g.game_number);
     const homeWon = (g.home_score ?? 0) > (g.away_score ?? 0);
     if ((homeWon && home === s.team_a) || (!homeWon && home !== s.team_a)) winsA++;
@@ -130,7 +134,7 @@ function GameDots({ series, allGames }: { series: Series; allGames: Game[] }) {
     <div className="flex items-center gap-1.5 justify-center">
       {[1, 2, 3].map(gNum => {
         const g      = seriesGames.find(g => g.game_number === gNum);
-        const played = g?.played && g.home_score !== null && g.away_score !== null;
+        const played = !!g && isPlayed(g) && g.home_score !== null && g.away_score !== null;
         const home   = homeForGame(series, gNum);
         const homeWon = played && (g!.home_score! > g!.away_score!);
         const aWon   = played && ((homeWon && home === series.team_a) || (!homeWon && home !== series.team_a));

@@ -92,7 +92,7 @@ export default async function PlayoffStatsPage({
     getPlayoffScorers(viewing),
     getLang(),
     listKnownSeasons(),
-    supabaseAdmin.from('playoff_games').select('played').eq('season', viewing),
+    supabaseAdmin.from('playoff_games').select('played, home_score, away_score').eq('season', viewing),
     supabaseAdmin.from('playoff_series').select('series_number').eq('season', viewing),
   ]);
 
@@ -100,7 +100,8 @@ export default async function PlayoffStatsPage({
   const en = lang === 'en';
   const dir = lang === 'he' ? 'rtl' : 'ltr';
 
-  const gamesPlayed = ((gamesData ?? []) as { played: boolean | null }[]).filter((g) => g.played).length;
+  const gamesPlayed = ((gamesData ?? []) as { played: boolean | null; home_score: number | null; away_score: number | null }[])
+    .filter((g) => g.played || (g.home_score !== null && g.away_score !== null)).length;
   const seriesCount = (seriesData ?? []).length;
 
   return (
