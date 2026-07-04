@@ -73,6 +73,15 @@ function seriesScore(s: Series, games: Game[]) {
   return { winsA, winsB, winner: winsA >= 2 ? s.team_a : winsB >= 2 ? s.team_b : null };
 }
 
+// A result dot is coloured by the division of the team that won that game:
+// North (צפון) → blue, South (דרום) → orange. Falls back to a neutral tone when
+// the division can't be read from the label (e.g. an "נצח סדרה N" SF/Final slot).
+function divisionDotClass(label: string): string {
+  if (label.includes('צפון') || /north/i.test(label)) return 'bg-blue-500';
+  if (label.includes('דרום') || /south/i.test(label)) return 'bg-orange-400';
+  return 'bg-[#4a6a8a]';
+}
+
 function GameDots({ series, allGames }: { series: Series; allGames: Game[] }) {
   const seriesGames = allGames.filter(g => g.series_number === series.series_number);
   return (
@@ -83,9 +92,10 @@ function GameDots({ series, allGames }: { series: Series; allGames: Game[] }) {
         const home = homeForGame(series, gNum);
         const homeWon = played && (g!.home_score! > g!.away_score!);
         const aWon = played && ((homeWon && home === series.team_a) || (!homeWon && home !== series.team_a));
+        const winnerLabel = aWon ? series.team_a_label : series.team_b_label;
         return (
           <div key={gNum} className="flex flex-col items-center gap-0.5">
-            <div className={`h-2.5 w-2.5 rounded-full ${!played ? 'border border-white/[0.12] bg-transparent' : aWon ? 'bg-orange-400' : 'bg-[#4a6a8a]'}`} />
+            <div className={`h-2.5 w-2.5 rounded-full ${!played ? 'border border-white/[0.12] bg-transparent' : divisionDotClass(winnerLabel)}`} />
             <span className="text-[11px] font-bold text-[#6a86a4]">{gNum}</span>
           </div>
         );
