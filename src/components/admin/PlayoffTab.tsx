@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { upsertPlayoffGameStat, savePlayoffGameQuarters } from '@/app/admin/actions';
 import GameStatsEditor, { type RosterPlayer } from '@/components/admin/GameStatsEditor';
@@ -109,36 +109,42 @@ export default function PlayoffTab() {
   const [rostersByTeam, setRostersByTeam] = useState<Record<string, RosterPlayer[]>>({});
   const [stats, setStats]           = useState<PlayoffStatRow[]>([]);
   const [statsOpenKey, setStatsOpenKey] = useState<string | null>(null);
+  // Bumped on every (re)load so an open GameStatsEditor remounts and re-seeds
+  // its inputs from fresh data after an import — its player/quarter inputs use
+  // seed-once useState, so a re-fetch alone wouldn't repaint them.
+  const [dataVersion, setDataVersion] = useState(0);
+
+  const loadData = useCallback(async () => {
+    const res = await fetch('/api/admin/playoff');
+    const { series: s, games: g, northTeams: nt, southTeams: st, rostersByTeam: rb, stats: stt } = await res.json();
+    setSeries(s);
+    setGames(g);
+    setNorthTeams(nt ?? []);
+    setSouthTeams(st ?? []);
+    setRostersByTeam(rb ?? {});
+    setStats(stt ?? []);
+    const td: Record<number, { a: string; b: string }> = {};
+    for (const sr of s) td[sr.series_number] = { a: sr.team_a, b: sr.team_b };
+    setTeamDraft(td);
+    const gd: Record<string, { hs: string; as: string; date: string; time: string; played: boolean; vu: string; loc: string }> = {};
+    for (const gm of g) {
+      gd[`${gm.series_number}-${gm.game_number}`] = {
+        hs: gm.home_score?.toString() ?? '',
+        as: gm.away_score?.toString() ?? '',
+        date: gm.game_date ?? '',
+        time: gm.game_time ? gm.game_time.slice(0, 5) : '',
+        played: gm.played,
+        vu: gm.video_url ?? '',
+        loc: gm.location ?? '',
+      };
+    }
+    setGameDraft(gd);
+    setDataVersion(v => v + 1);
+  }, []);
 
   useEffect(() => {
-    fetch('/api/admin/playoff')
-      .then(r => r.json())
-      .then(({ series: s, games: g, northTeams: nt, southTeams: st, rostersByTeam: rb, stats: stt }) => {
-        setSeries(s);
-        setGames(g);
-        setNorthTeams(nt ?? []);
-        setSouthTeams(st ?? []);
-        setRostersByTeam(rb ?? {});
-        setStats(stt ?? []);
-        const td: Record<number, { a: string; b: string }> = {};
-        for (const sr of s) td[sr.series_number] = { a: sr.team_a, b: sr.team_b };
-        setTeamDraft(td);
-        const gd: Record<string, { hs: string; as: string; date: string; time: string; played: boolean; vu: string; loc: string }> = {};
-        for (const gm of g) {
-          gd[`${gm.series_number}-${gm.game_number}`] = {
-            hs: gm.home_score?.toString() ?? '',
-            as: gm.away_score?.toString() ?? '',
-            date: gm.game_date ?? '',
-            time: gm.game_time ? gm.game_time.slice(0, 5) : '',
-            played: gm.played,
-            vu: gm.video_url ?? '',
-            loc: gm.location ?? '',
-          };
-        }
-        setGameDraft(gd);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    loadData().finally(() => setLoading(false));
+  }, [loadData]);
 
   // "series-game" → { player_id → stat values }
   const statsByGame = useMemo(() => {
@@ -423,8 +429,9 @@ export default function PlayoffTab() {
                         const awayScore = d.as !== '' ? parseInt(d.as) : (row?.away_score ?? null);
                         return (
                           <div dir="rtl" className="rounded-xl border border-orange-500/20 bg-orange-500/[0.03] p-3 mt-1">
-                            <PlayoffStatsUpload seriesNumber={s.series_number} gameNumber={gNum} />
+                            <PlayoffStatsUpload seriesNumber={s.series_number} gameNumber={gNum} onImported={loadData} />
                             <GameStatsEditor
+                              key={`gse-${gKey}-${dataVersion}`}
                               homeTeamName={homeTeam}
                               awayTeamName={awayTeam}
                               homePlayers={rostersByTeam[homeTeam] ?? []}
@@ -458,7 +465,7 @@ export default function PlayoffTab() {
 }
 
 // ── Per-game Excel upload (official "סיכום" scoresheet → playoff box score) ──
-function PlayoffStatsUpload({ seriesNumber, gameNumber }: { seriesNumber: number; gameNumber: number }) {
+function PlayoffStatsUpload({ seriesNumber, gameNumber, onImported }: { seriesNumber: number; gameNumber: number; onImported: () => Promise<void> }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -478,6 +485,10 @@ function PlayoffStatsUpload({ seriesNumber, gameNumber }: { seriesNumber: number
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error ?? 'שגיאה בייבוא');
       setMsg({ ok: true, text: data.message ?? '✅ יובא' });
+      // Re-fetch so the box score + quarters repaint in place (the editor
+      // remounts via its dataVersion key). Swallow a refresh error — the
+      // import itself already succeeded.
+      await onImported().catch(() => {});
       router.refresh();
     } catch (err) {
       setMsg({ ok: false, text: err instanceof Error ? err.message : 'שגיאה' });
