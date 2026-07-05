@@ -163,6 +163,8 @@ export const DICT: Record<string, string> = {
   'רבע גמר': 'Quarter Finals',
   'חצי גמר': 'Semi Finals',
   'גמר': 'Final',
+  'תוצאות פלייאוף': 'Playoff Results',
+  'לעץ הפלייאוף ←': 'To the bracket ←',
   'סדרה': 'Series',
   'הטוב מ-3': 'Best of 3',
   'ניצחונות': 'Wins',

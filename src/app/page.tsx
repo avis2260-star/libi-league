@@ -10,6 +10,7 @@ import PlayoffScoreboardStrip, { type PlayoffStripGame } from '@/components/Play
 import DelayedGames, { type DelayedPendingCard, type DelayedFinishedCard } from '@/components/DelayedGames';
 import { scheduleEntryForFixture } from '@/lib/game-round';
 import LastRoundResults from '@/components/LastRoundResults';
+import PlayoffResults from '@/components/PlayoffResults';
 import UpcomingEvents, { type UpcomingEvent } from '@/components/UpcomingEvents';
 import ChampionBanner, { type ChampionBannerProps } from '@/components/ChampionBanner';
 import { getSeasonPhaseSetting, resolveSeasonPhase } from '@/lib/season-phase';
@@ -1538,8 +1539,9 @@ export default async function HomePage() {
         <UpcomingEvents events={upcomingEvents} lang={lang as 'he' | 'en'} />
       )}
 
-      {/* ── Last Round Results ── */}
-      <LastRoundResults />
+      {/* ── Results block — playoff game results once the season is over,
+             otherwise the last regular-season round ── */}
+      {inPlayoffs ? <PlayoffResults /> : <LastRoundResults />}
 
       <div>
         <h1 className="text-3xl font-black text-white font-heading">
@@ -1768,31 +1770,49 @@ export default async function HomePage() {
               </p>
             </div>
           )}
-          <Link href="/cup" className="group block p-5 transition-colors hover:bg-white/[0.03]">
-            <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">
-              {T('גמר הגביע')}
-              <span className="ms-1 text-[#e0c97a] opacity-0 transition-opacity group-hover:opacity-100">←</span>
-            </p>
-            {cupFinal ? (
-              <>
-                <p className="text-base font-black text-[#e0c97a] transition-colors group-hover:text-yellow-300 font-heading">
-                  {cupFinal.played && cupFinal.home_score !== null
-                    ? <><span className="font-heading">{T(cupFinal.home_team)}</span> <span className="font-stats">{cupFinal.home_score}–{cupFinal.away_score}</span> <span className="font-heading">{T(cupFinal.away_team)}</span></>
-                    : cupFinal.date || '—'}
-                </p>
-                <p className="text-sm font-bold text-[#8aaac8] font-body">
-                  {cupFinal.played
-                    ? (lang === 'en' ? 'Final result' : `${cupFinal.date}`)
-                    : `${T(cupFinal.home_team)} vs ${T(cupFinal.away_team)}`}
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="text-base font-black text-[#e0c97a] transition-colors group-hover:text-yellow-300">—</p>
-                <p className="text-sm font-bold text-[#8aaac8] font-body">{lang === 'en' ? 'TBD' : 'טרם נקבע'}</p>
-              </>
-            )}
-          </Link>
+          {inPlayoffs && playoffHighlights.highScore ? (
+            // During the playoffs the middle fact swaps the cup final for a
+            // playoff record — the highest single-team score so far.
+            <Link href="/playoff" className="group block p-5 transition-colors hover:bg-white/[0.03]">
+              <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">
+                {lang === 'en' ? 'Top playoff score' : 'הניקוד הגבוה בפלייאוף'}
+                <span className="ms-1 text-[#e0c97a] opacity-0 transition-opacity group-hover:opacity-100">←</span>
+              </p>
+              <p className="text-base font-black text-[#e0c97a] transition-colors group-hover:text-yellow-300 font-heading">
+                <span className="font-heading">{T(dbDisplayName(playoffHighlights.highScore.team))}</span>{' '}
+                <span className="font-stats">{playoffHighlights.highScore.score}</span>
+              </p>
+              <p className="text-sm font-bold text-[#8aaac8] font-body">
+                {lang === 'en' ? 'vs ' : 'מול '}{T(dbDisplayName(playoffHighlights.highScore.opp))}
+              </p>
+            </Link>
+          ) : (
+            <Link href="/cup" className="group block p-5 transition-colors hover:bg-white/[0.03]">
+              <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">
+                {T('גמר הגביע')}
+                <span className="ms-1 text-[#e0c97a] opacity-0 transition-opacity group-hover:opacity-100">←</span>
+              </p>
+              {cupFinal ? (
+                <>
+                  <p className="text-base font-black text-[#e0c97a] transition-colors group-hover:text-yellow-300 font-heading">
+                    {cupFinal.played && cupFinal.home_score !== null
+                      ? <><span className="font-heading">{T(cupFinal.home_team)}</span> <span className="font-stats">{cupFinal.home_score}–{cupFinal.away_score}</span> <span className="font-heading">{T(cupFinal.away_team)}</span></>
+                      : cupFinal.date || '—'}
+                  </p>
+                  <p className="text-sm font-bold text-[#8aaac8] font-body">
+                    {cupFinal.played
+                      ? (lang === 'en' ? 'Final result' : `${cupFinal.date}`)
+                      : `${T(cupFinal.home_team)} vs ${T(cupFinal.away_team)}`}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-base font-black text-[#e0c97a] transition-colors group-hover:text-yellow-300">—</p>
+                  <p className="text-sm font-bold text-[#8aaac8] font-body">{lang === 'en' ? 'TBD' : 'טרם נקבע'}</p>
+                </>
+              )}
+            </Link>
+          )}
           {inPlayoffs ? (
             <Link href="/playoff" className="group block p-5 transition-colors hover:bg-white/[0.03]">
               <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">
