@@ -560,6 +560,10 @@ export const DICT: Record<string, string> = {
   'ממוצע': 'Average',
   'סה״כ נקודות': 'Total points',
   'סטטיסטיקת עונה': 'Season stats',
+  'סטטיסטיקת פלייאוף': 'Playoff Stats',
+  'היסטוריית פלייאוף': 'Playoff History',
+  'היסטורייה עונתית': 'Season History',
+  'שלב': 'Stage',
   'אין מספיק משחקים להצגת הגרף עדיין.': 'Not enough games to show the chart yet.',
 
   // Scorers page

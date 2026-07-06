@@ -83,12 +83,15 @@ export default async function PlayerProfilePage({
   const { id } = await params;
   const sp = await searchParams;
   const { viewing, current, isArchive } = await resolveSeasonFromParams(sp);
-  const [player, gameStats, lang, { data: teamsData }, seasons] = await Promise.all([
+  const [player, gameStats, lang, { data: teamsData }, seasons, { data: poStatRows }, { data: poSeriesRows }, { data: poGameRows }] = await Promise.all([
     getPlayerById(id),
     getPlayerGameStats(id, viewing),
     getLang(),
     supabaseAdmin.from('teams').select('id,name'),
     listKnownSeasons(),
+    supabaseAdmin.from('playoff_game_stats').select('series_number, game_number, points, three_pointers, fouls').eq('player_id', id).eq('season', viewing),
+    supabaseAdmin.from('playoff_series').select('series_number, team_a, team_b').eq('season', viewing),
+    supabaseAdmin.from('playoff_games').select('series_number, game_number, home_score, away_score, game_date, played').eq('season', viewing),
   ]);
   const T = (he: string) => st(he, lang);
 
@@ -153,6 +156,50 @@ export default async function PlayerProfilePage({
   const ptsSub     = hasGames && ptsAvg     !== null ? `${T('ממוצע')} ${ptsAvg}`     : T('סה״כ נקודות');
   const threePtSub = hasGames && threePtAvg !== null ? `${T('ממוצע')} ${threePtAvg}` : T('סה״כ 3נק׳');
   const foulsSub   = hasGames && foulsAvg   !== null ? `${T('ממוצע')} ${foulsAvg}`   : T('סה״כ עבירות');
+
+  // ── Playoff stats — a SEPARATE competition from the season totals (they do
+  //    not roll into players.points), shown alongside them so a player's full
+  //    record is visible. Opponent + score per game are resolved through
+  //    playoff_series, applying the game-2 home/away swap used across /playoff.
+  type PoStatRow = { series_number: number; game_number: number; points: number | null; three_pointers: number | null; fouls: number | null };
+  const poStats = (poStatRows ?? []) as PoStatRow[];
+  const poPts   = poStats.reduce((a, r) => a + (r.points ?? 0), 0);
+  const po3pt   = poStats.reduce((a, r) => a + (r.three_pointers ?? 0), 0);
+  const poFouls = poStats.reduce((a, r) => a + (r.fouls ?? 0), 0);
+  const poGamesPlayed = poStats.length;
+  const hasPlayoffStats = poGamesPlayed > 0;
+
+  const poSeriesByNum = new Map(((poSeriesRows ?? []) as { series_number: number; team_a: string | null; team_b: string | null }[]).map((s) => [s.series_number, s]));
+  const poGameByKey = new Map(((poGameRows ?? []) as { series_number: number; game_number: number; home_score: number | null; away_score: number | null }[]).map((g) => [`${g.series_number}-${g.game_number}`, g]));
+  const myTeamCanon = player?.team ? resolveTeamName(player.team.name) : '';
+  const poStageHe = (n: number): string => (n >= 7 ? 'גמר' : n >= 5 ? 'חצי גמר' : 'רבע גמר');
+
+  const playoffHistory = poStats
+    .map((r) => {
+      const s = poSeriesByNum.get(r.series_number);
+      const teamA = s?.team_a ?? '';
+      const teamB = s?.team_b ?? '';
+      const iAmA = !!teamA && resolveTeamName(teamA) === myTeamCanon;
+      const opp = iAmA ? teamB : teamA;
+      const homeTeam = r.game_number === 2 ? teamB : teamA;   // game-2 swaps home/away
+      const iAmHome = !!homeTeam && resolveTeamName(homeTeam) === myTeamCanon;
+      const g = poGameByKey.get(`${r.series_number}-${r.game_number}`);
+      const myScore  = g ? (iAmHome ? g.home_score : g.away_score) : null;
+      const oppScore = g ? (iAmHome ? g.away_score : g.home_score) : null;
+      const result: 'W' | 'L' | 'D' | null =
+        myScore != null && oppScore != null ? (myScore > oppScore ? 'W' : myScore < oppScore ? 'L' : 'D') : null;
+      return {
+        key: `${r.series_number}-${r.game_number}`,
+        stageHe: poStageHe(r.series_number),
+        gameNumber: r.game_number,
+        opp,
+        myScore, oppScore, result,
+        points: r.points ?? 0,
+        three: r.three_pointers ?? 0,
+        fouls: r.fouls ?? 0,
+      };
+    })
+    .sort((a, b) => a.gameNumber - b.gameNumber);
 
   const posMeta = player.position ? POSITION_META[player.position] : null;
   const staffMeta = player.staff_role ? STAFF_ROLE_META[player.staff_role] : null;
@@ -289,6 +336,19 @@ export default async function PlayerProfilePage({
           </div>
         </section>
 
+        {/* ── Playoff stats dashboard (separate competition from the season) ── */}
+        {hasPlayoffStats && (
+          <section>
+            <SectionTitle>{T('סטטיסטיקת פלייאוף')}</SectionTitle>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <StatCard label={T('נק׳')}    value={String(poPts)}         sublabel={poGamesPlayed ? `${T('ממוצע')} ${avg(poPts, poGamesPlayed)}` : T('סה״כ נקודות')} accent="gold" />
+              <StatCard label={T('3נק׳')}   value={String(po3pt)}         sublabel={poGamesPlayed ? `${T('ממוצע')} ${avg(po3pt, poGamesPlayed)}` : T('סה״כ 3נק׳')}   accent="sky" />
+              <StatCard label={T('עבירות')} value={String(poFouls)}       sublabel={poGamesPlayed ? `${T('ממוצע')} ${avg(poFouls, poGamesPlayed)}` : T('סה״כ עבירות')} accent="rose" />
+              <StatCard label={T('משחקים')} value={String(poGamesPlayed)} sublabel={T('משחקים שהשתתף')} accent="emerald" />
+            </div>
+          </section>
+        )}
+
         {/* ── Performance chart ────────────────────────────────────────── */}
         {chartData.length > 0 && (
           <section>
@@ -302,7 +362,7 @@ export default async function PlayerProfilePage({
         {/* ── Game history table ───────────────────────────────────────── */}
         {dedupedStats.length > 0 && (
           <section>
-            <SectionTitle>{T('היסטוריית משחקים')}</SectionTitle>
+            <SectionTitle>{T('היסטורייה עונתית')}</SectionTitle>
             <div className="overflow-x-auto rounded-2xl border border-white/[0.07] bg-white/[0.03]">
               <table className="min-w-full text-sm">
                 <thead>
@@ -366,8 +426,55 @@ export default async function PlayerProfilePage({
           </section>
         )}
 
+        {/* ── Playoff game history ─────────────────────────────────────── */}
+        {playoffHistory.length > 0 && (
+          <section>
+            <SectionTitle>{T('היסטוריית פלייאוף')}</SectionTitle>
+            <div className="overflow-x-auto rounded-2xl border border-[#e0c97a]/20 bg-[#e0c97a]/[0.03]">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/[0.06] text-xs uppercase tracking-wide text-[#5a7a9a]">
+                    <th className="px-4 py-3 text-right">{T('שלב')}</th>
+                    <th className="px-4 py-3 text-right">{T('יריב')}</th>
+                    <th className="px-4 py-3 text-center">{T('תוצאה')}</th>
+                    <th className="px-4 py-3 text-center">{T('נצ׳')}</th>
+                    <th className="px-4 py-3 text-center">{T('נק׳')}</th>
+                    <th className="px-4 py-3 text-center">{T('3נק׳')}</th>
+                    <th className="px-4 py-3 text-center">{T('עב׳')}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/[0.05]">
+                  {playoffHistory.map((h) => (
+                    <tr key={h.key} className="hover:bg-white/[0.02]">
+                      <td className="whitespace-nowrap px-4 py-3 text-[#8aaac8]">{T(h.stageHe)} · {T('משחק')} {h.gameNumber}</td>
+                      <td className="px-4 py-3 font-medium text-[#e8edf5] font-heading">{displayName(h.opp, lang)}</td>
+                      <td className="px-4 py-3 text-center tabular-nums text-[#8aaac8] font-stats">
+                        {h.myScore != null && h.oppScore != null ? `${h.myScore}–${h.oppScore}` : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {h.result ? (
+                          <span className={`inline-block rounded px-2 py-0.5 text-xs font-bold ${
+                            h.result === 'W' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
+                            h.result === 'L' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                                               'bg-white/[0.04] text-[#8aaac8] border border-white/[0.07]'
+                          }`}>
+                            {h.result === 'W' ? (lang === 'en' ? 'W' : 'נצ׳') : h.result === 'L' ? (lang === 'en' ? 'L' : 'הפ׳') : (lang === 'en' ? 'D' : 'תק׳')}
+                          </span>
+                        ) : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-center font-bold text-[#e0c97a] font-stats">{h.points}</td>
+                      <td className="px-4 py-3 text-center font-semibold text-sky-400 font-stats">{h.three}</td>
+                      <td className="px-4 py-3 text-center text-rose-400 font-stats">{h.fouls}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
         {/* ── No games yet ─────────────────────────────────────────────── */}
-        {dedupedStats.length === 0 && (
+        {dedupedStats.length === 0 && !hasPlayoffStats && (
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] py-16 text-center text-[#5a7a9a]">
             {lang === 'en' ? 'No game data yet for this player.' : 'אין נתוני משחק עדיין עבור שחקן זה.'}
           </div>
@@ -401,6 +508,7 @@ const ACCENT_CLASSES: Record<string, { number: string; bar: string }> = {
   sky:     { number: 'text-sky-400',     bar: 'bg-sky-500' },
   rose:    { number: 'text-rose-400',    bar: 'bg-rose-500' },
   emerald: { number: 'text-emerald-400', bar: 'bg-emerald-500' },
+  gold:    { number: 'text-[#e0c97a]',   bar: 'bg-[#e0c97a]' },
 };
 
 function StatCard({
