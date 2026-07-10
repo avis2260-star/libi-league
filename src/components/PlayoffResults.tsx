@@ -2,8 +2,8 @@
 // Replaces LastRoundResults once the regular season is over. Playoff games hold
 // no team columns, so home/away is resolved through playoff_series (team_a /
 // team_b, with a seed-label → standings fallback) and the game-2 home/away swap
-// used across /playoff. Only PLAYED games are shown, grouped by stage, in the
-// same dark card style as the league results.
+// used across /playoff. Only the LATEST played game of each series is shown,
+// grouped by stage, in the same dark card style as the league results.
 
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
@@ -207,10 +207,19 @@ export default async function PlayoffResults() {
   }
   if (cards.length === 0) return null;
 
+  // Only the latest played game per series — once the admin enters a newer
+  // score the earlier games drop off the home page (full history stays on /playoff).
+  const latestBySeries = new Map<number, ResultCard>();
+  for (const c of cards) {
+    const prev = latestBySeries.get(c.seriesNumber);
+    if (!prev || c.gameNumber > prev.gameNumber) latestBySeries.set(c.seriesNumber, c);
+  }
+  const latestCards = [...latestBySeries.values()];
+
   // Group by stage — show the most advanced stage first (final → sf → qf).
   const order: StageKey[] = ['final', 'sf', 'qf'];
   const grouped = order
-    .map((key) => ({ key, items: cards.filter((c) => c.stageKey === key) }))
+    .map((key) => ({ key, items: latestCards.filter((c) => c.stageKey === key) }))
     .filter((g) => g.items.length > 0);
 
   return (
