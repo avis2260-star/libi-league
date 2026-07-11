@@ -11,6 +11,7 @@ import { getTeams } from '@/lib/supabase';
 import { getLang, st } from '@/lib/get-lang';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { getCurrentSeason } from '@/lib/current-season';
+import TeamLogoZoom from '@/components/TeamLogoZoom';
 
 type StageKey = 'qf' | 'sf' | 'final';
 
@@ -44,8 +45,7 @@ function findLogo(name: string, logos: Record<string, string | null>): string | 
 function TeamLogo({ name, displayName, url }: { name: string; displayName: string; url: string | null }) {
   if (url) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      <TeamLogoZoom
         src={url}
         alt={displayName}
         className="h-8 w-8 shrink-0 rounded-full border border-white/10 object-cover shadow-sm"
@@ -100,7 +100,7 @@ function GameCard({ game, T }: { game: ResultCard; T: (he: string) => string }) 
         <div className="flex min-w-0 items-center justify-end gap-2">
           <TeamLogo name={game.homeName} displayName={T(game.homeName)} url={game.homeLogo} />
           <div className="min-w-0 text-right">
-            <p className={`truncate text-sm font-bold leading-tight transition-colors group-hover:text-[#e0c97a] font-heading ${homeWins ? 'text-white' : 'text-[#8aaac8]'}`}>
+            <p className={`break-words text-sm font-bold leading-tight transition-colors group-hover:text-[#e0c97a] font-heading ${homeWins ? 'text-white' : 'text-[#8aaac8]'}`}>
               {T(game.homeName)}
             </p>
           </div>
@@ -119,7 +119,7 @@ function GameCard({ game, T }: { game: ResultCard; T: (he: string) => string }) 
         {/* Away */}
         <div className="flex min-w-0 items-center justify-start gap-2">
           <div className="min-w-0 text-left">
-            <p className={`truncate text-sm font-bold leading-tight transition-colors group-hover:text-[#e0c97a] font-heading ${!homeWins ? 'text-white' : 'text-[#8aaac8]'}`}>
+            <p className={`break-words text-sm font-bold leading-tight transition-colors group-hover:text-[#e0c97a] font-heading ${!homeWins ? 'text-white' : 'text-[#8aaac8]'}`}>
               {T(game.awayName)}
             </p>
           </div>
