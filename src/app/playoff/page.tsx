@@ -11,6 +11,7 @@ import { getLang, st } from '@/lib/get-lang';
 import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
 import SeasonPicker from '@/components/SeasonPicker';
 import ArchiveBanner from '@/components/ArchiveBanner';
+import TeamLogoZoom from '@/components/TeamLogoZoom';
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
 interface Series {
@@ -75,8 +76,7 @@ function TeamLogo({
   const sz  = size === 'lg' ? 'h-16 w-16 text-2xl' : size === 'sm' ? 'h-8 w-8 text-[10px]' : 'h-11 w-11 text-xs';
   const label = displayName ?? name;
   if (url) return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={url} alt={label}
+    <TeamLogoZoom src={url} alt={label}
       className={`${sz} shrink-0 rounded-full object-cover border-2 border-white/10 shadow-md`} />
   );
   return (

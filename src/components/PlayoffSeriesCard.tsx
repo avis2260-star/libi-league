@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useLang } from '@/components/TranslationProvider';
 import PlayoffPlate from '@/components/PlayoffPlate';
 import { displayName } from '@/lib/names';
+import TeamLogoZoom from '@/components/TeamLogoZoom';
 
 export type RosterPlayer = { name: string; jersey_number: number | null };
 
@@ -29,7 +30,7 @@ function TeamLogo({ name, logos, size = 'md' }: { name: string; logos: Record<st
   const { t } = useLang();
   const url = findLogo(name, logos);
   const sz = size === 'lg' ? 'h-16 w-16 text-2xl' : size === 'sm' ? 'h-8 w-8 text-[10px]' : 'h-11 w-11 text-xs';
-  if (url) return <img src={url} alt={t(name)} className={`${sz} shrink-0 rounded-full object-cover border-2 border-white/10 shadow-md`} />;
+  if (url) return <TeamLogoZoom src={url} alt={t(name)} className={`${sz} shrink-0 rounded-full object-cover border-2 border-white/10 shadow-md`} />;
   return (
     <div className={`${sz} shrink-0 rounded-full bg-[#1a2e45] border-2 border-white/10 flex items-center justify-center font-black text-[#3a5a7a]`}>
       {[...t(name)].find(c => /\S/.test(c)) ?? '?'}
