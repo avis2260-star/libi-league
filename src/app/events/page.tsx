@@ -312,10 +312,10 @@ function PreviewListItem({
 
         <div className="flex flex-1 items-center gap-1.5 sm:gap-2 min-w-0">
           <TeamLogo logo={lookupLogo(g.home_team)} name={homeName} />
-          <span className="text-sm font-black text-white truncate">{homeName}</span>
+          <span className="min-w-0 break-words text-sm font-black text-white">{homeName}</span>
           <span className="shrink-0 text-xs font-bold text-amber-400">VS</span>
           <TeamLogo logo={lookupLogo(g.away_team)} name={awayName} />
-          <span className="text-sm font-black text-white truncate">{awayName}</span>
+          <span className="min-w-0 break-words text-sm font-black text-white">{awayName}</span>
         </div>
 
         {parsedDate && (

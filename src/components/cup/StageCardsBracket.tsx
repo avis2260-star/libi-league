@@ -65,7 +65,7 @@ function MatchCard({ game, teamLogos, statsLink }: { game: CupGame; teamLogos: R
         {en ? (isHome ? 'H' : 'A') : (isHome ? 'ב' : 'ח')}
       </span>
       <TeamLogo name={name} logos={teamLogos} />
-      <span className={`flex-1 min-w-0 truncate text-xs font-bold ${isWinner ? 'text-orange-400' : placeholder ? 'text-[#5a7a9a]' : 'text-white'}`}>
+      <span className={`flex-1 min-w-0 break-words text-xs font-bold ${isWinner ? 'text-orange-400' : placeholder ? 'text-[#5a7a9a]' : 'text-white'}`}>
         {t(name)}
       </span>
       {score !== null && (

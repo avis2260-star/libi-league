@@ -48,7 +48,7 @@ function GameCard({ game, logos, t }: { game: GameResult; logos: Record<string, 
       <div className="flex items-center justify-end gap-2 min-w-0">
         <TeamLogo name={game.home} logos={logos} />
         <div className="text-right min-w-0">
-          <p className={`text-sm font-bold leading-tight truncate group-hover:text-orange-400 transition-colors ${homeWins ? 'text-white' : 'text-[#8aaac8]'}`}>
+          <p className={`text-sm font-bold leading-tight break-words group-hover:text-orange-400 transition-colors ${homeWins ? 'text-white' : 'text-[#8aaac8]'}`}>
             {t(game.home)}
           </p>
           {techniOnHome && <p className="mt-0.5 text-[10px] font-black text-red-400">{t('🔴 הפסד טכני')}</p>}
@@ -68,7 +68,7 @@ function GameCard({ game, logos, t }: { game: GameResult; logos: Record<string, 
       {/* Away */}
       <div className="flex items-center justify-start gap-2 min-w-0">
         <div className="text-left min-w-0">
-          <p className={`text-sm font-bold leading-tight truncate group-hover:text-orange-400 transition-colors ${!homeWins ? 'text-white' : 'text-[#8aaac8]'}`}>
+          <p className={`text-sm font-bold leading-tight break-words group-hover:text-orange-400 transition-colors ${!homeWins ? 'text-white' : 'text-[#8aaac8]'}`}>
             {t(game.away)}
           </p>
           {techniOnAway && <p className="mt-0.5 text-[10px] font-black text-red-400">{t('🔴 הפסד טכני')}</p>}

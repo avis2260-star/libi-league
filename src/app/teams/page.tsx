@@ -5,6 +5,7 @@ import { NORTH_TABLE, SOUTH_TABLE } from '@/lib/league-data';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getLang, st } from '@/lib/get-lang';
 import { getCurrentSeason } from '@/lib/current-season';
+import TeamLogoZoom from '@/components/TeamLogoZoom';
 
 type StandingRow = { rank: number; name: string; wins: number; losses: number; diff: number; pts: number; division: string; games: number; pf: number; pa: number; techni: number; penalty: number };
 
@@ -45,8 +46,7 @@ function makeDivisionMap(standings: StandingRow[]): Record<string, 'צפון' | 
 function Avatar({ name, displayName, logoUrl }: { name: string; displayName: string; logoUrl?: string | null }) {
   if (logoUrl) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={logoUrl} alt={displayName} className="h-full w-full object-cover" />
+      <TeamLogoZoom src={logoUrl} alt={displayName} className="h-full w-full object-cover" />
     );
   }
   const letter = [...displayName].find((c) => c.trim()) ?? [...name].find((c) => c.trim()) ?? '?';
@@ -109,7 +109,7 @@ function TeamCard({
       {/* Info */}
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <p className="truncate text-base font-bold text-white font-heading">{T(team.name)}</p>
+          <p className="min-w-0 break-words text-base font-bold text-white font-heading">{T(team.name)}</p>
           {division && (
             <span className={`shrink-0 rounded-lg px-2 py-0.5 text-[10px] font-bold ${
               division === 'צפון'

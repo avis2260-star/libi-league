@@ -60,7 +60,7 @@ function UpcomingRow({ home, away, logos, date, displayNames = {} }: { home: str
       {/* Home — logo left, name right */}
       <Link href={`/team/${encodeURIComponent(homeDisplay)}`} className="flex flex-1 items-center justify-end gap-2 min-w-0 group">
         <TeamLogo name={homeDisplay} logos={logos} />
-        <span className="truncate text-sm font-semibold text-white group-hover:text-orange-400 transition-colors">{t(homeDisplay)}</span>
+        <span className="min-w-0 break-words text-sm font-semibold text-white group-hover:text-orange-400 transition-colors">{t(homeDisplay)}</span>
       </Link>
 
       <div className="shrink-0 flex flex-col items-center gap-0.5">
@@ -70,7 +70,7 @@ function UpcomingRow({ home, away, logos, date, displayNames = {} }: { home: str
 
       {/* Away — name inner (near VS), logo outer-right */}
       <Link href={`/team/${encodeURIComponent(awayDisplay)}`} className="flex flex-1 items-center justify-start gap-2 min-w-0 group">
-        <span className="truncate text-sm font-semibold text-white group-hover:text-orange-400 transition-colors">{t(awayDisplay)}</span>
+        <span className="min-w-0 break-words text-sm font-semibold text-white group-hover:text-orange-400 transition-colors">{t(awayDisplay)}</span>
         <TeamLogo name={awayDisplay} logos={logos} />
       </Link>
     </div>
@@ -229,11 +229,11 @@ export default function GamesContent({
               <div key={i} className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.04] px-4 py-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-bold text-white truncate">{t(g.home_team)}</span>
+                    <span className="min-w-0 break-words text-sm font-bold text-white">{t(g.home_team)}</span>
                     <span className="text-base font-black text-orange-400 tabular-nums shrink-0">{g.home_score}</span>
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-1">
-                    <span className="text-sm font-bold text-white truncate">{t(g.away_team)}</span>
+                    <span className="min-w-0 break-words text-sm font-bold text-white">{t(g.away_team)}</span>
                     <span className="text-base font-black text-orange-400 tabular-nums shrink-0">{g.away_score}</span>
                   </div>
                 </div>

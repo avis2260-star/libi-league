@@ -284,7 +284,7 @@ function StandingsTable({
                 <td className="px-1 sm:px-2 py-2.5">
                   <div className="flex items-center gap-1.5 sm:gap-2 justify-start min-w-0">
                     <TeamLogo name={team.name} logos={logos} />
-                    <TeamLink name={team.name} className="font-heading font-bold text-[10px] sm:text-sm text-[#e8edf5] text-right truncate" />
+                    <TeamLink name={team.name} className="font-heading font-bold text-[10px] sm:text-sm text-[#e8edf5] text-right min-w-0 break-words" />
                   </div>
                 </td>
 

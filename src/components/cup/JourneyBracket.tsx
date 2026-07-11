@@ -96,7 +96,7 @@ function MatchCard({
           </span>
         )}
         <TeamLogo name={game.home_team} logos={teamLogos} size={isFinal ? 'md' : 'sm'} />
-        <span className={`flex-1 min-w-0 truncate font-bold ${isFinal ? 'text-sm' : 'text-xs'} ${
+        <span className={`flex-1 min-w-0 break-words font-bold ${isFinal ? 'text-sm' : 'text-xs'} ${
           homeOnPath ? 'text-orange-300' : homeWin ? 'text-orange-400' : game.played ? 'text-[#5a7a9a]' : 'text-white'
         }`}>
           {t(game.home_team)}
@@ -127,7 +127,7 @@ function MatchCard({
           </span>
         )}
         <TeamLogo name={game.away_team} logos={teamLogos} size={isFinal ? 'md' : 'sm'} />
-        <span className={`flex-1 min-w-0 truncate font-bold ${isFinal ? 'text-sm' : 'text-xs'} ${
+        <span className={`flex-1 min-w-0 break-words font-bold ${isFinal ? 'text-sm' : 'text-xs'} ${
           awayOnPath ? 'text-orange-300' : awayWin ? 'text-orange-400' : game.played ? 'text-[#5a7a9a]' : 'text-white'
         }`}>
           {t(game.away_team)}
@@ -397,7 +397,7 @@ function JourneyPanel({
             )}
             <div className="flex-1 min-w-0">
               <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">{t('מסע בגביע')}</p>
-              <h3 className="text-lg font-black text-white truncate">{t(focusedTeam)}</h3>
+              <h3 className="text-lg font-black text-white break-words">{t(focusedTeam)}</h3>
               <p className="text-[11px] text-[#8aaac8] mt-0.5">{headline}</p>
             </div>
             <button
@@ -514,7 +514,7 @@ function JourneyPanel({
                         {[...t(step.opponent)].find(c => /\S/.test(c)) ?? '?'}
                       </div>
                     )}
-                    <span className="flex-1 min-w-0 truncate text-sm font-bold text-white">
+                    <span className="flex-1 min-w-0 break-words text-sm font-bold text-white">
                       {step.outcome === 'upcoming' ? t('תפגוש את ') : t('מול ')}
                       {t(step.opponent)}
                     </span>

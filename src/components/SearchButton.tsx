@@ -291,7 +291,7 @@ export default function SearchButton() {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="truncate text-sm font-bold text-white">{t(tm.name)}</p>
+                          <p className="break-words text-sm font-bold text-white">{t(tm.name)}</p>
                           <p className="truncate text-xs font-semibold text-[#8aaac8]">{t('קבוצה')}</p>
                         </div>
                       </Row>

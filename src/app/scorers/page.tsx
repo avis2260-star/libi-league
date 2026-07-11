@@ -228,7 +228,7 @@ export default async function ScorersPage({
                         <span className="text-[10px] font-bold text-orange-400/80 shrink-0 font-stats">#{p.jersey_number}</span>
                       )}
                       {p.team_name && (
-                        <span className="truncate text-xs font-bold text-[#8aaac8] font-body">{displayName(p.team_name, lang)}</span>
+                        <span className="min-w-0 break-words text-xs font-bold text-[#8aaac8] font-body">{displayName(p.team_name, lang)}</span>
                       )}
                     </div>
                     {/* Progress bar */}

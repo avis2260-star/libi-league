@@ -10,6 +10,7 @@ import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
 import SeasonPicker from '@/components/SeasonPicker';
 import ArchiveBanner from '@/components/ArchiveBanner';
+import TeamLogoZoom from '@/components/TeamLogoZoom';
 
 /* Canonical round → date map (DD.M.YY), used when game_results has no date. */
 const ROUND_DATE_BY_NUM: Record<number, string> = (() => {
@@ -214,8 +215,7 @@ export default async function TeamStatsPage({
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-5">
         {logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrl} alt={teamName}
+          <TeamLogoZoom src={logoUrl} alt={T(teamName)}
             className="h-20 w-20 rounded-full object-cover border-2 border-white/10 shadow-lg shrink-0" />
         ) : (
           <div className="h-20 w-20 rounded-full bg-[#1a2e45] border-2 border-white/10 flex items-center justify-center text-3xl font-black text-[#3a5a7a] shrink-0">
@@ -299,8 +299,8 @@ export default async function TeamStatsPage({
                   g.won ? 'bg-green-500/20 text-green-400' : 'bg-red-500/15 text-red-400'
                 }`}>{g.won ? (lang === 'en' ? 'W' : 'נ') : (lang === 'en' ? 'L' : 'ה')}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white truncate flex items-center gap-2">
-                    <span className="truncate group-hover:text-orange-400 transition-colors">{g.isHome ? T('בית') : T('חוץ')} {T('נגד')} {T(g.oppName)}</span>
+                  <p className="text-sm font-semibold text-white min-w-0 flex items-center gap-2">
+                    <span className="min-w-0 break-words group-hover:text-orange-400 transition-colors">{g.isHome ? T('בית') : T('חוץ')} {T('נגד')} {T(g.oppName)}</span>
                     {g.techni && (
                       <span className="shrink-0 rounded-md bg-yellow-400/15 text-yellow-300 text-[10px] font-black px-1.5 py-0.5 ring-1 ring-yellow-400/30">
                         {g.isDoubleLoss ? T('הפסד טכני הדדי') : (g.won ? T('ניצחון טכני') : T('הפסד טכני'))}
@@ -350,8 +350,8 @@ export default async function TeamStatsPage({
                     won ? 'bg-green-500/20 text-green-400' : 'bg-red-500/15 text-red-400'
                   }`}>{!isPlayed ? '?' : won ? (lang === 'en' ? 'W' : 'נ') : (lang === 'en' ? 'L' : 'ה')}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-white truncate flex items-center gap-2">
-                      <span className="truncate">{T('גביע')} — {T(g.round)} {T('נגד')} {T(oppName)}</span>
+                    <p className="text-sm font-bold text-white min-w-0 flex items-center gap-2">
+                      <span className="min-w-0 break-words">{T('גביע')} — {T(g.round)} {T('נגד')} {T(oppName)}</span>
                       {techni && (
                         <span className="shrink-0 rounded-md bg-yellow-400/15 text-yellow-300 text-[10px] font-black px-1.5 py-0.5 ring-1 ring-yellow-400/30">
                           {isDoubleLoss ? T('הפסד טכני הדדי') : (won ? T('ניצחון טכני') : T('הפסד טכני'))}
@@ -397,7 +397,7 @@ export default async function TeamStatsPage({
                     {g.isHome ? (en ? 'H' : 'ב') : (en ? 'A' : 'ח')}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-white truncate">
+                    <p className="text-sm font-bold text-white break-words">
                       {g.isHome ? T('בית') : T('חוץ')} {T('נגד')} {T(g.opponent)}
                     </p>
                     <p className="text-xs font-bold text-[#8aaac8] mt-0.5">

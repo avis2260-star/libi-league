@@ -4,6 +4,7 @@ import { getPlayersByTeam, getTeams } from '@/lib/supabase';
 import { getLang, st } from '@/lib/get-lang';
 import { displayName } from '@/lib/names';
 import type { Player, Team } from '@/types';
+import TeamLogoZoom from '@/components/TeamLogoZoom';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,7 +60,7 @@ function PlayerCard({ player, T, en }: { player: Player & { team?: Team }; T: (h
         {/* Top banner with team name */}
         <div className="relative bg-gradient-to-l from-orange-600 to-orange-800 px-4 py-2">
           <p className="text-[10px] font-black uppercase tracking-widest text-white/80">{en ? 'LIBI LEAGUE · 2025–2026 SEASON' : 'ליגת ליבי · עונת 2025–2026'}</p>
-          <p className="truncate text-xs font-bold text-white">{teamName}</p>
+          <p className="break-words text-xs font-bold text-white">{teamName}</p>
           {/* Jersey number badge */}
           {player.jersey_number != null && (
             <div className="absolute left-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border-2 border-white/30 bg-black/30 text-lg font-black text-white">
@@ -179,8 +180,7 @@ export default async function TeamPlayersPage({ params }: { params: Promise<{ id
       >
         <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-orange-500/10 flex items-center justify-center">
           {team.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={team.logo_url} alt={translatedTeamName} className="h-full w-full object-cover" />
+            <TeamLogoZoom src={team.logo_url} alt={translatedTeamName} className="h-full w-full object-cover" />
           ) : (
             <span className="text-2xl font-black text-orange-400">
               {teamInitial}

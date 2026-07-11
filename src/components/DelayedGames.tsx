@@ -98,7 +98,7 @@ export default function DelayedGames({
 
                 <div className="flex items-center gap-2 mb-1">
                   <TeamLogo logo={g.homeLogo} name={g.homeTeam} />
-                  <p className="truncate text-xs font-black text-[#e8edf5] group-hover:text-amber-300 transition-colors leading-snug flex-1 font-heading">{t(g.homeTeam)}</p>
+                  <p className="min-w-0 break-words text-xs font-black text-[#e8edf5] group-hover:text-amber-300 transition-colors leading-snug flex-1 font-heading">{t(g.homeTeam)}</p>
                 </div>
                 <div className="my-1.5 flex items-center gap-1.5 pr-9">
                   <div className="h-px flex-1 bg-white/[0.06]" />
@@ -107,7 +107,7 @@ export default function DelayedGames({
                 </div>
                 <div className="flex items-center gap-2">
                   <TeamLogo logo={g.awayLogo} name={g.awayTeam} />
-                  <p className="truncate text-xs font-black text-[#e8edf5] group-hover:text-amber-300 transition-colors leading-snug flex-1 font-heading">{t(g.awayTeam)}</p>
+                  <p className="min-w-0 break-words text-xs font-black text-[#e8edf5] group-hover:text-amber-300 transition-colors leading-snug flex-1 font-heading">{t(g.awayTeam)}</p>
                 </div>
 
                 <p className="mt-2 text-xs font-black text-[#8aaac8] font-body">
@@ -142,7 +142,7 @@ export default function DelayedGames({
                 </div>
                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                   <div className="flex min-w-0 items-center justify-end gap-2">
-                    <p className={`truncate text-sm font-bold leading-tight font-heading ${homeWins ? 'text-white' : 'text-[#8aaac8]'}`}>{t(g.homeTeam)}</p>
+                    <p className={`min-w-0 break-words text-sm font-bold leading-tight font-heading ${homeWins ? 'text-white' : 'text-[#8aaac8]'}`}>{t(g.homeTeam)}</p>
                     <TeamLogo logo={g.homeLogo} name={g.homeTeam} />
                   </div>
                   <div className="min-w-[64px] shrink-0 rounded-lg bg-black/40 px-2 py-1.5 text-center">
@@ -152,7 +152,7 @@ export default function DelayedGames({
                   </div>
                   <div className="flex min-w-0 items-center justify-start gap-2">
                     <TeamLogo logo={g.awayLogo} name={g.awayTeam} />
-                    <p className={`truncate text-sm font-bold leading-tight font-heading ${!homeWins ? 'text-white' : 'text-[#8aaac8]'}`}>{t(g.awayTeam)}</p>
+                    <p className={`min-w-0 break-words text-sm font-bold leading-tight font-heading ${!homeWins ? 'text-white' : 'text-[#8aaac8]'}`}>{t(g.awayTeam)}</p>
                   </div>
                 </div>
               </Link>

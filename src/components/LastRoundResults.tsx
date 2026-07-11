@@ -115,7 +115,7 @@ function GameCard({
         <TeamLogo name={homeName} displayName={T(homeName)} url={findLogo(homeName, logos) ?? findLogo(game.home_team, logos)} />
         <div className="min-w-0 text-right">
           <p
-            className={`truncate text-sm font-bold leading-tight transition-colors group-hover:text-orange-400 font-heading ${
+            className={`break-words text-sm font-bold leading-tight transition-colors group-hover:text-orange-400 font-heading ${
               homeWins ? 'text-white' : 'text-[#8aaac8]'
             }`}
           >
@@ -156,7 +156,7 @@ function GameCard({
       <div className="flex min-w-0 items-center justify-start gap-2">
         <div className="min-w-0 text-left">
           <p
-            className={`truncate text-sm font-bold leading-tight transition-colors group-hover:text-orange-400 font-heading ${
+            className={`break-words text-sm font-bold leading-tight transition-colors group-hover:text-orange-400 font-heading ${
               !homeWins ? 'text-white' : 'text-[#8aaac8]'
             }`}
           >

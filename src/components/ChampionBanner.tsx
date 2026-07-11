@@ -134,11 +134,11 @@ function Hero(p: ChampionBannerProps) {
             {/* Final score */}
             {p.homeScore != null && p.awayScore != null && (
               <div className="mt-4 inline-flex items-center justify-center gap-2 sm:gap-4 rounded-2xl border border-amber-500/25 bg-black/25 px-4 py-3">
-                <span className="max-w-[100px] sm:max-w-[160px] truncate text-xs sm:text-sm font-black text-amber-200">{T(p.teamName)}</span>
+                <span className="max-w-[100px] sm:max-w-[160px] break-words text-xs sm:text-sm font-black text-amber-200">{T(p.teamName)}</span>
                 <span className="font-stats text-xl sm:text-3xl font-black tabular-nums text-white">
                   {champScore} <span className="text-[#5a7a9a]">:</span> {oppScore}
                 </span>
-                <span className="max-w-[100px] sm:max-w-[160px] truncate text-xs sm:text-sm font-bold text-[#8aaac8]">{T(p.opponentName)}</span>
+                <span className="max-w-[100px] sm:max-w-[160px] break-words text-xs sm:text-sm font-bold text-[#8aaac8]">{T(p.opponentName)}</span>
               </div>
             )}
 
@@ -237,7 +237,7 @@ function MvpPanel({ mvp, lang }: { mvp: NonNullable<ChampionBannerProps['mvp']>;
         )}
       </div>
       <p className="mt-2 truncate text-sm font-black text-white">{T(mvp.name)}</p>
-      <p className="truncate text-[11px] font-bold text-[#8aaac8]">{T(mvp.teamName)}</p>
+      <p className="break-words text-[11px] font-bold text-[#8aaac8]">{T(mvp.teamName)}</p>
       <div className="mt-2 flex items-baseline justify-center gap-1.5">
         <span className="font-stats text-2xl font-black text-amber-300 tabular-nums">{mvp.points}</span>
         <span className="text-[10px] font-bold text-[#8aaac8]">{en ? 'PTS' : 'נק׳'}</span>
@@ -263,7 +263,7 @@ function RosterPanel({
   return (
     <div className="rounded-2xl border border-amber-500/25 bg-black/20 p-4">
       <p className="mb-1 text-center text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">📋 {en ? 'Final Box Score' : 'גיליון הגמר'}</p>
-      <p className="mb-2 truncate text-center text-[11px] font-bold text-[#8aaac8]">{T(roster.teamName)}</p>
+      <p className="mb-2 break-words text-center text-[11px] font-bold text-[#8aaac8]">{T(roster.teamName)}</p>
       {players.length === 0 ? (
         <p className="py-3 text-center text-[11px] text-[#5a7a9a]">{en ? 'No box score' : 'אין נתונים'}</p>
       ) : (
@@ -318,10 +318,10 @@ function Compact(p: ChampionBannerProps) {
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[10px] sm:text-[11px] font-black tracking-[0.16em] text-amber-200">{T(title)}</p>
-          <h3 className="truncate text-base sm:text-lg font-black bg-gradient-to-b from-white to-amber-200 bg-clip-text text-transparent">
+          <h3 className="break-words text-base sm:text-lg font-black bg-gradient-to-b from-white to-amber-200 bg-clip-text text-transparent">
             {T(p.teamName)}
           </h3>
-          <p className="truncate text-[11px] sm:text-xs font-bold text-[#8aaac8]">
+          <p className="break-words text-[11px] sm:text-xs font-bold text-[#8aaac8]">
             {p.homeScore != null && p.awayScore != null
               ? <>{champScore} : {oppScore} {en ? 'vs' : '·'} {T(p.opponentName)}</>
               : T(p.opponentName)}

@@ -146,7 +146,7 @@ export default function UpcomingEvents({
                 <div className="flex items-center justify-around gap-3 sm:gap-6">
                   <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
                     <TeamLogo logo={ev.homeLogo} name={ev.homeTeam} large />
-                    <p className="text-sm sm:text-base font-black text-white text-center truncate max-w-full font-heading">
+                    <p className="text-sm sm:text-base font-black text-white text-center break-words max-w-full font-heading">
                       {ev.homeTeam}
                     </p>
                     {!final && (
@@ -166,7 +166,7 @@ export default function UpcomingEvents({
 
                   <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
                     <TeamLogo logo={ev.awayLogo} name={ev.awayTeam} large />
-                    <p className="text-sm sm:text-base font-black text-white text-center truncate max-w-full font-heading">
+                    <p className="text-sm sm:text-base font-black text-white text-center break-words max-w-full font-heading">
                       {ev.awayTeam}
                     </p>
                     {!final && (

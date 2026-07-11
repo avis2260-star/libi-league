@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useLang } from '@/components/TranslationProvider';
 import { displayName } from '@/lib/names';
+import TeamLogoZoom from '@/components/TeamLogoZoom';
 
 export type PlayoffStripGame = {
   seriesNumber: number;
@@ -38,8 +39,7 @@ function TeamLogo({ logo, name }: { logo: string | null; name: string }) {
   return (
     <div className="h-9 w-9 shrink-0 rounded-full border border-white/10 bg-white/[0.05] overflow-hidden flex items-center justify-center text-xs">
       {logo
-        // eslint-disable-next-line @next/next/no-img-element
-        ? <img src={logo} alt={t(name)} className="h-full w-full object-cover" />
+        ? <TeamLogoZoom src={logo} alt={t(name)} className="h-full w-full object-cover" />
         : <span className="font-black text-[#4a6a8a]">{[...t(name)].find(c => c.trim()) ?? '?'}</span>}
     </div>
   );
@@ -97,7 +97,7 @@ export default function PlayoffScoreboardStrip({ games }: { games: PlayoffStripG
               {/* Home team + series wins */}
               <div className="flex items-center gap-2 mb-2">
                 <TeamLogo logo={g.homeLogo} name={g.homeTeam} />
-                <p className={`flex-1 truncate text-sm font-black leading-tight font-heading transition-colors group-hover:text-[#e0c97a] ${homeLeads ? 'text-white' : 'text-[#c8d8e8]'}`}>
+                <p className={`flex-1 min-w-0 break-words text-sm font-black leading-tight font-heading transition-colors group-hover:text-[#e0c97a] ${homeLeads ? 'text-white' : 'text-[#c8d8e8]'}`}>
                   {t(g.homeTeam)}
                 </p>
                 <span className={`shrink-0 text-lg font-black tabular-nums font-stats ${homeLeads ? 'text-[#e0c97a]' : started ? 'text-white' : 'text-[#3a5a7a]'}`}>{g.homeWins}</span>
@@ -106,7 +106,7 @@ export default function PlayoffScoreboardStrip({ games }: { games: PlayoffStripG
               {/* Away team + series wins */}
               <div className="flex items-center gap-2">
                 <TeamLogo logo={g.awayLogo} name={g.awayTeam} />
-                <p className={`flex-1 truncate text-sm font-black leading-tight font-heading transition-colors group-hover:text-[#e0c97a] ${awayLeads ? 'text-white' : 'text-[#c8d8e8]'}`}>
+                <p className={`flex-1 min-w-0 break-words text-sm font-black leading-tight font-heading transition-colors group-hover:text-[#e0c97a] ${awayLeads ? 'text-white' : 'text-[#c8d8e8]'}`}>
                   {t(g.awayTeam)}
                 </p>
                 <span className={`shrink-0 text-lg font-black tabular-nums font-stats ${awayLeads ? 'text-[#e0c97a]' : started ? 'text-white' : 'text-[#3a5a7a]'}`}>{g.awayWins}</span>

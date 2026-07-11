@@ -32,7 +32,7 @@ function PlayerTable({
   return (
     <div className="rounded-2xl border border-white/[0.08] bg-black/20 overflow-hidden">
       <div className="flex items-center justify-between gap-2 px-3 py-2.5 bg-gradient-to-l from-orange-500/[0.16] to-orange-500/[0.03] border-b border-white/[0.07]">
-        <p className="flex items-center gap-1.5 text-sm font-black text-white truncate">
+        <p className="flex items-center gap-1.5 text-sm font-black text-white min-w-0 break-words">
           {isWinner && <span className="text-[#e0a030]" aria-hidden>👑</span>}
           {teamName ? displayName(teamName, en ? 'en' : 'he') : '—'}
         </p>
@@ -192,7 +192,7 @@ export default function PublicBoxScore({
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-orange-400 text-sm transition-transform group-open:rotate-90" aria-hidden>▶</span>
           {award && <span className="shrink-0 inline-flex items-center" aria-hidden>{award}</span>}
-          <span className="text-sm font-black text-white truncate">
+          <span className="text-sm font-black text-white min-w-0 break-words">
             {gameLabel && <span className="text-[#8aaac8] font-bold ms-1">{gameLabel} · </span>}
             {displayName(homeTeamName, en ? 'en' : 'he')} <span className="text-[#5a7a9a]">vs</span> {displayName(awayTeamName, en ? 'en' : 'he')}
           </span>

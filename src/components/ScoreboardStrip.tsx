@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useLang } from '@/components/TranslationProvider';
 import { displayName } from '@/lib/names';
+import TeamLogoZoom from '@/components/TeamLogoZoom';
 
 type Game = {
   home: string;
@@ -23,7 +24,7 @@ function TeamLogo({ logo, name, size = 'sm' }: { logo: string | null; name: stri
   return (
     <div className={`${cls} shrink-0 rounded-full border border-white/10 bg-white/[0.05] overflow-hidden flex items-center justify-center`}>
       {logo
-        ? <img src={logo} alt={t(name)} className="h-full w-full object-cover" />
+        ? <TeamLogoZoom src={logo} alt={t(name)} className="h-full w-full object-cover" />
         : <span className="font-black text-[#4a6a8a]">{[...t(name)].find(c => c.trim()) ?? '?'}</span>
       }
     </div>
@@ -300,7 +301,7 @@ export default function ScoreboardStrip({
               {/* Home team */}
               <div className="flex items-center gap-2 mb-1">
                 <TeamLogo logo={g.homeLogo} name={g.home} />
-                <p className="truncate text-xs font-black text-[#e8edf5] group-hover:text-orange-400 transition-colors leading-snug flex-1 font-heading">
+                <p className="min-w-0 break-words text-xs font-black text-[#e8edf5] group-hover:text-orange-400 transition-colors leading-snug flex-1 font-heading">
                   {t(g.home)}
                 </p>
               </div>
@@ -315,7 +316,7 @@ export default function ScoreboardStrip({
               {/* Away team */}
               <div className="flex items-center gap-2">
                 <TeamLogo logo={g.awayLogo} name={g.away} />
-                <p className="truncate text-xs font-black text-[#e8edf5] group-hover:text-orange-400 transition-colors leading-snug flex-1 font-heading">
+                <p className="min-w-0 break-words text-xs font-black text-[#e8edf5] group-hover:text-orange-400 transition-colors leading-snug flex-1 font-heading">
                   {t(g.away)}
                 </p>
               </div>

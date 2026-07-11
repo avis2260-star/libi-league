@@ -282,7 +282,7 @@ export default async function CupStatsPage({
                           <span className="text-[10px] font-bold text-orange-400/80 shrink-0 font-stats">#{p.jersey_number}</span>
                         )}
                         {p.team_name && (
-                          <span className="truncate text-xs font-bold text-[#8aaac8] font-body">{displayName(p.team_name, lang)}</span>
+                          <span className="min-w-0 break-words text-xs font-bold text-[#8aaac8] font-body">{displayName(p.team_name, lang)}</span>
                         )}
                       </div>
                       <div className="mt-1.5 h-1 w-full rounded-full bg-white/[0.06]">
@@ -369,7 +369,7 @@ export default async function CupStatsPage({
                     ) : (
                       <span className="h-6 w-6 inline-flex items-center justify-center rounded-full bg-white/[0.04] text-[10px] font-black text-[#4a6a8a]">{t.team.charAt(0)}</span>
                     )}
-                    <span className="truncate text-sm font-bold text-white font-heading">{T(t.team)}</span>
+                    <span className="min-w-0 break-words text-sm font-bold text-white font-heading">{T(t.team)}</span>
                   </div>
                   <span className="text-center text-sm font-black text-[#c8d8e8] font-stats">{t.played}</span>
                   <span className="text-center text-sm font-black text-emerald-400 font-stats">{t.wins}</span>
