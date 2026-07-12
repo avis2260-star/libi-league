@@ -256,20 +256,14 @@ html.light h1, html.light h2, html.light h3 {
 html.light a { color: var(--text-1); }
 html.light a:hover { color: #f97316; }
 
-/* ── Champion banner — an intentional dark showcase in BOTH themes ──────────
-   Its navy + gold look is kept in light mode (a deliberate spotlight; the
-   background is an inline-style gradient the flips above don't touch). The
-   global light-mode text flips WOULD render its text dark-on-dark, so
-   re-assert the light-on-dark colors within it. */
-html.light .champion-banner :is(h2, h3) { color: transparent !important; }  /* gradient-clipped team name */
-html.light .champion-banner .text-white { color: #ffffff !important; }
-html.light .champion-banner [class*="text-[#8aaac8]"] { color: #8aaac8 !important; }
-html.light .champion-banner [class*="text-[#5a7a9a]"] { color: #5a7a9a !important; }
-html.light .champion-banner [class*="text-[#c8d8e8]"] { color: #c8d8e8 !important; }
-/* The banner's gold amber text sits on dark navy — undo the global amber
-   darkening inside it. */
-html.light .champion-banner [class*="text-amber-200"] { color: #fde68a !important; }
-html.light .champion-banner [class*="text-amber-300"] { color: #fcd34d !important; }
+/* ── Champion banner — follows the theme like every other card ──────────────
+   Its dark navy background is an inline-style gradient the bg flips above
+   can't reach, so neutralize it here with a light golden tint; the global
+   text flips (text-white / hex grays / amber darkening) then apply as-is. */
+html.light .champion-banner {
+  background-image: linear-gradient(180deg, #fffbeb 0%, #ffffff 100%) !important;
+  background-color: var(--bg-card) !important;
+}
 
 /* ── Inline style overrides (rank colors, row stripes) ────────────────────── */
 
