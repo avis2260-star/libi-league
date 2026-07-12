@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import { logoutAction } from '@/app/login/actions';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
@@ -15,6 +16,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   // Middleware handles the redirect, but guard here too in case it's bypassed.
   if (!user) redirect('/login');
+
+  // Unread פניות count for the nav badge (AdminNav keeps it fresh by polling).
+  const { count: unreadMessages } = await supabaseAdmin
+    .from('contact_submissions')
+    .select('id', { count: 'exact', head: true })
+    .eq('is_read', false);
 
   return (
     <div className="min-h-screen bg-[#060810] text-white">
@@ -49,7 +56,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
       {/* Tab nav — grouped dropdowns */}
       <Suspense fallback={<div className="h-12 border-b border-white/[0.06] bg-[#0f1e30]" />}>
-        <AdminNav />
+        <AdminNav initialUnreadMessages={unreadMessages ?? 0} />
       </Suspense>
 
       {/* Page content

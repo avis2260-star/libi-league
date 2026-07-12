@@ -69,11 +69,28 @@ const GROUPS = [
   },
 ];
 
-export default function AdminNav() {
+// Red counter bubble for unread פניות. Rendered next to the messages tab and
+// on its parent group so a new inquiry is visible from anywhere in the admin.
+function CountBadge({ count, className = '' }: { count: number; className?: string }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      className={`inline-flex h-4 min-w-[16px] shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black leading-none text-white shadow-[0_0_6px_rgba(239,68,68,0.7)] ${className}`}
+    >
+      {count > 99 ? '99+' : count}
+    </span>
+  );
+}
+
+const hasMessagesTab = (group: typeof GROUPS[0]) =>
+  group.tabs.some(t => t.href.includes('tab=messages'));
+
+export default function AdminNav({ initialUnreadMessages = 0 }: { initialUnreadMessages?: number }) {
   const searchParams = useSearchParams();
   const activeTab = searchParams.get('tab') ?? 'games';
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [mobileGroup, setMobileGroup] = useState<string | null>(null);
+  const [unreadMessages, setUnreadMessages] = useState(initialUnreadMessages);
   const navRef = useRef<HTMLDivElement>(null);
 
   // Close desktop dropdown when clicking outside
@@ -85,6 +102,33 @@ export default function AdminNav() {
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  // Keep the unread count live: poll every minute, refresh when the window
+  // regains focus, and react instantly when MessagesTab marks messages read
+  // (it dispatches 'libi:unread-messages-changed').
+  useEffect(() => {
+    setUnreadMessages(initialUnreadMessages);
+  }, [initialUnreadMessages]);
+  useEffect(() => {
+    let alive = true;
+    const refresh = async () => {
+      try {
+        const res = await fetch('/api/admin/messages/unread-count');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (alive && typeof data.count === 'number') setUnreadMessages(data.count);
+      } catch { /* transient network failure — keep the last known count */ }
+    };
+    const interval = setInterval(refresh, 60_000);
+    window.addEventListener('focus', refresh);
+    window.addEventListener('libi:unread-messages-changed', refresh);
+    return () => {
+      alive = false;
+      clearInterval(interval);
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('libi:unread-messages-changed', refresh);
+    };
   }, []);
 
   function isGroupActive(group: typeof GROUPS[0]) {
@@ -114,6 +158,7 @@ export default function AdminNav() {
                 }`}
               >
                 {group.label}
+                {hasMessagesTab(group) && <CountBadge count={unreadMessages} />}
                 <span className={`text-xs transition-transform duration-200 ${open ? 'rotate-180' : ''}`}>
                   ▾
                 </span>
@@ -135,6 +180,7 @@ export default function AdminNav() {
                         }`}
                       >
                         {tab.label}
+                        {tab.href.includes('tab=messages') && <CountBadge count={unreadMessages} />}
                         {tabActive && <span className="mr-auto text-orange-400">●</span>}
                       </Link>
                     );
@@ -180,6 +226,7 @@ export default function AdminNav() {
                     }`}
                   >
                     {tab.label}
+                    {tab.href.includes('tab=messages') && <CountBadge count={unreadMessages} />}
                   </Link>
                 );
               })}
@@ -209,12 +256,17 @@ export default function AdminNav() {
                 {(active || isOpen) && (
                   <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
                 )}
-                <span className={`text-xl transition-all ${
-                  active || isOpen
-                    ? 'drop-shadow-[0_0_8px_rgba(249,115,22,0.6)]'
-                    : ''
-                }`}>
-                  {group.emoji}
+                <span className="relative">
+                  <span className={`text-xl transition-all ${
+                    active || isOpen
+                      ? 'drop-shadow-[0_0_8px_rgba(249,115,22,0.6)]'
+                      : ''
+                  }`}>
+                    {group.emoji}
+                  </span>
+                  {hasMessagesTab(group) && (
+                    <CountBadge count={unreadMessages} className="absolute -top-1.5 -end-3" />
+                  )}
                 </span>
                 <span className={`text-[10px] font-bold transition-all ${
                   active || isOpen ? 'text-orange-400' : 'text-[#3a5a7a]'

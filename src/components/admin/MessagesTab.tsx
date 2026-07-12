@@ -13,6 +13,11 @@ export type ContactMessage = {
   created_at: string;
 };
 
+// Tells AdminNav to refresh its unread-פניות badge right away.
+function notifyUnreadChanged() {
+  window.dispatchEvent(new Event('libi:unread-messages-changed'));
+}
+
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('he-IL', {
     day: '2-digit', month: '2-digit', year: '2-digit',
@@ -31,6 +36,7 @@ export default function MessagesTab({ messages: initial }: { messages: ContactMe
       startTransition(async () => {
         await markMessageRead(msg.id);
         setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, is_read: true } : m));
+        notifyUnreadChanged();
       });
     }
   }
@@ -41,6 +47,7 @@ export default function MessagesTab({ messages: initial }: { messages: ContactMe
     startTransition(async () => {
       await setMessageHandled(msg.id, next);
       setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, is_handled: next, is_read: next ? true : m.is_read } : m));
+      notifyUnreadChanged();
     });
   }
 
@@ -51,6 +58,7 @@ export default function MessagesTab({ messages: initial }: { messages: ContactMe
       await deleteMessage(id);
       setMessages(prev => prev.filter(m => m.id !== id));
       if (selected === id) setSelected(null);
+      notifyUnreadChanged();
     });
   }
 
