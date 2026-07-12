@@ -82,7 +82,7 @@ function Hero(p: ChampionBannerProps) {
   return (
     <section
       dir={p.lang === 'he' ? 'rtl' : 'ltr'}
-      className={`relative overflow-hidden rounded-3xl border bg-[#0c1825] px-6 py-8 sm:px-8 sm:py-10 ${
+      className={`champion-banner relative overflow-hidden rounded-3xl border bg-[#0c1825] px-6 py-8 sm:px-8 sm:py-10 ${
         ringTone === 'amber'
           ? 'border-amber-500/35 shadow-[0_30px_80px_-20px_rgba(245,158,11,0.25)]'
           : 'border-orange-500/45 shadow-[0_30px_80px_-20px_rgba(245,158,11,0.35)]'
@@ -300,7 +300,7 @@ function Compact(p: ChampionBannerProps) {
     <Link
       href={p.finalGameHref ?? p.bracketHref}
       dir={p.lang === 'he' ? 'rtl' : 'ltr'}
-      className="relative block overflow-hidden rounded-2xl border border-amber-500/35 px-4 py-3 transition hover:border-amber-400/50"
+      className="champion-banner relative block overflow-hidden rounded-2xl border border-amber-500/35 px-4 py-3 transition hover:border-amber-400/50"
       style={{
         backgroundImage:
           'radial-gradient(ellipse at 50% -50%, rgba(245,158,11,0.20) 0%, transparent 65%), linear-gradient(180deg, #102136 0%, #0b1726 100%)',

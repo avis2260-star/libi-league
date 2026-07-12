@@ -156,16 +156,11 @@ html.light [class*="bg-black/"] {
   background-color: rgba(15,23,42,0.03) !important;
 }
 
-/* Keep orange / green / red / yellow / blue accent bgs.
-   Selectors require a leading space (or class start) before the token so
-   they don't accidentally match prefixed variants like hover:bg-orange-400 —
-   matching those would force `revert` always (not just on hover) and
-   double-revert the inherited dark color back to the browser default. */
-html.light [class^="bg-orange-"], html.light [class*=" bg-orange-"] { background-color: revert !important; }
-html.light [class^="bg-green-"],  html.light [class*=" bg-green-"]  { background-color: revert !important; }
-html.light [class^="bg-red-"],    html.light [class*=" bg-red-"]    { background-color: revert !important; }
-html.light [class^="bg-yellow-"], html.light [class*=" bg-yellow-"] { background-color: revert !important; }
-html.light [class^="bg-blue-"],   html.light [class*=" bg-blue-"]   { background-color: revert !important; }
+/* Accent bgs (orange / green / red / yellow / blue) are left untouched in
+   light mode: none of the flip rules above match them, so Tailwind's color
+   applies as-is. (A previous `background-color: revert` here reset the fill to
+   the browser default = transparent, which blanked colored pills/buttons such
+   as the CHAMPIONS / CUP HOLDER badges.) */
 
 /* Tailwind slate tokens — same intent as the hex overrides above. The Hall of
    Fame and a few other pages use bg-slate-900 / bg-slate-950 / bg-slate-800
@@ -246,6 +241,12 @@ html.light [class^="text-red-"],    html.light [class*=" text-red-"]    { color:
 html.light [class^="text-yellow-"], html.light [class*=" text-yellow-"] { color: revert !important; }
 html.light [class^="text-blue-"],   html.light [class*=" text-blue-"]   { color: revert !important; }
 
+/* Sky + amber accents (playoff stage badges, delayed-game chips) — Tailwind's
+   300/400 shades are too pale on white, so darken to a readable shade of the
+   same hue instead of reverting. */
+html.light [class^="text-sky-"],   html.light [class*=" text-sky-"]   { color: #0369a1 !important; }
+html.light [class^="text-amber-"], html.light [class*=" text-amber-"] { color: #b45309 !important; }
+
 /* Headings */
 html.light h1, html.light h2, html.light h3 {
   color: var(--text-1) !important;
@@ -255,13 +256,31 @@ html.light h1, html.light h2, html.light h3 {
 html.light a { color: var(--text-1); }
 html.light a:hover { color: #f97316; }
 
+/* ── Champion banner — an intentional dark showcase in BOTH themes ──────────
+   Its navy + gold look is kept in light mode (a deliberate spotlight; the
+   background is an inline-style gradient the flips above don't touch). The
+   global light-mode text flips WOULD render its text dark-on-dark, so
+   re-assert the light-on-dark colors within it. */
+html.light .champion-banner :is(h2, h3) { color: transparent !important; }  /* gradient-clipped team name */
+html.light .champion-banner .text-white { color: #ffffff !important; }
+html.light .champion-banner [class*="text-[#8aaac8]"] { color: #8aaac8 !important; }
+html.light .champion-banner [class*="text-[#5a7a9a]"] { color: #5a7a9a !important; }
+html.light .champion-banner [class*="text-[#c8d8e8]"] { color: #c8d8e8 !important; }
+/* The banner's gold amber text sits on dark navy — undo the global amber
+   darkening inside it. */
+html.light .champion-banner [class*="text-amber-200"] { color: #fde68a !important; }
+html.light .champion-banner [class*="text-amber-300"] { color: #fcd34d !important; }
+
 /* ── Inline style overrides (rank colors, row stripes) ────────────────────── */
 
 /* Silver rank (#b0b8c8) — too light on white */
 html.light [style*="#b0b8c8"] { color: #64748b !important; }
 /* Blue-gray rank (#4a6a8a) — too light on white */
 html.light [style*="#4a6a8a"] { color: #3a6080 !important; }
-/* Gold rank (#e0c97a) — fine, keep as is */
+/* Gold (#e0c97a) — rank numbers + record-card values, too pale on white */
+html.light [style*="#e0c97a"] { color: #9a7b1f !important; }
+/* Green (#4ec97a) — record-card values ("biggest win"), too pale on white */
+html.light [style*="#4ec97a"] { color: #1f9d55 !important; }
 /* Bronze rank (#c87d3a) — fine, keep as is */
 /* rankColor used in TeamPage */
 html.light [style*="#7aaac8"] { color: #4a7090 !important; }
