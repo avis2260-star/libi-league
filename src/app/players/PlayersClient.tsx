@@ -171,7 +171,7 @@ function PlayerListRow({ player }: { player: EnrichedPlayer }) {
 
       {/* Name + team / role */}
       <div className="flex-1 min-w-0">
-        <p className="truncate font-heading font-black text-white text-sm group-hover:text-orange-400 transition-colors">
+        <p className="break-words font-heading font-black text-white text-sm group-hover:text-orange-400 transition-colors">
           {displayName(player.name, lang)}
         </p>
         <p className="break-words text-xs font-bold text-[#8aaac8]">

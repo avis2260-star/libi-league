@@ -79,10 +79,10 @@ export default async function FormsPage() {
               >
                 <span className="shrink-0 text-3xl">{fileIcon(form.file_type)}</span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-base font-black text-white group-hover:text-orange-400 transition-colors">
+                  <p className="break-words text-base font-black text-white group-hover:text-orange-400 transition-colors">
                     {form.label}
                   </p>
-                  <p className="mt-0.5 truncate text-xs font-bold text-[#8aaac8]">
+                  <p className="mt-0.5 break-words text-xs font-bold text-[#8aaac8]">
                     <span dir="ltr" className="font-mono">{form.filename}</span>
                     {size && <> · {size}</>}
                     {form.file_type && <> · {form.file_type.toUpperCase()}</>}

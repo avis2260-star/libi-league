@@ -121,7 +121,7 @@ function QuarterTable({
         <tbody>
           {rows.map((row, r) => (
             <tr key={r} className="border-t border-white/[0.04]">
-              <td className="px-3 py-2 font-black text-white text-xs truncate max-w-[150px]">{row.name ? displayName(row.name, en ? 'en' : 'he') : '—'}</td>
+              <td className="px-3 py-2 font-black text-white text-xs break-words max-w-[150px]">{row.name ? displayName(row.name, en ? 'en' : 'he') : '—'}</td>
               {Array.from({ length: count }, (_, i) => {
                 const v = cell(row.arr, i);
                 const ov = cell(row.other, i);

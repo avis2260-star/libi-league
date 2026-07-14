@@ -116,7 +116,7 @@ export default function DelayedGames({
                     : <span className="text-[#5a7a9a]">{en ? 'New date TBD' : 'מועד חדש ייקבע'}</span>}
                 </p>
                 {g.location && (
-                  <p className="mt-0.5 truncate text-[10px] font-bold text-[#5a7a9a] font-body">📍 {g.location}</p>
+                  <p className="mt-0.5 break-words text-[10px] font-bold text-[#5a7a9a] font-body">📍 {g.location}</p>
                 )}
               </Link>
             ))}

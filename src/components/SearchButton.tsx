@@ -267,8 +267,8 @@ export default function SearchButton() {
                       <Row key={`page-${p.id}`} active={idx === cursor} onClick={() => go(p)}>
                         <span className="text-xl shrink-0">{p.icon}</span>
                         <div className="flex-1 min-w-0">
-                          <p className="truncate text-sm font-bold text-white">{t(p.name)}</p>
-                          <p className="truncate text-xs font-semibold text-[#8aaac8]">{p.path}</p>
+                          <p className="break-words text-sm font-bold text-white">{t(p.name)}</p>
+                          <p className="break-words text-xs font-semibold text-[#8aaac8]">{p.path}</p>
                         </div>
                       </Row>
                     );
@@ -292,7 +292,7 @@ export default function SearchButton() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="break-words text-sm font-bold text-white">{t(tm.name)}</p>
-                          <p className="truncate text-xs font-semibold text-[#8aaac8]">{t('קבוצה')}</p>
+                          <p className="break-words text-xs font-semibold text-[#8aaac8]">{t('קבוצה')}</p>
                         </div>
                       </Row>
                     );
@@ -315,16 +315,16 @@ export default function SearchButton() {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="truncate text-sm font-bold text-white flex items-center gap-1.5">
+                          <p className="min-w-0 text-sm font-bold text-white flex items-center gap-1.5">
                             {p.jersey_number !== null && (
                               <span className="text-[10px] font-black text-orange-400 font-stats">#{p.jersey_number}</span>
                             )}
-                            <span className="truncate">{displayName(p.name, lang)}</span>
+                            <span className="min-w-0 break-words">{displayName(p.name, lang)}</span>
                             {!p.is_active && (
                               <span className="text-[10px] font-bold text-[#8aaac8] shrink-0">{t('· לא פעיל')}</span>
                             )}
                           </p>
-                          <p className="truncate text-xs font-semibold text-[#8aaac8]">{p.team_name ? displayName(p.team_name, lang) : t('שחקן')}</p>
+                          <p className="break-words text-xs font-semibold text-[#8aaac8]">{p.team_name ? displayName(p.team_name, lang) : t('שחקן')}</p>
                         </div>
                       </Row>
                     );

@@ -95,7 +95,7 @@ export default function CollapsibleTeamSection({ teamName, teamLogo, players, de
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-[#e8edf5] group-hover:text-orange-400 transition-colors">
+                  <p className="break-words text-sm font-semibold text-[#e8edf5] group-hover:text-orange-400 transition-colors">
                     {displayName(player.name, lang)}
                   </p>
                   {player.position && (

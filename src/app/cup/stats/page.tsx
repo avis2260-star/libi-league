@@ -274,7 +274,7 @@ export default async function CupStatsPage({
                       )}
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate font-bold text-white group-hover:text-orange-300 transition-colors leading-tight font-heading">
+                      <p className="break-words font-bold text-white group-hover:text-orange-300 transition-colors leading-tight font-heading">
                         {displayName(p.name, lang)}
                       </p>
                       <div className="flex items-center gap-1.5 mt-0.5">

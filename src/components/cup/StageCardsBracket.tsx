@@ -84,7 +84,7 @@ function MatchCard({ game, teamLogos, statsLink }: { game: CupGame; teamLogos: R
       <Row name={game.away_team} score={game.away_score} isWinner={awayWin} placeholder={game.played && !awayWin} isHome={false} />
       {game.location && (
         <div className="flex items-center justify-center gap-1 px-3 py-1 border-t border-white/[0.04] text-[10px] font-bold text-[#8aaac8]">
-          📍 <span className="truncate">{game.location}</span>
+          📍 <span className="min-w-0 break-words">{game.location}</span>
         </div>
       )}
       {statsLink && (

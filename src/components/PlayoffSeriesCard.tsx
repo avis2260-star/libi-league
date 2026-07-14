@@ -117,7 +117,7 @@ function RosterList({ roster, teamName }: { roster: RosterPlayer[]; teamName: st
           {p.jersey_number !== null && (
             <span className="w-7 shrink-0 text-xs font-black text-orange-400 text-center font-stats">{p.jersey_number}</span>
           )}
-          <span className="text-sm text-[#dce8f4] truncate font-heading">{displayName(p.name, lang)}</span>
+          <span className="text-sm text-[#dce8f4] min-w-0 break-words font-heading">{displayName(p.name, lang)}</span>
         </li>
       ))}
     </ul>

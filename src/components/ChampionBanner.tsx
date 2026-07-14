@@ -236,7 +236,7 @@ function MvpPanel({ mvp, lang }: { mvp: NonNullable<ChampionBannerProps['mvp']>;
           <span className="text-2xl font-black text-amber-200">{mvp.name.trim().charAt(0)}</span>
         )}
       </div>
-      <p className="mt-2 truncate text-sm font-black text-white">{T(mvp.name)}</p>
+      <p className="mt-2 break-words text-sm font-black text-white">{T(mvp.name)}</p>
       <p className="break-words text-[11px] font-bold text-[#8aaac8]">{T(mvp.teamName)}</p>
       <div className="mt-2 flex items-baseline justify-center gap-1.5">
         <span className="font-stats text-2xl font-black text-amber-300 tabular-nums">{mvp.points}</span>
@@ -270,7 +270,7 @@ function RosterPanel({
         <div className="space-y-1">
           {players.map((pl, i) => (
             <div key={i} className="flex items-center justify-between gap-2 rounded-lg bg-white/[0.03] px-2.5 py-1.5">
-              <span className="min-w-0 truncate text-[12px] font-bold text-white">{T(pl.name)}</span>
+              <span className="min-w-0 break-words text-[12px] font-bold text-white">{T(pl.name)}</span>
               <span className="flex shrink-0 items-baseline gap-1.5">
                 {pl.threePointers > 0 && (
                   <span className="text-[9px] font-bold text-sky-300" dir="ltr">{pl.threePointers}×3</span>
@@ -317,7 +317,7 @@ function Compact(p: ChampionBannerProps) {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[10px] sm:text-[11px] font-black tracking-[0.16em] text-amber-200">{T(title)}</p>
+          <p className="break-words text-[10px] sm:text-[11px] font-black tracking-[0.16em] text-amber-200">{T(title)}</p>
           <h3 className="break-words text-base sm:text-lg font-black bg-gradient-to-b from-white to-amber-200 bg-clip-text text-transparent">
             {T(p.teamName)}
           </h3>
