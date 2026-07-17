@@ -169,7 +169,22 @@ export default function PlayoffTab() {
   }
 
   function teamsFor(label: string) {
+    // SF/final slots ("נצח סדרה N") carry no division — offer all playoff teams.
+    if (!label.includes('צפון') && !label.includes('דרום')) return [...northTeams, ...southTeams];
     return divisionOf(label) === 'North' ? northTeams : southTeams;
+  }
+
+  async function createMissingSeries() {
+    setSaving('create-series'); setMsg(null);
+    const res = await fetch('/api/admin/playoff', { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setMsg({ ok: false, text: `❌ ${data.error ?? 'שגיאה ביצירת הסדרות'}` });
+    } else {
+      await loadData();
+      setMsg({ ok: true, text: `✅ נוצרו ${data.created} סדרות — קבוצות מנצחות מולאו אוטומטית` });
+    }
+    setSaving(null);
   }
 
   async function saveTeams(sNum: number) {
@@ -277,6 +292,28 @@ export default function PlayoffTab() {
         </div>
       )}
 
+      {/* Missing rounds (e.g. only the QF exists) — one click creates the rest
+          of the bracket, prefilled with decided winners. */}
+      {series.length < 7 && (
+        <div className="flex flex-col items-start gap-2 rounded-2xl border border-orange-500/30 bg-orange-500/[0.06] px-5 py-4 text-right sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-bold text-white">
+              {series.length === 0 ? 'הפלייאוף עדיין לא הוגדר' : 'חסרות סדרות בעץ — חצי גמר / גמר'}
+            </p>
+            <p className="mt-0.5 text-xs text-gray-400">
+              יצירת הסדרות החסרות תמלא אוטומטית קבוצות שכבר הוכרעו בשלב הקודם
+            </p>
+          </div>
+          <button
+            onClick={createMissingSeries}
+            disabled={saving === 'create-series'}
+            className="shrink-0 rounded-lg bg-orange-500 px-4 py-2 text-sm font-black text-white transition hover:bg-orange-400 disabled:opacity-50"
+          >
+            {saving === 'create-series' ? 'יוצר...' : '➕ צור את הסדרות החסרות'}
+          </button>
+        </div>
+      )}
+
       {series.map((s) => {
         const { winsA, winsB } = seriesWins(s, games);
         const seriesOver = winsA >= 2 || winsB >= 2;
@@ -287,7 +324,9 @@ export default function PlayoffTab() {
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-3 bg-gray-800/60 border-b border-gray-700">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-black text-orange-400">סדרה {s.series_number}</span>
+                <span className="text-sm font-black text-orange-400">
+                  סדרה {s.series_number} · {s.series_number >= 7 ? 'גמר' : s.series_number >= 5 ? 'חצי גמר' : 'רבע גמר'}
+                </span>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${seriesOver ? 'bg-green-900/40 text-green-400' : 'bg-orange-900/30 text-orange-400'}`}>
                   {seriesOver ? '✓ הסתיים' : `${winsA}–${winsB}`}
                 </span>
