@@ -822,22 +822,25 @@ async function getUpcomingPlayoffGames(season: string): Promise<{ games: RawPlay
       if (decided) continue;
 
       // Next game = lowest-numbered game without a result yet (no scores and
-      // not marked shown).
+      // not marked shown). A freshly created series (e.g. the semi-finals
+      // right after the QF) has no game rows at all — synthesize the next
+      // game number with a TBD date so the round still shows on the strip.
       const next = [...seriesGames]
         .filter((g) => !g.played && (g.home_score == null || g.away_score == null))
         .sort((a, b) => a.game_number - b.game_number)[0];
-      if (!next) continue;
+      const resultCount = seriesGames.filter((g) => g.home_score != null && g.away_score != null).length;
+      const nextNumber = next?.game_number ?? resultCount + 1;
 
       out.push({
         seriesNumber: s.series_number,
         stageKey:     stageKeyForSeries(s.series_number),
-        gameNumber:   next.game_number,
+        gameNumber:   nextNumber,
         teamA, teamB,
-        homeIsTeamA:  next.game_number !== 2,
+        homeIsTeamA:  nextNumber !== 2,
         winsA, winsB,
-        date:         next.game_date,
-        time:         next.game_time ?? null,
-        location:     next.location,
+        date:         next?.game_date ?? null,
+        time:         next?.game_time ?? null,
+        location:     next?.location ?? null,
       });
     }
 
