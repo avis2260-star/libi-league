@@ -672,6 +672,11 @@ async function getPlayoffChampion(season: string): Promise<PlayoffChampion | nul
       .limit(1)
       .maybeSingle();
     if (!series || !series.team_a || !series.team_b) return null;
+    // Only an actual final crowns a champion. If the admin has only created
+    // earlier rounds so far (e.g. just the quarter-finals), the highest series
+    // is NOT the final — without this guard the last QF winner got a
+    // champion banner while the semis/final were still unplayed.
+    if (series.series_number < 7) return null;
 
     const { data: games } = await supabaseAdmin
       .from('playoff_games')

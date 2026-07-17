@@ -1,7 +1,8 @@
 // ── PlayoffResults — server component shown on the home page during playoffs ──
 // Replaces LastRoundResults once the regular season is over. Playoff games hold
 // no team columns, so home/away is resolved through playoff_series (team_a /
-// team_b, with a seed-label → standings fallback) and the game-2 home/away swap
+// team_b, with a seed-label → standings fallback and SF/final resolved from
+// earlier-round winners) and the game-2 home/away swap
 // used across /playoff. Only the LATEST played game of each series is shown,
 // grouped by stage, in the same dark card style as the league results.
 
@@ -181,6 +182,33 @@ export default async function PlayoffResults() {
     const a = s.team_a?.trim() || resolveFromLabel(s.team_a_label);
     const b = s.team_b?.trim() || resolveFromLabel(s.team_b_label);
     if (a && b) teamBySeries.set(s.series_number, { a, b });
+  }
+
+  // SF/final series carry "נצח סדרה N" labels rather than explicit teams, so
+  // resolve them from earlier-round winners (mirrors /playoff SERIES_FEED) —
+  // otherwise semi-final and final results never show on the home page.
+  const SERIES_FEED: Record<number, [number, number]> = { 5: [1, 2], 6: [3, 4], 7: [5, 6] };
+  const winnerOf = (n: number): string => {
+    const pair = teamBySeries.get(n);
+    if (!pair) return '';
+    let winsA = 0, winsB = 0;
+    for (const g of games) {
+      if (g.series_number !== n || g.home_score == null || g.away_score == null) continue;
+      const home = homeForGame(pair.a, pair.b, g.game_number);
+      const homeWon = g.home_score > g.away_score;
+      if ((homeWon && home === pair.a) || (!homeWon && home !== pair.a)) winsA++;
+      else winsB++;
+    }
+    return winsA >= 2 ? pair.a : winsB >= 2 ? pair.b : '';
+  };
+  for (const n of [5, 6, 7]) {
+    if (teamBySeries.has(n)) continue;
+    const s = series.find(x => x.series_number === n);
+    if (!s) continue;
+    const [feedA, feedB] = SERIES_FEED[n];
+    const a = s.team_a?.trim() || winnerOf(feedA);
+    const b = s.team_b?.trim() || winnerOf(feedB);
+    if (a && b) teamBySeries.set(n, { a, b });
   }
 
   const cards: ResultCard[] = [];
