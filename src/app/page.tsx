@@ -1590,23 +1590,27 @@ export default async function HomePage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-        {[
-          { label: inPlayoffs ? (lang === 'en' ? '🥇 North · 1st' : '🥇 מקום ראשון צפון') : T('🥇 מוביל צפון'), team: northLeader },
-          { label: inPlayoffs ? (lang === 'en' ? '🥇 South · 1st' : '🥇 מקום ראשון דרום') : T('🥇 מוביל דרום'), team: southLeader },
-        ].map(({ label, team }) => (
-          <div key={label} className="rounded-2xl border border-white/[0.07] bg-white/[0.04]" style={{ borderTop: '3px solid #e0c97a' }}>
-            <div className="p-5">
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-[#8aaac8] font-body">{label}</p>
-              <Link href={`/team/${encodeURIComponent(dbDisplayName(team.name))}`} className="text-xl font-black text-[#e0c97a] hover:underline underline-offset-2 transition-colors font-heading">{T(dbDisplayName(team.name))}</Link>
-              <p className="mt-1 text-sm font-bold text-[#8aaac8] font-body">
-                {lang === 'en' ? `${team.wins}W / ${team.losses}L · ` : `${team.wins}נ / ${team.losses}ה · `}
-                <span className="font-bold text-orange-400 font-stats">{team.pts} {lang === 'en' ? 'pts' : 'נקודות'}</span>
-              </p>
+      {/* Division leaders are a regular-season standing — not relevant to the
+          playoff review, so only show them outside the playoffs. */}
+      {!inPlayoffs && (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          {[
+            { label: T('🥇 מוביל צפון'), team: northLeader },
+            { label: T('🥇 מוביל דרום'), team: southLeader },
+          ].map(({ label, team }) => (
+            <div key={label} className="rounded-2xl border border-white/[0.07] bg-white/[0.04]" style={{ borderTop: '3px solid #e0c97a' }}>
+              <div className="p-5">
+                <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-[#8aaac8] font-body">{label}</p>
+                <Link href={`/team/${encodeURIComponent(dbDisplayName(team.name))}`} className="text-xl font-black text-[#e0c97a] hover:underline underline-offset-2 transition-colors font-heading">{T(dbDisplayName(team.name))}</Link>
+                <p className="mt-1 text-sm font-bold text-[#8aaac8] font-body">
+                  {lang === 'en' ? `${team.wins}W / ${team.losses}L · ` : `${team.wins}נ / ${team.losses}ה · `}
+                  <span className="font-bold text-orange-400 font-stats">{team.pts} {lang === 'en' ? 'pts' : 'נקודות'}</span>
+                </p>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       <section>
         <h2 className="mb-4 flex items-center gap-2 text-lg font-black text-white font-heading">
