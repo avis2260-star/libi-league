@@ -57,6 +57,15 @@ function divisionOf(label: string): 'North' | 'South' {
   return label.includes('צפון') ? 'North' : 'South';
 }
 
+// Bracket rounds for the collapsible admin view.
+const ROUNDS: { key: 'qf' | 'sf' | 'final'; label: string; nums: number[] }[] = [
+  { key: 'qf',    label: 'רבע גמר', nums: [1, 2, 3, 4] },
+  { key: 'sf',    label: 'חצי גמר', nums: [5, 6] },
+  { key: 'final', label: 'גמר',     nums: [7] },
+];
+// Final is a single game; earlier rounds are best-of-3.
+const winsNeeded = (n: number) => (n >= 7 ? 1 : 2);
+
 function TeamSelect({
   value, label, teams, onChange, onClear, saving,
 }: {
@@ -113,6 +122,11 @@ export default function PlayoffTab() {
   // its inputs from fresh data after an import — its player/quarter inputs use
   // seed-once useState, so a re-fetch alone wouldn't repaint them.
   const [dataVersion, setDataVersion] = useState(0);
+  // Collapsible UI state — decided series/rounds start collapsed. Defaults are
+  // set once on first load so later refetches don't stomp the admin's toggles.
+  const [openRounds, setOpenRounds] = useState<Record<string, boolean>>({ qf: true, sf: true, final: true });
+  const [openSeries, setOpenSeries] = useState<Record<number, boolean>>({});
+  const openInitialized = useRef(false);
 
   const loadData = useCallback(async () => {
     const res = await fetch('/api/admin/playoff');
@@ -139,6 +153,20 @@ export default function PlayoffTab() {
       };
     }
     setGameDraft(gd);
+    if (!openInitialized.current) {
+      openInitialized.current = true;
+      const so: Record<number, boolean> = {};
+      const or: Record<string, boolean> = { qf: false, sf: false, final: false };
+      for (const sr of s as Series[]) {
+        const w = seriesWins(sr, g as Game[]);
+        const done = w.winsA >= winsNeeded(sr.series_number) || w.winsB >= winsNeeded(sr.series_number);
+        so[sr.series_number] = !done;
+        if (!done) or[sr.series_number >= 7 ? 'final' : sr.series_number >= 5 ? 'sf' : 'qf'] = true;
+      }
+      if (!or.qf && !or.sf && !or.final) or.final = true; // everything decided — keep one round visible
+      setOpenSeries(so);
+      setOpenRounds(or);
+    }
     setDataVersion(v => v + 1);
   }, []);
 
@@ -314,26 +342,63 @@ export default function PlayoffTab() {
         </div>
       )}
 
-      {series.map((s) => {
+      {ROUNDS.map((round) => {
+        const roundSeries = series.filter((s) => round.nums.includes(s.series_number));
+        if (roundSeries.length === 0) return null;
+        const roundOpen = openRounds[round.key];
+        const doneCount = roundSeries.filter((s) => {
+          const w = seriesWins(s, games);
+          return w.winsA >= winsNeeded(s.series_number) || w.winsB >= winsNeeded(s.series_number);
+        }).length;
+
+        return (
+          <div key={round.key} className="space-y-4">
+            {/* Round header — collapses the whole round */}
+            <button
+              onClick={() => setOpenRounds((p) => ({ ...p, [round.key]: !p[round.key] }))}
+              className="flex w-full items-center justify-between rounded-xl border border-gray-700 bg-gray-800/70 px-5 py-3 text-right transition hover:bg-gray-800"
+            >
+              <div className="flex items-center gap-2">
+                <span className={`text-gray-400 text-sm transition-transform ${roundOpen ? 'rotate-90' : ''}`}>▶</span>
+                <span className="text-base font-black text-white">{round.label}</span>
+                <span className="rounded-full bg-gray-700/60 px-2 py-0.5 text-[11px] font-bold text-gray-300">
+                  {doneCount}/{roundSeries.length} ✓
+                </span>
+              </div>
+              <span className="text-xs text-gray-500">
+                {roundOpen ? 'הסתר' : 'הצג'} {roundSeries.length} סדרות
+              </span>
+            </button>
+
+            {roundOpen && roundSeries.map((s) => {
         const { winsA, winsB } = seriesWins(s, games);
-        const seriesOver = winsA >= 2 || winsB >= 2;
+        const seriesOver = winsA >= winsNeeded(s.series_number) || winsB >= winsNeeded(s.series_number);
         const isSavingTeams = saving === `team-${s.series_number}`;
+        const bodyOpen = openSeries[s.series_number] ?? true;
 
         return (
           <div key={s.series_number} className="rounded-2xl border border-gray-700 bg-gray-800/40 overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3 bg-gray-800/60 border-b border-gray-700">
+            {/* Header — collapses this series */}
+            <button
+              onClick={() => setOpenSeries((p) => ({ ...p, [s.series_number]: !(p[s.series_number] ?? true) }))}
+              className="flex w-full items-center justify-between px-5 py-3 bg-gray-800/60 border-b border-gray-700 text-right transition hover:bg-gray-800/80"
+            >
               <div className="flex items-center gap-2">
+                <span className={`text-gray-400 text-xs transition-transform ${bodyOpen ? 'rotate-90' : ''}`}>▶</span>
                 <span className="text-sm font-black text-orange-400">
                   סדרה {s.series_number} · {s.series_number >= 7 ? 'גמר' : s.series_number >= 5 ? 'חצי גמר' : 'רבע גמר'}
                 </span>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${seriesOver ? 'bg-green-900/40 text-green-400' : 'bg-orange-900/30 text-orange-400'}`}>
                   {seriesOver ? '✓ הסתיים' : `${winsA}–${winsB}`}
                 </span>
+                {!bodyOpen && (s.team_a || s.team_b) && (
+                  <span className="text-xs text-gray-300">{s.team_a || '—'} vs {s.team_b || '—'}</span>
+                )}
               </div>
               <span className="text-xs text-gray-500">{s.team_a_label} vs {s.team_b_label}</span>
-            </div>
+            </button>
 
+            {bodyOpen && (
             <div className="p-5 space-y-6">
               {/* Team dropdowns */}
               <div className="space-y-3">
@@ -496,6 +561,10 @@ export default function PlayoffTab() {
                 })}
               </div>
             </div>
+            )}
+          </div>
+        );
+      })}
           </div>
         );
       })}
