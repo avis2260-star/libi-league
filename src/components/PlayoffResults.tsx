@@ -131,8 +131,140 @@ function GameCard({ game, T }: { game: ResultCard; T: (he: string) => string }) 
   );
 }
 
-export default async function PlayoffResults() {
-  const season = await getCurrentSeason();
+// ── Series block (stats-page layout) ────────────────────────────────────────
+// One card per best-of-3 series: both teams with the series tally, who
+// advanced, and every game score with the winner emphasized.
+type SeriesGameLine = { gameNumber: number; scoreA: number; scoreB: number; aWon: boolean; dateLabel: string };
+
+// "2026-07-17" → "17.7" (day.month); anything unparseable → ''.
+function shortDate(iso: string | null): string {
+  if (!iso) return '';
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return '';
+  return `${parseInt(m[3], 10)}.${parseInt(m[2], 10)}`;
+}
+type SeriesBlockData = {
+  seriesNumber: number;
+  stageKey: StageKey;
+  teamAName: string;
+  teamBName: string;
+  teamALogo: string | null;
+  teamBLogo: string | null;
+  winsA: number;
+  winsB: number;
+  winner: 'a' | 'b' | null;
+  advancedLabel: string;
+  games: SeriesGameLine[];
+};
+
+function SeriesTeamRow({ name, displayName, logo, wins, isWinner, decided }: {
+  name: string; displayName: string; logo: string | null; wins: number; isWinner: boolean; decided: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2 px-3 py-2">
+      <div className="flex min-w-0 items-center gap-2">
+        <TeamLogo name={name} displayName={displayName} url={logo} />
+        <p className={`break-words text-sm font-bold leading-tight font-heading ${isWinner || !decided ? 'text-white' : 'text-[#8aaac8]'}`}>
+          {displayName}
+        </p>
+      </div>
+      <span className={`shrink-0 font-stats text-xl font-black tabular-nums ${isWinner ? 'text-orange-400' : 'text-[#8aaac8]'}`}>{wins}</span>
+    </div>
+  );
+}
+
+function SeriesBlock({ block, T }: { block: SeriesBlockData; T: (he: string) => string }) {
+  const decided = block.winner !== null;
+  const aWon = block.winner === 'a';
+  const bWon = block.winner === 'b';
+  return (
+    <Link
+      href={`/playoff/series/${block.seriesNumber}`}
+      className="group block overflow-hidden rounded-xl border border-white/[0.07] bg-white/[0.04] transition hover:-translate-y-0.5 hover:border-[#e0c97a]/40 hover:bg-[#e0c97a]/[0.04]"
+    >
+      {/* Header: series number + who advanced */}
+      <div className="flex items-center justify-between gap-2 border-b border-white/[0.06] px-3 py-2">
+        <span className="text-[11px] font-bold text-[#8aaac8] font-body">{T('סדרה')} {block.seriesNumber}</span>
+        {decided && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-black text-green-400">
+            🏆 {T(aWon ? block.teamAName : block.teamBName)} · {block.advancedLabel}
+          </span>
+        )}
+      </div>
+
+      {/* Two teams + series tally */}
+      <SeriesTeamRow name={block.teamAName} displayName={T(block.teamAName)} logo={block.teamALogo} wins={block.winsA} isWinner={aWon} decided={decided} />
+      <SeriesTeamRow name={block.teamBName} displayName={T(block.teamBName)} logo={block.teamBLogo} wins={block.winsB} isWinner={bWon} decided={decided} />
+
+      {/* Game-by-game scores */}
+      <div className="border-t border-white/[0.06] px-3 py-1.5">
+        {block.games.map((g) => (
+          <div key={g.gameNumber} className="flex items-center justify-between gap-2 border-b border-white/[0.04] py-1.5 text-[13px] last:border-0">
+            <span className="shrink-0 text-[#5a7a9a]">{T('משחק')} {g.gameNumber}</span>
+            <span className="font-stats tabular-nums">
+              <span className={g.aWon ? 'font-black text-white' : 'text-[#8aaac8]'}>{g.scoreA}</span>
+              <span className="mx-1.5 text-[#5a7a9a]">:</span>
+              <span className={!g.aWon ? 'font-black text-white' : 'text-[#8aaac8]'}>{g.scoreB}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </Link>
+  );
+}
+
+// ── Series table (stats-page alternative layout) ────────────────────────────
+// A dense row-per-game table: each series gets a subheader (teams + who
+// advanced), then one row per game with the winner's score emphasized.
+function SeriesTable({ blocks, T }: { blocks: SeriesBlockData[]; T: (he: string) => string }) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.03]">
+      {blocks.map((block) => {
+        const decided = block.winner !== null;
+        const aWon = block.winner === 'a';
+        return (
+          <div key={block.seriesNumber} className="border-b border-white/[0.06] last:border-0">
+            {/* Series subheader */}
+            <div className="flex items-center justify-between gap-2 bg-white/[0.03] px-4 py-2">
+              <span className="min-w-0 break-words text-[12px] font-bold text-[#c8d8e8] font-body">
+                {T('סדרה')} {block.seriesNumber} — {T(block.teamAName)} {T('נגד')} {T(block.teamBName)}
+              </span>
+              {decided && (
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-black text-green-400">
+                  🏆 {T(aWon ? block.teamAName : block.teamBName)} · {block.advancedLabel}
+                </span>
+              )}
+            </div>
+            {/* Game rows */}
+            {block.games.map((g) => (
+              <Link
+                key={g.gameNumber}
+                href={`/playoff/series/${block.seriesNumber}`}
+                className="grid grid-cols-[5rem_1fr_3.5rem] items-center gap-2 border-t border-white/[0.04] px-4 py-2 text-[13px] transition-colors hover:bg-white/[0.03]"
+              >
+                <span className="text-[#5a7a9a]">{T('משחק')} {g.gameNumber}</span>
+                <span className="text-center font-stats tabular-nums">
+                  <span className={g.aWon ? 'font-black text-white' : 'text-[#8aaac8]'}>{g.scoreA}</span>
+                  <span className="mx-1.5 text-[#5a7a9a]">:</span>
+                  <span className={!g.aWon ? 'font-black text-white' : 'text-[#8aaac8]'}>{g.scoreB}</span>
+                </span>
+                <span className="text-end font-stats tabular-nums text-[#5a7a9a]">{g.dateLabel}</span>
+              </Link>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// `season` defaults to the current season (home page); the playoff-stats page
+// passes its archive-picker season so results match the table being viewed.
+// `layout`: 'cards' (home page) shows the latest played game per series as
+// game cards; 'series' (stats page) shows one best-of-3 block per series with
+// the full game history.
+export default async function PlayoffResults({ season: seasonProp, layout = 'cards' }: { season?: string; layout?: 'cards' | 'series' | 'table' } = {}) {
+  const season = seasonProp ?? await getCurrentSeason();
   const [{ data: seriesData }, { data: gamesData }, { data: standingsData }, teams, lang] = await Promise.all([
     supabaseAdmin
       .from('playoff_series')
@@ -141,7 +273,7 @@ export default async function PlayoffResults() {
       .order('series_number'),
     supabaseAdmin
       .from('playoff_games')
-      .select('series_number, game_number, home_score, away_score, video_url')
+      .select('series_number, game_number, home_score, away_score, video_url, game_date')
       .eq('season', season)
       .order('series_number')
       .order('game_number'),
@@ -157,7 +289,7 @@ export default async function PlayoffResults() {
   const dir = lang === 'he' ? 'rtl' : 'ltr';
 
   const series = (seriesData ?? []) as { series_number: number; team_a: string | null; team_b: string | null; team_a_label: string | null; team_b_label: string | null }[];
-  const games = (gamesData ?? []) as { series_number: number; game_number: number; home_score: number | null; away_score: number | null; video_url: string | null }[];
+  const games = (gamesData ?? []) as { series_number: number; game_number: number; home_score: number | null; away_score: number | null; video_url: string | null; game_date: string | null }[];
   if (series.length === 0) return null;
 
   const standings = (standingsData ?? []) as { name: string; division: string; rank: number }[];
@@ -235,19 +367,55 @@ export default async function PlayoffResults() {
   }
   if (cards.length === 0) return null;
 
-  // Only the latest played game per series — once the admin enters a newer
-  // score the earlier games drop off the home page (full history stays on /playoff).
+  const order: StageKey[] = ['final', 'sf', 'qf']; // most advanced stage first
+
+  // Home page (default): only the latest played game per series as game cards.
   const latestBySeries = new Map<number, ResultCard>();
   for (const c of cards) {
     const prev = latestBySeries.get(c.seriesNumber);
     if (!prev || c.gameNumber > prev.gameNumber) latestBySeries.set(c.seriesNumber, c);
   }
-  const latestCards = [...latestBySeries.values()];
+  const groupedCards = order
+    .map((key) => ({ key, items: [...latestBySeries.values()].filter((c) => c.stageKey === key) }))
+    .filter((g) => g.items.length > 0);
 
-  // Group by stage — show the most advanced stage first (final → sf → qf).
-  const order: StageKey[] = ['final', 'sf', 'qf'];
-  const grouped = order
-    .map((key) => ({ key, items: latestCards.filter((c) => c.stageKey === key) }))
+  // Stats page: one best-of-3 block per series with the full game history.
+  const advancedLabelFor = (key: StageKey) =>
+    key === 'final' ? (lang === 'en' ? 'Champion' : 'אלופה')
+    : key === 'sf'  ? (lang === 'en' ? 'To the final' : 'עלו לגמר')
+    :                 (lang === 'en' ? 'To the semis' : 'עלו לחצי');
+  const blocks: SeriesBlockData[] = [];
+  for (const [seriesNumber, pair] of teamBySeries) {
+    const seriesGames = games
+      .filter((g) => g.series_number === seriesNumber && g.home_score != null && g.away_score != null)
+      .sort((a, b) => a.game_number - b.game_number);
+    if (seriesGames.length === 0) continue;
+    let winsA = 0, winsB = 0;
+    const gameLines: SeriesGameLine[] = [];
+    for (const g of seriesGames) {
+      const home = homeForGame(pair.a, pair.b, g.game_number);
+      const scoreA = home === pair.a ? g.home_score! : g.away_score!;
+      const scoreB = home === pair.a ? g.away_score! : g.home_score!;
+      const aWon = scoreA > scoreB;
+      if (aWon) winsA++; else winsB++;
+      gameLines.push({ gameNumber: g.game_number, scoreA, scoreB, aWon, dateLabel: shortDate(g.game_date) });
+    }
+    const need = seriesNumber >= 7 ? 1 : 2;
+    const winner: 'a' | 'b' | null = winsA >= need ? 'a' : winsB >= need ? 'b' : null;
+    const aName = resolveName(pair.a), bName = resolveName(pair.b);
+    const stageKey = stageKeyForSeries(seriesNumber);
+    blocks.push({
+      seriesNumber, stageKey,
+      teamAName: aName, teamBName: bName,
+      teamALogo: findLogo(aName, logos) ?? findLogo(pair.a, logos),
+      teamBLogo: findLogo(bName, logos) ?? findLogo(pair.b, logos),
+      winsA, winsB, winner,
+      advancedLabel: advancedLabelFor(stageKey),
+      games: gameLines,
+    });
+  }
+  const groupedBlocks = order
+    .map((key) => ({ key, items: blocks.filter((b) => b.stageKey === key).sort((a, b) => a.seriesNumber - b.seriesNumber) }))
     .filter((g) => g.items.length > 0);
 
   return (
@@ -266,18 +434,35 @@ export default async function PlayoffResults() {
       </div>
 
       <div className="space-y-5">
-        {grouped.map((stage) => (
-          <div key={stage.key} className="space-y-2">
-            <h3 className={`flex items-center gap-2 text-sm font-bold ${STAGE_ACCENT[stage.key].text}`}>
-              <span className={`h-2 w-2 rounded-full ${STAGE_ACCENT[stage.key].dot}`} /> {T(STAGE_HE[stage.key])}
-            </h3>
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-              {stage.items.map((g, i) => (
-                <GameCard key={`${g.seriesNumber}-${g.gameNumber}-${i}`} game={g} T={T} />
-              ))}
-            </div>
-          </div>
-        ))}
+        {layout === 'series' || layout === 'table'
+          ? groupedBlocks.map((stage) => (
+              <div key={stage.key} className="space-y-2">
+                <h3 className={`flex items-center gap-2 text-sm font-bold ${STAGE_ACCENT[stage.key].text}`}>
+                  <span className={`h-2 w-2 rounded-full ${STAGE_ACCENT[stage.key].dot}`} /> {T(STAGE_HE[stage.key])}
+                </h3>
+                {layout === 'table' ? (
+                  <SeriesTable blocks={stage.items} T={T} />
+                ) : (
+                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                    {stage.items.map((b) => (
+                      <SeriesBlock key={b.seriesNumber} block={b} T={T} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))
+          : groupedCards.map((stage) => (
+              <div key={stage.key} className="space-y-2">
+                <h3 className={`flex items-center gap-2 text-sm font-bold ${STAGE_ACCENT[stage.key].text}`}>
+                  <span className={`h-2 w-2 rounded-full ${STAGE_ACCENT[stage.key].dot}`} /> {T(STAGE_HE[stage.key])}
+                </h3>
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  {stage.items.map((g, i) => (
+                    <GameCard key={`${g.seriesNumber}-${g.gameNumber}-${i}`} game={g} T={T} />
+                  ))}
+                </div>
+              </div>
+            ))}
       </div>
     </section>
   );

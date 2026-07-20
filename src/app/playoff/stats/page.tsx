@@ -7,6 +7,8 @@ import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season'
 import SeasonPicker from '@/components/SeasonPicker';
 import ArchiveBanner from '@/components/ArchiveBanner';
 import PlayoffPlate from '@/components/PlayoffPlate';
+import PlayoffResults from '@/components/PlayoffResults';
+import PlayoffStatsTabs, { type StatTab } from '@/components/PlayoffStatsTabs';
 import { displayName } from '@/lib/names';
 
 type ScorerRow = {
@@ -80,6 +82,127 @@ function fmtAvg(total: number, games: number): string {
   return (total / games).toFixed(1);
 }
 
+// Scoring-leaders leaderboard — the "שחקנים פעילים" tab panel.
+function ScorersPanel({ scorers, lang }: { scorers: ScorerRow[]; lang: 'he' | 'en' }) {
+  const T = (he: string) => st(he, lang);
+  const en = lang === 'en';
+  return (
+    <section className="space-y-3">
+      <h2 className="text-base font-black text-white flex items-center gap-2 font-heading">
+        <span>🏅</span>
+        {en ? 'Playoff Leaders' : 'מובילי הפלייאוף'}
+      </h2>
+
+      {scorers.length === 0 ? (
+        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] py-16 text-center">
+          <p className="text-4xl mb-3">🏀</p>
+          <p className="font-bold text-[#8aaac8]">{en ? 'No playoff stats yet' : 'עדיין אין סטטיסטיקה לפלייאוף'}</p>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] overflow-hidden">
+
+          {/* Table header */}
+          <div className="hidden sm:grid grid-cols-[3rem_1fr_4rem_4rem_4.5rem_4.5rem_4.5rem] gap-2 px-5 py-3 border-b border-white/[0.08] text-[11px] font-black uppercase tracking-widest text-[#5a7a9a]">
+            <span className="text-center">{T('מקום')}</span>
+            <span>{T('שחקן')}</span>
+            <span className="text-center">{T('משחקים')}</span>
+            <span className="text-center">{T('סה״כ נק׳')}</span>
+            <span className="text-center">{T('ממוצע נק׳')}</span>
+            <span className="text-center">{T('ממוצע 3נק׳')}</span>
+            <span className="text-center">{T('ממוצע פאולים')}</span>
+          </div>
+
+          {scorers.map((p, i) => {
+            const maxPts = scorers[0].points || 1;
+            return (
+              <Link
+                key={p.id}
+                href={`/players/${p.id}`}
+                className="flex sm:grid sm:grid-cols-[3rem_1fr_4rem_4rem_4.5rem_4.5rem_4.5rem] gap-0 sm:gap-2 items-center border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] transition-colors group"
+              >
+                {/* Rank */}
+                <div className="w-14 sm:w-auto shrink-0 px-3 sm:px-0 py-4 flex flex-col items-center justify-center">
+                  {i < 3 ? (
+                    <span className="text-xl">{MEDAL[i]}</span>
+                  ) : (
+                    <span className={`text-sm font-black font-stats ${RANK_COLORS[i] ?? 'text-[#5a7a9a]'}`}>{i + 1}</span>
+                  )}
+                </div>
+
+                {/* Player */}
+                <div className="flex flex-1 min-w-0 items-center gap-3 py-3 pr-0 sm:pr-2">
+                  <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/[0.10] bg-white/[0.04]">
+                    {p.photo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={p.photo_url} alt={p.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center text-sm font-black text-[#4a6a8a]">
+                        {p.name.charAt(0)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="break-words font-bold text-white group-hover:text-orange-300 transition-colors leading-tight font-heading">
+                      {displayName(p.name, lang)}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      {p.jersey_number !== null && (
+                        <span className="text-[10px] font-bold text-orange-400/80 shrink-0 font-stats">#{p.jersey_number}</span>
+                      )}
+                      {p.team_name && (
+                        <span className="min-w-0 break-words text-xs font-bold text-[#8aaac8] font-body">{displayName(p.team_name, lang)}</span>
+                      )}
+                    </div>
+                    <div className="mt-1.5 h-1 w-full rounded-full bg-white/[0.06]">
+                      <div
+                        className="h-1 rounded-full bg-gradient-to-l from-orange-500 to-orange-700"
+                        style={{ width: `${Math.round((p.points / maxPts) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Games */}
+                <div className="hidden sm:block py-4 text-center">
+                  <p className="text-sm font-black text-[#c8d8e8] font-stats">{p.games}</p>
+                </div>
+
+                {/* Total points */}
+                <div className="w-16 sm:w-auto shrink-0 px-2 py-4 text-center">
+                  <p className="text-lg font-black text-orange-400 font-stats">{p.points}</p>
+                  <p className="text-[10px] font-bold text-[#8aaac8] sm:hidden font-body">{T('נק׳')}</p>
+                </div>
+
+                {/* Avg points / game */}
+                <div className="hidden sm:block py-4 text-center">
+                  <p className="text-base font-black text-emerald-400 font-stats">{fmtAvg(p.points, p.games)}</p>
+                  <p className="text-[9px] font-bold text-[#5a7a9a] font-body">{T('למשחק')}</p>
+                </div>
+
+                {/* Avg 3pt */}
+                <div className="hidden sm:block py-4 text-center">
+                  <p className="text-base font-black text-sky-400 font-stats">{fmtAvg(p.three_pointers, p.games)}</p>
+                  <p className="text-[9px] font-bold text-[#5a7a9a] font-body">{T('למשחק')}</p>
+                </div>
+
+                {/* Avg fouls */}
+                <div className="hidden sm:block py-4 text-center">
+                  <p className="text-base font-black text-rose-400 font-stats">{fmtAvg(p.fouls, p.games)}</p>
+                  <p className="text-[9px] font-bold text-[#5a7a9a] font-body">{T('למשחק')}</p>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      <p className="text-center text-xs text-[#3a5a7a] sm:hidden">
+        {T('סובב למצב אופקי לצפייה בממוצעים')}
+      </p>
+    </section>
+  );
+}
+
 export default async function PlayoffStatsPage({
   searchParams,
 }: {
@@ -104,6 +227,34 @@ export default async function PlayoffStatsPage({
     .filter((g) => g.played || (g.home_score !== null && g.away_score !== null)).length;
   const seriesCount = (seriesData ?? []).length;
 
+  // The three summary tiles double as tabs, each showing its panel below.
+  const tabs: StatTab[] = [
+    {
+      key: 'games',
+      label: en ? 'Playoff games' : 'משחקי פלייאוף',
+      value: String(gamesPlayed),
+      accentClass: 'text-orange-400',
+      barClass: 'bg-orange-400',
+      panel: <PlayoffResults season={viewing} layout="series" />,
+    },
+    {
+      key: 'players',
+      label: T('שחקנים פעילים'),
+      value: String(scorers.length),
+      accentClass: 'text-sky-400',
+      barClass: 'bg-sky-400',
+      panel: <ScorersPanel scorers={scorers} lang={lang} />,
+    },
+    {
+      key: 'series',
+      label: en ? 'Series' : 'סדרות',
+      value: String(seriesCount),
+      accentClass: 'text-emerald-400',
+      barClass: 'bg-emerald-400',
+      panel: <PlayoffResults season={viewing} layout="table" />,
+    },
+  ];
+
   return (
     <div dir={dir} className="space-y-6">
 
@@ -126,136 +277,8 @@ export default async function PlayoffStatsPage({
 
       {isArchive && <ArchiveBanner viewing={viewing} current={current} pathname="/playoff/stats" />}
 
-      {/* Summary tiles */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
-        <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-3 text-center">
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#5a7a9a]">{en ? 'Playoff games' : 'משחקי פלייאוף'}</p>
-          <p className="mt-1 text-2xl font-black text-orange-400 font-stats">{gamesPlayed}</p>
-        </div>
-        <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-3 text-center">
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#5a7a9a]">{T('שחקנים פעילים')}</p>
-          <p className="mt-1 text-2xl font-black text-sky-400 font-stats">{scorers.length}</p>
-        </div>
-        <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-3 text-center">
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#5a7a9a]">{en ? 'Series' : 'סדרות'}</p>
-          <p className="mt-1 text-2xl font-black text-emerald-400 font-stats">{seriesCount}</p>
-        </div>
-      </div>
-
-      {/* Score leaders */}
-      <section className="space-y-3">
-        <h2 className="text-base font-black text-white flex items-center gap-2 font-heading">
-          <span>🏅</span>
-          {en ? 'Playoff Leaders' : 'מובילי הפלייאוף'}
-        </h2>
-
-        {scorers.length === 0 ? (
-          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] py-16 text-center">
-            <p className="text-4xl mb-3">🏀</p>
-            <p className="font-bold text-[#8aaac8]">{en ? 'No playoff stats yet' : 'עדיין אין סטטיסטיקה לפלייאוף'}</p>
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] overflow-hidden">
-
-            {/* Table header */}
-            <div className="hidden sm:grid grid-cols-[3rem_1fr_4rem_4rem_4.5rem_4.5rem_4.5rem] gap-2 px-5 py-3 border-b border-white/[0.08] text-[11px] font-black uppercase tracking-widest text-[#5a7a9a]">
-              <span className="text-center">{T('מקום')}</span>
-              <span>{T('שחקן')}</span>
-              <span className="text-center">{T('משחקים')}</span>
-              <span className="text-center">{T('סה״כ נק׳')}</span>
-              <span className="text-center">{T('ממוצע נק׳')}</span>
-              <span className="text-center">{T('ממוצע 3נק׳')}</span>
-              <span className="text-center">{T('ממוצע פאולים')}</span>
-            </div>
-
-            {scorers.map((p, i) => {
-              const maxPts = scorers[0].points || 1;
-              return (
-                <Link
-                  key={p.id}
-                  href={`/players/${p.id}`}
-                  className="flex sm:grid sm:grid-cols-[3rem_1fr_4rem_4rem_4.5rem_4.5rem_4.5rem] gap-0 sm:gap-2 items-center border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] transition-colors group"
-                >
-                  {/* Rank */}
-                  <div className="w-14 sm:w-auto shrink-0 px-3 sm:px-0 py-4 flex flex-col items-center justify-center">
-                    {i < 3 ? (
-                      <span className="text-xl">{MEDAL[i]}</span>
-                    ) : (
-                      <span className={`text-sm font-black font-stats ${RANK_COLORS[i] ?? 'text-[#5a7a9a]'}`}>{i + 1}</span>
-                    )}
-                  </div>
-
-                  {/* Player */}
-                  <div className="flex flex-1 min-w-0 items-center gap-3 py-3 pr-0 sm:pr-2">
-                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/[0.10] bg-white/[0.04]">
-                      {p.photo_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={p.photo_url} alt={p.name} className="h-full w-full object-cover" />
-                      ) : (
-                        <span className="flex h-full w-full items-center justify-center text-sm font-black text-[#4a6a8a]">
-                          {p.name.charAt(0)}
-                        </span>
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="break-words font-bold text-white group-hover:text-orange-300 transition-colors leading-tight font-heading">
-                        {displayName(p.name, lang)}
-                      </p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        {p.jersey_number !== null && (
-                          <span className="text-[10px] font-bold text-orange-400/80 shrink-0 font-stats">#{p.jersey_number}</span>
-                        )}
-                        {p.team_name && (
-                          <span className="min-w-0 break-words text-xs font-bold text-[#8aaac8] font-body">{displayName(p.team_name, lang)}</span>
-                        )}
-                      </div>
-                      <div className="mt-1.5 h-1 w-full rounded-full bg-white/[0.06]">
-                        <div
-                          className="h-1 rounded-full bg-gradient-to-l from-orange-500 to-orange-700"
-                          style={{ width: `${Math.round((p.points / maxPts) * 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Games */}
-                  <div className="hidden sm:block py-4 text-center">
-                    <p className="text-sm font-black text-[#c8d8e8] font-stats">{p.games}</p>
-                  </div>
-
-                  {/* Total points */}
-                  <div className="w-16 sm:w-auto shrink-0 px-2 py-4 text-center">
-                    <p className="text-lg font-black text-orange-400 font-stats">{p.points}</p>
-                    <p className="text-[10px] font-bold text-[#8aaac8] sm:hidden font-body">{T('נק׳')}</p>
-                  </div>
-
-                  {/* Avg points / game */}
-                  <div className="hidden sm:block py-4 text-center">
-                    <p className="text-base font-black text-emerald-400 font-stats">{fmtAvg(p.points, p.games)}</p>
-                    <p className="text-[9px] font-bold text-[#5a7a9a] font-body">{T('למשחק')}</p>
-                  </div>
-
-                  {/* Avg 3pt */}
-                  <div className="hidden sm:block py-4 text-center">
-                    <p className="text-base font-black text-sky-400 font-stats">{fmtAvg(p.three_pointers, p.games)}</p>
-                    <p className="text-[9px] font-bold text-[#5a7a9a] font-body">{T('למשחק')}</p>
-                  </div>
-
-                  {/* Avg fouls */}
-                  <div className="hidden sm:block py-4 text-center">
-                    <p className="text-base font-black text-rose-400 font-stats">{fmtAvg(p.fouls, p.games)}</p>
-                    <p className="text-[9px] font-bold text-[#5a7a9a] font-body">{T('למשחק')}</p>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-
-        <p className="text-center text-xs text-[#3a5a7a] sm:hidden">
-          {T('סובב למצב אופקי לצפייה בממוצעים')}
-        </p>
-      </section>
+      {/* Summary tiles double as tabs — the selected tile's panel shows below */}
+      <PlayoffStatsTabs tabs={tabs} initialKey="games" />
     </div>
   );
 }
