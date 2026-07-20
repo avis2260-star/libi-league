@@ -117,7 +117,9 @@ export default function PlayoffScoreboardStrip({ games }: { games: PlayoffStripG
                 <span className="min-w-0 break-words text-base font-black text-white font-heading">
                   {g.dateLabel
                     ? <span>{g.dayLabel ? `${g.dayLabel} · ` : ''}{g.dateLabel}{g.timeLabel ? ` · ${g.timeLabel}` : ''}</span>
-                    : <span className="text-[#5a7a9a]">{en ? 'TBD' : 'טרם נקבע'}</span>}
+                    : g.timeLabel
+                      ? <span>{en ? 'Time' : 'שעה'} {g.timeLabel}</span>
+                      : <span className="text-[#5a7a9a]">{en ? 'TBD' : 'טרם נקבע'}</span>}
                 </span>
                 <span className={`shrink-0 text-[10px] font-black ${accent.text}`}>
                   {g.stageKey === 'final' ? (en ? 'Single game' : 'משחק אחד') : (en ? 'Best of 3' : 'הטוב מ-3')}
