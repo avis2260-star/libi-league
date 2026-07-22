@@ -21,7 +21,7 @@ export default async function CupGameBoxScorePage({
     supabaseAdmin.from('teams').select('id, name, logo_url'),
     supabaseAdmin
       .from('cup_game_stats')
-      .select('cup_game_id, player_id, team_id, points, three_pointers, fouls')
+      .select('cup_game_id, player_id, team_id, points, three_pointers, fouls, quarter_points, two_pointers, free_throws')
       .eq('cup_game_id', id),
     supabaseAdmin.from('players').select('id, name, jersey_number'),
     getLang(),

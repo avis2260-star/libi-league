@@ -10,6 +10,61 @@ import { displayName } from '@/lib/names';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { getCurrentSeason } from '@/lib/current-season';
 
+// One team's box-score table. Adds per-quarter points (ר1..רN) + the 2-pointers
+// made column when the scoresheet recorded them; otherwise renders as before.
+// Wide with quarters, so it scrolls horizontally on narrow screens.
+type LeagueBoxRow = {
+  player: { id: string; name: string; jersey_number: number | null };
+  points: number; three_pointers: number; fouls: number;
+  quarter_points: number[] | null; two_pointers: number | null;
+};
+function LeagueBoxTable({ players, en, lang }: { players: LeagueBoxRow[]; en: boolean; lang: 'he' | 'en' }) {
+  const T = (he: string) => st(he, lang);
+  if (players.length === 0) {
+    return <p className="text-xs text-[#5a7a9a] py-4 text-center">{en ? 'No player stats yet' : 'אין נתוני שחקנים'}</p>;
+  }
+  const quarterCount = players.reduce((m, p) => Math.max(m, p.quarter_points?.length ?? 0), 0);
+  const hasQuarters = quarterCount > 0;
+  const hasTwo = players.some((p) => p.two_pointers != null);
+  const qLabel = (i: number) => (i < 4 ? (en ? `Q${i + 1}` : `ר${i + 1}`) : (en ? `OT${i - 3}` : `הא${i - 3}`));
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="text-xs font-black uppercase tracking-widest text-[#8aaac8] border-b border-white/[0.06]">
+            <th className={`py-2 ${en ? 'text-left' : 'text-right'}`}>{en ? 'Player' : 'שחקן'}</th>
+            <th className="py-2 text-center w-10">#</th>
+            {hasQuarters && Array.from({ length: quarterCount }, (_, i) => <th key={i} className="py-2 text-center w-9">{qLabel(i)}</th>)}
+            <th className="py-2 text-center w-10">{T('נק׳')}</th>
+            {hasTwo && <th className="py-2 text-center w-10">2PT</th>}
+            <th className="py-2 text-center w-10">3PT</th>
+            <th className="py-2 text-center w-10">{en ? 'F' : 'עב'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {players.map((row, i) => (
+            <tr key={i} className="border-b border-white/[0.04] last:border-0">
+              <td className={`py-2 text-sm font-bold text-white whitespace-nowrap ${en ? 'text-left' : 'text-right'}`}>
+                <Link href={row.player ? `/players/${row.player.id}` : '#'} className="hover:text-orange-400 transition-colors">
+                  {row.player ? displayName(row.player.name, lang) : '—'}
+                </Link>
+              </td>
+              <td className="py-2 text-center text-sm text-[#8aaac8] font-stats tabular-nums">{row.player?.jersey_number ?? '—'}</td>
+              {hasQuarters && Array.from({ length: quarterCount }, (_, qi) => (
+                <td key={qi} className="py-2 text-center font-stats text-sm text-[#c0d4e8] tabular-nums">{row.quarter_points?.[qi] ?? '·'}</td>
+              ))}
+              <td className="py-2 text-center font-stats text-base font-black text-orange-400 tabular-nums">{row.points}</td>
+              {hasTwo && <td className="py-2 text-center font-stats text-sm font-bold text-[#c0d4e8] tabular-nums">{row.two_pointers ?? '·'}</td>}
+              <td className="py-2 text-center font-stats text-sm font-bold text-[#e0c97a] tabular-nums">{row.three_pointers}</td>
+              <td className="py-2 text-center font-stats text-sm font-bold text-red-400 tabular-nums">{row.fouls}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 const ROUND_DATES: Record<number, string> = {
   1: '01.11.25', 2: '08.11.25', 3: '29.11.25', 4: '20.12.25',
   5: '10.01.26', 6: '17.01.26', 7: '07.02.26', 8: '21.02.26',
@@ -192,6 +247,9 @@ export default async function GamePreviewPage({
     points: number;
     three_pointers: number;
     fouls: number;
+    quarter_points: number[] | null;
+    two_pointers: number | null;
+    free_throws: number | null;
   };
   let homeBox: BoxRow[] = [];
   let awayBox: BoxRow[] = [];
@@ -203,6 +261,7 @@ export default async function GamePreviewPage({
   if (isPlayed && homeTeamObj && awayTeamObj) {
     type PgsRow = {
       points: number; three_pointers: number; fouls: number;
+      quarter_points: number[] | null; two_pointers: number | null; free_throws: number | null;
       player: { id: string; name: string; jersey_number: number | null; team_id: string | null }
              | { id: string; name: string; jersey_number: number | null; team_id: string | null }[]
              | null;
@@ -221,7 +280,7 @@ export default async function GamePreviewPage({
     const { data: pgs } = gameIds.length
       ? await supabaseAdmin
           .from('game_stats')
-          .select('points,three_pointers,fouls,player:players(id,name,jersey_number,team_id)')
+          .select('points,three_pointers,fouls,quarter_points,two_pointers,free_throws,player:players(id,name,jersey_number,team_id)')
           .eq('season', season)
           .in('game_id', gameIds)
           .or('points.gt.0,three_pointers.gt.0,fouls.gt.0')
@@ -249,6 +308,9 @@ export default async function GamePreviewPage({
       points: r.row.points ?? 0,
       three_pointers: r.row.three_pointers ?? 0,
       fouls: r.row.fouls ?? 0,
+      quarter_points: r.row.quarter_points ?? null,
+      two_pointers: r.row.two_pointers ?? null,
+      free_throws: r.row.free_throws ?? null,
     });
 
     homeBox = rows.filter(r => r.player.team_id === homeTeamObj.id).map(toBox);
@@ -434,36 +496,7 @@ export default async function GamePreviewPage({
                 <p className={`text-base font-black ${homeWon ? 'text-orange-400' : 'text-white'}`}>{T(homeDisplayName)}</p>
                 <span className={`ml-auto font-stats text-3xl font-black tabular-nums ${homeWon ? 'text-orange-400' : 'text-[#8aaac8]'}`}>{homeScore}</span>
               </div>
-              {homeBox.length === 0 ? (
-                <p className="text-xs text-[#5a7a9a] py-4 text-center">{en ? 'No player stats yet' : 'אין נתוני שחקנים'}</p>
-              ) : (
-                <table className="w-full">
-                  <thead>
-                    <tr className="text-xs font-black uppercase tracking-widest text-[#8aaac8] border-b border-white/[0.06]">
-                      <th className={`py-2 ${en ? 'text-left' : 'text-right'}`}>{en ? 'Player' : 'שחקן'}</th>
-                      <th className="py-2 text-center w-10">#</th>
-                      <th className="py-2 text-center w-10">{T('נק׳')}</th>
-                      <th className="py-2 text-center w-10">3PT</th>
-                      <th className="py-2 text-center w-10">{en ? 'F' : 'עב'}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {homeBox.map((row, i) => (
-                      <tr key={i} className="border-b border-white/[0.04] last:border-0">
-                        <td className={`py-2 text-sm font-bold text-white ${en ? 'text-left' : 'text-right'}`}>
-                          <Link href={row.player ? `/players/${row.player.id}` : '#'} className="hover:text-orange-400 transition-colors">
-                            {row.player ? displayName(row.player.name, lang) : '—'}
-                          </Link>
-                        </td>
-                        <td className="py-2 text-center text-sm text-[#8aaac8] font-stats tabular-nums">{row.player?.jersey_number ?? '—'}</td>
-                        <td className="py-2 text-center font-stats text-base font-black text-orange-400 tabular-nums">{row.points}</td>
-                        <td className="py-2 text-center font-stats text-sm font-bold text-[#e0c97a] tabular-nums">{row.three_pointers}</td>
-                        <td className="py-2 text-center font-stats text-sm font-bold text-red-400 tabular-nums">{row.fouls}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+              <LeagueBoxTable players={homeBox} en={en} lang={lang} />
             </div>
 
             {/* Away team box */}
@@ -476,36 +509,7 @@ export default async function GamePreviewPage({
                 <p className={`text-base font-black ${awayWon ? 'text-orange-400' : 'text-white'}`}>{T(awayDisplayName)}</p>
                 <span className={`ml-auto font-stats text-3xl font-black tabular-nums ${awayWon ? 'text-orange-400' : 'text-[#8aaac8]'}`}>{awayScore}</span>
               </div>
-              {awayBox.length === 0 ? (
-                <p className="text-xs text-[#5a7a9a] py-4 text-center">{en ? 'No player stats yet' : 'אין נתוני שחקנים'}</p>
-              ) : (
-                <table className="w-full">
-                  <thead>
-                    <tr className="text-xs font-black uppercase tracking-widest text-[#8aaac8] border-b border-white/[0.06]">
-                      <th className={`py-2 ${en ? 'text-left' : 'text-right'}`}>{en ? 'Player' : 'שחקן'}</th>
-                      <th className="py-2 text-center w-10">#</th>
-                      <th className="py-2 text-center w-10">{T('נק׳')}</th>
-                      <th className="py-2 text-center w-10">3PT</th>
-                      <th className="py-2 text-center w-10">{en ? 'F' : 'עב'}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {awayBox.map((row, i) => (
-                      <tr key={i} className="border-b border-white/[0.04] last:border-0">
-                        <td className={`py-2 text-sm font-bold text-white ${en ? 'text-left' : 'text-right'}`}>
-                          <Link href={row.player ? `/players/${row.player.id}` : '#'} className="hover:text-orange-400 transition-colors">
-                            {row.player ? displayName(row.player.name, lang) : '—'}
-                          </Link>
-                        </td>
-                        <td className="py-2 text-center text-sm text-[#8aaac8] font-stats tabular-nums">{row.player?.jersey_number ?? '—'}</td>
-                        <td className="py-2 text-center font-stats text-base font-black text-orange-400 tabular-nums">{row.points}</td>
-                        <td className="py-2 text-center font-stats text-sm font-bold text-[#e0c97a] tabular-nums">{row.three_pointers}</td>
-                        <td className="py-2 text-center font-stats text-sm font-bold text-red-400 tabular-nums">{row.fouls}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+              <LeagueBoxTable players={awayBox} en={en} lang={lang} />
             </div>
           </div>
 

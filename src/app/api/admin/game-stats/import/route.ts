@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
     const roster = (rosterRows ?? []).filter((r) => r.team_id) as RosterPlayer[];
 
     // ── Match each parsed line to a player (each player used at most once) ───
-    const matched: { player: RosterPlayer; points: number; three_pointers: number; fouls: number }[] = [];
+    const matched: { player: RosterPlayer; points: number; three_pointers: number; fouls: number; quarter_points: number[] | null; two_pointers: number | null; free_throws: number | null }[] = [];
     const unmatched: string[] = [];
     const usedIds = new Set<string>();
     for (const r of parsed) {
@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
       const player = matchPlayer(r.name, r.jersey, pool);
       if (!player) { unmatched.push(r.name); continue; }
       usedIds.add(player.id);
-      matched.push({ player, points: r.points, three_pointers: r.three_pointers, fouls: r.fouls });
+      matched.push({ player, points: r.points, three_pointers: r.three_pointers, fouls: r.fouls, quarter_points: r.quarter_points, two_pointers: r.two_pointers, free_throws: r.free_throws });
     }
 
     // Guard: never wipe existing stats when nothing matched (e.g. wrong file).
@@ -177,6 +177,9 @@ export async function POST(req: NextRequest) {
       points:         m.points,
       three_pointers: m.three_pointers,
       fouls:          m.fouls,
+      quarter_points: m.quarter_points,
+      two_pointers:   m.two_pointers,
+      free_throws:    m.free_throws,
       season,
     }));
     const { error: insErr } = await supabaseAdmin
