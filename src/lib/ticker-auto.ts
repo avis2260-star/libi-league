@@ -11,7 +11,8 @@
 
 export type AutoTickerType =
   | 'topScorer' | 'hotStreak' | 'titleRace'           // regular season
-  | 'seasonTopScorer' | 'cupHolder' | 'playoffsLive'; // season-end / playoffs
+  | 'seasonTopScorer' | 'cupHolder' | 'playoffsLive'  // season-end / playoffs
+  | 'playoffTopScorer' | 'playoffNextGame' | 'playoffResult'; // playoffs only
 
 export type AutoTickerTypeConfig = {
   enabled: boolean;
@@ -27,6 +28,7 @@ export type AutoTickerConfig = Record<AutoTickerType, AutoTickerTypeConfig>;
 export const AUTO_TICKER_ORDER: AutoTickerType[] = [
   'topScorer', 'hotStreak', 'titleRace',
   'seasonTopScorer', 'cupHolder', 'playoffsLive',
+  'playoffTopScorer', 'playoffNextGame', 'playoffResult',
 ];
 
 /** Human label per type for the admin UI. */
@@ -37,6 +39,9 @@ export const AUTO_TICKER_LABELS: Record<AutoTickerType, string> = {
   seasonTopScorer: 'קלע העונה',
   cupHolder: 'מחזיקת הגביע',
   playoffsLive: 'פלייאוף',
+  playoffTopScorer: 'קלע הפלייאוף',
+  playoffNextGame: 'המשחק הבא בפלייאוף',
+  playoffResult: 'תוצאת פלייאוף',
 };
 
 /** Dot color (key into BG_COLOR_CLASSES on the home page) per type. */
@@ -47,6 +52,9 @@ export const AUTO_TICKER_BG: Record<AutoTickerType, string> = {
   seasonTopScorer: 'orange',
   cupHolder: 'green',
   playoffsLive: 'blue',
+  playoffTopScorer: 'orange',
+  playoffNextGame: 'blue',
+  playoffResult: 'red',
 };
 
 export const DEFAULT_AUTO_CONFIG: AutoTickerConfig = {
@@ -58,6 +66,9 @@ export const DEFAULT_AUTO_CONFIG: AutoTickerConfig = {
   seasonTopScorer: { enabled: true, prefix: '🏅 קלע העונה:',    prefixEn: '🏅 Season top scorer:' },
   cupHolder:       { enabled: true, prefix: '🏆 מחזיקת הגביע:', prefixEn: '🏆 Cup Holder:' },
   playoffsLive:    { enabled: true, prefix: '🏆',               prefixEn: '🏆' },
+  playoffTopScorer: { enabled: true, prefix: '🏀 קלע הפלייאוף:',   prefixEn: '🏀 Playoff top scorer:' },
+  playoffNextGame:  { enabled: true, prefix: '🗓️ הבא בפלייאוף:',  prefixEn: '🗓️ Next playoff game:' },
+  playoffResult:    { enabled: true, prefix: '🔥 תוצאת פלייאוף:', prefixEn: '🔥 Playoff result:' },
 };
 
 /** Longest prefix we persist (guards against pathological input). */
@@ -228,6 +239,19 @@ export type AutoTickerBuildInput = {
   cupHolder?: string | null;
   /** True while ≥1 playoff game is still unplayed this season. */
   playoffsActive?: boolean;
+  /** Playoff cumulative scoring leader. null/omitted = no line. */
+  playoffTopScorer?: { name: string; points: number } | null;
+  /** Next scheduled playoff game (names resolved; dateLabel pre-formatted or null). */
+  playoffNextGame?: { teamA: string; teamB: string; dateLabel: string | null } | null;
+  /** Latest played playoff game (names resolved, home first). */
+  playoffResult?: { seriesNumber: number; homeName: string; awayName: string; homeScore: number; awayScore: number } | null;
+  /**
+   * Active season phase. During the playoffs the regular-season lines
+   * (round scorer / hot streak / title race) are suppressed — their data is
+   * frozen mid-season and reads stale; during the regular season the
+   * playoff-only lines are suppressed. Omitted = no phase gating.
+   */
+  phase?: 'regular' | 'playoffs' | 'offseason';
 };
 
 export type Lang = 'he' | 'en';
@@ -316,13 +340,31 @@ export function buildAutoTickerItems(input: AutoTickerBuildInput): AutoTickerIte
   const playoffsHe = playoffsActive ? 'הפלייאוף יצא לדרך — צפו בעץ' : null;
   const playoffsEn = playoffsActive ? 'Playoffs are underway — see the bracket' : null;
 
+  // Playoff scoring leader
+  const poTop = input.playoffTopScorer ?? null;
+  const hasPoTop = !!poTop && poTop.points > 0;
+  const poTopHe = hasPoTop ? `${poTop!.name} — ${poTop!.points} נק׳` : null;
+  const poTopEn = hasPoTop ? `${poTop!.name} — ${poTop!.points} pts` : null;
+
+  // Next playoff game
+  const poNext = input.playoffNextGame ?? null;
+  const poNextHe = poNext ? `${poNext.teamA} נגד ${poNext.teamB}${poNext.dateLabel ? ` — ${poNext.dateLabel}` : ''}` : null;
+  const poNextEn = poNext ? `${poNext.teamA} vs ${poNext.teamB}${poNext.dateLabel ? ` — ${poNext.dateLabel}` : ''}` : null;
+
+  // Latest playoff result
+  const poRes = input.playoffResult ?? null;
+  const poResHe = poRes ? `${poRes.homeName} ${poRes.homeScore}:${poRes.awayScore} ${poRes.awayName}` : null;
+  const poResEn = poResHe;
+
   const heByType: Record<AutoTickerType, string | null> = {
     topScorer: topHe, hotStreak: hotHe, titleRace: titleRaceHe,
     seasonTopScorer: seasonTopHe, cupHolder, playoffsLive: playoffsHe,
+    playoffTopScorer: poTopHe, playoffNextGame: poNextHe, playoffResult: poResHe,
   };
   const enByType: Record<AutoTickerType, string | null> = {
     topScorer: topEn, hotStreak: hotEn, titleRace: titleRaceEn,
     seasonTopScorer: seasonTopEn, cupHolder, playoffsLive: playoffsEn,
+    playoffTopScorer: poTopEn, playoffNextGame: poNextEn, playoffResult: poResEn,
   };
   const hrefByType: Record<AutoTickerType, string | null> = {
     topScorer: hasTop ? `/players/${topScorer!.id}` : null,
@@ -331,7 +373,20 @@ export function buildAutoTickerItems(input: AutoTickerBuildInput): AutoTickerIte
     seasonTopScorer: hasSeasonTop ? `/players/${seasonTop!.id}` : null,
     cupHolder: cupHolder ? '/cup' : null,
     playoffsLive: playoffsActive ? '/playoff' : null,
+    playoffTopScorer: hasPoTop ? '/playoff/stats' : null,
+    playoffNextGame: poNext ? '/playoff' : null,
+    playoffResult: poRes ? `/playoff/series/${poRes.seriesNumber}` : null,
   };
+
+  // Phase gating — during the playoffs (or off-season) the regular-season
+  // spotlight lines are stale mid-season data; during the regular season the
+  // playoff lines don't belong. Nulling the value also nulls the href below.
+  const REGULAR_ONLY: AutoTickerType[] = ['topScorer', 'hotStreak', 'titleRace'];
+  const PLAYOFF_ONLY: AutoTickerType[] = ['playoffsLive', 'playoffTopScorer', 'playoffNextGame', 'playoffResult'];
+  const suppressed = input.phase === 'playoffs' || input.phase === 'offseason'
+    ? REGULAR_ONLY
+    : input.phase === 'regular' ? PLAYOFF_ONLY : [];
+  for (const t of suppressed) { heByType[t] = null; enByType[t] = null; }
 
   return AUTO_TICKER_ORDER.map((type) => {
     const c = config[type] ?? DEFAULT_AUTO_CONFIG[type];

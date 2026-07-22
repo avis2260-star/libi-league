@@ -51,6 +51,9 @@ describe('parseAutoConfig', () => {
       seasonTopScorer: { enabled: true,  prefix: 'season', prefixEn: 'season-en' },
       cupHolder:       { enabled: true,  prefix: 'cup',    prefixEn: 'cup-en' },
       playoffsLive:    { enabled: false, prefix: 'po',     prefixEn: 'po-en' },
+      playoffTopScorer: { enabled: true,  prefix: 'po-top',  prefixEn: 'po-top-en' },
+      playoffNextGame:  { enabled: true,  prefix: 'po-next', prefixEn: 'po-next-en' },
+      playoffResult:    { enabled: false, prefix: 'po-res',  prefixEn: 'po-res-en' },
     };
     const s = serializeAutoConfig(cfg);
     expect(s.topScorer.prefix).toBe('hi');
@@ -317,5 +320,68 @@ describe('buildAutoTickerItems', () => {
       expect(autoTickerMessage(it, 'he')).toBeNull();
       expect(it.href).toBeNull();
     }
+  });
+
+  // ── Playoff spotlight lines ─────────────────────────────────────────────
+  it('builds the playoff top-scorer / next-game / result lines', () => {
+    const items = buildAutoTickerItems({
+      config: DEFAULT_AUTO_CONFIG,
+      topScorer: null,
+      divisions: [],
+      streaks: [],
+      playoffTopScorer: { name: 'יעקב', points: 43 },
+      playoffNextGame: { teamA: 'ראשון גפן לציון', teamB: 'בני מוצקין', dateLabel: '24.7 · 15:00' },
+      playoffResult: { seriesNumber: 4, homeName: 'ידרסל חדרה', awayName: 'אופק רחובות', homeScore: 55, awayScore: 45 },
+    });
+
+    const top = find(items, 'playoffTopScorer');
+    expect(autoTickerMessage(top, 'he')).toBe('🏀 קלע הפלייאוף: יעקב — 43 נק׳');
+    expect(top.href).toBe('/playoff/stats');
+
+    const next = find(items, 'playoffNextGame');
+    expect(next.valueHe).toBe('ראשון גפן לציון נגד בני מוצקין — 24.7 · 15:00');
+    expect(next.valueEn).toBe('ראשון גפן לציון vs בני מוצקין — 24.7 · 15:00');
+    expect(next.href).toBe('/playoff');
+
+    const res = find(items, 'playoffResult');
+    expect(res.valueHe).toBe('ידרסל חדרה 55:45 אופק רחובות');
+    expect(res.href).toBe('/playoff/series/4');
+  });
+
+  // ── Phase gating ────────────────────────────────────────────────────────
+  it('suppresses regular-season lines during the playoffs and vice versa', () => {
+    const base = {
+      config: DEFAULT_AUTO_CONFIG,
+      topScorer: { id: 'p1', name: 'סהר', points: 23 },
+      divisions: [{ division: 'North', rows: [{ name: 'א', pts: 10 }, { name: 'ב', pts: 9 }] }],
+      streaks: [{ name: 'בני מוצקין', kind: 'W' as const, n: 8 }],
+      playoffsActive: true,
+      playoffTopScorer: { name: 'יעקב', points: 43 },
+      playoffNextGame: { teamA: 'א', teamB: 'ב', dateLabel: null },
+      playoffResult: { seriesNumber: 1, homeName: 'א', awayName: 'ב', homeScore: 70, awayScore: 60 },
+    };
+
+    const playoffs = buildAutoTickerItems({ ...base, phase: 'playoffs' });
+    for (const type of ['topScorer', 'hotStreak', 'titleRace']) {
+      expect(find(playoffs, type).valueHe).toBeNull();
+      expect(find(playoffs, type).href).toBeNull();
+    }
+    expect(find(playoffs, 'playoffTopScorer').valueHe).not.toBeNull();
+    expect(find(playoffs, 'playoffNextGame').valueHe).not.toBeNull();
+    expect(find(playoffs, 'playoffResult').valueHe).not.toBeNull();
+    expect(find(playoffs, 'playoffsLive').valueHe).not.toBeNull();
+
+    const regular = buildAutoTickerItems({ ...base, phase: 'regular' });
+    for (const type of ['playoffsLive', 'playoffTopScorer', 'playoffNextGame', 'playoffResult']) {
+      expect(find(regular, type).valueHe).toBeNull();
+      expect(find(regular, type).href).toBeNull();
+    }
+    expect(find(regular, 'topScorer').valueHe).not.toBeNull();
+    expect(find(regular, 'hotStreak').valueHe).not.toBeNull();
+
+    // No phase given (e.g. old callers) → nothing suppressed.
+    const ungated = buildAutoTickerItems(base);
+    expect(find(ungated, 'topScorer').valueHe).not.toBeNull();
+    expect(find(ungated, 'playoffTopScorer').valueHe).not.toBeNull();
   });
 });
