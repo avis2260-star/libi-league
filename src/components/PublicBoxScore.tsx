@@ -11,6 +11,10 @@ export type BoxPlayer = {
   points: number;
   three_pointers: number;
   fouls: number;
+  // From the official "סיכום" sheet — null/absent when not recorded for the game.
+  quarter_points?: number[] | null; // points in רבע 1..4 (+ overtime)
+  two_pointers?: number | null;     // 2-pointers made
+  free_throws?: number | null;      // free throws made
 };
 
 function sumPoints(players: BoxPlayer[]) {
@@ -24,67 +28,135 @@ function PlayerTable({
 }) {
   const sorted = [...players].sort((a, b) => b.points - a.points);
   const totals = sorted.reduce(
-    (acc, p) => ({ pts: acc.pts + p.points, tp: acc.tp + p.three_pointers, f: acc.f + p.fouls }),
-    { pts: 0, tp: 0, f: 0 },
+    (acc, p) => ({
+      pts: acc.pts + p.points,
+      tp:  acc.tp + p.three_pointers,
+      two: acc.two + (p.two_pointers ?? 0),
+      f:   acc.f + p.fouls,
+    }),
+    { pts: 0, tp: 0, two: 0, f: 0 },
   );
   // Top scorer = game star (only flag when they actually scored).
   const topPts = sorted.length ? sorted[0].points : 0;
+
+  // Per-quarter breakdown + 2pt split appear only when the scoresheet recorded
+  // them. quarterCount is the widest player's period count (min 4 when present).
+  const quarterCount = sorted.reduce((m, p) => Math.max(m, p.quarter_points?.length ?? 0), 0);
+  const hasQuarters = quarterCount > 0;
+  const hasTwo = sorted.some((p) => p.two_pointers != null);
+  const qLabel = (i: number) => (i < 4 ? (en ? `Q${i + 1}` : `ר${i + 1}`) : (en ? `OT${i - 3}` : `הא${i - 3}`));
+  const qTotals = Array.from({ length: quarterCount }, (_, i) => sorted.reduce((s, p) => s + (p.quarter_points?.[i] ?? 0), 0));
+  const nameOf = (n: string) => displayName(n, en ? 'en' : 'he');
+
   return (
     <div className="rounded-2xl border border-white/[0.08] bg-black/20 overflow-hidden">
       <div className="flex items-center justify-between gap-2 px-3 py-2.5 bg-gradient-to-l from-orange-500/[0.16] to-orange-500/[0.03] border-b border-white/[0.07]">
         <p className="flex items-center gap-1.5 text-sm font-black text-white min-w-0 break-words">
           {isWinner && <span className="text-[#e0a030]" aria-hidden>👑</span>}
-          {teamName ? displayName(teamName, en ? 'en' : 'he') : '—'}
+          {teamName ? nameOf(teamName) : '—'}
         </p>
         <span className="shrink-0 font-stats text-lg font-black text-orange-400 tabular-nums">
           {teamScore}<span className="ms-1 text-[10px] font-bold text-[#7a9aba]">{en ? 'PTS' : 'נק׳'}</span>
         </span>
       </div>
+
       {sorted.length === 0 ? (
         <p className="text-sm text-[#5a7a9a] text-center py-5">{en ? 'No stats recorded' : 'לא הוזנו נתונים'}</p>
       ) : (
-        <table className="w-full text-sm">
-          <thead className="bg-white/[0.02] text-[10px] font-bold uppercase tracking-wide text-[#6a86a4]">
-            <tr>
-              <th className="px-3 py-2 text-right">{en ? 'Player' : 'שחקן'}</th>
-              <th className="px-2 py-2 text-center">{en ? 'PTS' : 'נק׳'}</th>
-              <th className="px-2 py-2 text-center">{en ? '3PT' : '3נק׳'}</th>
-              <th className="px-2 py-2 text-center">{en ? 'PF' : 'פאולים'}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((p, i) => {
-              const isStar = i === 0 && topPts > 0;
-              return (
-                <tr
-                  key={i}
-                  className={`border-t border-white/[0.04] ${isStar ? 'bg-gradient-to-l from-orange-500/[0.20] to-orange-500/[0.04]' : ''}`}
-                >
-                  <td className="px-3 py-2">
-                    <span className={`text-sm ${isStar ? 'font-black text-[#ffe6d2]' : 'font-semibold text-white'}`}>{displayName(p.name, en ? 'en' : 'he')}</span>
-                    {p.jersey_number !== null && (
-                      <span className="mr-1.5 text-[11px] font-bold text-orange-400/75">#{p.jersey_number}</span>
-                    )}
-                    {isStar && (
-                      <span className="ms-2 inline-flex items-center gap-1 rounded-full border border-orange-400/55 bg-orange-400/25 px-2 py-px text-[10px] font-black text-[#ffd9b8] align-middle">
-                        👑 {en ? 'MVP' : 'מצטיין'}
-                      </span>
-                    )}
-                  </td>
-                  <td className={`px-2 py-2 text-center font-black tabular-nums ${isStar ? 'text-orange-400' : 'text-white'}`}>{p.points}</td>
-                  <td className="px-2 py-2 text-center text-[#c0d4e8] tabular-nums">{p.three_pointers}</td>
-                  <td className="px-2 py-2 text-center text-[#c0d4e8] tabular-nums">{p.fouls}</td>
+        <>
+          {/* Table — the only view when there's no per-quarter data; desktop-only
+              when there is (mobile uses the stacked cards below). */}
+          <div className={`${hasQuarters ? 'hidden sm:block ' : ''}overflow-x-auto`}>
+            <table className="w-full text-sm">
+              <thead className="bg-white/[0.02] text-[10px] font-bold uppercase tracking-wide text-[#6a86a4]">
+                <tr>
+                  <th className="px-3 py-2 text-right">{en ? 'Player' : 'שחקן'}</th>
+                  {hasQuarters && qTotals.map((_, i) => <th key={i} className="px-2 py-2 text-center">{qLabel(i)}</th>)}
+                  <th className="px-2 py-2 text-center">{en ? 'PTS' : 'נק׳'}</th>
+                  {hasTwo && <th className="px-2 py-2 text-center">{en ? '2PT' : '2נק׳'}</th>}
+                  <th className="px-2 py-2 text-center">{en ? '3PT' : '3נק׳'}</th>
+                  <th className="px-2 py-2 text-center">{en ? 'PF' : 'פאולים'}</th>
                 </tr>
-              );
-            })}
-            <tr className="bg-orange-500/[0.07] font-black border-t border-white/[0.06]">
-              <td className="px-3 py-2 text-[#8aaac8] text-xs uppercase tracking-wide">{en ? 'Total' : 'סה״כ'}</td>
-              <td className="px-2 py-2 text-center text-orange-400 tabular-nums">{totals.pts}</td>
-              <td className="px-2 py-2 text-center text-orange-300 tabular-nums">{totals.tp}</td>
-              <td className="px-2 py-2 text-center text-orange-300 tabular-nums">{totals.f}</td>
-            </tr>
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {sorted.map((p, i) => {
+                  const isStar = i === 0 && topPts > 0;
+                  return (
+                    <tr key={i} className={`border-t border-white/[0.04] ${isStar ? 'bg-gradient-to-l from-orange-500/[0.20] to-orange-500/[0.04]' : ''}`}>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <span className={`text-sm ${isStar ? 'font-black text-[#ffe6d2]' : 'font-semibold text-white'}`}>{nameOf(p.name)}</span>
+                        {p.jersey_number !== null && (
+                          <span className="mr-1.5 text-[11px] font-bold text-orange-400/75">#{p.jersey_number}</span>
+                        )}
+                        {isStar && (
+                          <span className="ms-2 inline-flex items-center gap-1 rounded-full border border-orange-400/55 bg-orange-400/25 px-2 py-px text-[10px] font-black text-[#ffd9b8] align-middle">
+                            👑 {en ? 'MVP' : 'מצטיין'}
+                          </span>
+                        )}
+                      </td>
+                      {hasQuarters && qTotals.map((_, qi) => (
+                        <td key={qi} className={`px-2 py-2 text-center tabular-nums ${isStar ? 'text-white' : 'text-[#c0d4e8]'}`}>{p.quarter_points?.[qi] ?? '·'}</td>
+                      ))}
+                      <td className={`px-2 py-2 text-center font-black tabular-nums ${isStar ? 'text-orange-400' : 'text-white'}`}>{p.points}</td>
+                      {hasTwo && <td className="px-2 py-2 text-center text-[#c0d4e8] tabular-nums">{p.two_pointers ?? '·'}</td>}
+                      <td className="px-2 py-2 text-center text-[#c0d4e8] tabular-nums">{p.three_pointers}</td>
+                      <td className="px-2 py-2 text-center text-[#c0d4e8] tabular-nums">{p.fouls}</td>
+                    </tr>
+                  );
+                })}
+                <tr className="bg-orange-500/[0.07] font-black border-t border-white/[0.06]">
+                  <td className="px-3 py-2 text-[#8aaac8] text-xs uppercase tracking-wide">{en ? 'Total' : 'סה״כ'}</td>
+                  {hasQuarters && qTotals.map((q, i) => <td key={i} className="px-2 py-2 text-center text-orange-300 tabular-nums">{q}</td>)}
+                  <td className="px-2 py-2 text-center text-orange-400 tabular-nums">{totals.pts}</td>
+                  {hasTwo && <td className="px-2 py-2 text-center text-orange-300 tabular-nums">{totals.two}</td>}
+                  <td className="px-2 py-2 text-center text-orange-300 tabular-nums">{totals.tp}</td>
+                  <td className="px-2 py-2 text-center text-orange-300 tabular-nums">{totals.f}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile — stacked player cards with a per-quarter strip (no horizontal
+              scroll). Only rendered when there's per-quarter data. */}
+          {hasQuarters && (
+            <div className="sm:hidden divide-y divide-white/[0.05]">
+              {sorted.map((p, i) => {
+                const isStar = i === 0 && topPts > 0;
+                return (
+                  <div key={i} className={`px-3 py-2.5 ${isStar ? 'bg-gradient-to-l from-orange-500/[0.16] to-transparent' : ''}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="min-w-0 break-words">
+                        <span className={`text-sm ${isStar ? 'font-black text-[#ffe6d2]' : 'font-semibold text-white'}`}>{nameOf(p.name)}</span>
+                        {p.jersey_number !== null && <span className="mr-1.5 text-[11px] font-bold text-orange-400/75">#{p.jersey_number}</span>}
+                        {isStar && <span className="ms-1.5 inline-flex items-center gap-1 rounded-full border border-orange-400/55 bg-orange-400/25 px-1.5 py-px text-[9px] font-black text-[#ffd9b8] align-middle">👑 {en ? 'MVP' : 'מצטיין'}</span>}
+                      </span>
+                      <span className={`shrink-0 font-stats text-lg font-black tabular-nums ${isStar ? 'text-orange-400' : 'text-white'}`}>{p.points}</span>
+                    </div>
+                    <div className="mt-2 grid gap-1.5" style={{ gridTemplateColumns: `repeat(${quarterCount}, minmax(0, 1fr))` }}>
+                      {qTotals.map((_, qi) => (
+                        <div key={qi} className="rounded-md bg-white/[0.04] py-1 text-center">
+                          <div className="text-[9px] font-bold text-[#6a86a4]">{qLabel(qi)}</div>
+                          <div className="font-stats text-sm font-black text-white tabular-nums">{p.quarter_points?.[qi] ?? '·'}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-1.5 text-[11px] font-bold text-[#8aaac8]">
+                      {hasTwo && <>2נק׳ <span className="text-[#c0d4e8]">{p.two_pointers ?? '·'}</span> · </>}
+                      3נק׳ <span className="text-[#c0d4e8]">{p.three_pointers}</span> · {en ? 'PF' : 'פאולים'} <span className="text-[#c0d4e8]">{p.fouls}</span>
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="flex items-center justify-between gap-2 bg-orange-500/[0.07] px-3 py-2.5">
+                <span className="text-xs font-black uppercase tracking-wide text-[#8aaac8]">{en ? 'Total' : 'סה״כ'}</span>
+                <span className="flex items-baseline gap-2.5">
+                  <span className="font-stats text-xs text-orange-300 tabular-nums">{qTotals.join('·')}</span>
+                  <span className="font-stats text-base font-black text-orange-400 tabular-nums">{totals.pts}</span>
+                </span>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

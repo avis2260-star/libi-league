@@ -53,7 +53,7 @@ export default async function SeriesFlyerPage({
       supabaseAdmin.from('playoff_games').select('*').eq('season', season).eq('series_number', seriesNum).order('game_number'),
       supabaseAdmin.from('teams').select('id, name, logo_url'),
       supabaseAdmin.from('standings').select('name,rank,division').eq('season', season).order('rank'),
-      supabaseAdmin.from('playoff_game_stats').select('game_number, player_id, team_id, points, three_pointers, fouls').eq('season', season).eq('series_number', seriesNum),
+      supabaseAdmin.from('playoff_game_stats').select('game_number, player_id, team_id, points, three_pointers, fouls, quarter_points, two_pointers, free_throws').eq('season', season).eq('series_number', seriesNum),
       supabaseAdmin.from('players').select('id, name, jersey_number'),
     ]);
 

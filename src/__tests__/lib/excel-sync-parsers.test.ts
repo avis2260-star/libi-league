@@ -679,8 +679,9 @@ describe('parseGameStatsSheet', () => {
       ['דוד לוי', 11, 9, 1, 4],
     ];
     expect(parseGameStatsSheet(rows)).toEqual([
-      { name: 'יוסי כהן', jersey: 7,  points: 18, three_pointers: 2, fouls: 3 },
-      { name: 'דוד לוי',  jersey: 11, points: 9,  three_pointers: 1, fouls: 4 },
+      // The plain template carries no per-quarter / shot-type split.
+      { name: 'יוסי כהן', jersey: 7,  points: 18, three_pointers: 2, fouls: 3, quarter_points: null, two_pointers: null, free_throws: null },
+      { name: 'דוד לוי',  jersey: 11, points: 9,  three_pointers: 1, fouls: 4, quarter_points: null, two_pointers: null, free_throws: null },
     ]);
   });
 
@@ -712,7 +713,7 @@ describe('parseGameStatsSheet', () => {
       ['דני', 0],                 // played, scored 0 → still recorded
     ];
     expect(parseGameStatsSheet(rows)).toEqual([
-      { name: 'דני', jersey: null, points: 0, three_pointers: 0, fouls: 0 },
+      { name: 'דני', jersey: null, points: 0, three_pointers: 0, fouls: 0, quarter_points: null, two_pointers: null, free_throws: null },
     ]);
   });
 
@@ -723,7 +724,7 @@ describe('parseGameStatsSheet', () => {
       ['משה', 14, 3],
     ];
     expect(parseGameStatsSheet(rows)).toEqual([
-      { name: 'משה', jersey: null, points: 14, three_pointers: 0, fouls: 3 },
+      { name: 'משה', jersey: null, points: 14, three_pointers: 0, fouls: 3, quarter_points: null, two_pointers: null, free_throws: null },
     ]);
   });
 
@@ -749,7 +750,7 @@ describe('parseGameStatsSheet', () => {
     });
     const parsed = parseGameStatsSheet(readSheetRows(buffer, 'סטטיסטיקה'));
     expect(parsed).toEqual([
-      { name: 'יוסי כהן', jersey: 7, points: 18, three_pointers: 2, fouls: 3 },
+      { name: 'יוסי כהן', jersey: 7, points: 18, three_pointers: 2, fouls: 3, quarter_points: null, two_pointers: null, free_throws: null },
     ]);
   });
 });
@@ -783,10 +784,11 @@ describe('parseSummarySheet', () => {
       ['', 'סה"כ קבוצה', 0, 0, 0, 0, 0, 2, 6, 0, 8, 1, 0, 0],
     ];
     expect(parseSummarySheet(rows)).toEqual([
-      // points = "סה\"כ נק'" (17), NOT 1 נק'(1)/2 נק'(4); three = "3 נק'"(2), NOT "רבע 3"(4)
-      { name: 'יוחאי דדון', jersey: 8,  points: 17, three_pointers: 2, fouls: 3 },
-      { name: 'בניהו ספיר', jersey: 33, points: 3,  three_pointers: 1, fouls: 2 },
-      { name: 'דני כהן',    jersey: 7,  points: 8,  three_pointers: 0, fouls: 1 },
+      // points = "סה\"כ נק'" (17), NOT 1 נק'(1)/2 נק'(4); three = "3 נק'"(2), NOT "רבע 3"(4).
+      // quarter_points = רבע 1..4 (trailing empty overtime dropped); two/free = 2 נק'/1 נק'.
+      { name: 'יוחאי דדון', jersey: 8,  points: 17, three_pointers: 2, fouls: 3, quarter_points: [2, 0, 4, 5], two_pointers: 4, free_throws: 1 },
+      { name: 'בניהו ספיר', jersey: 33, points: 3,  three_pointers: 1, fouls: 2, quarter_points: [0, 3, 0, 0], two_pointers: 0, free_throws: 0 },
+      { name: 'דני כהן',    jersey: 7,  points: 8,  three_pointers: 0, fouls: 1, quarter_points: null,        two_pointers: 6, free_throws: 2 },
     ]);
   });
 
@@ -815,7 +817,7 @@ describe('parseSummarySheet', () => {
       ],
     });
     expect(parseSummarySheet(readSheetRows(buffer, 'סיכום'))).toEqual([
-      { name: 'יוחאי דדון', jersey: 8, points: 17, three_pointers: 2, fouls: 3 },
+      { name: 'יוחאי דדון', jersey: 8, points: 17, three_pointers: 2, fouls: 3, quarter_points: [2, 0, 4, 5], two_pointers: 4, free_throws: 1 },
     ]);
   });
 });

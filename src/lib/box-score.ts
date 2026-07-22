@@ -6,6 +6,10 @@ export type RawStat = {
   points: number;
   three_pointers: number;
   fouls: number;
+  // Optional per-player breakdown (present only where the query selects them).
+  quarter_points?: number[] | null;
+  two_pointers?: number | null;
+  free_throws?: number | null;
 };
 
 type PlayerMeta = { name: string; jersey_number: number | null };
@@ -33,6 +37,9 @@ export function bucketGameStats(
       points: s.points,
       three_pointers: s.three_pointers,
       fouls: s.fouls,
+      quarter_points: s.quarter_points ?? null,
+      two_pointers: s.two_pointers ?? null,
+      free_throws: s.free_throws ?? null,
     };
     if (homeTeamId && s.team_id === homeTeamId) homePlayers.push(row);
     else if (awayTeamId && s.team_id === awayTeamId) awayPlayers.push(row);

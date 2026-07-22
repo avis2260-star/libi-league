@@ -521,6 +521,11 @@ export type ParsedPlayerStat = {
   points: number;
   three_pointers: number;
   fouls: number;
+  // Per-player breakdown from the official "סיכום" sheet — null when the source
+  // (e.g. the plain template) doesn't carry it.
+  quarter_points: number[] | null; // points in רבע 1..4 (+ overtime)
+  two_pointers: number | null;     // 2-pointers made (2 נק')
+  free_throws: number | null;      // free throws made (1 נק')
 };
 
 type StatColumn = 'name' | 'jersey' | 'three' | 'points' | 'fouls';
@@ -615,6 +620,10 @@ export function parseGameStatsSheet(rows: unknown[][]): ParsedPlayerStat[] {
       points: points ?? 0,
       three_pointers: three ?? 0,
       fouls: fouls ?? 0,
+      // The plain template has no per-quarter / shot-type columns.
+      quarter_points: null,
+      two_pointers: null,
+      free_throws: null,
     });
   }
   return out;
@@ -646,7 +655,7 @@ export function parseGameStatsSheet(rows: unknown[][]): ParsedPlayerStat[] {
  */
 type SummaryCols = {
   name: number; jersey: number | null; points: number;
-  three: number | null; fouls: number | null;
+  three: number | null; two: number | null; one: number | null; fouls: number | null;
   /** Indices of the per-quarter columns (רבע 1..4, then הארכה) in sheet order. */
   quarters: number[];
 };
@@ -656,6 +665,8 @@ function detectSummaryColumns(row: unknown[]): SummaryCols | null {
   let jersey: number | null = null;
   let points: number | null = null;
   let three: number | null = null;
+  let two: number | null = null;
+  let one: number | null = null;
   let fouls: number | null = null;
   const quarters: number[] = [];
 
@@ -664,13 +675,17 @@ function detectSummaryColumns(row: unknown[]): SummaryCols | null {
     if (!h) continue;
     if (name === null && h.includes('שם')) { name = c; continue; }                 // שם השחקן
     if (jersey === null && h.startsWith('מס')) { jersey = c; continue; }            // מס' שחקן
-    if (points === null && h.includes('סה')) { points = c; continue; }             // סה"כ נק'  (TOTAL — before 1/2 נק')
-    if (three === null && ((h.includes('3') && h.includes('נק')) || h.includes('שלש'))) { three = c; continue; } // 3 נק' (not "רבע 3")
+    if (points === null && h.includes('סה')) { points = c; continue; }             // סה"כ נק'  (TOTAL — before 1/2/3 נק')
+    // Shot-type made counts. "רבע N" has no 'נק', so these never grab a quarter
+    // column; the total column is already claimed above.
+    if (three === null && ((h.includes('3') && h.includes('נק')) || h.includes('שלש'))) { three = c; continue; } // 3 נק'
+    if (two === null && h.includes('2') && h.includes('נק')) { two = c; continue; }   // 2 נק'
+    if (one === null && h.includes('1') && h.includes('נק')) { one = c; continue; }   // 1 נק'
     if (fouls === null && h.includes('עביר')) { fouls = c; continue; }             // עבירות
     if (/רבע/.test(h) || h.includes('הארכה')) { quarters.push(c); continue; }       // רבע 1..4 + הארכה
   }
   // A real column-header row has both a name and a total-points column.
-  return name !== null && points !== null ? { name, jersey, points, three, fouls, quarters } : null;
+  return name !== null && points !== null ? { name, jersey, points, three, two, one, fouls, quarters } : null;
 }
 
 /** True for the "סה"כ קבוצה" team-total row that ends a section. */
@@ -720,12 +735,26 @@ export function parseSummarySheet(rows: unknown[][]): ParsedPlayerStat[] {
       if (points === null && three === null && fouls === null) continue;
 
       const jersey = cols.jersey !== null ? toStatInt(row[cols.jersey]) : null;
+      const two = cols.two !== null ? toStatInt(row[cols.two]) : null;
+      const one = cols.one !== null ? toStatInt(row[cols.one]) : null;
+      // Per-quarter points (רבע 1..4 + הארכה). Null when the sheet has no quarter
+      // columns; trailing empty overtime periods are trimmed.
+      let quarterPoints: number[] | null = cols.quarters.length
+        ? cols.quarters.map((qc) => toStatInt(row[qc]) ?? 0)
+        : null;
+      if (quarterPoints) {
+        while (quarterPoints.length > 4 && quarterPoints[quarterPoints.length - 1] === 0) quarterPoints.pop();
+        if (quarterPoints.every((q) => q === 0)) quarterPoints = null; // no per-quarter data recorded
+      }
       out.push({
         name,
         jersey,
         points: points ?? 0,
         three_pointers: three ?? 0,
         fouls: fouls ?? 0,
+        quarter_points: quarterPoints,
+        two_pointers: two,
+        free_throws: one,
       });
     }
     i = j - 1; // resume right after the rows this section consumed
