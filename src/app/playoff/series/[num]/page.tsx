@@ -200,7 +200,7 @@ export default async function SeriesFlyerPage({
       />
 
       {boxScores.length > 0 && (
-        <div id="box-scores" className="mt-6 w-full max-w-2xl space-y-2">
+        <div id="box-scores" className="mt-6 w-full max-w-6xl space-y-2">
           <h2 className="text-sm font-black uppercase tracking-widest text-[#8aaac8]">
             📋 {lang === 'en' ? 'Box Scores' : 'גיליונות משחק'}
           </h2>
