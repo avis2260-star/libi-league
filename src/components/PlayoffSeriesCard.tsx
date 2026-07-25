@@ -75,16 +75,23 @@ function seriesScore(s: Series, games: Game[]) {
 }
 
 // A result dot is coloured by the division of the team that won that game:
-// North (צפון) → blue, South (דרום) → orange. Falls back to a neutral tone when
-// the division can't be read from the label (e.g. an "נצח סדרה N" SF/Final slot).
-function divisionDotClass(label: string): string {
-  if (label.includes('צפון') || /north/i.test(label)) return 'bg-blue-500';
-  if (label.includes('דרום') || /south/i.test(label)) return 'bg-orange-400';
+// North (צפון) → blue, South (דרום) → orange. Accepts either a seed label
+// ("צפון #1") or a resolved division name ("North"). Falls back to a neutral
+// tone when neither is present (e.g. an "נצח סדרה N" SF/Final slot with no map).
+function divisionDotClass(labelOrDivision: string): string {
+  if (labelOrDivision.includes('צפון') || /north/i.test(labelOrDivision)) return 'bg-blue-500';
+  if (labelOrDivision.includes('דרום') || /south/i.test(labelOrDivision)) return 'bg-orange-400';
   return 'bg-[#4a6a8a]';
 }
 
-function GameDots({ series, allGames }: { series: Series; allGames: Game[] }) {
+function GameDots({ series, allGames, teamDivisions }: { series: Series; allGames: Game[]; teamDivisions?: Record<string, string> }) {
   const seriesGames = allGames.filter(g => g.series_number === series.series_number);
+  // The winning team's division, looked up by name. SF/Final seed labels are
+  // "נצח סדרה N" and carry no division, but their team names are resolved — so
+  // colour by the real division and the dots match the quarter-finals.
+  const divByName = (name: string): string | undefined =>
+    !teamDivisions ? undefined
+      : teamDivisions[name] ?? Object.entries(teamDivisions).find(([k]) => normName(k) === normName(name))?.[1];
   return (
     <div className="flex items-center gap-1.5 justify-center">
       {[1, 2, 3].map(gNum => {
@@ -93,10 +100,13 @@ function GameDots({ series, allGames }: { series: Series; allGames: Game[] }) {
         const home = homeForGame(series, gNum);
         const homeWon = played && (g!.home_score! > g!.away_score!);
         const aWon = played && ((homeWon && home === series.team_a) || (!homeWon && home !== series.team_a));
+        const winnerName = aWon ? series.team_a : series.team_b;
         const winnerLabel = aWon ? series.team_a_label : series.team_b_label;
+        // Prefer division-by-name (fills SF/Final), fall back to the seed label.
+        const dotClass = divisionDotClass(divByName(winnerName) ?? winnerLabel);
         return (
           <div key={gNum} className="flex flex-col items-center gap-0.5">
-            <div className={`h-2.5 w-2.5 rounded-full ${!played ? 'border border-white/[0.12] bg-transparent' : divisionDotClass(winnerLabel)}`} />
+            <div className={`h-2.5 w-2.5 rounded-full ${!played ? 'border border-white/[0.12] bg-transparent' : dotClass}`} />
             <span className="text-[11px] font-bold text-[#6a86a4]">{gNum}</span>
           </div>
         );
@@ -128,6 +138,7 @@ export default function PlayoffSeriesCard({
   series,
   allGames,
   teamLogos,
+  teamDivisions,
   roundLabel,
   isFinal = false,
   champion,
@@ -137,6 +148,7 @@ export default function PlayoffSeriesCard({
   series: Series | null;
   allGames: Game[];
   teamLogos: Record<string, string>;
+  teamDivisions?: Record<string, string>;
   roundLabel: string;
   isFinal?: boolean;
   champion?: string | null;
@@ -238,7 +250,7 @@ export default function PlayoffSeriesCard({
                 {started ? t('ניצחונות') : t('הטוב מ-3')}
               </p>
             )}
-            <GameDots series={series} allGames={allGames} />
+            <GameDots series={series} allGames={allGames} teamDivisions={teamDivisions} />
           </div>
 
           <div className={`flex-1 min-w-0 flex flex-col items-center gap-1.5 transition-opacity ${aWon ? 'opacity-35' : ''}`}>

@@ -379,6 +379,13 @@ export default async function PlayoffPage({
       ]
   ) as StandingRow[];
 
+  /* ── Team → division map: colours SF/Final result dots by the winning
+        team's real division (their labels are "נצח סדרה N", division-less). ── */
+  const teamDivisions: Record<string, string> = {};
+  for (const row of allStandings) {
+    if (row.name) teamDivisions[row.name] = row.division;
+  }
+
   /* ── Resolve a team from a label like "🟠 דרום #1" using live standings ── */
   function resolveFromLabel(label: string): string {
     if (!label) return '';
@@ -500,6 +507,7 @@ export default async function PlayoffPage({
                   series={sr}
                   allGames={allGames}
                   teamLogos={teamLogos}
+                  teamDivisions={teamDivisions}
                   roundLabel={round.label}
                   isFinal={round.isFinal}
                   champion={round.isFinal ? champion : undefined}
