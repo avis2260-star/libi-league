@@ -379,6 +379,12 @@ export default async function PlayoffResults({ season: seasonProp, layout = 'car
     .map((key) => ({ key, items: [...latestBySeries.values()].filter((c) => c.stageKey === key) }))
     .filter((g) => g.items.length > 0);
 
+  // Home page shows only the most-advanced stage that has results: once the
+  // semi-finals (or final) have played games, the earlier rounds drop off the
+  // home strip. `order` is most-advanced-first and empty stages are already
+  // filtered out, so the first group is the latest stage in play.
+  const latestStageCards = groupedCards.slice(0, 1);
+
   // Stats page: one best-of-3 block per series with the full game history.
   const advancedLabelFor = (key: StageKey) =>
     key === 'final' ? (lang === 'en' ? 'Champion' : 'אלופה')
@@ -451,7 +457,7 @@ export default async function PlayoffResults({ season: seasonProp, layout = 'car
                 )}
               </div>
             ))
-          : groupedCards.map((stage) => (
+          : latestStageCards.map((stage) => (
               <div key={stage.key} className="space-y-2">
                 <h3 className={`flex items-center gap-2 text-sm font-bold ${STAGE_ACCENT[stage.key].text}`}>
                   <span className={`h-2 w-2 rounded-full ${STAGE_ACCENT[stage.key].dot}`} /> {T(STAGE_HE[stage.key])}
