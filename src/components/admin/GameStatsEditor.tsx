@@ -103,6 +103,10 @@ function RosterTable({
   onSave: (playerId: string, values: StatValues) => Promise<SaveResult>;
   onLivePoints: (playerId: string, points: number) => void;
 }) {
+  // Sort by jersey number ascending; un-numbered players fall to the end.
+  const sortedPlayers = [...players].sort(
+    (a, b) => (a.jersey_number ?? Infinity) - (b.jersey_number ?? Infinity),
+  );
   return (
     <div className="rounded-xl border border-white/[0.06] bg-black/20 overflow-hidden">
       <div className="px-3 py-2 bg-orange-500/[0.06] border-b border-white/[0.06]">
@@ -122,7 +126,7 @@ function RosterTable({
             </tr>
           </thead>
           <tbody>
-            {players.map(p => (
+            {sortedPlayers.map(p => (
               <PlayerRow
                 key={p.id}
                 player={p}

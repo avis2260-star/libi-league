@@ -156,6 +156,10 @@ function RosterTable({
   statsByKey: Record<string, { points: number; three_pointers: number; fouls: number }>;
   onPlayerSaved: (playerId: string, values: { points: number; three_pointers: number; fouls: number }) => void;
 }) {
+  // Sort by jersey number ascending; un-numbered players fall to the end.
+  const sortedPlayers = [...players].sort(
+    (a, b) => (a.jersey_number ?? Infinity) - (b.jersey_number ?? Infinity),
+  );
   return (
     <div className="rounded-xl border border-white/[0.06] bg-black/20 overflow-hidden">
       <div className="px-3 py-2 bg-orange-500/[0.06] border-b border-white/[0.06]">
@@ -176,7 +180,7 @@ function RosterTable({
               </tr>
             </thead>
             <tbody>
-              {players.map(p => {
+              {sortedPlayers.map(p => {
                 const e = statsByKey[`${gameId}|${p.id}`];
                 // Encode the saved values into the key so a row re-mounts (and
                 // re-reads its inputs) when an Excel import refreshes the data.
