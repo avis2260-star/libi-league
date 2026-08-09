@@ -168,6 +168,7 @@ export const DICT: Record<string, string> = {
   'סדרה': 'Series',
   'הטוב מ-3': 'Best of 3',
   'משחק אחד': 'Single game',
+  'מיין לפי': 'Sort by',
   'ניצחונות': 'Wins',
   'טרם החל': 'Not Started',
   'שוויון': 'Tied',
