@@ -65,6 +65,8 @@ const ROUNDS: { key: 'qf' | 'sf' | 'final'; label: string; nums: number[] }[] = 
 ];
 // Final is a single game; earlier rounds are best-of-3.
 const winsNeeded = (n: number) => (n >= 7 ? 1 : 2);
+// Game slots to show for a series — the final is one game, others best-of-3.
+const gameNumsFor = (n: number) => (n >= 7 ? [1] : [1, 2, 3]);
 
 function TeamSelect({
   value, label, teams, onChange, onClear, saving,
@@ -405,7 +407,7 @@ export default function PlayoffTab() {
                 <p className="text-xs font-bold text-gray-400 text-right uppercase tracking-wider">קבוצות</p>
                 <div className="grid grid-cols-2 gap-3">
                   <TeamSelect
-                    label={`${s.team_a_label} · ביתי G1+G3`}
+                    label={`${s.team_a_label} · ${s.series_number >= 7 ? 'ביתי' : 'ביתי G1+G3'}`}
                     value={teamDraft[s.series_number]?.a ?? ''}
                     teams={teamsFor(s.team_a_label)}
                     onChange={v => setTeamDraft(p => ({ ...p, [s.series_number]: { ...p[s.series_number], a: v } }))}
@@ -413,7 +415,7 @@ export default function PlayoffTab() {
                     saving={isSavingTeams}
                   />
                   <TeamSelect
-                    label={`${s.team_b_label} · ביתי G2`}
+                    label={`${s.team_b_label} · ${s.series_number >= 7 ? 'אורח' : 'ביתי G2'}`}
                     value={teamDraft[s.series_number]?.b ?? ''}
                     teams={teamsFor(s.team_b_label)}
                     onChange={v => setTeamDraft(p => ({ ...p, [s.series_number]: { ...p[s.series_number], b: v } }))}
@@ -433,7 +435,7 @@ export default function PlayoffTab() {
               {/* Game results */}
               <div className="space-y-3">
                 <p className="text-xs font-bold text-gray-400 text-right uppercase tracking-wider">תוצאות משחקים</p>
-                {[1, 2, 3].map((gNum) => {
+                {gameNumsFor(s.series_number).map((gNum) => {
                   const d = getGD(s.series_number, gNum);
                   const homeTeam = s.team_a ? homeFor(s, gNum) : `ביתי (G${gNum})`;
                   const awayTeam = s.team_b ? awayFor(s, gNum) : `אורח (G${gNum})`;
