@@ -12,6 +12,7 @@ import { getLang, st } from '@/lib/get-lang';
 import { getCurrentSeason } from '@/lib/current-season';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { bucketGameStats, type RawStat } from '@/lib/box-score';
+import { gameNumsFor, seriesWinner } from '@/lib/playoff-format';
 
 interface Game {
   series_number: number; game_number: number;
@@ -107,10 +108,10 @@ export default async function SeriesFlyerPage({
     if ((homeWon && home === series.team_a) || (!homeWon && home !== series.team_a)) winsA++;
     else winsB++;
   }
-  const winner = winsA >= 2 ? series.team_a : winsB >= 2 ? series.team_b : null;
+  const winner = seriesWinner(seriesNum, winsA, series.team_a, winsB, series.team_b);
 
   /* ── Per-game data ── */
-  const gameData = [1, 2, 3].map((gNum) => {
+  const gameData = gameNumsFor(seriesNum).map((gNum) => {
     const g = games.find(g => g.game_number === gNum);
     const played = !!(g && isPlayed(g) && g.home_score !== null);
     const home   = homeForGame(series, gNum);
@@ -139,7 +140,7 @@ export default async function SeriesFlyerPage({
     statsByGameNum.set(s.game_number, arr);
   }
 
-  const boxScores = [1, 2, 3]
+  const boxScores = gameNumsFor(seriesNum)
     .map((gNum) => {
       const g = games.find((x) => x.game_number === gNum);
       const statRows = statsByGameNum.get(gNum) ?? [];

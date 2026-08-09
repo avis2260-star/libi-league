@@ -12,6 +12,7 @@ import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season'
 import SeasonPicker from '@/components/SeasonPicker';
 import ArchiveBanner from '@/components/ArchiveBanner';
 import TeamLogoZoom from '@/components/TeamLogoZoom';
+import { gameNumsFor, seriesWinner } from '@/lib/playoff-format';
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
 interface Series {
@@ -58,7 +59,7 @@ function seriesScore(s: Series, games: Game[]) {
     if ((homeWon && home === s.team_a) || (!homeWon && home !== s.team_a)) winsA++;
     else winsB++;
   }
-  return { winsA, winsB, winner: winsA >= 2 ? s.team_a : winsB >= 2 ? s.team_b : null };
+  return { winsA, winsB, winner: seriesWinner(s.series_number, winsA, s.team_a, winsB, s.team_b) };
 }
 
 /* ── Logo helpers ───────────────────────────────────────────────────────── */
@@ -132,7 +133,7 @@ function GameDots({ series, allGames }: { series: Series; allGames: Game[] }) {
   const seriesGames = allGames.filter(g => g.series_number === series.series_number);
   return (
     <div className="flex items-center gap-1.5 justify-center">
-      {[1, 2, 3].map(gNum => {
+      {gameNumsFor(series.series_number).map(gNum => {
         const g      = seriesGames.find(g => g.game_number === gNum);
         const played = !!g && isPlayed(g) && g.home_score !== null && g.away_score !== null;
         const home   = homeForGame(series, gNum);

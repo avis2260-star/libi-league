@@ -167,6 +167,7 @@ export const DICT: Record<string, string> = {
   'לעץ הפלייאוף ←': 'To the bracket ←',
   'סדרה': 'Series',
   'הטוב מ-3': 'Best of 3',
+  'משחק אחד': 'Single game',
   'ניצחונות': 'Wins',
   'טרם החל': 'Not Started',
   'שוויון': 'Tied',

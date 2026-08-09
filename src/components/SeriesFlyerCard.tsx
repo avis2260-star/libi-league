@@ -4,6 +4,7 @@ import type { MouseEvent } from 'react';
 import { useLang } from '@/components/TranslationProvider';
 import PlayoffPlate from '@/components/PlayoffPlate';
 import { displayName } from '@/lib/names';
+import { isFinalSeries } from '@/lib/playoff-format';
 
 interface GameData {
   gameNumber: number;
@@ -39,6 +40,7 @@ export default function SeriesFlyerCard({
 }: Props) {
   const { t, lang } = useLang();
   const waitingLabel = lang === 'en' ? 'TBD' : 'ממתין';
+  const isFinal = isFinalSeries(seriesNum);
 
   function scrollToGame(e: MouseEvent<HTMLAnchorElement>, gameNumber: number) {
     const el = document.getElementById(`game-${gameNumber}`);
@@ -138,7 +140,7 @@ export default function SeriesFlyerCard({
             </span>
           </div>
           <p className="text-[11px] sm:text-sm font-black uppercase tracking-wide text-[#7a9aba] text-center">
-            {t('ניצחונות')} · {t('הטוב מ-3')}
+            {isFinal ? t('משחק אחד') : `${t('ניצחונות')} · ${t('הטוב מ-3')}`}
           </p>
         </div>
 
@@ -158,8 +160,9 @@ export default function SeriesFlyerCard({
         </div>
       </div>
 
-      {/* Games breakdown */}
-      <div className="px-4 pb-5 grid grid-cols-3 gap-2">
+      {/* Games breakdown — the final is a single game, so centre it instead of
+          leaving two empty columns in the best-of-3 grid. */}
+      <div className={`px-4 pb-5 gap-2 ${games.length === 1 ? 'grid grid-cols-1 max-w-[10rem] mx-auto' : 'grid grid-cols-3'}`}>
         {games.map((g, idx) => {
           const hasStats = boxScoreGames.includes(g.gameNumber);
           const inner = (

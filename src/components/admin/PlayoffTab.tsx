@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } f
 import { useRouter } from 'next/navigation';
 import { upsertPlayoffGameStat, savePlayoffGameQuarters } from '@/app/admin/actions';
 import GameStatsEditor, { type RosterPlayer } from '@/components/admin/GameStatsEditor';
+import { winsNeeded, gameNumsFor } from '@/lib/playoff-format';
 
 interface Series {
   series_number: number;
@@ -63,10 +64,8 @@ const ROUNDS: { key: 'qf' | 'sf' | 'final'; label: string; nums: number[] }[] = 
   { key: 'sf',    label: 'חצי גמר', nums: [5, 6] },
   { key: 'final', label: 'גמר',     nums: [7] },
 ];
-// Final is a single game; earlier rounds are best-of-3.
-const winsNeeded = (n: number) => (n >= 7 ? 1 : 2);
-// Game slots to show for a series — the final is one game, others best-of-3.
-const gameNumsFor = (n: number) => (n >= 7 ? [1] : [1, 2, 3]);
+// Series format (winsNeeded / gameNumsFor: final = single game, rest best-of-3)
+// lives in @/lib/playoff-format so admin and public views stay in sync.
 
 function TeamSelect({
   value, label, teams, onChange, onClear, saving,

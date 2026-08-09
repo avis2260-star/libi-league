@@ -6,6 +6,7 @@ import { getLang, st } from '@/lib/get-lang';
 import { displayName } from '@/lib/names';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { getCurrentSeason } from '@/lib/current-season';
+import { seriesWinner } from '@/lib/playoff-format';
 
 type Season = {
   id: string;
@@ -247,7 +248,7 @@ function playoffSeriesWinner(s: PlayoffSeries, games: PlayoffGame[]): string | n
     if ((homeWon && home === s.team_a) || (!homeWon && home !== s.team_a)) winsA++;
     else winsB++;
   }
-  return winsA >= 2 ? s.team_a : winsB >= 2 ? s.team_b : null;
+  return seriesWinner(s.series_number, winsA, s.team_a, winsB, s.team_b);
 }
 
 function cupFinalWinner(games: CupGame[]): string | null {

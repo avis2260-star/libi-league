@@ -12,6 +12,7 @@ import { getTeams } from '@/lib/supabase';
 import { getLang, st } from '@/lib/get-lang';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { getCurrentSeason } from '@/lib/current-season';
+import { winsNeeded } from '@/lib/playoff-format';
 import TeamLogoZoom from '@/components/TeamLogoZoom';
 
 type StageKey = 'qf' | 'sf' | 'final';
@@ -331,7 +332,8 @@ export default async function PlayoffResults({ season: seasonProp, layout = 'car
       if ((homeWon && home === pair.a) || (!homeWon && home !== pair.a)) winsA++;
       else winsB++;
     }
-    return winsA >= 2 ? pair.a : winsB >= 2 ? pair.b : '';
+    const need = winsNeeded(n);
+    return winsA >= need ? pair.a : winsB >= need ? pair.b : '';
   };
   for (const n of [5, 6, 7]) {
     if (teamBySeries.has(n)) continue;
@@ -406,7 +408,7 @@ export default async function PlayoffResults({ season: seasonProp, layout = 'car
       if (aWon) winsA++; else winsB++;
       gameLines.push({ gameNumber: g.game_number, scoreA, scoreB, aWon, dateLabel: shortDate(g.game_date) });
     }
-    const need = seriesNumber >= 7 ? 1 : 2;
+    const need = winsNeeded(seriesNumber);
     const winner: 'a' | 'b' | null = winsA >= need ? 'a' : winsB >= need ? 'b' : null;
     const aName = resolveName(pair.a), bName = resolveName(pair.b);
     const stageKey = stageKeyForSeries(seriesNumber);

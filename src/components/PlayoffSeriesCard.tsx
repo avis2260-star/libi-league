@@ -6,6 +6,7 @@ import { useLang } from '@/components/TranslationProvider';
 import PlayoffPlate from '@/components/PlayoffPlate';
 import { displayName } from '@/lib/names';
 import TeamLogoZoom from '@/components/TeamLogoZoom';
+import { gameNumsFor, seriesWinner } from '@/lib/playoff-format';
 
 export type RosterPlayer = { name: string; jersey_number: number | null };
 
@@ -71,7 +72,7 @@ function seriesScore(s: Series, games: Game[]) {
     if ((homeWon && home === s.team_a) || (!homeWon && home !== s.team_a)) winsA++;
     else winsB++;
   }
-  return { winsA, winsB, winner: winsA >= 2 ? s.team_a : winsB >= 2 ? s.team_b : null };
+  return { winsA, winsB, winner: seriesWinner(s.series_number, winsA, s.team_a, winsB, s.team_b) };
 }
 
 // A result dot is coloured by the division of the team that won that game:
@@ -94,7 +95,7 @@ function GameDots({ series, allGames, teamDivisions }: { series: Series; allGame
       : teamDivisions[name] ?? Object.entries(teamDivisions).find(([k]) => normName(k) === normName(name))?.[1];
   return (
     <div className="flex items-center gap-1.5 justify-center">
-      {[1, 2, 3].map(gNum => {
+      {gameNumsFor(series.series_number).map(gNum => {
         const g = seriesGames.find(g => g.game_number === gNum);
         const played = !!g && isPlayed(g) && g.home_score !== null && g.away_score !== null;
         const home = homeForGame(series, gNum);
