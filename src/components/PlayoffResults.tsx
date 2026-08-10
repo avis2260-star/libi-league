@@ -13,6 +13,7 @@ import { getLang, st } from '@/lib/get-lang';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { getCurrentSeason } from '@/lib/current-season';
 import { winsNeeded } from '@/lib/playoff-format';
+import { displayName } from '@/lib/names';
 import TeamLogoZoom from '@/components/TeamLogoZoom';
 
 type StageKey = 'qf' | 'sf' | 'final';
@@ -144,6 +145,90 @@ function shortDate(iso: string | null): string {
   if (!m) return '';
   return `${parseInt(m[3], 10)}.${parseInt(m[2], 10)}`;
 }
+// ── Upcoming-final banner ────────────────────────────────────────────────────
+// Shown once the two finalists are known but the championship game hasn't been
+// played. Mirrors the gold ChampionBanner trophy styling so the "next game"
+// reads as the marquee event it is — a matchup preview rather than a result.
+type UpcomingFinal = {
+  seriesNumber: number;
+  aName: string; bName: string;
+  aLogo: string | null; bLogo: string | null;
+  dateLabel: string; timeLabel: string; location: string | null;
+};
+
+function FinalLogo({ url, name }: { url: string | null; name: string }) {
+  if (url) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={url} alt={name} className="h-12 w-12 shrink-0 rounded-full border-2 border-amber-500/45 object-cover sm:h-14 sm:w-14" />
+    );
+  }
+  return (
+    <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 border-amber-500/45 bg-white/[0.03] text-base font-black text-amber-200 sm:h-14 sm:w-14 sm:text-lg">
+      {[...name].find(c => /\S/.test(c)) ?? '?'}
+    </div>
+  );
+}
+
+function UpcomingFinalBanner({ final, season, T, en, lang }: {
+  final: UpcomingFinal; season: string; T: (he: string) => string; en: boolean; lang: 'he' | 'en';
+}) {
+  const when = [final.dateLabel, final.timeLabel].filter(Boolean).join(' · ');
+  return (
+    <Link
+      href={`/playoff/series/${final.seriesNumber}`}
+      className="group relative block overflow-hidden rounded-2xl border border-amber-500/35 px-4 py-4 transition hover:border-amber-400/55 sm:px-6 sm:py-5"
+      style={{
+        backgroundImage:
+          'radial-gradient(ellipse at 50% -30%, rgba(245,158,11,0.25) 0%, transparent 65%), linear-gradient(180deg, #102136 0%, #0b1726 100%)',
+      }}
+    >
+      {/* Decorative sparkles */}
+      <span className="pointer-events-none absolute left-[10%] top-[18%] h-1 w-1 rounded-full bg-amber-200 opacity-70 shadow-[0_0_10px_2px_rgba(253,230,138,0.8)]" />
+      <span className="pointer-events-none absolute right-[12%] top-[68%] h-1.5 w-1.5 rounded-full bg-amber-200 opacity-70 shadow-[0_0_10px_2px_rgba(253,230,138,0.8)]" />
+
+      {/* Eyebrow */}
+      <div className="mb-3 flex items-center justify-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-amber-200 sm:text-xs">
+        <span className="h-px max-w-[60px] flex-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent" />
+        <span>🏆 {en ? `Playoff Final · ${season}` : `גמר הפלייאוף · ${season}`}</span>
+        <span className="h-px max-w-[60px] flex-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent" />
+      </div>
+
+      {/* Matchup */}
+      <div className="flex items-center justify-center gap-3 sm:gap-5">
+        <div className="flex min-w-0 flex-1 flex-col items-center gap-2 text-center sm:flex-row sm:justify-end sm:gap-3 sm:text-right">
+          <FinalLogo url={final.aLogo} name={final.aName} />
+          <p className="min-w-0 break-words font-heading text-sm font-black text-white transition-colors group-hover:text-amber-200 sm:text-lg">{T(final.aName)}</p>
+        </div>
+        <div className="flex shrink-0 flex-col items-center px-1">
+          <span className="font-stats text-lg font-black text-amber-300 sm:text-2xl">{en ? 'VS' : 'נגד'}</span>
+          <span className="text-[9px] font-black text-amber-200/70 sm:text-[10px]">{en ? 'Single game' : T('משחק אחד')}</span>
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col items-center gap-2 text-center sm:flex-row sm:justify-start sm:gap-3 sm:text-left">
+          <FinalLogo url={final.bLogo} name={final.bName} />
+          <p className="min-w-0 break-words font-heading text-sm font-black text-white transition-colors group-hover:text-amber-200 sm:text-lg">{T(final.bName)}</p>
+        </div>
+      </div>
+
+      {/* Schedule + CTA chips */}
+      <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-[11px] font-bold text-[#8aaac8] sm:text-xs">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-black/25 px-3 py-1 text-amber-100">
+          {when ? <>📅 {when}</> : <>⏳ {en ? 'Date TBD' : 'המועד טרם נקבע'}</>}
+        </span>
+        {final.location && (
+          <span className="inline-flex min-w-0 items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.04] px-3 py-1">
+            <span className="shrink-0">📍</span>
+            <span className="min-w-0 break-words">{displayName(final.location, lang)}</span>
+          </span>
+        )}
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.04] px-3 py-1 text-amber-200 transition-colors group-hover:text-amber-100">
+          {en ? 'To the final →' : 'לעמוד הגמר ←'}
+        </span>
+      </div>
+    </Link>
+  );
+}
+
 type SeriesBlockData = {
   seriesNumber: number;
   stageKey: StageKey;
@@ -274,7 +359,7 @@ export default async function PlayoffResults({ season: seasonProp, layout = 'car
       .order('series_number'),
     supabaseAdmin
       .from('playoff_games')
-      .select('series_number, game_number, home_score, away_score, video_url, game_date')
+      .select('series_number, game_number, home_score, away_score, video_url, game_date, game_time, location')
       .eq('season', season)
       .order('series_number')
       .order('game_number'),
@@ -290,7 +375,7 @@ export default async function PlayoffResults({ season: seasonProp, layout = 'car
   const dir = lang === 'he' ? 'rtl' : 'ltr';
 
   const series = (seriesData ?? []) as { series_number: number; team_a: string | null; team_b: string | null; team_a_label: string | null; team_b_label: string | null }[];
-  const games = (gamesData ?? []) as { series_number: number; game_number: number; home_score: number | null; away_score: number | null; video_url: string | null; game_date: string | null }[];
+  const games = (gamesData ?? []) as { series_number: number; game_number: number; home_score: number | null; away_score: number | null; video_url: string | null; game_date: string | null; game_time: string | null; location: string | null }[];
   if (series.length === 0) return null;
 
   const standings = (standingsData ?? []) as { name: string; division: string; rank: number }[];
@@ -345,6 +430,28 @@ export default async function PlayoffResults({ season: seasonProp, layout = 'car
     if (a && b) teamBySeries.set(n, { a, b });
   }
 
+  // Upcoming final: the finalists are resolved (from the SF winners) but the
+  // championship game hasn't been played yet — surface it as a marquee banner.
+  const finalPair = teamBySeries.get(7);
+  const finalGames = games.filter((g) => g.series_number === 7);
+  const finalPlayed = finalGames.some((g) => g.home_score != null && g.away_score != null);
+  const upcomingFinal: UpcomingFinal | null = finalPair && !finalPlayed
+    ? (() => {
+        const g1 = finalGames.find((g) => g.game_number === 1) ?? finalGames[0];
+        const aName = resolveName(finalPair.a);
+        const bName = resolveName(finalPair.b);
+        return {
+          seriesNumber: 7,
+          aName, bName,
+          aLogo: findLogo(aName, logos) ?? findLogo(finalPair.a, logos),
+          bLogo: findLogo(bName, logos) ?? findLogo(finalPair.b, logos),
+          dateLabel: shortDate(g1?.game_date ?? null),
+          timeLabel: g1?.game_time ? g1.game_time.slice(0, 5) : '',
+          location: g1?.location ?? null,
+        };
+      })()
+    : null;
+
   const cards: ResultCard[] = [];
   for (const g of games) {
     if (g.home_score == null || g.away_score == null) continue; // played games only
@@ -367,7 +474,7 @@ export default async function PlayoffResults({ season: seasonProp, layout = 'car
       videoUrl: g.video_url,
     });
   }
-  if (cards.length === 0) return null;
+  if (cards.length === 0 && !upcomingFinal) return null;
 
   const order: StageKey[] = ['final', 'sf', 'qf']; // most advanced stage first
 
@@ -440,6 +547,12 @@ export default async function PlayoffResults({ season: seasonProp, layout = 'car
           {T('לעץ הפלייאוף ←')}
         </Link>
       </div>
+
+      {upcomingFinal && (
+        <div className="mb-5">
+          <UpcomingFinalBanner final={upcomingFinal} season={season} T={T} en={lang === 'en'} lang={lang} />
+        </div>
+      )}
 
       <div className="space-y-5">
         {layout === 'series' || layout === 'table'
