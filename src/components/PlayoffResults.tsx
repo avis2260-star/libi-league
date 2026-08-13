@@ -145,6 +145,17 @@ function shortDate(iso: string | null): string {
   if (!m) return '';
   return `${parseInt(m[3], 10)}.${parseInt(m[2], 10)}`;
 }
+
+const HE_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+const EN_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+// Weekday name for an ISO date (built from parts so it's timezone-safe); '' when unparseable.
+function weekdayLabel(iso: string | null, lang: 'he' | 'en'): string {
+  if (!iso) return '';
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return '';
+  const dt = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return (lang === 'en' ? EN_DAYS : HE_DAYS)[dt.getDay()];
+}
 // ── Upcoming-final banner ────────────────────────────────────────────────────
 // Shown once the two finalists are known but the championship game hasn't been
 // played. Mirrors the gold ChampionBanner trophy styling so the "next game"
@@ -153,7 +164,7 @@ type UpcomingFinal = {
   seriesNumber: number;
   aName: string; bName: string;
   aLogo: string | null; bLogo: string | null;
-  dateLabel: string; timeLabel: string; location: string | null;
+  dayLabel: string; dateLabel: string; timeLabel: string; location: string | null;
 };
 
 function FinalLogo({ url, name }: { url: string | null; name: string }) {
@@ -173,7 +184,7 @@ function FinalLogo({ url, name }: { url: string | null; name: string }) {
 function UpcomingFinalBanner({ final, season, T, en, lang }: {
   final: UpcomingFinal; season: string; T: (he: string) => string; en: boolean; lang: 'he' | 'en';
 }) {
-  const when = [final.dateLabel, final.timeLabel].filter(Boolean).join(' · ');
+  const when = [final.dayLabel, final.dateLabel, final.timeLabel].filter(Boolean).join(' · ');
   return (
     <Link
       href={`/playoff/series/${final.seriesNumber}`}
@@ -215,16 +226,18 @@ function UpcomingFinalBanner({ final, season, T, en, lang }: {
         <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-black/25 px-3 py-1 text-amber-100">
           {when ? <>📅 {when}</> : <>⏳ {en ? 'Date TBD' : 'המועד טרם נקבע'}</>}
         </span>
-        {final.location && (
-          <span className="inline-flex min-w-0 items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.04] px-3 py-1">
-            <span className="shrink-0">📍</span>
-            <span className="min-w-0 break-words">{displayName(final.location, lang)}</span>
-          </span>
-        )}
         <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.04] px-3 py-1 text-amber-200 transition-colors group-hover:text-amber-100">
           {en ? 'To the final →' : 'לעמוד הגמר ←'}
         </span>
       </div>
+
+      {/* Venue + address — its own prominent line so the location reads clearly */}
+      {final.location && (
+        <p className="mt-2.5 flex items-center justify-center gap-1.5 px-2 text-center text-xs font-bold text-amber-100 sm:text-sm">
+          <span className="shrink-0">📍</span>
+          <span className="min-w-0 break-words">{displayName(final.location, lang)}</span>
+        </p>
+      )}
     </Link>
   );
 }
@@ -445,6 +458,7 @@ export default async function PlayoffResults({ season: seasonProp, layout = 'car
           aName, bName,
           aLogo: findLogo(aName, logos) ?? findLogo(finalPair.a, logos),
           bLogo: findLogo(bName, logos) ?? findLogo(finalPair.b, logos),
+          dayLabel: weekdayLabel(g1?.game_date ?? null, lang),
           dateLabel: shortDate(g1?.game_date ?? null),
           timeLabel: g1?.game_time ? g1.game_time.slice(0, 5) : '',
           location: g1?.location ?? null,
@@ -535,6 +549,14 @@ export default async function PlayoffResults({ season: seasonProp, layout = 'car
 
   return (
     <section dir={dir}>
+      {/* The upcoming-final hero leads the block; the results heading sits below
+          it, right above the completed rounds. */}
+      {upcomingFinal && (
+        <div className="mb-5">
+          <UpcomingFinalBanner final={upcomingFinal} season={season} T={T} en={lang === 'en'} lang={lang} />
+        </div>
+      )}
+
       <div className="mb-4 flex items-center gap-3">
         <h2 className="flex items-center gap-2 text-lg font-black text-white font-heading">
           <span className="rounded-lg bg-gradient-to-br from-[#e0c97a] to-[#b8860b] px-2 py-1 text-sm">🏆</span>
@@ -547,12 +569,6 @@ export default async function PlayoffResults({ season: seasonProp, layout = 'car
           {T('לעץ הפלייאוף ←')}
         </Link>
       </div>
-
-      {upcomingFinal && (
-        <div className="mb-5">
-          <UpcomingFinalBanner final={upcomingFinal} season={season} T={T} en={lang === 'en'} lang={lang} />
-        </div>
-      )}
 
       <div className="space-y-5">
         {layout === 'series' || layout === 'table'

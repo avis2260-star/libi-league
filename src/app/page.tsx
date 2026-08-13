@@ -1312,7 +1312,11 @@ export default async function HomePage() {
 
   const heDayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
   const enDayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const playoffStripGames: PlayoffStripGame[] = playoffUpcoming.games.map((g) => {
+  const playoffStripGames: PlayoffStripGame[] = playoffUpcoming.games
+    // The final gets its own trophy hero banner in PlayoffResults, so keep it
+    // out of the upcoming-games strip to avoid showing it twice.
+    .filter((g) => g.stageKey !== 'final')
+    .map((g) => {
     const home     = g.homeIsTeamA ? g.teamA : g.teamB;
     const away     = g.homeIsTeamA ? g.teamB : g.teamA;
     const homeName = dbDisplayName(home);
