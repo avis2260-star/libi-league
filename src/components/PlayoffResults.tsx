@@ -167,16 +167,16 @@ type UpcomingFinal = {
   dayLabel: string; dateLabel: string; timeLabel: string; location: string | null;
 };
 
-function FinalLogo({ url, name }: { url: string | null; name: string }) {
-  if (url) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={url} alt={name} className="h-12 w-12 shrink-0 rounded-full border-2 border-amber-500/45 object-cover sm:h-14 sm:w-14" />
-    );
-  }
+function FinalCrest({ url, name }: { url: string | null; name: string }) {
   return (
-    <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 border-amber-500/45 bg-white/[0.03] text-base font-black text-amber-200 sm:h-14 sm:w-14 sm:text-lg">
-      {[...name].find(c => /\S/.test(c)) ?? '?'}
+    <div className="relative grid h-16 w-16 shrink-0 place-items-center rounded-full border-2 border-amber-500/50 bg-white/[0.04] shadow-[0_0_35px_-6px_rgba(245,158,11,0.5)] sm:h-24 sm:w-24">
+      <span className="pointer-events-none absolute -inset-1.5 rounded-full border border-amber-200/20" />
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt={name} className="h-[54px] w-[54px] rounded-full object-cover sm:h-[84px] sm:w-[84px]" />
+      ) : (
+        <span className="text-2xl font-black text-amber-200 sm:text-4xl">{[...name].find(c => /\S/.test(c)) ?? '?'}</span>
+      )}
     </div>
   );
 }
@@ -188,56 +188,72 @@ function UpcomingFinalBanner({ final, season, T, en, lang }: {
   return (
     <Link
       href={`/playoff/series/${final.seriesNumber}`}
-      className="group relative block overflow-hidden rounded-2xl border border-amber-500/35 px-4 py-4 transition hover:border-amber-400/55 sm:px-6 sm:py-5"
+      className="group relative block overflow-hidden rounded-3xl border-2 border-amber-500/40 px-4 py-7 shadow-[0_30px_80px_-24px_rgba(245,158,11,0.4)] transition hover:border-amber-400/60 sm:px-8 sm:py-10"
       style={{
         backgroundImage:
-          'radial-gradient(ellipse at 50% -30%, rgba(245,158,11,0.25) 0%, transparent 65%), linear-gradient(180deg, #102136 0%, #0b1726 100%)',
+          'radial-gradient(ellipse at 50% -10%, rgba(245,158,11,0.30) 0%, transparent 60%), linear-gradient(180deg, #12233a 0%, #0b1726 100%)',
       }}
     >
       {/* Decorative sparkles */}
-      <span className="pointer-events-none absolute left-[10%] top-[18%] h-1 w-1 rounded-full bg-amber-200 opacity-70 shadow-[0_0_10px_2px_rgba(253,230,138,0.8)]" />
-      <span className="pointer-events-none absolute right-[12%] top-[68%] h-1.5 w-1.5 rounded-full bg-amber-200 opacity-70 shadow-[0_0_10px_2px_rgba(253,230,138,0.8)]" />
+      <span className="pointer-events-none absolute left-[8%] top-[14%] h-1 w-1 rounded-full bg-amber-200 opacity-70 shadow-[0_0_10px_2px_rgba(253,230,138,0.8)]" />
+      <span className="pointer-events-none absolute right-[10%] top-[20%] h-1.5 w-1.5 rounded-full bg-amber-200 opacity-70 shadow-[0_0_10px_2px_rgba(253,230,138,0.8)]" />
+      <span className="pointer-events-none absolute left-[13%] top-[80%] h-1 w-1 rounded-full bg-amber-200 opacity-60 shadow-[0_0_10px_2px_rgba(253,230,138,0.8)]" />
+      <span className="pointer-events-none absolute right-[12%] top-[84%] h-1.5 w-1.5 rounded-full bg-amber-200 opacity-70 shadow-[0_0_10px_2px_rgba(253,230,138,0.8)]" />
 
-      {/* Eyebrow */}
-      <div className="mb-3 flex items-center justify-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-amber-200 sm:text-xs">
-        <span className="h-px max-w-[60px] flex-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent" />
-        <span>🏆 {en ? `Playoff Final · ${season}` : `גמר הפלייאוף · ${season}`}</span>
-        <span className="h-px max-w-[60px] flex-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent" />
+      {/* Trophy + eyebrow + headline */}
+      <div className="flex flex-col items-center gap-2.5">
+        <span className="text-5xl drop-shadow-[0_8px_20px_rgba(245,158,11,0.5)] sm:text-6xl">🏆</span>
+        <div className="flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-[0.24em] text-amber-200 sm:text-[13px]">
+          <span className="h-px w-8 bg-gradient-to-r from-transparent via-amber-500 to-transparent sm:w-16" />
+          <span>{en ? `Playoff Final · ${season}` : `גמר הפלייאוף · ${season}`}</span>
+          <span className="h-px w-8 bg-gradient-to-r from-transparent via-amber-500 to-transparent sm:w-16" />
+        </div>
+        <p className="bg-gradient-to-b from-white to-amber-200 bg-clip-text text-center font-heading text-lg font-black leading-tight text-transparent sm:text-2xl">
+          {en ? 'The Championship Game' : 'המשחק המכריע על האליפות'}
+        </p>
       </div>
 
       {/* Matchup */}
-      <div className="flex items-center justify-center gap-3 sm:gap-5">
-        <div className="flex min-w-0 flex-1 flex-col items-center gap-2 text-center sm:flex-row sm:justify-end sm:gap-3 sm:text-right">
-          <FinalLogo url={final.aLogo} name={final.aName} />
-          <p className="min-w-0 break-words font-heading text-sm font-black text-white transition-colors group-hover:text-amber-200 sm:text-lg">{T(final.aName)}</p>
+      <div className="mt-6 flex items-center justify-center gap-3 sm:mt-8 sm:gap-8">
+        <div className="flex min-w-0 flex-1 flex-col items-center gap-2.5">
+          <FinalCrest url={final.aLogo} name={final.aName} />
+          <p className="min-w-0 break-words bg-gradient-to-b from-white to-amber-200 bg-clip-text text-center font-heading text-base font-black leading-tight text-transparent sm:text-2xl">{T(final.aName)}</p>
         </div>
-        <div className="flex shrink-0 flex-col items-center px-1">
-          <span className="font-stats text-lg font-black text-amber-300 sm:text-2xl">{en ? 'VS' : 'נגד'}</span>
-          <span className="text-[9px] font-black text-amber-200/70 sm:text-[10px]">{en ? 'Single game' : T('משחק אחד')}</span>
+
+        <div className="flex shrink-0 flex-col items-center gap-1.5">
+          <div className="grid h-12 w-12 place-items-center rounded-full border-2 border-amber-500/50 bg-black/30 shadow-[0_0_25px_-4px_rgba(245,158,11,0.55)] sm:h-16 sm:w-16">
+            <span className="font-stats text-base font-black text-amber-300 sm:text-2xl">{en ? 'VS' : 'נגד'}</span>
+          </div>
+          <span className="rounded-full border border-amber-500/30 bg-black/25 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-200/90 sm:text-[10px]">
+            {en ? 'Single game' : T('משחק אחד')}
+          </span>
         </div>
-        <div className="flex min-w-0 flex-1 flex-col items-center gap-2 text-center sm:flex-row sm:justify-start sm:gap-3 sm:text-left">
-          <FinalLogo url={final.bLogo} name={final.bName} />
-          <p className="min-w-0 break-words font-heading text-sm font-black text-white transition-colors group-hover:text-amber-200 sm:text-lg">{T(final.bName)}</p>
+
+        <div className="flex min-w-0 flex-1 flex-col items-center gap-2.5">
+          <FinalCrest url={final.bLogo} name={final.bName} />
+          <p className="min-w-0 break-words bg-gradient-to-b from-white to-amber-200 bg-clip-text text-center font-heading text-base font-black leading-tight text-transparent sm:text-2xl">{T(final.bName)}</p>
         </div>
       </div>
 
-      {/* Schedule + CTA chips */}
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-[11px] font-bold text-[#8aaac8] sm:text-xs">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-black/25 px-3 py-1 text-amber-100">
+      {/* Schedule + venue */}
+      <div className="mt-6 flex flex-col items-center gap-2 sm:mt-8">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-black/30 px-4 py-1.5 text-xs font-bold text-amber-100 sm:text-sm">
           {when ? <>📅 {when}</> : <>⏳ {en ? 'Date TBD' : 'המועד טרם נקבע'}</>}
         </span>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.04] px-3 py-1 text-amber-200 transition-colors group-hover:text-amber-100">
-          {en ? 'To the final →' : 'לעמוד הגמר ←'}
-        </span>
+        {final.location && (
+          <p className="flex items-center justify-center gap-1.5 px-2 text-center text-xs font-bold text-amber-100/90 sm:text-sm">
+            <span className="shrink-0">📍</span>
+            <span className="min-w-0 break-words">{displayName(final.location, lang)}</span>
+          </p>
+        )}
       </div>
 
-      {/* Venue + address — its own prominent line so the location reads clearly */}
-      {final.location && (
-        <p className="mt-2.5 flex items-center justify-center gap-1.5 px-2 text-center text-xs font-bold text-amber-100 sm:text-sm">
-          <span className="shrink-0">📍</span>
-          <span className="min-w-0 break-words">{displayName(final.location, lang)}</span>
-        </p>
-      )}
+      {/* CTA */}
+      <div className="mt-6 flex justify-center">
+        <span className="inline-flex items-center gap-2 rounded-xl border border-amber-700/40 bg-gradient-to-b from-amber-200 to-amber-500 px-6 py-2.5 text-sm font-black text-amber-950 shadow-[0_10px_24px_-8px_rgba(245,158,11,0.6)] transition group-hover:-translate-y-px sm:text-base">
+          {en ? 'To the Final →' : 'לעמוד הגמר ←'}
+        </span>
+      </div>
     </Link>
   );
 }
