@@ -80,6 +80,14 @@ export async function sendRecoveryLinkAction(
         return { ok: true };
       }
 
+      // Dev/local fallback: print the link to the server logs so you can always
+      // recover — even with no email provider configured. Gated to non-production
+      // ONLY: this magic link grants an admin session, so it must never land in
+      // production logs where anyone with log access could replay it.
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[mfa-recovery] recovery link for ${target}: ${link}`);
+      }
+
       if (!process.env.RESEND_API_KEY) {
         console.error(
           'RESEND_API_KEY is not set — recovery link was generated but not emailed.',
