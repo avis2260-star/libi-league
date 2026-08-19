@@ -96,7 +96,14 @@ describe('admin playoff GET', () => {
       .mockReturnValueOnce(queryResult({ data: null }))
       .mockReturnValueOnce(queryResult({ data: null }));
     const body = await (await playoff.GET()).json();
-    expect(body).toEqual({ series: [], games: [], northTeams: [], southTeams: [] });
+    expect(body).toEqual({
+      series: [],
+      games: [],
+      northTeams: [],
+      southTeams: [],
+      rostersByTeam: {},
+      stats: [],
+    });
   });
 });
 
@@ -167,18 +174,19 @@ describe('sync-logs POST (rollback)', () => {
       snapshot_results: [{ home_team: 'חולון', away_team: 'בני נתניה' }],
     };
     fromMock
-      .mockReturnValueOnce(queryResult({ data: log, error: null })) // fetch snapshot
-      .mockReturnValueOnce(queryResult({ error: null }))            // delete standings
-      .mockReturnValueOnce(queryResult({ error: null }))            // insert standings
-      .mockReturnValueOnce(queryResult({ error: null }))            // delete results
-      .mockReturnValueOnce(queryResult({ error: null }))            // insert results
-      .mockReturnValueOnce(queryResult({ error: null }));           // mark rolled back
+      .mockReturnValueOnce(queryResult({ data: log, error: null }))  // fetch snapshot
+      .mockReturnValueOnce(queryResult({ error: null }))             // delete standings
+      .mockReturnValueOnce(queryResult({ error: null }))             // insert standings
+      .mockReturnValueOnce(queryResult({ error: null }))             // delete results
+      .mockReturnValueOnce(queryResult({ error: null }))             // insert results
+      .mockReturnValueOnce(queryResult({ data: null, error: null })) // fetch cup snapshot (none → cup restore skipped)
+      .mockReturnValueOnce(queryResult({ error: null }));            // mark rolled back
 
     const res = await syncLogs.POST(postJson({ action: 'rollback', id: 'l1' }));
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ success: true });
-    expect(fromMock).toHaveBeenCalledTimes(6);
+    expect(fromMock).toHaveBeenCalledTimes(7);
   });
 
   it('returns 500 when restoring throws', async () => {

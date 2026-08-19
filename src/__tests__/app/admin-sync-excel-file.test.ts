@@ -100,11 +100,16 @@ describe('sync-excel-file POST', () => {
   it('returns 500 when the standings delete fails', async () => {
     const file = xlsxFile({ 'טבלאות': [[1, 'חולון', 14, 10, 4, 360, 300, 60, 0, 0, 24]] });
 
-    // round_dates upsert (skipped: no results), then Promise.all snapshot (2),
-    // then standings DELETE — make the DELETE fail.
+    // round_dates upsert (skipped: no results), then the Promise.all snapshot (2:
+    // standings + results), then the three best-effort cup snapshots (cup_games,
+    // cup_game_stats, match_previews), then the standings DELETE — the 6th DB
+    // call. Make that DELETE fail.
     fromMock
       .mockReturnValueOnce(queryResult({ data: [], error: null }))  // snapshot standings
       .mockReturnValueOnce(queryResult({ data: [], error: null }))  // snapshot results
+      .mockReturnValueOnce(queryResult({ data: [], error: null }))  // snapshot cup_games
+      .mockReturnValueOnce(queryResult({ data: [], error: null }))  // snapshot cup_game_stats
+      .mockReturnValueOnce(queryResult({ data: [], error: null }))  // snapshot match_previews
       .mockReturnValueOnce(queryResult({ error: { message: 'delete blew up' } })); // standings delete
 
     const res = await POST(mockFileReq(file));
