@@ -39,13 +39,13 @@ function homeForGame(s: Series, gNum: number) {
 // simply both scores filled in — so scores show even without ticking "shown".
 function isPlayed(g: Game) { return g.played || (g.home_score !== null && g.away_score !== null); }
 
-// One team's roster panel: the players who played, jersey · name · points.
+// One team's roster panel: the players who played — photo bubble + name only.
 function RosterPanel({
   teamName, logo, roster, lang,
 }: {
   teamName: string;
   logo?: string;
-  roster: { name: string; jersey_number: number | null; points: number }[];
+  roster: { name: string; jersey_number: number | null; photo_url: string | null }[];
   lang: 'he' | 'en';
 }) {
   return (
@@ -59,19 +59,28 @@ function RosterPanel({
         </p>
       </div>
       {roster.length > 0 ? (
-        <ul className="space-y-1.5">
+        <ul className="space-y-2.5">
           {roster.map((p, i) => (
-            <li key={i} className="flex items-baseline gap-2 text-xs leading-tight">
-              {p.jersey_number != null && (
-                <span className="w-5 shrink-0 text-center font-stats font-black text-orange-400/80">{p.jersey_number}</span>
+            <li key={i} className="flex items-center gap-3">
+              {p.photo_url ? (
+                <img
+                  src={p.photo_url}
+                  alt=""
+                  className="h-11 w-11 shrink-0 rounded-full border-2 border-white/15 object-cover shadow-md"
+                />
+              ) : (
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-white/10 bg-[#1a2e45] font-stats text-sm font-black text-[#5a7a9a]">
+                  {p.jersey_number ?? ([...p.name].find((c) => /\S/.test(c)) ?? '?')}
+                </div>
               )}
-              <span className="min-w-0 flex-1 break-words font-body text-[#c8d8e8]">{displayName(p.name, lang)}</span>
-              {p.points > 0 && <span className="shrink-0 font-stats tabular-nums text-[#8aaac8]">{p.points}</span>}
+              <span className="min-w-0 flex-1 break-words text-base font-black leading-tight text-white font-heading">
+                {displayName(p.name, lang)}
+              </span>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="py-2 text-center text-xs text-[#5a7a9a]">{lang === 'en' ? 'No stats recorded' : 'לא הוזנו נתונים'}</p>
+        <p className="py-2 text-center text-xs text-[#5a7a9a]">{lang === 'en' ? 'No players recorded' : 'לא הוזנו שחקנים'}</p>
       )}
     </div>
   );
@@ -93,7 +102,7 @@ export default async function SeriesFlyerPage({
       supabaseAdmin.from('teams').select('id, name, logo_url'),
       supabaseAdmin.from('standings').select('name,rank,division').eq('season', season).order('rank'),
       supabaseAdmin.from('playoff_game_stats').select('game_number, player_id, team_id, points, three_pointers, fouls, quarter_points, two_pointers, free_throws').eq('season', season).eq('series_number', seriesNum),
-      supabaseAdmin.from('players').select('id, name, jersey_number'),
+      supabaseAdmin.from('players').select('id, name, jersey_number, photo_url'),
     ]);
 
   if (!seriesData) notFound();
@@ -171,6 +180,9 @@ export default async function SeriesFlyerPage({
   const playerById = new Map(
     (playersData ?? []).map((p) => [p.id, { name: p.name, jersey_number: p.jersey_number }]),
   );
+  const photoById = new Map(
+    (playersData ?? []).map((p) => [p.id, (p as { photo_url: string | null }).photo_url ?? null]),
+  );
   const statsByGameNum = new Map<number, RawStat[]>();
   for (const s of (statsData ?? []) as (RawStat & { game_number: number })[]) {
     const arr = statsByGameNum.get(s.game_number) ?? [];
@@ -210,24 +222,28 @@ export default async function SeriesFlyerPage({
     .filter((g) => g.video_url && !boxScores.some((b) => b.gNum === g.game_number))
     .map((g) => ({ gNum: g.game_number, videoUrl: g.video_url! }));
 
-  /* ── Rosters: players who actually played, per team (union across the series,
-        points summed). Bucketed to team_a / team_b regardless of home/away. ── */
-  type RosterEntry = { name: string; jersey_number: number | null; points: number };
-  function collectRoster(forTeamA: boolean): RosterEntry[] {
-    const byName = new Map<string, RosterEntry>();
-    for (const b of boxScores) {
-      const aIsHome = b.homeName === series.team_a;
-      const players = forTeamA === aIsHome ? b.homePlayers : b.awayPlayers;
-      for (const p of players) {
-        const e = byName.get(p.name);
-        if (e) e.points += p.points;
-        else byName.set(p.name, { name: p.name, jersey_number: p.jersey_number, points: p.points });
-      }
+  /* ── Rosters: players who played in the series, per team, with photos.
+        Deduped by player and sorted by jersey number. Stats are omitted. ── */
+  const teamAId = teamNameToId(series.team_a);
+  const teamBId = teamNameToId(series.team_b);
+  type RosterEntry = { name: string; jersey_number: number | null; photo_url: string | null };
+  function collectRoster(teamId: string | null): RosterEntry[] {
+    if (!teamId) return [];
+    const byId = new Map<string, RosterEntry>();
+    for (const s of (statsData ?? []) as { player_id: string; team_id: string | null }[]) {
+      if (s.team_id !== teamId || byId.has(s.player_id)) continue;
+      const meta = playerById.get(s.player_id);
+      if (!meta) continue;
+      byId.set(s.player_id, {
+        name: meta.name,
+        jersey_number: meta.jersey_number,
+        photo_url: photoById.get(s.player_id) ?? null,
+      });
     }
-    return [...byName.values()].sort((x, y) => y.points - x.points);
+    return [...byId.values()].sort((a, b) => (a.jersey_number ?? 999) - (b.jersey_number ?? 999));
   }
-  const rosterA = collectRoster(true);
-  const rosterB = collectRoster(false);
+  const rosterA = collectRoster(teamAId);
+  const rosterB = collectRoster(teamBId);
 
   return (
     <div
@@ -247,7 +263,7 @@ export default async function SeriesFlyerPage({
           matches the card so each roster stays on its team's side in RTL. */}
       <div className="flex w-full items-start justify-center gap-6">
         {rosterA.length > 0 && (
-          <div className="hidden w-52 shrink-0 pt-28 xl:block">
+          <div className="hidden w-60 shrink-0 pt-28 xl:block">
             <RosterPanel teamName={series.team_a} logo={logoA} roster={rosterA} lang={lang as 'he' | 'en'} />
           </div>
         )}
@@ -268,7 +284,7 @@ export default async function SeriesFlyerPage({
         />
 
         {rosterB.length > 0 && (
-          <div className="hidden w-52 shrink-0 pt-28 xl:block">
+          <div className="hidden w-60 shrink-0 pt-28 xl:block">
             <RosterPanel teamName={series.team_b} logo={logoB} roster={rosterB} lang={lang as 'he' | 'en'} />
           </div>
         )}
