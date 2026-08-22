@@ -19,6 +19,7 @@ import { getLang, st } from '@/lib/get-lang';
 import { displayName } from '@/lib/names';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { getCurrentSeason } from '@/lib/current-season';
+import { winsNeeded } from '@/lib/playoff-format';
 import { getAutoTickerItems } from '@/lib/ticker-auto-data';
 import { autoTickerMessage } from '@/lib/ticker-auto';
 
@@ -689,6 +690,9 @@ async function getPlayoffChampion(season: string): Promise<PlayoffChampion | nul
     // homeFor(): g2 swaps home/away. Mirrors logic in /playoff/series/[num]/page.tsx.
     const homeForGame = (gNum: number) => gNum === 2 ? series.team_b : series.team_a;
 
+    // The final (series 7) is a single game — 1 win takes it; earlier rounds
+    // are best-of-3. Use the shared rule so this never drifts from the cards.
+    const need = winsNeeded(series.series_number);
     let winsA = 0, winsB = 0;
     let deciding: typeof rows[number] | null = null;
     for (const g of rows) {
@@ -698,14 +702,14 @@ async function getPlayoffChampion(season: string): Promise<PlayoffChampion | nul
       const aWon = (homeWon && home === series.team_a) || (!homeWon && home !== series.team_a);
       if (aWon) winsA++;
       else      winsB++;
-      if (winsA === 2 || winsB === 2) {
+      if (winsA >= need || winsB >= need) {
         deciding = g;
         break;
       }
     }
 
     if (!deciding) return null; // series not decided yet
-    const championIsTeamA = winsA === 2;
+    const championIsTeamA = winsA >= need;
     const champion = championIsTeamA ? series.team_a : series.team_b;
     const opponent = championIsTeamA ? series.team_b : series.team_a;
 

@@ -161,6 +161,31 @@ export async function POST(req: NextRequest) {
       .upsert(insertRows, { onConflict: 'season,series_number,game_number,player_id' });
     if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 });
 
+    // ── Final score + played flag ───────────────────────────────────────────
+    // Sum each team's player points (the same total the public box score shows
+    // as its fallback) and write it to the playoff_games row so the series card,
+    // the upcoming strip, and the champion banner all resolve — none of those
+    // read player stats, only the game's home_score/away_score/played. game 2
+    // swaps home/away, matching /playoff and the quarter orientation below.
+    let scoreSaved = false;
+    if (teamAId && teamBId) {
+      let scoreA = 0, scoreB = 0;
+      for (const m of matched) {
+        if (m.player.team_id === teamAId) scoreA += m.points;
+        else if (m.player.team_id === teamBId) scoreB += m.points;
+      }
+      const homeScore = gameNumber === 2 ? scoreB : scoreA;
+      const awayScore = gameNumber === 2 ? scoreA : scoreB;
+      const { error: scoreErr } = await supabaseAdmin
+        .from('playoff_games')
+        .upsert(
+          { season, series_number: seriesNumber, game_number: gameNumber, home_score: homeScore, away_score: awayScore, played: true },
+          { onConflict: 'season,series_number,game_number' },
+        );
+      if (scoreErr) console.error('[playoff-stats/import] score update failed:', scoreErr);
+      else scoreSaved = true;
+    }
+
     // ── Quarter line score (official "סיכום" sheet only) ────────────────────
     // Orient the summary's two team sections to this game's home/away (game 2
     // swaps home/away, mirroring /playoff). Best-effort; only updates an
@@ -213,7 +238,7 @@ export async function POST(req: NextRequest) {
       success: true,
       matched: matched.length,
       unmatched,
-      message: `✅ נשמרו ${matched.length} שחקנים${unmatched.length ? ` · ${unmatched.length} לא זוהו` : ''}${quartersSaved ? ' · ניקוד רבעים עודכן' : ''}`,
+      message: `✅ נשמרו ${matched.length} שחקנים${unmatched.length ? ` · ${unmatched.length} לא זוהו` : ''}${scoreSaved ? ' · תוצאת המשחק עודכנה' : ''}${quartersSaved ? ' · ניקוד רבעים עודכן' : ''}`,
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'שגיאה בעיבוד הקובץ';
