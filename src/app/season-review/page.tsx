@@ -79,11 +79,14 @@ export default async function SeasonReviewPage({
   const he = lang !== 'en';
   const T  = (heText: string, enText: string) => he ? heText : enText;
 
-  // Separate "milestone" (pre/mid/end) and "custom" reviews.
+  // Separate "milestone" (pre/mid/end) reviews from everything else
+  // (playoffs, cup, custom) — the latter render together under "More Reviews".
   const milestoneReviews = reviews.filter(r =>
     (MILESTONE_TYPES as readonly string[]).includes(r.review_type)
   );
-  const customReviews = reviews.filter(r => r.review_type === 'custom');
+  const customReviews = reviews.filter(r =>
+    !(MILESTONE_TYPES as readonly string[]).includes(r.review_type)
+  );
 
   // Upcoming placeholders = milestone types NOT yet published.
   const upcomingTypes = MILESTONE_TYPES.filter(t => !publishedTypes.has(t));

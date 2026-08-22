@@ -17,7 +17,7 @@ type FocusGame = {
 export type SeasonReview = {
   id: string;
   season: string;
-  review_type: 'pre_season' | 'mid_season' | 'end_season' | 'custom';
+  review_type: 'pre_season' | 'mid_season' | 'end_season' | 'playoffs' | 'cup' | 'custom';
   title: string;
   content: string;
   is_published: boolean;
@@ -111,8 +111,10 @@ function CupHeroReviewsPanel({
 
 const TYPE_META: Record<SeasonReview['review_type'], { label: string; emoji: string; color: string }> = {
   pre_season: { label: 'פתיחת עונה',  emoji: '🌱', color: 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10' },
-  mid_season: { label: 'מחצית עונה', emoji: '⏸',  color: 'text-blue-300   border-blue-500/40   bg-blue-500/10'   },
-  end_season: { label: 'סיום עונה',   emoji: '🏆', color: 'text-amber-300  border-amber-500/40  bg-amber-500/10'  },
+  mid_season: { label: 'מהלך העונה', emoji: '⏸',  color: 'text-blue-300   border-blue-500/40   bg-blue-500/10'   },
+  end_season: { label: 'סיום עונה',   emoji: '🏁', color: 'text-amber-300  border-amber-500/40  bg-amber-500/10'  },
+  playoffs:   { label: 'פלייאוף',     emoji: '🏀', color: 'text-orange-300 border-orange-500/40 bg-orange-500/10' },
+  cup:        { label: 'גביע',         emoji: '🥇', color: 'text-yellow-300 border-yellow-500/40 bg-yellow-500/10' },
   custom:     { label: 'חופשי',        emoji: '✏️', color: 'text-[#8aaac8]  border-white/20      bg-white/[0.04]'  },
 };
 
@@ -362,7 +364,7 @@ export default function SeasonReviewsTab({ reviews: initial, season: currentSeas
           {/* Type selector */}
           <div className="space-y-1.5">
             <p className="text-[11px] font-bold text-[#5a7a9a] uppercase tracking-widest">סוג הסקירה</p>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {REVIEW_TYPES.map(([type, meta]) => (
                 <button
                   key={type}
@@ -380,8 +382,10 @@ export default function SeasonReviewsTab({ reviews: initial, season: currentSeas
             </div>
             <p className="text-[10px] text-[#4a6a8a]">
               {genType === 'pre_season' && '🌱 ישתמש בנתוני העונה הקודמת ובהיסטוריה — לכתיבה לפני תחילת עונה.'}
-              {genType === 'mid_season' && '⏸ ישתמש בנתוני העונה הנוכחית עד כה — לפסק בין הסיבובים.'}
-              {genType === 'end_season' && '🏆 ישתמש בנתוני העונה המלאים — לסיכום בסוף העונה.'}
+              {genType === 'mid_season' && '⏸ ישתמש בנתוני העונה הנוכחית עד כה — לסקירה במהלך העונה.'}
+              {genType === 'end_season' && '🏁 ישתמש בנתוני העונה הסדירה המלאים — לסיכום בסוף העונה.'}
+              {genType === 'playoffs'   && '🏀 ישתמש בתוצאות הפלייאוף, הסדרות, האלופה ומובילי הניקוד בפלייאוף.'}
+              {genType === 'cup'        && '🥇 ישתמש במסלול הגביע, הגמר, מחזיקת הגביע ומובילי הניקוד בגביע.'}
               {genType === 'custom'     && '✏️ ישתמש בכל הנתונים הזמינים — ניתן להוסיף הנחיות ידניות.'}
             </p>
           </div>

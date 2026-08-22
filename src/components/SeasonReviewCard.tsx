@@ -6,19 +6,21 @@ import ArticleViewCounter from '@/components/ArticleViewCounter';
 
 export type ReviewCardData = {
   id: string;
-  review_type: 'pre_season' | 'mid_season' | 'end_season' | 'custom';
+  review_type: 'pre_season' | 'mid_season' | 'end_season' | 'playoffs' | 'cup' | 'custom';
   title: string;
   content: string;
   updated_at: string;
   view_count?: number | null;
 };
 
-const TYPE_META = {
+const TYPE_META: Record<ReviewCardData['review_type'], { heLabel: string; enLabel: string; emoji: string; badge: string; glow: string }> = {
   pre_season: { heLabel: 'פתיחת עונה',  enLabel: 'Season Preview',  emoji: '🌱', badge: 'text-emerald-200 border-emerald-500/40 bg-emerald-500/10', glow: 'hover:border-emerald-500/30' },
-  mid_season: { heLabel: 'מחצית עונה', enLabel: 'Mid-Season',       emoji: '⏸',  badge: 'text-blue-200   border-blue-500/40   bg-blue-500/10',   glow: 'hover:border-blue-500/30'    },
-  end_season: { heLabel: 'סיום עונה',   enLabel: 'Season Wrap-Up',  emoji: '🏆', badge: 'text-amber-200  border-amber-500/40  bg-amber-500/10',  glow: 'hover:border-amber-500/30'   },
+  mid_season: { heLabel: 'מהלך העונה', enLabel: 'Mid-Season',       emoji: '⏸',  badge: 'text-blue-200   border-blue-500/40   bg-blue-500/10',   glow: 'hover:border-blue-500/30'    },
+  end_season: { heLabel: 'סיום עונה',   enLabel: 'Season Wrap-Up',  emoji: '🏁', badge: 'text-amber-200  border-amber-500/40  bg-amber-500/10',  glow: 'hover:border-amber-500/30'   },
+  playoffs:   { heLabel: 'פלייאוף',     enLabel: 'Playoffs',        emoji: '🏀', badge: 'text-orange-200 border-orange-500/40 bg-orange-500/10', glow: 'hover:border-orange-500/30'  },
+  cup:        { heLabel: 'גביע',         enLabel: 'Cup',             emoji: '🥇', badge: 'text-yellow-200 border-yellow-500/40 bg-yellow-500/10', glow: 'hover:border-yellow-500/30'  },
   custom:     { heLabel: 'סקירה',        enLabel: 'Review',          emoji: '📰', badge: 'text-[#c0d4e8]  border-white/20      bg-white/[0.04]',  glow: 'hover:border-white/[0.15]'   },
-} as const;
+};
 
 /** Strip markdown symbols to produce plain-text excerpt. */
 function plainExcerpt(text: string, max = 180): string {

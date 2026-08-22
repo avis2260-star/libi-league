@@ -48,7 +48,16 @@ export async function POST(req: NextRequest) {
       })
       .select()
       .single();
-    if (error) throw error;
+    if (error) {
+      // review_type CHECK not yet extended (migration 20260822 not applied).
+      if ((error as { code?: string }).code === '23514') {
+        return NextResponse.json(
+          { error: 'סוגי הסקירה החדשים (פלייאוף/גביע) דורשים עדכון בסיס הנתונים — הריצו את המיגרציה 20260822_season_review_tournament_types.sql' },
+          { status: 400 },
+        );
+      }
+      throw error;
+    }
     revalidatePath('/season-review');
     return NextResponse.json({ review: data });
   } catch (err: unknown) {

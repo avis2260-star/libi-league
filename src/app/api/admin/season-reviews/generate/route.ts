@@ -77,6 +77,9 @@ export async function POST(req: NextRequest) {
       { data: playersRaw },
       { data: teamsRaw },
       { data: hofSeasonsRaw },
+      { data: playoffSeriesRaw },
+      { data: playoffGamesRaw },
+      { data: playoffStatsRaw },
     ] = await Promise.all([
       supabaseAdmin
         .from('standings')
@@ -92,7 +95,7 @@ export async function POST(req: NextRequest) {
 
       supabaseAdmin
         .from('cup_games')
-        .select('round, round_order, game_number, home_team, away_team, home_score, away_score, played, date')
+        .select('id, round, round_order, game_number, home_team, away_team, home_score, away_score, played, date')
         .eq('season', dataSeason)
         .order('round_order', { ascending: true })
         .order('game_number', { ascending: true }),
@@ -116,7 +119,34 @@ export async function POST(req: NextRequest) {
         .select('year, champion_name, runner_up_name, cup_holder_name, mvp_name, mvp_stats')
         .order('year', { ascending: false })
         .limit(4),
+
+      // Playoff bracket + games + per-player stats (for the 'playoffs' review).
+      supabaseAdmin
+        .from('playoff_series')
+        .select('series_number, team_a, team_b, team_a_label, team_b_label')
+        .eq('season', dataSeason)
+        .order('series_number', { ascending: true }),
+      supabaseAdmin
+        .from('playoff_games')
+        .select('series_number, game_number, home_score, away_score, played')
+        .eq('season', dataSeason)
+        .order('series_number', { ascending: true })
+        .order('game_number', { ascending: true }),
+      supabaseAdmin
+        .from('playoff_game_stats')
+        .select('player_id, team_id, points, three_pointers')
+        .eq('season', dataSeason),
     ]);
+
+    // Cup box-score scorers — cup_game_stats has no season column, so join via
+    // this season's cup_game ids.
+    const cupGameIds = ((cupGamesRaw ?? []) as { id: string }[]).map((g) => g.id).filter(Boolean);
+    const { data: cupStatsRaw } = cupGameIds.length
+      ? await supabaseAdmin
+          .from('cup_game_stats')
+          .select('player_id, team_id, points, three_pointers')
+          .in('cup_game_id', cupGameIds)
+      : { data: [] as { player_id: string; team_id: string | null; points: number | null; three_pointers: number | null }[] };
 
     // ── Build helper maps ───────────────────────────────────────────────────
     const playerNameById = new Map<string, string>(
@@ -237,11 +267,72 @@ export async function POST(req: NextRequest) {
       (h.mvp_name ? `, MVP ${h.mvp_name}${h.mvp_stats ? ' (' + h.mvp_stats + ')' : ''}` : '')
     ).join('\n');
 
+    // ── Playoff & cup scorers + bracket lines ───────────────────────────────
+    type StatAgg = { player_id: string; team_id: string | null; points: number | null; three_pointers: number | null };
+    function aggScorers(rows: StatAgg[]): ScorerAgg[] {
+      const m = new Map<string, ScorerAgg>();
+      for (const s of rows) {
+        const name = playerNameById.get(s.player_id) ?? '—';
+        const teamName = s.team_id ? (teamNameById.get(s.team_id) ?? '—') : '—';
+        const prev = m.get(s.player_id);
+        if (prev) { prev.points += s.points ?? 0; prev.games += 1; prev.threes += s.three_pointers ?? 0; }
+        else m.set(s.player_id, { name, teamName, points: s.points ?? 0, games: 1, threes: s.three_pointers ?? 0 });
+      }
+      return [...m.values()].sort((a, b) => b.points - a.points).slice(0, 10);
+    }
+    const fmtScorers = (list: ScorerAgg[]) => list.map((sc, i) =>
+      `${i + 1}. ${sc.name} (${sc.teamName}) · ${sc.points} נק' ב-${sc.games} משחקים` +
+      (sc.threes > 0 ? ` · ${sc.threes} שלושות` : '')
+    ).join('\n');
+
+    const playoffScorerLines = fmtScorers(aggScorers((playoffStatsRaw ?? []) as StatAgg[]));
+    const cupScorerLines     = fmtScorers(aggScorers((cupStatsRaw ?? []) as StatAgg[]));
+
+    // Playoff bracket + series winners (final is 1 game, earlier rounds best-of-3).
+    type PSeries = { series_number: number; team_a: string | null; team_b: string | null; team_a_label: string | null; team_b_label: string | null };
+    type PGame = { series_number: number; game_number: number; home_score: number | null; away_score: number | null };
+    const pSeries = (playoffSeriesRaw ?? []) as PSeries[];
+    const pGames  = (playoffGamesRaw ?? []) as PGame[];
+    const stageLabel = (n: number) => n >= 7 ? 'גמר' : n >= 5 ? 'חצי גמר' : 'רבע גמר';
+    const seriesWinnerName = (s: PSeries): string | null => {
+      const need = s.series_number >= 7 ? 1 : 2;
+      let wa = 0, wb = 0;
+      for (const g of pGames) {
+        if (g.series_number !== s.series_number || g.home_score == null || g.away_score == null) continue;
+        const home = g.game_number === 2 ? s.team_b : s.team_a;
+        const homeWon = g.home_score > g.away_score;
+        if ((homeWon && home === s.team_a) || (!homeWon && home !== s.team_a)) wa++; else wb++;
+      }
+      return wa >= need ? s.team_a : wb >= need ? s.team_b : null;
+    };
+    const playoffSeriesLines = pSeries.map((s) => {
+      const gs = pGames.filter((g) => g.series_number === s.series_number && g.home_score != null && g.away_score != null);
+      const scoreStr = gs.map((g) => {
+        const home = g.game_number === 2 ? s.team_b : s.team_a;
+        const away = home === s.team_a ? s.team_b : s.team_a;
+        return `משחק ${g.game_number}: ${home ?? '?'} ${g.home_score}–${g.away_score} ${away ?? '?'}`;
+      }).join('; ');
+      const w = seriesWinnerName(s);
+      const names = `${s.team_a || s.team_a_label || '?'} מול ${s.team_b || s.team_b_label || '?'}`;
+      return `סדרה ${s.series_number} (${stageLabel(s.series_number)}): ${names}` +
+        (scoreStr ? ` — ${scoreStr}` : '') + (w ? ` · מנצחת הסדרה: ${w}` : '');
+    }).join('\n');
+    const playoffChampion = pSeries.filter((s) => s.series_number >= 7).map(seriesWinnerName).find(Boolean) ?? null;
+
+    // Cup champion — winner of the played final ('גמר').
+    const cupFinal = ((cupGamesRaw ?? []) as { round: string; home_team: string; away_team: string; home_score: number | null; away_score: number | null; played: boolean }[])
+      .find((g) => g.round?.includes('גמר') && g.played && g.home_score != null && g.away_score != null);
+    const cupChampion = cupFinal
+      ? (cupFinal.home_score! >= cupFinal.away_score! ? cupFinal.home_team : cupFinal.away_team)
+      : null;
+
     // ── Build the prompt ────────────────────────────────────────────────────
     const typeLabels: Record<string, string> = {
       pre_season: 'סקירת פתיחת עונה',
       mid_season: 'סקירת מחצית עונה',
       end_season: 'סיכום עונה',
+      playoffs:   'סקירת הפלייאוף',
+      cup:        'סקירת הגביע',
       custom:     'סקירה חופשית',
     };
     const typeLabel = typeLabels[reviewType] ?? 'סקירה';
@@ -266,6 +357,16 @@ export async function POST(req: NextRequest) {
       end_season:
         `זוהי סקירת סיום העונה ${targetSeason}. ` +
         `חגוג את האלוף, נתח את עונת השיא והכישלון, הדגש את הנתונים הבולטים ואת מובילי הניקוד, וסיים עם מבט קדימה.`,
+      playoffs:
+        `זוהי סקירת טורניר הפלייאוף של עונת ${targetSeason}. ` +
+        `התמקד אך ורק בפלייאוף: מהלך הסדרות מרבע הגמר ועד הגמר, ההפתעות, הסדרות הצמודות, גיבורי הפלייאוף ומובילי הניקוד בו` +
+        (playoffChampion ? `, וחגוג את האלופה — ${playoffChampion}.` : `, וההכרעות בדרך לתואר.`) +
+        ` אל תכתוב סיכום עונה סדירה — הטבלה משמשת רק כרקע לדירוג המתמודדות.`,
+      cup:
+        `זוהי סקירת טורניר הגביע של עונת ${targetSeason}. ` +
+        `התמקד אך ורק בגביע: הדרך אל הגמר, ההפתעות, משחק הגמר וגיבוריו, ומובילי הניקוד בגביע` +
+        (cupChampion ? `, וחגוג את מחזיקת הגביע — ${cupChampion}.` : `.`) +
+        ` אל תכתוב סיכום ליגה — התמקד בתחרות הגביע בלבד.`,
       custom:
         `זוהי סקירה עיתונאית על עונת ${targetSeason}.` +
         (customNotes ? ` הנחיות ספציפיות מהעורך: ${customNotes}` : ' כתוב סקירה מקיפה ומאוזנת.'),
@@ -311,14 +412,10 @@ export async function POST(req: NextRequest) {
 4. **מובילי הניקוד** — בולטים עם \`-\` לכל שחקן: שם, קבוצה, נקודות
 5. **פסקת סיום** — מסקנה, מה זה אומר לליגה/לעונה הבאה`;
 
-    const prompt = `אתה עיתונאי ספורט ותיק המתמחה בכדורסל ישראלי. ` +
-      `אתה כותב ${focus ? 'כתבת ניתוח על משחק בודד' : typeLabel} עבור ליגת כדורסל קהילתית — בסגנון מקצועי, חי, ומעמיק. ` +
-      `השתמש בנתונים האמיתיים הבאים בלבד — אל תמציא שמות, מספרים או תוצאות.
-
-${toneInstruction}
-${focusSection}
-
-== טבלת הליגה (עונת ${dataSeason}) ==
+    // Data sections included in the prompt — scoped to the review category so
+    // each type is fed only the data relevant to it.
+    const leagueSections =
+`== טבלת הליגה (עונת ${dataSeason}) ==
 ${standingLines || '(אין נתוני טבלה)'}
 
 == מובילי ניקוד (עונת ${dataSeason}) ==
@@ -331,7 +428,38 @@ ${gameResultLines || '(אין תוצאות)'}
 ${cupLines || '(אין נתוני גביע)'}
 
 == רקע היסטורי (עונות אחרונות) ==
-${hofLines || '(אין נתוני היסטוריה)'}
+${hofLines || '(אין נתוני היסטוריה)'}`;
+
+    const playoffSections =
+`== תוצאות הפלייאוף (עונת ${dataSeason}) ==
+${playoffSeriesLines || '(אין נתוני פלייאוף)'}${playoffChampion ? `\n\nאלופת הפלייאוף: ${playoffChampion}` : ''}
+
+== מובילי ניקוד בפלייאוף ==
+${playoffScorerLines || '(אין נתוני ניקוד לפלייאוף)'}
+
+== טבלת העונה הסדירה (דירוג/רקע בלבד) ==
+${standingLines || '(אין נתוני טבלה)'}`;
+
+    const cupSections =
+`== מסלול הגביע (עונת ${dataSeason}) ==
+${cupLines || '(אין נתוני גביע)'}${cupChampion ? `\n\nמחזיקת הגביע: ${cupChampion}` : ''}
+
+== מובילי ניקוד בגביע ==
+${cupScorerLines || '(אין נתוני ניקוד לגביע)'}`;
+
+    const dataSections =
+      reviewType === 'playoffs' ? playoffSections :
+      reviewType === 'cup'      ? cupSections :
+      leagueSections;
+
+    const prompt = `אתה עיתונאי ספורט ותיק המתמחה בכדורסל ישראלי. ` +
+      `אתה כותב ${focus ? 'כתבת ניתוח על משחק בודד' : typeLabel} עבור ליגת כדורסל קהילתית — בסגנון מקצועי, חי, ומעמיק. ` +
+      `השתמש בנתונים האמיתיים הבאים בלבד — אל תמציא שמות, מספרים או תוצאות.
+
+${toneInstruction}
+${focusSection}
+
+${dataSections}
 ${customNotes && reviewType !== 'custom' ? `\n== הנחיות ספציפיות מהעורך ==\n${customNotes}` : ''}
 
 ${structure}
