@@ -172,6 +172,25 @@ export default async function SeriesFlyerPage({
     .filter((g) => g.video_url && !boxScores.some((b) => b.gNum === g.game_number))
     .map((g) => ({ gNum: g.game_number, videoUrl: g.video_url! }));
 
+  /* ── Rosters: players who actually played, per team (union across the series,
+        points summed). Bucketed to team_a / team_b regardless of home/away. ── */
+  type RosterEntry = { name: string; jersey_number: number | null; points: number };
+  function collectRoster(forTeamA: boolean): RosterEntry[] {
+    const byName = new Map<string, RosterEntry>();
+    for (const b of boxScores) {
+      const aIsHome = b.homeName === series.team_a;
+      const players = forTeamA === aIsHome ? b.homePlayers : b.awayPlayers;
+      for (const p of players) {
+        const e = byName.get(p.name);
+        if (e) e.points += p.points;
+        else byName.set(p.name, { name: p.name, jersey_number: p.jersey_number, points: p.points });
+      }
+    }
+    return [...byName.values()].sort((x, y) => y.points - x.points);
+  }
+  const rosterA = collectRoster(true);
+  const rosterB = collectRoster(false);
+
   return (
     <div
       className="flex flex-col items-center px-4 py-6"
@@ -198,6 +217,8 @@ export default async function SeriesFlyerPage({
         games={gameData}
         hasTeams={hasTeams}
         boxScoreGames={boxScores.map((b) => b.gNum)}
+        rosterA={rosterA}
+        rosterB={rosterB}
       />
 
       {boxScores.length > 0 && (
