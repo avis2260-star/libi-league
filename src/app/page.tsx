@@ -1235,12 +1235,10 @@ export default async function HomePage() {
       };
     }
 
-    // Pick the most recent decided. (Most recent wins per user request.)
-    if (cupProps && playoffProps) {
-      return (cupChampion!.decidedAt.getTime() >= playoffChampion!.decidedAt.getTime())
-        ? cupProps : playoffProps;
-    }
-    return cupProps ?? playoffProps;
+    // The playoff/league champion is the season title, so it always wins the
+    // home-page banner over the cup when both are decided. (The cup banner
+    // still shows on its own when there's no playoff champion yet.)
+    return playoffProps ?? cupProps;
   })();
 
   const {
