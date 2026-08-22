@@ -39,6 +39,44 @@ function homeForGame(s: Series, gNum: number) {
 // simply both scores filled in — so scores show even without ticking "shown".
 function isPlayed(g: Game) { return g.played || (g.home_score !== null && g.away_score !== null); }
 
+// One team's roster panel: the players who played, jersey · name · points.
+function RosterPanel({
+  teamName, logo, roster, lang,
+}: {
+  teamName: string;
+  logo?: string;
+  roster: { name: string; jersey_number: number | null; points: number }[];
+  lang: 'he' | 'en';
+}) {
+  return (
+    <div className="rounded-2xl border border-white/[0.08] bg-[#0c1825]/80 p-4 shadow-lg">
+      <div className="mb-3 flex items-center gap-2 border-b border-white/[0.07] pb-2.5">
+        {logo && (
+          <img src={logo} alt="" className="h-8 w-8 shrink-0 rounded-full border border-white/10 object-cover" />
+        )}
+        <p className="min-w-0 break-words text-sm font-black leading-tight text-white font-heading">
+          {displayName(teamName, lang)}
+        </p>
+      </div>
+      {roster.length > 0 ? (
+        <ul className="space-y-1.5">
+          {roster.map((p, i) => (
+            <li key={i} className="flex items-baseline gap-2 text-xs leading-tight">
+              {p.jersey_number != null && (
+                <span className="w-5 shrink-0 text-center font-stats font-black text-orange-400/80">{p.jersey_number}</span>
+              )}
+              <span className="min-w-0 flex-1 break-words font-body text-[#c8d8e8]">{displayName(p.name, lang)}</span>
+              {p.points > 0 && <span className="shrink-0 font-stats tabular-nums text-[#8aaac8]">{p.points}</span>}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="py-2 text-center text-xs text-[#5a7a9a]">{lang === 'en' ? 'No stats recorded' : 'לא הוזנו נתונים'}</p>
+      )}
+    </div>
+  );
+}
+
 export default async function SeriesFlyerPage({
   params,
 }: { params: Promise<{ num: string }> }) {
@@ -204,22 +242,45 @@ export default async function SeriesFlyerPage({
         {lang === 'en' ? '← Back to Playoff' : '← חזרה לפלייאוף'}
       </Link>
 
-      <SeriesFlyerCard
-        roundLabel={roundLabel}
-        seriesNum={seriesNum}
-        teamA={series.team_a || waiting}
-        teamB={series.team_b || waiting}
-        logoA={logoA}
-        logoB={logoB}
-        winsA={winsA}
-        winsB={winsB}
-        winner={winner}
-        games={gameData}
-        hasTeams={hasTeams}
-        boxScoreGames={boxScores.map((b) => b.gNum)}
-        rosterA={rosterA}
-        rosterB={rosterB}
-      />
+      {/* Card flanked by each team's roster in the side gutters (wide screens).
+          rosterA sits beside team A, rosterB beside team B — the flex order
+          matches the card so each roster stays on its team's side in RTL. */}
+      <div className="flex w-full items-start justify-center gap-6">
+        {rosterA.length > 0 && (
+          <div className="hidden w-52 shrink-0 pt-28 xl:block">
+            <RosterPanel teamName={series.team_a} logo={logoA} roster={rosterA} lang={lang as 'he' | 'en'} />
+          </div>
+        )}
+
+        <SeriesFlyerCard
+          roundLabel={roundLabel}
+          seriesNum={seriesNum}
+          teamA={series.team_a || waiting}
+          teamB={series.team_b || waiting}
+          logoA={logoA}
+          logoB={logoB}
+          winsA={winsA}
+          winsB={winsB}
+          winner={winner}
+          games={gameData}
+          hasTeams={hasTeams}
+          boxScoreGames={boxScores.map((b) => b.gNum)}
+        />
+
+        {rosterB.length > 0 && (
+          <div className="hidden w-52 shrink-0 pt-28 xl:block">
+            <RosterPanel teamName={series.team_b} logo={logoB} roster={rosterB} lang={lang as 'he' | 'en'} />
+          </div>
+        )}
+      </div>
+
+      {/* Narrow screens have no room for gutters — stack the rosters below. */}
+      {(rosterA.length > 0 || rosterB.length > 0) && (
+        <div className="mt-6 grid w-full max-w-xl grid-cols-2 gap-3 xl:hidden">
+          <RosterPanel teamName={series.team_a} logo={logoA} roster={rosterA} lang={lang as 'he' | 'en'} />
+          <RosterPanel teamName={series.team_b} logo={logoB} roster={rosterB} lang={lang as 'he' | 'en'} />
+        </div>
+      )}
 
       {boxScores.length > 0 && (
         <div id="box-scores" className="mt-6 w-full max-w-6xl space-y-2">

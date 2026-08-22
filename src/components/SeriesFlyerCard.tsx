@@ -16,12 +16,6 @@ interface GameData {
   time?: string | null;
 }
 
-export interface FlyerRosterPlayer {
-  name: string;
-  jersey_number: number | null;
-  points: number;
-}
-
 interface Props {
   roundLabel: string;
   seriesNum: number;
@@ -36,9 +30,6 @@ interface Props {
   hasTeams: boolean;
   /** game numbers that have a box score on the page (so the card can link to it) */
   boxScoreGames?: number[];
-  /** players who actually played, per team (from the box scores) */
-  rosterA?: FlyerRosterPlayer[];
-  rosterB?: FlyerRosterPlayer[];
 }
 
 export default function SeriesFlyerCard({
@@ -46,8 +37,6 @@ export default function SeriesFlyerCard({
   teamA, teamB, logoA, logoB,
   winsA, winsB, winner, games, hasTeams,
   boxScoreGames = [],
-  rosterA = [],
-  rosterB = [],
 }: Props) {
   const { t, lang } = useLang();
   const waitingLabel = lang === 'en' ? 'TBD' : 'ממתין';
@@ -62,22 +51,6 @@ export default function SeriesFlyerCard({
       window.setTimeout(() => el.classList.remove('animate-stat-flash'), 1400);
     }
   }
-
-  // Players who played, per team — rendered under each side of the matchup.
-  const renderRoster = (roster: FlyerRosterPlayer[]) =>
-    roster.length > 0 ? (
-      <ul className="mt-3 w-full space-y-1 border-t border-white/[0.07] pt-2.5 text-start">
-        {roster.map((p, i) => (
-          <li key={i} className="flex items-baseline gap-1.5 text-[11px] leading-tight">
-            {p.jersey_number != null && (
-              <span className="w-4 shrink-0 text-center font-stats font-black text-orange-400/80">{p.jersey_number}</span>
-            )}
-            <span className="min-w-0 flex-1 break-words font-body text-[#c8d8e8]">{displayName(p.name, lang)}</span>
-            {p.points > 0 && <span className="shrink-0 font-stats tabular-nums text-[#8aaac8]">{p.points}</span>}
-          </li>
-        ))}
-      </ul>
-    ) : null;
 
   return (
     <div
@@ -133,7 +106,7 @@ export default function SeriesFlyerCard({
       </div>
 
       {/* Teams matchup */}
-      <div className="relative px-4 py-5 flex items-start justify-between gap-2 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+      <div className="relative px-4 py-5 flex items-center justify-between gap-2 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
         {/* Team A */}
         <div className="flex-1 flex flex-col items-center gap-2 min-w-0">
           {logoA ? (
@@ -147,11 +120,10 @@ export default function SeriesFlyerCard({
           <p className={`text-xs sm:text-sm font-black text-center leading-tight w-full px-1 font-heading ${winner === teamA ? 'text-orange-400' : 'text-white'}`}>
             {hasTeams ? t(teamA) : waitingLabel}
           </p>
-          {renderRoster(rosterA)}
         </div>
 
         {/* Score */}
-        <div className="flex flex-col items-center gap-1.5 shrink-0 mt-2 sm:mt-3">
+        <div className="flex flex-col items-center gap-1.5 shrink-0">
           <div
             className="flex items-center gap-2 px-3 sm:px-5 py-2 sm:py-3 rounded-2xl"
             style={{
@@ -186,7 +158,6 @@ export default function SeriesFlyerCard({
           <p className={`text-xs sm:text-sm font-black text-center leading-tight w-full px-1 font-heading ${winner === teamB ? 'text-orange-400' : 'text-white'}`}>
             {hasTeams ? t(teamB) : waitingLabel}
           </p>
-          {renderRoster(rosterB)}
         </div>
       </div>
 
