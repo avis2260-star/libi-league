@@ -278,7 +278,7 @@ export const DICT: Record<string, string> = {
   'היכל התהילה': 'Hall of Fame',
   'מורשת הכדורסל של ליגת ליבי': 'The Basketball Legacy of Libi League',
   'אלופת הליגה': 'League Champion',
-  'אלופת הפלייאוף · 2025–2026': 'Playoff Champion · 2025–2026',
+  'מחזיקת הצלחת לשנים 2025–2026': 'Playoff Champion · 2025–2026',
   'מחזיקת הגביע': 'Cup Holder',
   'אלופת הגביע · 2025–2026': 'Cup Champion · 2025–2026',
   'אלופות הליגה': 'League Champions',

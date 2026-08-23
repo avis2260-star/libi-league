@@ -437,7 +437,7 @@ export default async function HallOfFamePage() {
           {leagueChampion && (
             <TrophyCard
               title={T('אלופת הליגה')}
-              subtitle={T('אלופת הפלייאוף · 2025–2026')}
+              subtitle={T('מחזיקת הצלחת לשנים 2025–2026')}
               team={leagueChampion}
               teamLabel={T(leagueChampion)}
               logo={leagueChampionLogo}
