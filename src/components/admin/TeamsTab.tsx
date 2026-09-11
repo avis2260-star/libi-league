@@ -8,7 +8,12 @@ type TeamRow = {
   logo_url: string | null;
   captain_name: string | null;
   contact_info: string | null;
+  division: string | null;
 };
+
+// UI labels for the two standings divisions. The stored value is the English
+// 'North'/'South' that the standings rows and Excel sync use.
+const DIVISION_LABELS: Record<string, string> = { North: 'צפון', South: 'דרום' };
 
 export default function TeamsTab({ teams: initial }: { teams: TeamRow[] }) {
   const [teams, setTeams] = useState<TeamRow[]>(initial);
@@ -20,6 +25,15 @@ export default function TeamsTab({ teams: initial }: { teams: TeamRow[] }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState('');
   const [savingName, setSavingName] = useState(false);
+
+  // Per-team division save state (id currently being saved)
+  const [savingDivision, setSavingDivision] = useState<string | null>(null);
+
+  // Add-team form state
+  const [newName, setNewName] = useState('');
+  const [newDivision, setNewDivision] = useState('');
+  const [newCaptain, setNewCaptain] = useState('');
+  const [adding, setAdding] = useState(false);
 
   function startEditName(team: TeamRow) {
     setEditingId(team.id);
@@ -65,6 +79,66 @@ export default function TeamsTab({ teams: initial }: { teams: TeamRow[] }) {
     }
   }
 
+  async function saveDivision(team: TeamRow, division: string) {
+    const value = division || null;
+    setSavingDivision(team.id);
+    setMsg(null);
+    try {
+      const res = await fetch('/api/admin/teams', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: team.id, division: value }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'שגיאה בעדכון המחוז');
+      setTeams((prev) => prev.map((t) => (t.id === team.id ? { ...t, division: value } : t)));
+      setMsg({
+        ok: true,
+        text: value
+          ? `✅ ${team.name} שויכה למחוז ${DIVISION_LABELS[value]}`
+          : `✅ הוסר שיוך המחוז של ${team.name}`,
+      });
+    } catch (err) {
+      setMsg({ ok: false, text: err instanceof Error ? err.message : 'שגיאה' });
+    } finally {
+      setSavingDivision(null);
+    }
+  }
+
+  async function handleAddTeam(e: React.FormEvent) {
+    e.preventDefault();
+    const name = newName.trim();
+    if (!name) {
+      setMsg({ ok: false, text: 'שם הקבוצה חובה' });
+      return;
+    }
+    setAdding(true);
+    setMsg(null);
+    try {
+      const res = await fetch('/api/admin/teams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          division: newDivision || null,
+          captain_name: newCaptain.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'שגיאה בהוספת הקבוצה');
+
+      setTeams((prev) => [...prev, data.team as TeamRow].sort((a, b) => a.name.localeCompare(b.name, 'he')));
+      setNewName('');
+      setNewDivision('');
+      setNewCaptain('');
+      setMsg({ ok: true, text: `✅ הקבוצה "${data.team.name}" נוספה. אפשר כעת להעלות לוגו ולהוסיף שחקנים.` });
+    } catch (err) {
+      setMsg({ ok: false, text: err instanceof Error ? err.message : 'שגיאה' });
+    } finally {
+      setAdding(false);
+    }
+  }
+
   async function handleLogoUpload(team: TeamRow, file: File) {
     setUploading(team.id);
     setMsg(null);
@@ -102,9 +176,9 @@ export default function TeamsTab({ teams: initial }: { teams: TeamRow[] }) {
         <div className="flex items-center gap-3 mb-1">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="ליגת ליבי" className="h-10 w-10 object-contain rounded-full border border-orange-500/30" />
-          <h2 className="text-xl font-bold text-white">לוגואים של קבוצות · ליגת ליבי</h2>
+          <h2 className="text-xl font-bold text-white">קבוצות · ליגת ליבי</h2>
         </div>
-        <p className="text-sm text-gray-400">העלה לוגו לכל קבוצה · {teams.length} קבוצות</p>
+        <p className="text-sm text-gray-400">הוסף קבוצות, שייך אותן למחוז והעלה לוגו · {teams.length} קבוצות</p>
       </div>
 
       {msg && (
@@ -112,6 +186,56 @@ export default function TeamsTab({ teams: initial }: { teams: TeamRow[] }) {
           {msg.text}
         </div>
       )}
+
+      {/* Add-team form */}
+      <form onSubmit={handleAddTeam} className="rounded-xl border border-gray-700 bg-gray-900/60 p-5 space-y-4">
+        <h3 className="font-semibold text-orange-400">➕ קבוצה חדשה</h3>
+        <p className="text-xs text-gray-500">
+          שם הקבוצה צריך להתאים לשם שמופיע בקובץ ה-Excel (הבדלי מרכאות/מקפים/רווחים מקובלים).
+          בחירת מחוז דרושה כדי שהטבלה של הקבוצה תסונכרן מה-Excel.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="sm:col-span-1">
+            <label className="mb-1 block text-xs text-gray-400">שם הקבוצה *</label>
+            <input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="שם הקבוצה"
+              maxLength={80}
+              required
+              className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-400">מחוז</label>
+            <select
+              value={newDivision}
+              onChange={(e) => setNewDivision(e.target.value)}
+              className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
+            >
+              <option value="">— ללא —</option>
+              <option value="North">צפון</option>
+              <option value="South">דרום</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-400">קפטן (לא חובה)</label>
+            <input
+              value={newCaptain}
+              onChange={(e) => setNewCaptain(e.target.value)}
+              placeholder="שם הקפטן"
+              className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
+            />
+          </div>
+        </div>
+        <button
+          type="submit"
+          disabled={adding || !newName.trim()}
+          className="rounded-lg bg-orange-500 px-5 py-2 text-sm font-bold text-white transition hover:bg-orange-600 disabled:opacity-50"
+        >
+          {adding ? 'מוסיף...' : 'הוסף קבוצה'}
+        </button>
+      </form>
 
       <div className="grid gap-4 sm:grid-cols-2">
         {teams.map((team) => (
@@ -185,6 +309,22 @@ export default function TeamsTab({ teams: initial }: { teams: TeamRow[] }) {
               <p className="text-xs text-gray-500 mb-2">
                 {team.logo_url ? '✅ יש לוגו' : '❌ אין לוגו'}
               </p>
+
+              {/* Division selector */}
+              <div className="mb-2 flex items-center gap-2">
+                <span className="text-xs text-gray-500">מחוז:</span>
+                <select
+                  value={team.division ?? ''}
+                  onChange={(e) => saveDivision(team, e.target.value)}
+                  disabled={savingDivision === team.id}
+                  className="rounded-md border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-white focus:border-orange-500 focus:outline-none disabled:opacity-50"
+                >
+                  <option value="">— ללא —</option>
+                  <option value="North">צפון</option>
+                  <option value="South">דרום</option>
+                </select>
+                {savingDivision === team.id && <span className="text-xs text-gray-500">שומר…</span>}
+              </div>
 
               {/* Hidden file input */}
               <input

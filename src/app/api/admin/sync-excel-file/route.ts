@@ -10,6 +10,7 @@ import {
   parseRoundDates,
   parseResults,
   parseCupGames,
+  mergeDivisionNames,
   type StandingRow,
   type GameResultRow,
   type CupGameRow,
@@ -31,10 +32,18 @@ export async function POST(req: NextRequest) {
     const XLSX = await import('xlsx');
     const wb = XLSX.read(buffer, { type: 'array' });
 
+    // Division rosters come from the DB (teams.division) merged over the
+    // hard-coded fallback, so a team added via the admin is recognised in the
+    // standings sheet without a code change.
+    const { data: teamDivisions } = await supabaseAdmin
+      .from('teams')
+      .select('name, division');
+    const divisions = mergeDivisionNames(teamDivisions ?? []);
+
     // Parse standings
     const standingsSheet = wb.SheetNames.find((n) => n.includes('טבלאות')) ?? wb.SheetNames[0];
     const standingsRows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[standingsSheet], { header: 1 });
-    const { north, south } = parseStandings(standingsRows);
+    const { north, south } = parseStandings(standingsRows, divisions);
 
     // Parse results
     const resultsSheet = wb.SheetNames.find((n) => n.includes('תוצאות'));

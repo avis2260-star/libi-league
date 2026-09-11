@@ -11,6 +11,7 @@ import {
   parseGameStatsSheet,
   parseSummarySheet,
   parseSummaryTeamQuarters,
+  mergeDivisionNames,
   NORTH_NAMES,
   SOUTH_NAMES,
 } from '@/lib/excel-sync-parsers';
@@ -276,6 +277,52 @@ describe('parseStandings', () => {
     ];
     const { north } = parseStandings(rows);
     expect(north[0]).toMatchObject({ games: 0, wins: 0, losses: 0, pf: 0 });
+  });
+
+  it('recognizes a brand-new team when its division is supplied via the divisions arg', () => {
+    const rows: unknown[][] = [
+      [1, 'קבוצה חדשה לגמרי', 14, 9, 5, 0, 0, 0, 0, 0, 23],
+    ];
+    // Without division data the new name is unknown → dropped.
+    expect(parseStandings(rows).north).toHaveLength(0);
+    expect(parseStandings(rows).south).toHaveLength(0);
+
+    // With a division supplied (as the sync route now does) it is recognised.
+    const divisions = mergeDivisionNames([{ name: 'קבוצה חדשה לגמרי', division: 'North' }]);
+    const { north } = parseStandings(rows, divisions);
+    expect(north.map((r) => r.name)).toEqual(['קבוצה חדשה לגמרי']);
+  });
+});
+
+// ===========================================================================
+// mergeDivisionNames
+// ===========================================================================
+
+describe('mergeDivisionNames', () => {
+  it('returns the hard-coded rosters when no teams are supplied', () => {
+    const { north, south } = mergeDivisionNames([]);
+    expect(north).toEqual(expect.arrayContaining(NORTH_NAMES));
+    expect(south).toEqual(expect.arrayContaining(SOUTH_NAMES));
+  });
+
+  it('adds a DB team to its division on top of the fallback', () => {
+    const { north } = mergeDivisionNames([{ name: 'מכבי דוגמה', division: 'North' }]);
+    expect(north).toEqual(expect.arrayContaining([...NORTH_NAMES, 'מכבי דוגמה']));
+  });
+
+  it('ignores teams with no division or a blank name', () => {
+    const before = mergeDivisionNames([]);
+    const after = mergeDivisionNames([
+      { name: 'ללא מחוז', division: null },
+      { name: '', division: 'North' },
+    ]);
+    expect(after.north.sort()).toEqual(before.north.sort());
+    expect(after.south.sort()).toEqual(before.south.sort());
+  });
+
+  it('does not duplicate a team already present in the fallback roster', () => {
+    const { north } = mergeDivisionNames([{ name: 'חולון', division: 'North' }]);
+    expect(north.filter((n) => n === 'חולון')).toHaveLength(1);
   });
 });
 

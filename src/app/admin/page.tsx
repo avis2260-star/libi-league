@@ -86,10 +86,18 @@ export default async function AdminPage({
   }
 
   // Teams tab
-  let teamsForTab: { id: string; name: string; logo_url: string | null; captain_name: string | null; contact_info: string | null }[] = [];
+  let teamsForTab: { id: string; name: string; logo_url: string | null; captain_name: string | null; contact_info: string | null; division: string | null }[] = [];
   if (tab === 'teams') {
-    const { data } = await supabaseAdmin.from('teams').select('id,name,logo_url,captain_name,contact_info').order('name');
+    const { data } = await supabaseAdmin.from('teams').select('id,name,logo_url,captain_name,contact_info,division').order('name');
     teamsForTab = (data ?? []) as typeof teamsForTab;
+  }
+
+  // Excel-sync tab — the client parser recognises standings rows by division,
+  // so hand it each team's division to merge over the hard-coded fallback.
+  let syncTeamDivisions: { name: string; division: string | null }[] = [];
+  if (tab === 'sync') {
+    const { data } = await supabaseAdmin.from('teams').select('name,division').order('name');
+    syncTeamDivisions = (data ?? []) as typeof syncTeamDivisions;
   }
 
   // Seasons tab
@@ -539,7 +547,7 @@ export default async function AdminPage({
       {tab === 'teams'         && <TeamsTab teams={teamsForTab} />}
       {tab === 'boxscore'      && <BoxScoreTab games={games} initialGameId={gameId} />}
       {tab === 'media'         && <MediaTab games={games} />}
-      {tab === 'sync'          && <ExcelSyncTab />}
+      {tab === 'sync'          && <ExcelSyncTab teamDivisions={syncTeamDivisions} />}
       {tab === 'players'       && <PlayersTab teams={teams} players={players} />}
       {tab === 'seasons'       && <SeasonsTab seasons={seasons} />}
       {tab === 'officials'     && <OfficialsTab officials={officials} />}
