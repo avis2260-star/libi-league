@@ -1334,7 +1334,7 @@ export default async function HomePage() {
       homeTeam:     homeName,
       awayTeam:     awayName,
       homeLogo:     logoMap[norm(homeName)] ?? logoMap[norm(home)] ?? null,
-      awayLogo:     logoMap[norm(awayName)] ?? logoMap[norm(away)] ?? null,
+      awayLogo:     logoMap[norm(away)] ?? logoMap[norm(g.awayTeam ?? away)] ?? null,
       homeWins:     g.homeIsTeamA ? g.winsA : g.winsB,
       awayWins:     g.homeIsTeamA ? g.winsB : g.winsA,
       dateLabel,
@@ -1554,8 +1554,12 @@ export default async function HomePage() {
       )}
 
       {/* ── Results block — playoff game results once the season is over,
-             otherwise the last regular-season round ── */}
-      {inPlayoffs ? <PlayoffResults /> : <LastRoundResults />}
+             otherwise the last regular-season round. Skip the playoff-results
+             section when the league (playoff) champion banner above already
+             shows the final result — the two would otherwise repeat it. */}
+      {inPlayoffs
+        ? (championProps?.type === 'league' ? null : <PlayoffResults />)
+        : <LastRoundResults />}
 
       <div>
         <h1 className="text-3xl font-black text-white font-heading">
