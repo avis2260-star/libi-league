@@ -91,12 +91,20 @@ describe('admin playoff GET', () => {
   });
 
   it('returns empty arrays when there is no playoff data', async () => {
+    // GET fans out to six queries in one Promise.all: playoff_series,
+    // playoff_games, standings, teams, players, playoff_game_stats.
     fromMock
-      .mockReturnValueOnce(queryResult({ data: null }))
-      .mockReturnValueOnce(queryResult({ data: null }))
-      .mockReturnValueOnce(queryResult({ data: null }));
+      .mockReturnValueOnce(queryResult({ data: null })) // playoff_series
+      .mockReturnValueOnce(queryResult({ data: null })) // playoff_games
+      .mockReturnValueOnce(queryResult({ data: null })) // standings
+      .mockReturnValueOnce(queryResult({ data: null })) // teams
+      .mockReturnValueOnce(queryResult({ data: null })) // players
+      .mockReturnValueOnce(queryResult({ data: null })); // playoff_game_stats
     const body = await (await playoff.GET()).json();
-    expect(body).toEqual({ series: [], games: [], northTeams: [], southTeams: [] });
+    expect(body).toEqual({
+      series: [], games: [], northTeams: [], southTeams: [],
+      rostersByTeam: {}, stats: [],
+    });
   });
 });
 
@@ -172,13 +180,14 @@ describe('sync-logs POST (rollback)', () => {
       .mockReturnValueOnce(queryResult({ error: null }))            // insert standings
       .mockReturnValueOnce(queryResult({ error: null }))            // delete results
       .mockReturnValueOnce(queryResult({ error: null }))            // insert results
+      .mockReturnValueOnce(queryResult({ data: null, error: null })) // fetch cup snapshot (null → cup restore skipped)
       .mockReturnValueOnce(queryResult({ error: null }));           // mark rolled back
 
     const res = await syncLogs.POST(postJson({ action: 'rollback', id: 'l1' }));
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ success: true });
-    expect(fromMock).toHaveBeenCalledTimes(6);
+    expect(fromMock).toHaveBeenCalledTimes(7);
   });
 
   it('returns 500 when restoring throws', async () => {

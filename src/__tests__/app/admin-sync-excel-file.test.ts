@@ -100,12 +100,19 @@ describe('sync-excel-file POST', () => {
   it('returns 500 when the standings delete fails', async () => {
     const file = xlsxFile({ 'טבלאות': [[1, 'חולון', 14, 10, 4, 360, 300, 60, 0, 0, 24]] });
 
-    // round_dates upsert (skipped: no results), then Promise.all snapshot (2),
-    // then standings DELETE — make the DELETE fail.
+    // Call order before the standings DELETE: teams division lookup (1),
+    // Promise.all snapshots standings + results (2-3), cup snapshots
+    // cup_games/cup_game_stats/match_previews (4-6), then the standings
+    // DELETE (7) — make that one fail. (round_dates upsert is skipped: no
+    // results sheet.)
     fromMock
-      .mockReturnValueOnce(queryResult({ data: [], error: null }))  // snapshot standings
-      .mockReturnValueOnce(queryResult({ data: [], error: null }))  // snapshot results
-      .mockReturnValueOnce(queryResult({ error: { message: 'delete blew up' } })); // standings delete
+      .mockReturnValueOnce(queryResult({ data: [], error: null }))  // 1 teams (division lookup)
+      .mockReturnValueOnce(queryResult({ data: [], error: null }))  // 2 snapshot standings
+      .mockReturnValueOnce(queryResult({ data: [], error: null }))  // 3 snapshot results
+      .mockReturnValueOnce(queryResult({ data: [], error: null }))  // 4 snapshot cup_games
+      .mockReturnValueOnce(queryResult({ data: [], error: null }))  // 5 snapshot cup_game_stats
+      .mockReturnValueOnce(queryResult({ data: [], error: null }))  // 6 snapshot match_previews
+      .mockReturnValueOnce(queryResult({ error: { message: 'delete blew up' } })); // 7 standings delete
 
     const res = await POST(mockFileReq(file));
     expect(res.status).toBe(500);

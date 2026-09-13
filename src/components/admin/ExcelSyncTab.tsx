@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { mergeDivisionNames } from '@/lib/excel-sync-parsers';
 
 type StandingRow = {
   rank: number;
@@ -36,23 +37,13 @@ type Preview = {
 
 // ── Standings parser ────────────────────────────────────────────────────────
 
-// Canonical team rosters per division. These lists drive recognition of
-// standings rows in the Excel — if a cell value matches (loosely) one of
-// these names, the row is treated as a standings row. The match is
-// substring-tolerant in both directions, so when a team is renamed in
-// libi.xlsx to a name that still contains the old name (e.g. "אדיס אשדוד"
-// → "שועלי אדיס אשדוד") it is still picked up without a code change.
-// Same goes for the reverse — keeping "אדיס אשדוד" here would also match
-// "שועלי אדיס אשדוד" via substring.
-const NORTH_NAMES = [
-  'ידרסל חדרה', 'חולון', 'בני נתניה', 'גוטלמן השרון',
-  'בני מוצקין', 'כ.ע. בת-ים', 'גלי בת-ים',
-];
-const SOUTH_NAMES = [
-  'ראשון "גפן" לציון', 'אחים קריית משה', 'קריית מלאכי',
-  'אוריה ירושלים', 'אופק רחובות', 'אריות קריית גת',
-  'שועלי אדיס אשדוד', "החבר'ה הטובים גדרה",
-];
+// The North/South rosters that drive recognition of standings rows come from
+// mergeDivisionNames(teamDivisions) at call time — the hard-coded fallback in
+// the shared lib merged with every team that has a `division` set in the DB —
+// so a team added via the admin is recognised without a code change. The match
+// is substring-tolerant in both directions, so a renamed team in libi.xlsx
+// that still contains the old name (e.g. "אדיס אשדוד" → "שועלי אדיס אשדוד")
+// is still picked up.
 
 function normTeam(s: string): string {
   return s.replace(/["""''`״׳]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -70,15 +61,19 @@ function loosely(list: string[], cell: string): boolean {
   return false;
 }
 
-function parseStandings(rows: unknown[][]): { north: StandingRow[]; south: StandingRow[] } {
+function parseStandings(
+  rows: unknown[][],
+  northNames: string[],
+  southNames: string[],
+): { north: StandingRow[]; south: StandingRow[] } {
   const north: StandingRow[] = [];
   const south: StandingRow[] = [];
 
   for (const row of rows) {
     for (let i = 0; i < row.length; i++) {
       const cell = String(row[i] ?? '').trim();
-      const inNorth = loosely(NORTH_NAMES, cell);
-      const inSouth = loosely(SOUTH_NAMES, cell);
+      const inNorth = loosely(northNames, cell);
+      const inSouth = loosely(southNames, cell);
       if (!inNorth && !inSouth) continue;
 
       const nums = (row.slice(i + 1) as unknown[])
@@ -206,7 +201,11 @@ function PreviewTable({ rows, title }: { rows: StandingRow[]; title: string }) {
 
 // ── Main component ───────────────────────────────────────────────────────────
 
-export default function ExcelSyncTab() {
+export default function ExcelSyncTab({
+  teamDivisions = [],
+}: {
+  teamDivisions?: { name: string; division: string | null }[];
+}) {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -225,10 +224,13 @@ export default function ExcelSyncTab() {
       const buffer = await file.arrayBuffer();
       const wb = XLSX.read(buffer, { type: 'array' });
 
-      // Parse standings from טבלאות sheet
+      // Parse standings from טבלאות sheet. Division rosters = hard-coded
+      // fallback merged with the DB `division` values, so a team added in the
+      // admin is recognised here without a code change.
+      const { north: northNames, south: southNames } = mergeDivisionNames(teamDivisions);
       const standingsSheet = wb.SheetNames.find((n) => n.includes('טבלאות')) ?? wb.SheetNames[0];
       const standingsRows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[standingsSheet], { header: 1 });
-      const { north, south } = parseStandings(standingsRows);
+      const { north, south } = parseStandings(standingsRows, northNames, southNames);
 
       // Parse game results from תוצאות sheet
       const resultsSheet = wb.SheetNames.find((n) => n.includes('תוצאות'));

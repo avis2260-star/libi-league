@@ -92,6 +92,26 @@ export const SOUTH_NAMES: string[] = [
 ];
 
 /**
+ * Merge the hard-coded division rosters with the `division` values stored on
+ * the teams table. The constants act as a permanent fallback base (so the
+ * original teams can never drop out of the standings), while any team that has
+ * a `division` set in the DB is layered on top — which is how a newly added
+ * team gets recognised without a code change.
+ */
+export function mergeDivisionNames(
+  teams: { name: string; division?: string | null }[],
+): DivisionNames {
+  const north = new Set(NORTH_NAMES);
+  const south = new Set(SOUTH_NAMES);
+  for (const t of teams) {
+    if (!t.name) continue;
+    if (t.division === 'North') north.add(t.name);
+    else if (t.division === 'South') south.add(t.name);
+  }
+  return { north: [...north], south: [...south] };
+}
+
+/**
  * Substring-tolerant membership check.
  * Returns true if `cell` matches any entry in `list` after normalisation,
  * allowing one string to be a substring of the other.  Used for standings
@@ -148,8 +168,17 @@ export type CupGameRow = {
  *   • cells after it  → numeric stats (games, wins, losses, pf, pa, diff,
  *                        techni, penalty, pts)
  */
+/**
+ * Team-name lists that drive North/South recognition. Defaults to the
+ * hard-coded rosters, but callers (the Excel sync route) pass DB-derived
+ * lists — the hard-coded names merged with every team that has a `division`
+ * set — so a newly added team is recognised without a code change.
+ */
+export type DivisionNames = { north: string[]; south: string[] };
+
 export function parseStandings(
   rows: unknown[][],
+  divisions: DivisionNames = { north: NORTH_NAMES, south: SOUTH_NAMES },
 ): { north: StandingRow[]; south: StandingRow[] } {
   const north: StandingRow[] = [];
   const south: StandingRow[] = [];
@@ -157,8 +186,8 @@ export function parseStandings(
   for (const row of rows) {
     for (let i = 0; i < row.length; i++) {
       const cell = String(row[i] ?? '').trim();
-      const inNorth = looselyInList(NORTH_NAMES, cell);
-      const inSouth = looselyInList(SOUTH_NAMES, cell);
+      const inNorth = looselyInList(divisions.north, cell);
+      const inSouth = looselyInList(divisions.south, cell);
       if (!inNorth && !inSouth) continue;
 
       const nums = (row.slice(i + 1) as unknown[]).map(
