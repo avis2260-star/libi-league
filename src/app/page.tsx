@@ -1334,7 +1334,7 @@ export default async function HomePage() {
       homeTeam:     homeName,
       awayTeam:     awayName,
       homeLogo:     logoMap[norm(homeName)] ?? logoMap[norm(home)] ?? null,
-      awayLogo:     logoMap[norm(away)] ?? logoMap[norm(g.awayTeam ?? away)] ?? null,
+      awayLogo:     logoMap[norm(awayName)] ?? logoMap[norm(away)] ?? null,
       homeWins:     g.homeIsTeamA ? g.winsA : g.winsB,
       awayWins:     g.homeIsTeamA ? g.winsB : g.winsA,
       dateLabel,
