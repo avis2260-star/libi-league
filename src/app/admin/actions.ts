@@ -226,12 +226,15 @@ export async function resetSeason(opts: ResetSeasonOptions): Promise<ResetSeason
   const season = await getCurrentSeason();
 
   if (opts.resetGames) {
+    // games.home_score/away_score are NOT NULL (default 0) and the "played"
+    // state lives in `status`, not a `played` column — so reset to 0/0 and
+    // mark the games Scheduled again.
     const { error } = await supabaseAdmin
       .from('games')
       .update({
-        home_score: null,
-        away_score: null,
-        played: false,
+        home_score: 0,
+        away_score: 0,
+        status: 'Scheduled' as GameStatus,
         game_time: '00:00:00',
         location: 'TBD',
       })
@@ -250,15 +253,22 @@ export async function resetSeason(opts: ResetSeasonOptions): Promise<ResetSeason
   }
 
   if (opts.resetStandings) {
+    // Real standings columns are games/wins/losses/pf/pa/diff/techni/penalty/pts
+    // (there is no points_for/points_against/draws) — zero every numeric stat.
     const { error } = await supabaseAdmin
       .from('standings')
-      .update({ wins: 0, losses: 0, points_for: 0, points_against: 0, draws: 0 })
+      .update({ games: 0, wins: 0, losses: 0, pf: 0, pa: 0, diff: 0, techni: 0, penalty: 0, pts: 0 })
       .eq('season', season);
     if (error) return { error: `שגיאה באיפוס טבלה: ${error.message}`, done };
     done.push('טבלת הליגה אופסה');
   }
 
   if (opts.resetPlayoff) {
+    // Best-effort: remove per-game playoff stats first so nothing is orphaned
+    // when the games/series rows go (a missing table in an older deployment is
+    // ignored rather than aborting the whole reset).
+    await supabaseAdmin.from('playoff_game_stats').delete().eq('season', season);
+
     const { error: e1 } = await supabaseAdmin
       .from('playoff_games')
       .delete()
