@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getPlayersByTeam, getTeams } from '@/lib/supabase';
 import { getLang, st } from '@/lib/get-lang';
+import { getCurrentSeason } from '@/lib/current-season';
 import { displayName } from '@/lib/names';
 import type { Player, Team } from '@/types';
 import TeamLogoZoom from '@/components/TeamLogoZoom';
@@ -35,7 +36,7 @@ function staffRank(role: string | null | undefined): number {
 
 // ── Trading Card ──────────────────────────────────────────────────────────────
 
-function PlayerCard({ player, T, en }: { player: Player & { team?: Team }; T: (he: string) => string; en: boolean }) {
+function PlayerCard({ player, T, en, season }: { player: Player & { team?: Team }; T: (he: string) => string; en: boolean; season: string }) {
   const POSITION_LABELS = en ? POSITION_LABELS_EN : POSITION_LABELS_HE;
   const STAFF_INFO = en ? STAFF_INFO_EN : STAFF_INFO_HE;
   const position = player.position ? POSITION_LABELS[player.position] ?? player.position : null;
@@ -59,7 +60,7 @@ function PlayerCard({ player, T, en }: { player: Player & { team?: Team }; T: (h
 
         {/* Top banner with team name */}
         <div className="relative bg-gradient-to-l from-orange-600 to-orange-800 px-4 py-2">
-          <p className="text-[10px] font-black uppercase tracking-widest text-white/80">{en ? 'LIBI LEAGUE · 2025–2026 SEASON' : 'ליגת ליבי · עונת 2025–2026'}</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-white/80">{en ? `LIBI LEAGUE · ${season} SEASON` : `ליגת ליבי · עונת ${season}`}</p>
           <p className="break-words text-xs font-bold text-white">{teamName}</p>
           {/* Jersey number badge */}
           {player.jersey_number != null && (
@@ -144,10 +145,11 @@ function PlayerCard({ player, T, en }: { player: Player & { team?: Team }; T: (h
 
 export default async function TeamPlayersPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [players, teams, lang] = await Promise.all([
+  const [players, teams, lang, season] = await Promise.all([
     getPlayersByTeam(id),
     getTeams(),
     getLang(),
+    getCurrentSeason(),
   ]);
   const T = (he: string) => st(he, lang);
   const en = lang === 'en';
@@ -168,7 +170,7 @@ export default async function TeamPlayersPage({ params }: { params: Promise<{ id
         <h1 className="text-3xl font-black text-white">{translatedTeamName}</h1>
         <p className="mt-1 text-sm text-[#5a7a9a]">
           {players.length > 0
-            ? (en ? `${players.length} registered players · 2025–2026 season` : `${players.length} שחקנים רשומים · עונת 2025–2026`)
+            ? (en ? `${players.length} registered players · ${season} season` : `${players.length} שחקנים רשומים · עונת ${season}`)
             : (en ? 'No players registered yet' : 'אין שחקנים רשומים עדיין')}
         </p>
       </div>
@@ -224,7 +226,7 @@ export default async function TeamPlayersPage({ params }: { params: Promise<{ id
               return a.name.localeCompare(b.name, 'he');
             })
             .map((player) => (
-              <PlayerCard key={player.id} player={player} T={T} en={en} />
+              <PlayerCard key={player.id} player={player} T={T} en={en} season={season} />
             ))}
         </div>
       )}

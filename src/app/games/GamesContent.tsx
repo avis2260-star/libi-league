@@ -102,12 +102,14 @@ export default function GamesContent({
   closeGames = [],
   roundDates = {},
   displayNames = {},
+  season,
 }: {
   currentRound: number;
   logos: Record<string, string>;
   closeGames?: CloseGame[];
   roundDates?: Record<number, string>;
   displayNames?: Record<string, string>;
+  season: string;
 }) {
   const { t, lang } = useLang();
   const DATES = { ...ALL_ROUND_DATES, ...roundDates };
@@ -145,7 +147,7 @@ export default function GamesContent({
             : <><span className="text-white">לוח </span><span className="text-orange-500">המשחקים</span></>
           }
         </h1>
-        <p className="mt-1 text-sm text-[#5a7a9a]">{lang === 'en' ? 'Rounds 1–14 · Season 2025–2026' : 'מחזורים 1–14 · עונת 2025–2026'}</p>
+        <p className="mt-1 text-sm text-[#5a7a9a]">{lang === 'en' ? `Rounds 1–14 · Season ${season}` : `מחזורים 1–14 · עונת ${season}`}</p>
       </div>
 
       {/* Filter tabs — hidden when showing close games view */}

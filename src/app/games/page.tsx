@@ -112,6 +112,7 @@ export default async function GamesPage({
         closeGames={closeGamesResolved}
         roundDates={roundDatesData}
         displayNames={displayNames}
+        season={viewing}
       />
     </Suspense>
   );

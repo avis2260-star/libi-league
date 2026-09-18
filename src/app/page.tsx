@@ -1567,8 +1567,8 @@ export default async function HomePage() {
         </h1>
         <p className="mt-1 text-sm font-bold text-[#8aaac8] font-body">
           {inPlayoffs
-            ? `${lang === 'en' ? 'Season 2025–2026' : 'עונת 2025–2026'} · ${playoffStageLabel}`
-            : (lang === 'en' ? `Season 2025–2026 · Through Round ${currentRound}` : `עונת 2025–2026 · עד מחזור ${currentRound}`)}
+            ? `${lang === 'en' ? `Season ${season}` : `עונת ${season}`} · ${playoffStageLabel}`
+            : (lang === 'en' ? `Season ${season} · Through Round ${currentRound}` : `עונת ${season} · עד מחזור ${currentRound}`)}
         </p>
       </div>
 

@@ -192,7 +192,7 @@ export default async function TeamsPage() {
       {/* Page title */}
       <div>
         <h1 className="text-3xl font-black text-white font-heading">{T('קבוצות')}</h1>
-        <p className="mt-1 text-sm font-bold text-[#8aaac8] font-body"><span className="font-stats">{teams.length}</span> {T('קבוצות ')}· {T('עונת 2025–2026')}</p>
+        <p className="mt-1 text-sm font-bold text-[#8aaac8] font-body"><span className="font-stats">{teams.length}</span> {T('קבוצות ')}· {lang === 'en' ? `Season ${season}` : `עונת ${season}`}</p>
       </div>
 
       {teams.length === 0 ? (
