@@ -341,6 +341,10 @@ function StartNewSeasonPanel() {
   const [step, setStep]         = useState<0 | 1>(0);
   const [running, setRunning]   = useState(false);
   const [msg, setMsg]           = useState<{ ok: boolean; text: string } | null>(null);
+  // When on, any rows already tagged with the NEW season are wiped so it starts
+  // empty (the archive of the old season is never touched). Default on — that's
+  // what "start a new season" usually means.
+  const [clearData, setClearData] = useState(true);
 
   // Read the active season once on mount so the admin sees what they're
   // bumping FROM. After a successful bump we update both `current` and
@@ -396,14 +400,18 @@ function StartNewSeasonPanel() {
     setRunning(true);
     setMsg(null);
     try {
-      const res = await startNewSeason(target);
+      const res = await startNewSeason(target, clearData);
       if (res.error) {
         setMsg({ ok: false, text: res.error });
         setStep(0);
       } else {
         setCurrent(res.current ?? target);
         setNext(suggestNext(res.current ?? target));
-        setMsg({ ok: true, text: `✅ העונה הנוכחית עודכנה ל-"${res.current}" (קודם: "${res.previous}")` });
+        setMsg({
+          ok: true,
+          text: `✅ העונה הנוכחית עודכנה ל-"${res.current}" (קודם: "${res.previous}")`
+            + (res.cleared ? ' · נתוני העונה החדשה רוקנו' : ''),
+        });
         setStep(0);
       }
     } catch (e: unknown) {
@@ -421,8 +429,8 @@ function StartNewSeasonPanel() {
       <div>
         <h3 className="font-bold text-orange-300 text-base">📅 התחל עונה חדשה</h3>
         <p className="text-xs text-gray-400 mt-0.5">
-          מסמן עונה חדשה כעונה הפעילה. כל הנתונים הקודמים נשמרים תחת תגית העונה הישנה ונותרים נגישים לארכיון —
-          שום דבר לא נמחק ושום שורה לא נכתבת מחדש.
+          מסמן עונה חדשה כעונה הפעילה. כל נתוני העונות הקודמות נשמרים תחת תגית העונה שלהם ונותרים נגישים לארכיון.
+          כברירת מחדל העונה החדשה מתחילה ריקה (אפשר לבטל זאת במסך האישור).
         </p>
       </div>
 
@@ -484,10 +492,31 @@ function StartNewSeasonPanel() {
               <ul className="text-xs text-amber-100/90 space-y-1">
                 <li>• האתר הציבורי וכל לשוניות הניהול יתחילו להציג רק עונת <span dir="ltr" className="font-mono">{target}</span></li>
                 <li>• מובילי הקליעה והסטטיסטיקות של שחקנים <strong>יאופסו ל-0</strong> (יעודכנו מחדש כאשר תיכנס סטטיסטיקה לעונה החדשה)</li>
+                {clearData && (
+                  <li>• נתונים שכבר מתויגים לעונת <span dir="ltr" className="font-mono">{target}</span> (טבלאות, משחקים, תוצאות, סטטיסטיקות, פלייאוף) <strong className="text-red-300">יימחקו</strong> כדי שהעונה תתחיל ריקה</li>
+                )}
                 <li>• הנתונים הישנים נגישים דרך בורר העונה (ארכיון) בכל עמוד</li>
               </ul>
             </div>
           </div>
+
+          {/* Opt-in: wipe the NEW season so it starts empty (archive untouched) */}
+          <label className="flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-black/20 p-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={clearData}
+              onChange={e => setClearData(e.target.checked)}
+              disabled={running}
+              className="mt-0.5 h-4 w-4 accent-orange-500 cursor-pointer"
+            />
+            <span className="text-xs">
+              <span className="font-bold text-amber-200">🧹 התחל את העונה החדשה ריקה</span>
+              <span className="block text-amber-100/80">
+                מוחק כל נתון שכבר קיים תחת עונת <span dir="ltr" className="font-mono">{target}</span> בלבד — טבלאות, משחקים, תוצאות,
+                סטטיסטיקות פר-משחק ופלייאוף. עונות קודמות, קבוצות ושחקנים נשמרים. בטל סימון כדי רק להחליף עונה מבלי למחוק.
+              </span>
+            </span>
+          </label>
 
           <div className="flex items-center gap-2 pt-1">
             <button

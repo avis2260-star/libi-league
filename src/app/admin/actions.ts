@@ -280,14 +280,19 @@ export async function resetSeason(opts: ResetSeasonOptions): Promise<ResetSeason
   return { done };
 }
 
-// ── Start a new season (non-destructive) ─────────────────────────────────────
-// Just bumps the `current_season` value in league_settings. Old rows stay
-// untouched in every operational table; every list query just stops showing
-// them because it filters on the new current_season value.
+// ── Start a new season ────────────────────────────────────────────────────────
+// Bumps the `current_season` value in league_settings. Old rows stay untouched
+// in every operational table; every list query just stops showing them because
+// it filters on the new current_season value.
+//
+// When `clearData` is true, any operational rows ALREADY tagged with the NEW
+// season are also deleted so the season starts genuinely empty (useful when a
+// prior Excel sync or manual entry populated that season tag). Only the NEW
+// season is touched — archived seasons, teams and players are never affected.
 
-export type StartSeasonResult = { error?: string; previous?: string; current?: string };
+export type StartSeasonResult = { error?: string; previous?: string; current?: string; cleared?: boolean };
 
-export async function startNewSeason(nextSeason: string): Promise<StartSeasonResult> {
+export async function startNewSeason(nextSeason: string, clearData = false): Promise<StartSeasonResult> {
   await assertAdmin();
   const trimmed = nextSeason.trim();
   // Accept the common Hebrew league format "YYYY-YYYY" (e.g. "2026-2027").
@@ -309,6 +314,22 @@ export async function startNewSeason(nextSeason: string): Promise<StartSeasonRes
   if (error) return { error: error.message };
 
   clearCurrentSeasonCache();
+
+  // Optionally empty the new season so it starts fresh. Scoped to `trimmed`
+  // (the new season) ONLY — the previous season's archive is left intact.
+  // Child rows first (game_stats, submissions, playoff stats) so no foreign
+  // key is orphaned when the parent games/series rows are removed. Best-effort:
+  // a missing table in a partial deployment is logged and skipped, never fatal.
+  if (clearData) {
+    const tables = [
+      'game_stats', 'game_submissions', 'game_results', 'standings', 'games',
+      'playoff_game_stats', 'playoff_games', 'playoff_series',
+    ];
+    for (const table of tables) {
+      const { error: delErr } = await supabaseAdmin.from(table).delete().eq('season', trimmed);
+      if (delErr) console.error(`[startNewSeason] clear ${table} failed:`, delErr.message);
+    }
+  }
 
   // players.points / three_pointers / fouls are cached current-season totals
   // (the public scorers / homepage leaderboard reads them directly). The
@@ -338,7 +359,7 @@ export async function startNewSeason(nextSeason: string): Promise<StartSeasonRes
   revalidatePath('/submit');
   revalidatePath('/players');
 
-  return { previous, current: trimmed };
+  return { previous, current: trimmed, cleared: clearData };
 }
 
 // ── Video URL ─────────────────────────────────────────────────────────────────

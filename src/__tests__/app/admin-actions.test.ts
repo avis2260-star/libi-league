@@ -196,6 +196,23 @@ describe('startNewSeason', () => {
     const res = await startNewSeason('2026-2027');
     expect(res).toEqual({ error: 'upsert failed' });
   });
+
+  it('does not clear operational tables by default', async () => {
+    fromMock.mockReturnValue(queryResult({ data: [], error: null }));
+    const res = await startNewSeason('2026-2027');
+    expect(res).toMatchObject({ cleared: false });
+    expect(fromMock).not.toHaveBeenCalledWith('standings');
+    expect(fromMock).not.toHaveBeenCalledWith('games');
+  });
+
+  it('wipes the new season\'s operational tables when clearData is true', async () => {
+    fromMock.mockReturnValue(queryResult({ data: [], error: null }));
+    const res = await startNewSeason('2026-2027', true);
+    expect(res).toMatchObject({ previous: '2024-2025', current: '2026-2027', cleared: true });
+    for (const t of ['game_stats', 'game_results', 'standings', 'games', 'playoff_game_stats', 'playoff_games', 'playoff_series']) {
+      expect(fromMock).toHaveBeenCalledWith(t);
+    }
+  });
 });
 
 // ===========================================================================
