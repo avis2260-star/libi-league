@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { resetSeason, startNewSeason } from '@/app/admin/actions';
+import { resetSeason, startNewSeason, seedStandingsAtZero } from '@/app/admin/actions';
 
 type Season = {
   id: string;
@@ -326,8 +326,65 @@ export default function SeasonsTab({ seasons: initial }: { seasons: Season[] }) 
       {/* ── Non-destructive new-season bump ── */}
       <StartNewSeasonPanel />
 
+      {/* ── Seed the standings table at 0 for the current season ── */}
+      <SeedStandingsPanel />
+
       {/* ── Reset Season (destructive — only when you really mean it) ── */}
       <ResetSeasonPanel />
+    </div>
+  );
+}
+
+/* ── Seed Standings Panel ───────────────────────────────────────────────────── */
+function SeedStandingsPanel() {
+  const [running, setRunning] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function handleSeed() {
+    setRunning(true);
+    setMsg(null);
+    try {
+      const res = await seedStandingsAtZero();
+      if (res.error) {
+        setMsg({ ok: false, text: res.error });
+      } else {
+        const inserted = res.inserted ?? 0;
+        const skipped = res.skipped ?? 0;
+        setMsg({
+          ok: true,
+          text: inserted > 0
+            ? `✅ נוספו ${inserted} קבוצות לטבלה עם 0 נקודות` + (skipped > 0 ? ` · ${skipped} כבר היו קיימות` : '')
+            : `כל הקבוצות כבר בטבלה (${skipped}) — לא נוסף דבר`,
+        });
+      }
+    } catch (e: unknown) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : 'שגיאה' });
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-emerald-700/50 bg-emerald-950/20 p-5 space-y-3">
+      <div>
+        <h3 className="font-bold text-emerald-300 text-base">📊 אתחל טבלה עם אפסים</h3>
+        <p className="text-xs text-gray-400 mt-0.5">
+          יוצר שורת טבלה עם 0 נקודות לכל קבוצה (לפי המחוז שלה) בעונה הנוכחית, כדי שכל הקבוצות יופיעו בטבלה
+          עוד לפני שהוזנו תוצאות. אינו דורס שורות קיימות — רק משלים קבוצות חסרות. קבוצה ללא מחוז מדולגת.
+        </p>
+      </div>
+      {msg && (
+        <p className={`rounded-lg px-3 py-2 text-sm font-medium ${msg.ok ? 'bg-green-900/40 text-green-300' : 'bg-red-900/40 text-red-300'}`}>
+          {msg.text}
+        </p>
+      )}
+      <button
+        onClick={handleSeed}
+        disabled={running}
+        className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+      >
+        {running ? 'מאתחל...' : '📊 אתחל טבלה עם אפסים'}
+      </button>
     </div>
   );
 }

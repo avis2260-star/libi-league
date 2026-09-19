@@ -2,8 +2,8 @@ export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { NORTH_TABLE, SOUTH_TABLE, CURRENT_ROUND, TOTAL_ROUNDS } from '@/lib/league-data';
-import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
+import { TOTAL_ROUNDS } from '@/lib/league-data';
+import { getSeasonSchedule } from '@/lib/season-schedule';
 import { getTeams } from '@/lib/supabase';
 import ScoreboardStrip from '@/components/ScoreboardStrip';
 import PlayoffScoreboardStrip, { type PlayoffStripGame } from '@/components/PlayoffScoreboardStrip';
@@ -400,22 +400,45 @@ async function getTickerSpeed(): Promise<number> {
   }
 }
 
-async function getLiveData(season: string) {
+type LiveData = {
+  northLeader: Standing | null;
+  southLeader: Standing | null;
+  southTopScorer: Standing | null;
+  northTopScorer: Standing | null;
+  gamesPlayed: number;
+  currentRound: number;
+  highScore: { score: number; team: string; opp: string; round: number; date: string };
+  highCombined: { sh: number; sa: number; home: string; away: string; round: number; date: string };
+  biggestWin: { sh: number; sa: number; home: string; away: string; round: number; date: string };
+  closestCount: number;
+};
+
+// Honest empty state for a season with no data yet (or a DB read error). We
+// NEVER fabricate leaders/records here — a freshly-started season shows zeros
+// and hides the leader/record cards rather than last season's numbers.
+const EMPTY_LIVE_DATA: LiveData = {
+  northLeader: null, southLeader: null, southTopScorer: null, northTopScorer: null,
+  gamesPlayed: 0, currentRound: 0,
+  highScore:    { score: 0, team: '', opp: '', round: 0, date: '' },
+  highCombined: { sh: 0, sa: 0, home: '', away: '', round: 0, date: '' },
+  biggestWin:   { sh: 0, sa: 0, home: '', away: '', round: 0, date: '' },
+  closestCount: 0,
+};
+
+async function getLiveData(season: string): Promise<LiveData> {
   try {
     const [{ data: standings }, { data: results }] = await Promise.all([
       supabaseAdmin.from('standings').select('rank,name,wins,losses,pts,pf,division').eq('season', season).order('rank'),
       supabaseAdmin.from('game_results').select('round,date,home_team,away_team,home_score,away_score,techni').eq('season', season).order('round'),
     ]);
 
-    if (!standings || standings.length === 0) throw new Error('no standings');
-
-    const north = (standings as Standing[]).filter((s) => s.division === 'North');
-    const south = (standings as Standing[]).filter((s) => s.division === 'South');
-    const northLeader = north[0] ?? NORTH_TABLE[0];
-    const southLeader = south[0] ?? SOUTH_TABLE[0];
+    const north = (standings as Standing[] ?? []).filter((s) => s.division === 'North');
+    const south = (standings as Standing[] ?? []).filter((s) => s.division === 'South');
+    const northLeader = north[0] ?? null;
+    const southLeader = south[0] ?? null;
     // Top "basket scorer" team per division — highest accumulated points-for (pf)
-    const southTopScorer = [...south].sort((a, b) => (b.pf ?? 0) - (a.pf ?? 0))[0] ?? SOUTH_TABLE[0];
-    const northTopScorer = [...north].sort((a, b) => (b.pf ?? 0) - (a.pf ?? 0))[0] ?? NORTH_TABLE[0];
+    const southTopScorer = [...south].sort((a, b) => (b.pf ?? 0) - (a.pf ?? 0))[0] ?? null;
+    const northTopScorer = [...north].sort((a, b) => (b.pf ?? 0) - (a.pf ?? 0))[0] ?? null;
 
     const games = (results ?? []) as GameRow[];
     // Flag OR forfeit score (20:0) — a forfeit the sheet forgot to flag must
@@ -423,7 +446,8 @@ async function getLiveData(season: string) {
     const isTechni = (g: GameRow) =>
       g.techni || (g.home_score === 20 && g.away_score === 0) || (g.home_score === 0 && g.away_score === 20);
     const gamesPlayed  = games.filter((g) => !isTechni(g)).length;
-    const currentRound = games.length > 0 ? Math.max(...games.map((g) => g.round)) : CURRENT_ROUND;
+    // No games yet → round 0 (season hasn't started), never a hard-coded round.
+    const currentRound = games.length > 0 ? Math.max(...games.map((g) => g.round)) : 0;
 
     // Season records
     let highScore   = { score: 0, team: '', opp: '', round: 0, date: '' };
@@ -445,21 +469,8 @@ async function getLiveData(season: string) {
 
     return { northLeader, southLeader, southTopScorer, northTopScorer, gamesPlayed, currentRound, highScore, highCombined, biggestWin, closestCount };
   } catch {
-    // fallback to static data
-    const fbSouthTop = [...SOUTH_TABLE].sort((a, b) => (b.pf ?? 0) - (a.pf ?? 0))[0];
-    const fbNorthTop = [...NORTH_TABLE].sort((a, b) => (b.pf ?? 0) - (a.pf ?? 0))[0];
-    return {
-      northLeader: NORTH_TABLE[0],
-      southLeader: SOUTH_TABLE[0],
-      southTopScorer: fbSouthTop,
-      northTopScorer: fbNorthTop,
-      gamesPlayed: 56,
-      currentRound: CURRENT_ROUND,
-      highScore:    { score: 81, team: 'חולון', opp: 'כ.ע. בת-ים', round: 7, date: '07.02.26' },
-      highCombined: { sh: 75, sa: 57, home: 'גוטלמן השרון', away: 'כ.ע. בת-ים', round: 4, date: '20.12.25' },
-      biggestWin:   { sh: 75, sa: 57, home: 'גוטלמן השרון', away: 'כ.ע. בת-ים', round: 4, date: '20.12.25' },
-      closestCount: 4,
-    };
+    // A genuine DB error — show the honest empty state, not fabricated numbers.
+    return EMPTY_LIVE_DATA;
   }
 }
 
@@ -880,12 +891,13 @@ async function getDelayedGames(season: string): Promise<DelayedGameRow[]> {
   try {
     const { data } = await supabaseAdmin
       .from('games')
-      .select('home_score, away_score, status, game_date, game_time, location, home_team:teams!games_home_team_id_fkey(name), away_team:teams!games_away_team_id_fkey(name)')
+      .select('round, home_score, away_score, status, game_date, game_time, location, home_team:teams!games_home_team_id_fkey(name), away_team:teams!games_away_team_id_fkey(name)')
       .eq('season', season)
       .eq('delayed', true)
       .order('game_date', { ascending: true });
 
     type Row = {
+      round: number | null;
       home_score: number | null; away_score: number | null; status: string;
       game_date: string | null; game_time: string | null; location: string | null;
       home_team: { name: string } | { name: string }[] | null;
@@ -902,7 +914,7 @@ async function getDelayedGames(season: string): Promise<DelayedGameRow[]> {
       const away = nameOf(r.away_team);
       if (!home || !away) continue;
       out.push({
-        round:     scheduleEntryForFixture(home, away)?.round ?? 0,
+        round:     r.round ?? scheduleEntryForFixture(home, away)?.round ?? 0,
         homeTeam:  home,
         awayTeam:  away,
         status:    r.status,
@@ -1145,8 +1157,10 @@ export default async function HomePage() {
     getPlayoffHighlights(season),
   ]);
 
+  // This season's schedule (DB-driven; static 2025-2026 archive as fallback).
+  const schedule = await getSeasonSchedule(season);
   const nextRoundEarly = liveData.currentRound + 1;
-  const nextRoundSchedule = LIBI_SCHEDULE.filter(g => g.round === nextRoundEarly);
+  const nextRoundSchedule = schedule.filter(g => g.round === nextRoundEarly);
   const gameDetails = await getGameDetails(
     nextRoundSchedule.map(g => ({ home: g.homeTeam, away: g.awayTeam })),
     season,
@@ -1249,9 +1263,9 @@ export default async function HomePage() {
   } = liveData;
 
   // Overall league scoring leader — whichever division top has more baskets
-  const leagueTopScorer = (northTopScorer.pf ?? 0) >= (southTopScorer.pf ?? 0)
+  const leagueTopScorer = ((northTopScorer?.pf ?? 0) >= (southTopScorer?.pf ?? 0)
     ? northTopScorer
-    : southTopScorer;
+    : southTopScorer) ?? northTopScorer ?? southTopScorer ?? null;
 
   const biggestMargin = Math.abs(biggestWin.sh - biggestWin.sa);
   const biggestWinner = biggestWin.sh > biggestWin.sa ? biggestWin.home : biggestWin.away;
@@ -1265,7 +1279,7 @@ export default async function HomePage() {
   // effect on the public UI immediately.
   function normKey(s: string) { return s.replace(/["""''`״׳]/g, '').replace(/\s+/g, ' ').trim().toLowerCase(); }
   const allNextGames: { home: string; away: string; div: 'North' | 'South'; homeLogo: string | null; awayLogo: string | null; location?: string; time?: string }[] = [
-    ...LIBI_SCHEDULE.filter((g) => g.round === nextRound && g.division === 'South').map(g => {
+    ...schedule.filter((g) => g.round === nextRound && g.division === 'South').map(g => {
       const home = dbDisplayName(g.homeTeam);
       const away = dbDisplayName(g.awayTeam);
       const det = gameDetails[`${normKey(g.homeTeam)}|${normKey(g.awayTeam)}`];
@@ -1274,7 +1288,7 @@ export default async function HomePage() {
         awayLogo: logoMap[norm(away)] ?? logoMap[norm(g.awayTeam)] ?? null,
         location: det?.location, time: det?.time };
     }),
-    ...LIBI_SCHEDULE.filter((g) => g.round === nextRound && g.division === 'North').map(g => {
+    ...schedule.filter((g) => g.round === nextRound && g.division === 'North').map(g => {
       const home = dbDisplayName(g.homeTeam);
       const away = dbDisplayName(g.awayTeam);
       const det = gameDetails[`${normKey(g.homeTeam)}|${normKey(g.awayTeam)}`];
@@ -1284,7 +1298,7 @@ export default async function HomePage() {
         location: det?.location, time: det?.time };
     }),
   ];
-  const nextDateRaw = LIBI_SCHEDULE.find(g => g.round === nextRound)?.date ?? '';
+  const nextDateRaw = schedule.find(g => g.round === nextRound)?.date ?? '';
   const heDay = nextDateRaw
     ? (lang === 'en'
         ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(nextDateRaw).getDay()]
@@ -1589,7 +1603,7 @@ export default async function HomePage() {
         ) : (
           <>
             <a href="/teams" className="block hover:opacity-80 transition-opacity">
-              <StatCard value="15"                    label={T('קבוצות')}        icon="🏀" colorClass="bg-gradient-to-l from-transparent to-orange-500" />
+              <StatCard value={String(teams.length || 15)} label={T('קבוצות')}        icon="🏀" colorClass="bg-gradient-to-l from-transparent to-orange-500" />
             </a>
             <a href="/games?filter=finished" className="block hover:opacity-80 transition-opacity">
               <StatCard value={String(gamesPlayed)}   label={T('משחקי ליגה')}    icon="📊" colorClass="bg-gradient-to-l from-transparent to-green-500"  />
@@ -1602,12 +1616,12 @@ export default async function HomePage() {
 
       {/* Division leaders are a regular-season standing — not relevant to the
           playoff review, so only show them outside the playoffs. */}
-      {!inPlayoffs && (
+      {!inPlayoffs && (northLeader || southLeader) && (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          {[
+          {([
             { label: T('🥇 מוביל צפון'), team: northLeader },
             { label: T('🥇 מוביל דרום'), team: southLeader },
-          ].map(({ label, team }) => (
+          ].filter((x) => x.team) as { label: string; team: Standing }[]).map(({ label, team }) => (
             <div key={label} className="rounded-2xl border border-white/[0.07] bg-white/[0.04]" style={{ borderTop: '3px solid #e0c97a' }}>
               <div className="p-5">
                 <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-[#8aaac8] font-body">{label}</p>
@@ -1622,6 +1636,9 @@ export default async function HomePage() {
         </div>
       )}
 
+      {/* Season / playoff records — hidden until at least one game is played,
+          so a freshly-started season doesn't show a wall of zeroed records. */}
+      {(showPlayoffRecords || gamesPlayed > 0) && (
       <section>
         <h2 className="mb-4 flex items-center gap-2 text-lg font-black text-white font-heading">
           <span className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-700 px-2 py-1 text-sm">🏆</span>
@@ -1671,6 +1688,7 @@ export default async function HomePage() {
           )}
         </div>
       </section>
+      )}
 
       {/* ── Top Scorers ────────────────────────────────────────────────── */}
       {scorers.length > 0 && (
@@ -1784,12 +1802,21 @@ export default async function HomePage() {
           ) : (
             <div className="p-5">
               <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">{T('מוביל סלים בליגה')}</p>
-              <Link href={`/team/${encodeURIComponent(dbDisplayName(leagueTopScorer.name))}`} className="text-base font-black text-green-400 hover:underline underline-offset-2 transition-colors font-heading">
-                {T(dbDisplayName(leagueTopScorer.name))}
-              </Link>
-              <p className="text-sm font-bold text-[#8aaac8] font-stats">
-                {leagueTopScorer.pf ?? 0} <span className="font-body">{T('סלים')}</span>
-              </p>
+              {leagueTopScorer ? (
+                <>
+                  <Link href={`/team/${encodeURIComponent(dbDisplayName(leagueTopScorer.name))}`} className="text-base font-black text-green-400 hover:underline underline-offset-2 transition-colors font-heading">
+                    {T(dbDisplayName(leagueTopScorer.name))}
+                  </Link>
+                  <p className="text-sm font-bold text-[#8aaac8] font-stats">
+                    {leagueTopScorer.pf ?? 0} <span className="font-body">{T('סלים')}</span>
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-base font-black text-green-400">—</p>
+                  <p className="text-sm font-bold text-[#8aaac8] font-body">{lang === 'en' ? 'No games yet' : 'טרם שוחקו משחקים'}</p>
+                </>
+              )}
             </div>
           )}
           {inPlayoffs && playoffHighlights.highScore ? (
