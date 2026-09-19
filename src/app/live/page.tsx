@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
+import { getSeasonSchedule } from '@/lib/season-schedule';
 import LiveClient from './LiveClient';
 import { getCurrentSeason } from '@/lib/current-season';
 
@@ -35,12 +35,14 @@ export default async function LivePage() {
   const currentRound: number = roundRows?.[0]?.round ?? 0;
   const nextRound = currentRound + 1;
 
-  // 2. Schedule entries for the next round
-  const entries = LIBI_SCHEDULE.filter(g => g.round === nextRound);
+  // 2. Schedule entries for the next round — read this season's schedule from
+  // the DB (falls back to the static 2025-2026 schedule for the archive).
+  const schedule = await getSeasonSchedule(season);
+  const entries = schedule.filter(g => g.round === nextRound);
   // If no entries for next round, fall back to current round
   const targetEntries = entries.length > 0
     ? entries
-    : LIBI_SCHEDULE.filter(g => g.round === currentRound);
+    : schedule.filter(g => g.round === currentRound);
   const targetRound = entries.length > 0 ? nextRound : currentRound;
 
   // 3. Team map: name → { id, logo_url }

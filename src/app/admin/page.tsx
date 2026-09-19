@@ -27,7 +27,7 @@ import SubmissionsTab, { type SubmissionRow } from '@/components/admin/Submissio
 import PerGameStatsTab, { type PerGameInfo, type PerGameStatRow } from '@/components/admin/PerGameStatsTab';
 import MatchPreviewsTab, { type CupGameLite, type Preview } from '@/components/admin/MatchPreviewsTab';
 import SeasonReviewsTab, { type SeasonReview } from '@/components/admin/SeasonReviewsTab';
-import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
+import { getSeasonSchedule } from '@/lib/season-schedule';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
 import SeasonPicker from '@/components/SeasonPicker';
@@ -415,9 +415,10 @@ export default async function AdminPage({
       dbByIdPair.set(key, arr);
     }
 
-    // Iterate LIBI_SCHEDULE (the canonical source of truth) so we get
-    // exactly ONE entry per scheduled matchup per round.
-    perGameInfos = LIBI_SCHEDULE
+    // Iterate this season's schedule (DB-driven; static 2025-2026 archive as
+    // the fallback) so we get exactly ONE entry per scheduled matchup per round.
+    const seasonSchedule = await getSeasonSchedule(season);
+    perGameInfos = seasonSchedule
       .map(entry => {
         const homeId = nameToTeamId(entry.homeTeam);
         const awayId = nameToTeamId(entry.awayTeam);

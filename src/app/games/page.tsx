@@ -5,7 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import GamesContent from './GamesContent';
 import { getLang, st } from '@/lib/get-lang';
 import { makeNameResolver } from '@/lib/team-name-resolver';
-import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
+import { getSeasonSchedule } from '@/lib/season-schedule';
 import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
 import SeasonPicker from '@/components/SeasonPicker';
 import ArchiveBanner from '@/components/ArchiveBanner';
@@ -89,11 +89,16 @@ export default async function GamesPage({
     away_team: resolveName(g.away_team),
   }));
 
-  // Build a lookup from every schedule team name → its current admin name
-  // so the round listings (which key off LIBI_SCHEDULE) can render the
-  // canonical name without re-running the resolver per row.
+  // Resolve this season's schedule (DB-driven; static 2025-2026 archive as the
+  // fallback) and hand it to the round listings so they don't depend on the
+  // hard-coded fixtures.
+  const schedule = await getSeasonSchedule(viewing);
+
+  // Build a lookup from every schedule team name → its current admin name so
+  // the round listings can render the canonical name without re-running the
+  // resolver per row.
   const scheduleTeamNames = Array.from(new Set(
-    LIBI_SCHEDULE.flatMap((g) => [g.homeTeam, g.awayTeam]),
+    schedule.flatMap((g) => [g.homeTeam, g.awayTeam]),
   ));
   const displayNames: Record<string, string> = {};
   for (const n of scheduleTeamNames) displayNames[n] = resolveName(n);
@@ -112,6 +117,7 @@ export default async function GamesPage({
         closeGames={closeGamesResolved}
         roundDates={roundDatesData}
         displayNames={displayNames}
+        schedule={schedule}
         season={viewing}
       />
     </Suspense>

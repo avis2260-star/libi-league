@@ -65,6 +65,11 @@ function tupleRoundFuzzy(home: string, away: string): number | null {
 }
 
 function getRoundForGame(game: GameWithTeams): number {
+  // Prefer the round stored on the row (set by the Excel schedule importer).
+  // This is what makes non-2025-2026 seasons work: their fixtures aren't in the
+  // static LIBI_SCHEDULE, so the tuple/date lookups below would bucket them all
+  // into round 0 (and the round-0 bucket is dropped from the UI).
+  if (game.round != null && game.round > 0) return game.round;
   const home = game.home_team?.name;
   const away = game.away_team?.name;
   if (home && away) {
@@ -278,9 +283,13 @@ function RoundSection({
   const total    = games.length;
   const finished = games.filter(g => g.status === 'Finished').length;
   const live     = games.filter(g => g.status === 'Live').length;
-  // Prefer the canonical schedule date (always current). Fall back to the
-  // DB row date only for round 0 ("מחזור —", unmatched games).
-  const isoDate  = ROUND_TO_DATE[round] ?? games[0]?.game_date ?? '';
+  // For DB-scheduled seasons (rows carry their own round) use the row's own
+  // date; ROUND_TO_DATE only knows the static 2025-2026 dates. Otherwise prefer
+  // the canonical schedule date, falling back to the row date for round 0.
+  const dbScheduled = games[0]?.round != null && games[0].round > 0;
+  const isoDate  = dbScheduled
+    ? (games[0]?.game_date ?? '')
+    : (ROUND_TO_DATE[round] ?? games[0]?.game_date ?? '');
   const date     = isoDate
     ? new Date(isoDate).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })
     : '';
