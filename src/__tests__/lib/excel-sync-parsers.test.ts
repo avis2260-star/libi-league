@@ -7,6 +7,7 @@ import {
   parseStandings,
   parseRoundDates,
   parseResults,
+  parseSchedule,
   parseCupGames,
   parseGameStatsSheet,
   parseSummarySheet,
@@ -484,6 +485,71 @@ describe('parseResults', () => {
     ];
     const out = parseResults(rows);
     expect(out[0]).toMatchObject({ home_score: 80, away_score: 70 });
+  });
+});
+
+// ===========================================================================
+// parseSchedule (unit — inline rows)
+// ===========================================================================
+
+describe('parseSchedule', () => {
+  it('keeps a fixture that has no score yet (played=false, null scores)', () => {
+    const rows: unknown[][] = [
+      ['header'],
+      ['24.10.26', 1, 'צפון', 'ידרסל חדרה', '', '', 'בני נתניה', 0, '', ''],
+    ];
+    const out = parseSchedule(rows);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({
+      round: 1, date: '24.10.26', division: 'North',
+      home_team: 'ידרסל חדרה', away_team: 'בני נתניה',
+      home_score: null, away_score: null, played: false,
+    });
+  });
+
+  it('marks a fixture with both scores as played', () => {
+    const rows: unknown[][] = [
+      ['header'],
+      ['1.11.25', 1, 'צפון', 'ידרסל חדרה', 80, 70, 'חולון'],
+    ];
+    const out = parseSchedule(rows);
+    expect(out[0]).toMatchObject({ played: true, home_score: 80, away_score: 70 });
+  });
+
+  it('reads a first-round date sitting on the header row', () => {
+    // The real 2026-2027 file puts round 1's date on the header row itself.
+    const rows: unknown[][] = [
+      ['24.10.26', 'מחזור', 'מחוז', 'בית ', 'סלים בית', 'סלים חוץ', 'חוץ'],
+      [null, 1, 'צפון', 'ידרסל חדרה', '', '', 'בני נתניה'],
+    ];
+    const out = parseSchedule(rows);
+    expect(out).toHaveLength(1);
+    expect(out[0].date).toBe('24.10.26');
+    expect(out[0].round).toBe(1);
+  });
+
+  it('inherits round / division state across rows', () => {
+    const rows: unknown[][] = [
+      ['header'],
+      ['24.10.26', 1, 'צפון', 'ידרסל חדרה', '', '', 'בני נתניה'],
+      [null, 1, null, 'כ.ע. בת-ים', '', '', 'גלי בת-ים'],   // inherits round 1 / North
+      [null, 1, 'דרום', 'אוריה ירושלים', '', '', 'אופק רחובות'],
+    ];
+    const out = parseSchedule(rows);
+    expect(out).toHaveLength(3);
+    expect(out[1]).toMatchObject({ round: 1, division: 'North', home_team: 'כ.ע. בת-ים' });
+    expect(out[2]).toMatchObject({ round: 1, division: 'South', home_team: 'אוריה ירושלים' });
+  });
+
+  it('skips פגרה, גביע, blank and round-less rows', () => {
+    const rows: unknown[][] = [
+      ['header'],
+      ['פגרה - 07.11.26', null, null, null, null, null, null],
+      ['גביע - שמינית גמר', null, null, null, null, null, null],
+      [null, null, null, null, null, null, null],
+      [null, null, 'צפון', 'ידרסל חדרה', '', '', 'חולון'], // no round set yet → skipped
+    ];
+    expect(parseSchedule(rows)).toEqual([]);
   });
 });
 
