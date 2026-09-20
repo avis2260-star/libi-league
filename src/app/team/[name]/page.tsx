@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic';
 
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { NORTH_TABLE, SOUTH_TABLE } from '@/lib/league-data';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getLang, st } from '@/lib/get-lang';
@@ -113,10 +112,7 @@ export default async function TeamStatsPage({
     return direct?.logo_url ?? undefined;
   };
 
-  const allStandings: Standing[] = (standingsData ?? [
-    ...NORTH_TABLE.map(t => ({ ...t, division: 'North' })),
-    ...SOUTH_TABLE.map(t => ({ ...t, division: 'South' })),
-  ]) as Standing[];
+  const allStandings: Standing[] = (standingsData ?? []) as Standing[];
 
   const standing = allStandings.find(s => matchTeam(s.name, teamName));
 

@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic';
 
 import { getTeams } from '@/lib/supabase';
-import { NORTH_TABLE, SOUTH_TABLE } from '@/lib/league-data';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getLang, st } from '@/lib/get-lang';
 import { getCurrentSeason } from '@/lib/current-season';
@@ -12,10 +11,10 @@ type StandingRow = { rank: number; name: string; wins: number; losses: number; d
 async function getLiveStandings(season: string): Promise<StandingRow[]> {
   try {
     const { data, error } = await supabaseAdmin.from('standings').select('*').eq('season', season).order('rank');
-    if (error || !data || data.length === 0) throw new Error('no data');
-    return data as StandingRow[];
+    if (error) throw new Error('no data');
+    return (data ?? []) as StandingRow[]; // empty season → no stats overlay, never last season's
   } catch {
-    return [...NORTH_TABLE.map(t => ({ ...t, division: 'North' })), ...SOUTH_TABLE.map(t => ({ ...t, division: 'South' }))];
+    return [];
   }
 }
 
