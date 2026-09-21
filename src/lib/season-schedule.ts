@@ -11,9 +11,11 @@
  *   • any other season → built from the `games` rows the schedule importer
  *     created (each carries its `round`), with team names joined and the
  *     division derived from teams.division (hard-coded rosters as a fallback).
- *   • a season that has no imported schedule yet → an empty list, NOT the old
- *     hard-coded fixtures, so a freshly-bumped season never shows last year's
- *     games as "upcoming".
+ *   • a season whose games table is empty → the schedule persisted by the last
+ *     Excel upload (league_settings key `schedule:<season>`), then a static
+ *     per-season fallback, then an empty list. The persisted copy means every
+ *     new season's fixtures/dates show up the moment its Excel is uploaded —
+ *     even before the games.round migration is run — and never last season's.
  *
  * Server-only (it queries Supabase). Callers that are client components must
  * receive the resolved ScheduleEntry[] as a prop from their server parent.
@@ -39,6 +41,45 @@ function teamName(t: JoinedTeam): string {
   return t?.name ?? '';
 }
 
+/** The schedule the last Excel upload persisted for this season, if any. */
+async function readStoredSchedule(season: string): Promise<ScheduleEntry[]> {
+  try {
+    const { data } = await supabaseAdmin
+      .from('league_settings')
+      .select('value')
+      .eq('key', `schedule:${season}`)
+      .maybeSingle();
+    if (!data?.value) return [];
+    const parsed = JSON.parse(data.value) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((e): e is ScheduleEntry =>
+        !!e && typeof e === 'object' &&
+        typeof (e as ScheduleEntry).round === 'number' &&
+        typeof (e as ScheduleEntry).homeTeam === 'string' &&
+        typeof (e as ScheduleEntry).awayTeam === 'string' &&
+        typeof (e as ScheduleEntry).date === 'string')
+      .map((e) => ({
+        round: e.round,
+        date: e.date,
+        homeTeam: e.homeTeam,
+        awayTeam: e.awayTeam,
+        division: e.division === 'North' ? 'North' : 'South',
+        location: e.location,
+        time: e.time,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+/** No DB games for this season → persisted upload, then static, then empty. */
+async function fallbackSchedule(season: string): Promise<ScheduleEntry[]> {
+  const stored = await readStoredSchedule(season);
+  if (stored.length > 0) return stored;
+  return STATIC_FALLBACK[season] ?? [];
+}
+
 export async function getSeasonSchedule(season: string): Promise<ScheduleEntry[]> {
   // The 2025-2026 season predates DB-stored rounds — serve the static schedule.
   if (season === FALLBACK_SEASON) return LIBI_SCHEDULE;
@@ -58,9 +99,9 @@ export async function getSeasonSchedule(season: string): Promise<ScheduleEntry[]
       supabaseAdmin.from('teams').select('name, division'),
     ]);
 
-    // No imported schedule for this season yet → the static fallback for this
-    // season if we have one, else empty (never last season's fixtures).
-    if (!gamesRows || gamesRows.length === 0) return STATIC_FALLBACK[season] ?? [];
+    // No games rows with a round yet (e.g. before the migration runs) → the
+    // schedule the last Excel upload persisted, else a static fallback.
+    if (!gamesRows || gamesRows.length === 0) return fallbackSchedule(season);
 
     // Division map: hard-coded rosters merged with teams.division, so even a
     // team whose division column is still NULL is classified via the fallback.
@@ -99,6 +140,6 @@ export async function getSeasonSchedule(season: string): Promise<ScheduleEntry[]
     }
     return entries;
   } catch {
-    return STATIC_FALLBACK[season] ?? [];
+    return fallbackSchedule(season);
   }
 }

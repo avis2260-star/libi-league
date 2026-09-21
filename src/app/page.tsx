@@ -1272,7 +1272,18 @@ export default async function HomePage() {
   const biggestLoser  = biggestWin.sh > biggestWin.sa ? biggestWin.away : biggestWin.home;
 
   const nextRound = currentRound + 1;
-  const nextDate  = ROUND_DATES_MERGED[nextRound] ?? '';
+  // Date for the "upcoming games" strip. Prefer an explicit DB round_dates
+  // override, then THIS season's own schedule date, and only then the merged
+  // static map — so a new season shows its real round-1 date, not 2025-2026's.
+  const nextRoundIso = schedule.find(g => g.round === nextRound)?.date ?? '';
+  const fmtDMY = (iso: string) => {
+    const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m ? `${m[3]}.${m[2]}.${m[1].slice(2)}` : iso;
+  };
+  const nextDate = dbRoundDates[nextRound]
+    || (nextRoundIso ? fmtDMY(nextRoundIso) : '')
+    || ROUND_DATES_MERGED[nextRound]
+    || '';
 
   // Scoreboard strip — all games for next round combined, with DB location/time.
   // Team names are resolved through the DB so admin renames (Teams tab) take
@@ -1298,7 +1309,7 @@ export default async function HomePage() {
         location: det?.location, time: det?.time };
     }),
   ];
-  const nextDateRaw = schedule.find(g => g.round === nextRound)?.date ?? '';
+  const nextDateRaw = nextRoundIso;
   const heDay = nextDateRaw
     ? (lang === 'en'
         ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(nextDateRaw).getDay()]

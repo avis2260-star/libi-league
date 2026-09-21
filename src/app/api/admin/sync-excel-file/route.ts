@@ -86,6 +86,33 @@ export async function POST(req: NextRequest) {
 
     const season = await getCurrentSeason();
 
+    // ── Persist the full schedule for this season (reliable, migration-free) ──
+    // Store every fixture (played + upcoming) as a JSON blob in league_settings
+    // keyed by season. getSeasonSchedule() reads this when the games table has
+    // no round-bearing rows, so the לוח המשחקים / scoreboard / upcoming strips
+    // show this season's dates the moment the file is uploaded — even before
+    // the games.round migration is run. Done FIRST and best-effort so it lands
+    // even if a later step (standings/results) fails.
+    if (schedule.length > 0) {
+      try {
+        const scheduleEntries = schedule
+          .map((g) => ({
+            round: g.round,
+            date: toIsoDate(g.date),
+            homeTeam: g.home_team,
+            awayTeam: g.away_team,
+            division: g.division,
+          }))
+          .filter((e) => e.round > 0 && e.date && e.homeTeam && e.awayTeam);
+        if (scheduleEntries.length > 0) {
+          await supabaseAdmin.from('league_settings').upsert(
+            { key: `schedule:${season}`, value: JSON.stringify(scheduleEntries) },
+            { onConflict: 'key' },
+          );
+        }
+      } catch { /* league_settings unavailable — schedule still shows via games table */ }
+    }
+
     // Snapshot existing data before replacing (current-season only — we never
     // touch prior-season rows).
     const [{ data: prevStandings }, { data: prevResults }] = await Promise.all([
