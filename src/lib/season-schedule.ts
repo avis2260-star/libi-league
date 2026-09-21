@@ -20,8 +20,17 @@
  */
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { LIBI_SCHEDULE, type ScheduleEntry } from '@/lib/libi-schedule';
+import { SCHEDULE_2026_2027 } from '@/lib/schedule-2026';
 import { FALLBACK_SEASON } from '@/lib/current-season';
 import { mergeDivisionNames, normalizeTeamName } from '@/lib/excel-sync-parsers';
+
+// Static per-season schedules, used ONLY as a fallback when the database has no
+// imported games for that season yet. As soon as an Excel upload creates games
+// rows (with round), those win. Lets a season's fixtures/dates show on the site
+// before the DB import succeeds. 2025-2026 is handled by FALLBACK_SEASON below.
+const STATIC_FALLBACK: Record<string, ScheduleEntry[]> = {
+  '2026-2027': SCHEDULE_2026_2027,
+};
 
 type JoinedTeam = { name: string } | { name: string }[] | null;
 
@@ -49,9 +58,9 @@ export async function getSeasonSchedule(season: string): Promise<ScheduleEntry[]
       supabaseAdmin.from('teams').select('name, division'),
     ]);
 
-    // No imported schedule for this season yet → empty (honest) rather than
-    // last season's hard-coded fixtures.
-    if (!gamesRows || gamesRows.length === 0) return [];
+    // No imported schedule for this season yet → the static fallback for this
+    // season if we have one, else empty (never last season's fixtures).
+    if (!gamesRows || gamesRows.length === 0) return STATIC_FALLBACK[season] ?? [];
 
     // Division map: hard-coded rosters merged with teams.division, so even a
     // team whose division column is still NULL is classified via the fallback.
@@ -90,6 +99,6 @@ export async function getSeasonSchedule(season: string): Promise<ScheduleEntry[]
     }
     return entries;
   } catch {
-    return [];
+    return STATIC_FALLBACK[season] ?? [];
   }
 }
