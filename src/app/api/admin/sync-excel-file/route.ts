@@ -442,11 +442,16 @@ export async function POST(req: NextRequest) {
   } catch (err: unknown) {
     // Surface the REAL reason. Supabase throws plain objects (not Error
     // instances), so pull `.message` off those too instead of a generic string.
-    const msg =
+    let msg =
       err instanceof Error ? err.message
       : (typeof err === 'object' && err && 'message' in err
           ? String((err as { message: unknown }).message)
           : 'Sync failed');
+    // A season-scoped duplicate on standings means the old (name, division)
+    // unique constraint is still in place — point the admin at the fix.
+    if (/standings_name_division_key/i.test(msg) || (/standings/i.test(msg) && /duplicate key/i.test(msg))) {
+      msg += ' — הרץ את המיגרציה 20260921_standings_unique_season.sql ב-Supabase (מוסיף season לאילוץ הייחודיות של הטבלה) ונסה שוב.';
+    }
     console.error('sync-excel-file error:', err);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
