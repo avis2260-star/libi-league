@@ -4,6 +4,27 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getLang, st } from '@/lib/get-lang';
+import {
+  playoffSeriesWinner,
+  playoffSeriesRunnerUp,
+  cupFinalWinner,
+  type PlayoffSeries,
+  type PlayoffGame,
+  type CupGame,
+} from '@/lib/hall-of-fame-live';
+
+type SeasonDetail = {
+  year: string;
+  champion_name: string | null;
+  runner_up_name: string | null;
+  champion_captain: string | null;
+  cup_holder_name: string | null;
+  mvp_name: string | null;
+  mvp_stats: string | null;
+  final_score: string | null;
+  final_date: string | null;
+  final_location: string | null;
+};
 
 /* ── page ────────────────────────────────────────────────────────────────── */
 export default async function SeasonDetailPage({
@@ -30,14 +51,53 @@ export default async function SeasonDetailPage({
   }
   const en = lang === 'en';
 
-  /* 1 — fetch the season record */
-  const { data: season } = await supabaseAdmin
+  /* 1 — fetch the curated season record, or derive it from live results */
+  const { data: curated } = await supabaseAdmin
     .from('league_history_seasons')
     .select('*')
     .eq('year', decodedYear)
     .maybeSingle();
 
-  if (!season) notFound();
+  let season: SeasonDetail | null = (curated as SeasonDetail | null) ?? null;
+
+  if (!season) {
+    // No curated history row → derive champion + runner-up + cup holder from
+    // the recorded playoff #7 final and cup 'גמר' game for this season, so the
+    // auto-generated Hall of Fame cards still open a detail page.
+    const [{ data: series }, { data: pGames }, { data: cup }] = await Promise.all([
+      supabaseAdmin
+        .from('playoff_series')
+        .select('series_number, team_a, team_b')
+        .eq('season', decodedYear)
+        .eq('series_number', 7),
+      supabaseAdmin
+        .from('playoff_games')
+        .select('series_number, game_number, home_score, away_score, played')
+        .eq('season', decodedYear),
+      supabaseAdmin
+        .from('cup_games')
+        .select('round, home_team, away_team, home_score, away_score, played')
+        .eq('season', decodedYear),
+    ]);
+    const finalSeries = ((series ?? []) as PlayoffSeries[]).find((s) => s.team_a && s.team_b);
+    const pg = (pGames ?? []) as PlayoffGame[];
+    const champion = finalSeries ? playoffSeriesWinner(finalSeries, pg) : null;
+    const runnerUp = finalSeries ? playoffSeriesRunnerUp(finalSeries, pg) : null;
+    const cupHolder = cupFinalWinner((cup ?? []) as CupGame[]);
+    if (!champion && !cupHolder) notFound();
+    season = {
+      year: decodedYear,
+      champion_name: champion,
+      runner_up_name: runnerUp,
+      champion_captain: null,
+      cup_holder_name: cupHolder,
+      mvp_name: null,
+      mvp_stats: null,
+      final_score: null,
+      final_date: null,
+      final_location: null,
+    };
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-white font-body" dir={en ? 'ltr' : 'rtl'}>

@@ -6,7 +6,13 @@ import { getLang, st } from '@/lib/get-lang';
 import { displayName } from '@/lib/names';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { getCurrentSeason } from '@/lib/current-season';
-import { seriesWinner } from '@/lib/playoff-format';
+import {
+  playoffSeriesWinner,
+  cupFinalWinner,
+  type PlayoffSeries,
+  type PlayoffGame,
+  type CupGame,
+} from '@/lib/hall-of-fame-live';
 
 type Season = {
   id: string;
@@ -46,29 +52,6 @@ type RenderedRecord = {
   holder: string | null;
   value: string | null;
   auto: boolean;
-};
-
-type PlayoffSeries = {
-  series_number: number;
-  team_a: string;
-  team_b: string;
-};
-
-type PlayoffGame = {
-  series_number: number;
-  game_number: number;
-  home_score: number | null;
-  away_score: number | null;
-  played: boolean | null;
-};
-
-type CupGame = {
-  round: string | null;
-  home_team: string | null;
-  away_team: string | null;
-  home_score: number | null;
-  away_score: number | null;
-  played: boolean | null;
 };
 
 /* ── helpers ───────────────────────────────────────────────────────────── */
@@ -237,29 +220,6 @@ function buildComputedRecords(
   }
 
   return out;
-}
-
-function homeForGame(s: PlayoffSeries, gNum: number) {
-  return gNum === 2 ? s.team_b : s.team_a;
-}
-
-function playoffSeriesWinner(s: PlayoffSeries, games: PlayoffGame[]): string | null {
-  let winsA = 0, winsB = 0;
-  for (const g of games.filter(g => g.series_number === s.series_number && g.played)) {
-    const home = homeForGame(s, g.game_number);
-    const homeWon = (g.home_score ?? 0) > (g.away_score ?? 0);
-    if ((homeWon && home === s.team_a) || (!homeWon && home !== s.team_a)) winsA++;
-    else winsB++;
-  }
-  return seriesWinner(s.series_number, winsA, s.team_a, winsB, s.team_b);
-}
-
-function cupFinalWinner(games: CupGame[]): string | null {
-  const finalGame = games.find(g => g.round === 'גמר' && g.played && g.home_score !== null && g.away_score !== null);
-  if (!finalGame) return null;
-  return (finalGame.home_score ?? 0) > (finalGame.away_score ?? 0)
-    ? finalGame.home_team
-    : finalGame.away_team;
 }
 
 /* ── Trophy card component ────────────────────────────────────────────── */
@@ -548,61 +508,43 @@ export default async function HallOfFamePage() {
           <p className="text-slate-300 font-bold text-center py-12">{T('אין עונות להצגה עדיין')}</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {championsWall.map((season) => {
-              const inner = (
-                <>
-                  {/* Large year watermark */}
-                  <div className="absolute -left-4 -top-4 font-stats text-8xl text-white/5 group-hover:text-orange-500/10 transition-colors select-none">
-                    {season.year.split('-')[0]}
-                  </div>
-
-                  <p className="font-stats text-2xl text-orange-500">{season.year}</p>
-                  <h3 className="font-heading font-black text-3xl mb-2">{season.champion_name ? T(season.champion_name) : '—'}</h3>
-
-                  {season.runner_up_name && (
-                    <p className="mb-4 flex items-center gap-1.5 text-sm font-bold text-slate-300">
-                      <span className="text-slate-400">🥈</span>
-                      <span className="text-slate-400">{T('סגנית אלופה:')}</span>
-                      <span className="text-white">{T(season.runner_up_name)}</span>
-                    </p>
-                  )}
-
-                  <div className="flex justify-between items-end border-t border-slate-800 pt-4">
-                    <div>
-                      <p className="text-xs font-black text-slate-300 uppercase font-body">{T('MVP של העונה')}</p>
-                      <p className="font-heading font-black text-white">{season.mvp_name ? displayName(season.mvp_name, lang) : '—'}</p>
-                      <p className="font-stats text-lg font-black text-orange-400">{season.mvp_stats ?? ''}</p>
-                    </div>
-                    <div className="bg-orange-500 text-black px-3 py-1 rounded-full text-xs font-black font-heading">
-                      CHAMPIONS
-                    </div>
-                  </div>
-                  {!season.auto && (
-                    <div className="mt-3 text-sm font-bold text-orange-400 group-hover:text-orange-300 transition font-body">
-                      {T('לחץ לפרטי הגמר ←')}
-                    </div>
-                  )}
-                </>
-              );
-              // Auto-derived seasons have no curated detail page, so they render
-              // as a plain (non-clickable) card.
-              return season.auto ? (
-                <div
-                  key={season.id}
-                  className="relative group overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 p-6"
-                >
-                  {inner}
+            {championsWall.map((season) => (
+              <Link
+                key={season.id}
+                href={`/hall-of-fame/${encodeURIComponent(season.year)}`}
+                className="relative group overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 p-6 hover:border-orange-500 transition-all cursor-pointer block"
+              >
+                {/* Large year watermark */}
+                <div className="absolute -left-4 -top-4 font-stats text-8xl text-white/5 group-hover:text-orange-500/10 transition-colors select-none">
+                  {season.year.split('-')[0]}
                 </div>
-              ) : (
-                <Link
-                  key={season.id}
-                  href={`/hall-of-fame/${encodeURIComponent(season.year)}`}
-                  className="relative group overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 p-6 hover:border-orange-500 transition-all cursor-pointer block"
-                >
-                  {inner}
-                </Link>
-              );
-            })}
+
+                <p className="font-stats text-2xl text-orange-500">{season.year}</p>
+                <h3 className="font-heading font-black text-3xl mb-2">{season.champion_name ? T(season.champion_name) : '—'}</h3>
+
+                {season.runner_up_name && (
+                  <p className="mb-4 flex items-center gap-1.5 text-sm font-bold text-slate-300">
+                    <span className="text-slate-400">🥈</span>
+                    <span className="text-slate-400">{T('סגנית אלופה:')}</span>
+                    <span className="text-white">{T(season.runner_up_name)}</span>
+                  </p>
+                )}
+
+                <div className="flex justify-between items-end border-t border-slate-800 pt-4">
+                  <div>
+                    <p className="text-xs font-black text-slate-300 uppercase font-body">{T('MVP של העונה')}</p>
+                    <p className="font-heading font-black text-white">{season.mvp_name ? displayName(season.mvp_name, lang) : '—'}</p>
+                    <p className="font-stats text-lg font-black text-orange-400">{season.mvp_stats ?? ''}</p>
+                  </div>
+                  <div className="bg-orange-500 text-black px-3 py-1 rounded-full text-xs font-black font-heading">
+                    CHAMPIONS
+                  </div>
+                </div>
+                <div className="mt-3 text-sm font-bold text-orange-400 group-hover:text-orange-300 transition font-body">
+                  {T('לחץ לפרטי הגמר ←')}
+                </div>
+              </Link>
+            ))}
           </div>
         )}
       </section>
