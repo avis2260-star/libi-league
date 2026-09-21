@@ -116,7 +116,8 @@ describe('sync-excel-file POST', () => {
 
     const res = await POST(mockFileReq(file));
     expect(res.status).toBe(500);
-    // thrown value is a plain object, so the catch emits the generic message
-    expect(await res.json()).toMatchObject({ error: 'Sync failed' });
+    // The route now surfaces the real Supabase message, labelled by step,
+    // instead of a generic string — so admins can see what actually broke.
+    expect(await res.json()).toMatchObject({ error: 'standings delete: delete blew up' });
   });
 });

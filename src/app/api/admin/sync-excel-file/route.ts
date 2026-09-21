@@ -107,22 +107,31 @@ export async function POST(req: NextRequest) {
     const prevCupPreviews = await snapshotCup('match_previews');
 
     // ── Replace standings for the current season ──
+    // Dedupe by division + normalized name: parseStandings can emit the same
+    // team twice when the sheet repeats a name, and a duplicate would trip a
+    // unique constraint on the standings table and fail the whole sync.
+    const seenStanding = new Set<string>();
     const standingRows = [
       ...north.map((r) => ({ ...r, division: 'North', season })),
       ...south.map((r) => ({ ...r, division: 'South', season })),
-    ];
+    ].filter((r) => {
+      const key = `${r.division}|${normalizeTeamName(r.name)}`;
+      if (seenStanding.has(key)) return false;
+      seenStanding.add(key);
+      return true;
+    });
 
     if (standingRows.length > 0) {
       const { error: delErr } = await supabaseAdmin
         .from('standings')
         .delete()
         .eq('season', season);
-      if (delErr) throw delErr;
+      if (delErr) throw new Error(`standings delete: ${delErr.message}`);
 
       const { error: insErr } = await supabaseAdmin
         .from('standings')
         .insert(standingRows);
-      if (insErr) throw insErr;
+      if (insErr) throw new Error(`standings insert: ${insErr.message}`);
     }
 
     // ── Replace game results for the current season ──
@@ -132,14 +141,14 @@ export async function POST(req: NextRequest) {
         .from('game_results')
         .delete()
         .eq('season', season);
-      if (delErr) throw delErr;
+      if (delErr) throw new Error(`game_results delete: ${delErr.message}`);
     }
     if (results.length > 0) {
       const stamped = results.map((r) => ({ ...r, season }));
       const { error: insErr } = await supabaseAdmin
         .from('game_results')
         .insert(stamped);
-      if (insErr) throw insErr;
+      if (insErr) throw new Error(`game_results insert: ${insErr.message}`);
       resultsCount = results.length;
     }
 
@@ -159,6 +168,7 @@ export async function POST(req: NextRequest) {
     let gamesCreated = 0;
     let gamesUpdated = 0;
     let gamesDeleted = 0;
+    let gamesWarning = '';
     try {
       const { data: teamsList } = await supabaseAdmin
         .from('teams')
@@ -282,7 +292,7 @@ export async function POST(req: NextRequest) {
         if (toInsert.length > 0) {
           const { error: insErr } = await supabaseAdmin.from('games').insert(toInsert);
           if (!insErr) gamesCreated = toInsert.length;
-          else console.error('games insert failed:', insErr.message);
+          else { console.error('games insert failed:', insErr.message); gamesWarning = insErr.message; }
         }
         for (const u of toUpdate) {
           const { error: updErr } = await supabaseAdmin
@@ -309,7 +319,10 @@ export async function POST(req: NextRequest) {
       }
     } catch (e) {
       console.error('auto-upsert games failed:', e);
-      // Don't fail the whole sync — auto-create is a nice-to-have
+      // Don't fail the whole sync — auto-create is a nice-to-have. Surface the
+      // reason so a missing `round` column (migration not run) is visible.
+      gamesWarning = e instanceof Error ? e.message
+        : (typeof e === 'object' && e && 'message' in e ? String((e as { message: unknown }).message) : String(e));
     }
 
     // ── Cup games: NON-destructive sync ───────────────────────────────────
@@ -385,14 +398,29 @@ export async function POST(req: NextRequest) {
     if (gamesCreated > 0) parts.push(`${gamesCreated} משחקים נוצרו אוטומטית`);
     if (gamesUpdated > 0) parts.push(`${gamesUpdated} משחקים עודכנו`);
     if (gamesDeleted > 0) parts.push(`${gamesDeleted} משחקים שמוקמו מחדש (שעה+מיקום נשמרו)`);
+    if (parts.length === 0) parts.push('לא נמצאו נתונים לעדכון');
 
-    return NextResponse.json({
-      success: true,
-      message: `✅ עודכנו: ${parts.join(' + ')}`,
-    });
+    // If the schedule/games couldn't be created, say so loudly — the most
+    // common cause is the games.round column not existing yet (migration not
+    // run). Standings/results still synced, so this is a warning, not a failure.
+    let message = `✅ עודכנו: ${parts.join(' + ')}`;
+    if (gamesWarning) {
+      const migrationHint = /round/i.test(gamesWarning)
+        ? ' — כנראה שעמודת games.round חסרה. הרץ את המיגרציה 20260919_game_round.sql ב-Supabase ונסה שוב.'
+        : '';
+      message += `\n⚠️ לוח המשחקים לא נוצר (${gamesWarning})${migrationHint}`;
+    }
+
+    return NextResponse.json({ success: true, message });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Sync failed';
-    console.error('sync-excel-file error:', msg);
+    // Surface the REAL reason. Supabase throws plain objects (not Error
+    // instances), so pull `.message` off those too instead of a generic string.
+    const msg =
+      err instanceof Error ? err.message
+      : (typeof err === 'object' && err && 'message' in err
+          ? String((err as { message: unknown }).message)
+          : 'Sync failed');
+    console.error('sync-excel-file error:', err);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
