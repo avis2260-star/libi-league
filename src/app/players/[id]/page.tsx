@@ -10,7 +10,7 @@ import VideoGallery from '@/components/player/VideoGallery';
 import PlayerStatsChart from '@/components/player/PlayerStatsChart';
 import { getLang, st } from '@/lib/get-lang';
 import { displayName } from '@/lib/names';
-import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
+import { getSeasonSchedule } from '@/lib/season-schedule';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
 import SeasonPicker from '@/components/SeasonPicker';
@@ -100,15 +100,16 @@ export default async function PlayerProfilePage({
   // ── Canonical date lookup ──────────────────────────────────────────────
   // The games table's game_date can drift from the canonical schedule
   // (Excel sync, manual reschedules). For the player profile date column
-  // we always prefer the LIBI_SCHEDULE date so the user sees the round's
-  // real date rather than a drifted DB value.
+  // we prefer this season's canonical schedule date so the user sees the
+  // round's real date rather than a drifted DB value.
   // Keyed by team-id pair, so it's immune to team renames.
   const teamsList = (teamsData ?? []) as { id: string; name: string }[];
   const resolveTeamName = makeNameResolver(teamsList);
   const teamIdByName = new Map<string, string>();
   for (const t of teamsList) teamIdByName.set(t.name, t.id);
   const canonicalDateByPair = new Map<string, string>();
-  for (const e of LIBI_SCHEDULE) {
+  const seasonSchedule = await getSeasonSchedule(viewing);
+  for (const e of seasonSchedule) {
     const hId = teamIdByName.get(resolveTeamName(e.homeTeam));
     const aId = teamIdByName.get(resolveTeamName(e.awayTeam));
     if (hId && aId) canonicalDateByPair.set(`${hId}|${aId}`, e.date);

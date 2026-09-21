@@ -53,10 +53,17 @@ function fmtRoundDate(iso: string | undefined): string {
 
 type GroupedRound = { round: number; games: GameWithTeams[] };
 
+function roundOfGame(g: GameWithTeams): number {
+  // Prefer the round stored on the row (Excel schedule importer); fall back to
+  // the static-schedule date lookup for the 2025-2026 archive rows.
+  if (g.round != null && g.round > 0) return g.round;
+  return ROUND_OF_DATE[g.game_date] ?? 0;
+}
+
 function groupByRound(games: GameWithTeams[]): GroupedRound[] {
   const byRound = new Map<number, GameWithTeams[]>();
   for (const g of games) {
-    const r = ROUND_OF_DATE[g.game_date] ?? 0;
+    const r = roundOfGame(g);
     if (!byRound.has(r)) byRound.set(r, []);
     byRound.get(r)!.push(g);
   }
@@ -256,7 +263,7 @@ export default function BoxScoreTab({ games, initialGameId }: Props) {
               </p>
               <p className="text-xs font-bold text-[#8aaac8]">
                 {fmtRoundDate(selectedGame.game_date)}
-                {(ROUND_OF_DATE[selectedGame.game_date] ?? 0) > 0 && <> · מחזור {ROUND_OF_DATE[selectedGame.game_date]}</>}
+                {roundOfGame(selectedGame) > 0 && <> · מחזור {roundOfGame(selectedGame)}</>}
               </p>
             </div>
             <button
@@ -404,9 +411,14 @@ function RoundGroup({
   round: number; games: GameWithTeams[]; defaultOpen: boolean; onPick: (id: string) => void;
 }) {
   const label = round === 0 ? 'משחקים נוספים' : `מחזור ${round}`;
-  const dateLabel = round !== 0
-    ? fmtRoundDate(DATE_OF_ROUND[round])
-    : fmtRoundDate(games[0]?.game_date);
+  // DB-scheduled seasons carry their round on the row → use the row's own date;
+  // DATE_OF_ROUND only knows the static 2025-2026 dates.
+  const dbScheduled = games[0]?.round != null && games[0].round > 0;
+  const dateLabel = dbScheduled
+    ? fmtRoundDate(games[0]?.game_date)
+    : round !== 0
+      ? fmtRoundDate(DATE_OF_ROUND[round])
+      : fmtRoundDate(games[0]?.game_date);
   return (
     <details open={defaultOpen} className="group rounded-xl border border-white/[0.07] bg-[#0c1825]">
       <summary className="flex cursor-pointer select-none items-center justify-between gap-2 px-4 py-2.5 hover:bg-white/[0.02]">

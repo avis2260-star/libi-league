@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { GAME_RESULTS, type GameResult } from '@/lib/league-data';
+import { type GameResult } from '@/lib/league-data';
 import ResultsContent from './ResultsContent';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
@@ -15,7 +15,8 @@ async function getResults(season: string): Promise<GameResult[]> {
       .eq('season', season)
       .order('round', { ascending: true });
 
-    if (error || !data || data.length === 0) throw new Error('no data');
+    if (error) throw new Error('no data');
+    if (!data || data.length === 0) return []; // empty season → no results, never last season's
 
     return data.map((r) => ({
       round: r.round,
@@ -28,7 +29,7 @@ async function getResults(season: string): Promise<GameResult[]> {
       techni: r.techni ? r.techni_note : '',
     }));
   } catch {
-    return GAME_RESULTS;
+    return []; // DB error — empty, never fabricated results
   }
 }
 

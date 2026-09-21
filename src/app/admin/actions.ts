@@ -5,6 +5,7 @@ import type { GameStatus } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import { findPlayerForExtracted, type ExtractedPlayer } from '@/lib/match-player';
+import { mergeDivisionNames, normalizeTeamName } from '@/lib/excel-sync-parsers';
 import { getCurrentSeason, clearCurrentSeasonCache } from '@/lib/current-season';
 import { serializeAutoConfig, type AutoTickerConfig } from '@/lib/ticker-auto';
 import { assertAdmin } from '@/lib/require-admin';
@@ -370,6 +371,79 @@ export async function startNewSeason(nextSeason: string, clearData = false): Pro
   revalidatePath('/players');
 
   return { previous, current: trimmed, cleared: clearData };
+}
+
+// ── Seed standings at 0 ─────────────────────────────────────────────────────
+// When a season starts empty, the standings table has no rows, so the public
+// standings page and the home-page leader cards are blank. This creates a
+// 0-0-0 row for every team that belongs to a division (teams.division, with
+// the hard-coded rosters as a fallback) so the table shows all teams at zero
+// until the first results are synced. It never overwrites an existing row, so
+// running it after some results are in is safe — it only fills the gaps.
+
+export type SeedStandingsResult = { error?: string; inserted?: number; skipped?: number };
+
+export async function seedStandingsAtZero(): Promise<SeedStandingsResult> {
+  await assertAdmin();
+  const season = await getCurrentSeason();
+
+  const { data: teamRows, error: teamErr } = await supabaseAdmin
+    .from('teams')
+    .select('name, division')
+    .order('name');
+  if (teamErr) return { error: teamErr.message };
+  const teams = (teamRows ?? []) as { name: string; division: string | null }[];
+  if (teams.length === 0) return { error: 'לא נמצאו קבוצות במסד הנתונים' };
+
+  // Standings rows that already exist for this season — never overwrite them.
+  const { data: existing } = await supabaseAdmin
+    .from('standings')
+    .select('name')
+    .eq('season', season);
+  const existingNames = new Set(
+    (existing ?? []).map((r) => normalizeTeamName((r as { name: string }).name)),
+  );
+
+  // Division membership: hard-coded rosters merged with teams.division so a
+  // team added via the admin is placed correctly without a code change.
+  const { north, south } = mergeDivisionNames(teams);
+  const northSet = new Set(north.map(normalizeTeamName));
+  const southSet = new Set(south.map(normalizeTeamName));
+
+  const zeroRow = (name: string, division: 'North' | 'South', rank: number) => ({
+    name, division, rank,
+    games: 0, wins: 0, losses: 0, pf: 0, pa: 0, diff: 0, techni: 0, penalty: 0, pts: 0,
+    season,
+  });
+
+  const rows: ReturnType<typeof zeroRow>[] = [];
+  let northRank = 1;
+  let southRank = 1;
+  let skipped = 0;
+  for (const t of teams) {
+    const norm = normalizeTeamName(t.name);
+    if (existingNames.has(norm)) { skipped++; continue; }
+    const division: 'North' | 'South' | null =
+      t.division === 'North' || t.division === 'South'
+        ? t.division
+        : northSet.has(norm)
+          ? 'North'
+          : southSet.has(norm)
+            ? 'South'
+            : null;
+    if (!division) { skipped++; continue; } // no division assigned — can't place it
+    rows.push(zeroRow(t.name, division, division === 'North' ? northRank++ : southRank++));
+  }
+
+  if (rows.length === 0) return { inserted: 0, skipped };
+
+  const { error: insErr } = await supabaseAdmin.from('standings').insert(rows);
+  if (insErr) return { error: insErr.message };
+
+  revalidatePath('/');
+  revalidatePath('/standings');
+  revalidatePath('/admin');
+  return { inserted: rows.length, skipped };
 }
 
 // ── Video URL ─────────────────────────────────────────────────────────────────

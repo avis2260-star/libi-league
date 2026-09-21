@@ -3,9 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
+import type { ScheduleEntry } from '@/lib/libi-schedule';
 import { useLang } from '@/components/TranslationProvider';
 
+// Fallback dates for the 2025-2026 season when neither the schedule entry nor
+// the DB round_dates setting carries one. Newer seasons supply their own dates
+// through the `schedule` prop, so these are never used for them.
 const ALL_ROUND_DATES: Record<number, string> = {
   1: '01.11.25', 2: '08.11.25', 3: '29.11.25', 4: '20.12.25',
   5: '10.01.26', 6: '17.01.26', 7: '07.02.26', 8: '21.02.26',
@@ -102,6 +105,7 @@ export default function GamesContent({
   closeGames = [],
   roundDates = {},
   displayNames = {},
+  schedule,
   season,
 }: {
   currentRound: number;
@@ -109,10 +113,17 @@ export default function GamesContent({
   closeGames?: CloseGame[];
   roundDates?: Record<number, string>;
   displayNames?: Record<string, string>;
+  schedule: ScheduleEntry[];
   season: string;
 }) {
   const { t, lang } = useLang();
-  const DATES = { ...ALL_ROUND_DATES, ...roundDates };
+  // Dates: schedule (this season's own fixture dates) override the static
+  // 2025-2026 fallback, and an explicit DB round_dates override wins over both.
+  const scheduleDates: Record<number, string> = {};
+  for (const g of schedule) {
+    if (scheduleDates[g.round] === undefined) scheduleDates[g.round] = formatDate(g.date);
+  }
+  const DATES = { ...ALL_ROUND_DATES, ...scheduleDates, ...roundDates };
   const searchParams = useSearchParams();
   const urlFilter = searchParams.get('filter') as Filter | null;
   const [filter, setFilter] = useState<Filter>(
@@ -127,9 +138,10 @@ export default function GamesContent({
   }, [urlFilter]);
   const nextRound = currentRound + 1;
 
-  // descending for all/finished, ascending for upcoming
-  const allRoundsDesc = Array.from({ length: 14 }, (_, i) => 14 - i); // 14 → 1
-  const allRoundsAsc  = Array.from({ length: 14 }, (_, i) => i + 1);  // 1 → 14
+  // Rounds come from this season's schedule (not a hard-coded 1..14), so a
+  // season with a different number of rounds renders correctly.
+  const allRoundsAsc  = Array.from(new Set(schedule.map((g) => g.round))).sort((a, b) => a - b);
+  const allRoundsDesc = [...allRoundsAsc].reverse();
 
   const visibleRounds = (filter === 'upcoming' ? allRoundsAsc : allRoundsDesc).filter((round) => {
     if (filter === 'finished') return round <= currentRound;
@@ -147,7 +159,13 @@ export default function GamesContent({
             : <><span className="text-white">לוח </span><span className="text-orange-500">המשחקים</span></>
           }
         </h1>
-        <p className="mt-1 text-sm text-[#5a7a9a]">{lang === 'en' ? `Rounds 1–14 · Season ${season}` : `מחזורים 1–14 · עונת ${season}`}</p>
+        <p className="mt-1 text-sm text-[#5a7a9a]">{
+          allRoundsAsc.length > 0
+            ? (lang === 'en'
+                ? `Rounds ${allRoundsAsc[0]}–${allRoundsAsc[allRoundsAsc.length - 1]} · Season ${season}`
+                : `מחזורים ${allRoundsAsc[0]}–${allRoundsAsc[allRoundsAsc.length - 1]} · עונת ${season}`)
+            : (lang === 'en' ? `Season ${season}` : `עונת ${season}`)
+        }</p>
       </div>
 
       {/* Filter tabs — hidden when showing close games view */}
@@ -173,8 +191,8 @@ export default function GamesContent({
             const isPlayed = round <= currentRound;
             const isNext   = round === nextRound;
             const date     = formatDate(DATES[round] ?? '');
-            const northGames = LIBI_SCHEDULE.filter((g) => g.round === round && g.division === 'North');
-            const southGames = LIBI_SCHEDULE.filter((g) => g.round === round && g.division === 'South');
+            const northGames = schedule.filter((g) => g.round === round && g.division === 'North');
+            const southGames = schedule.filter((g) => g.round === round && g.division === 'South');
 
             return (
               <section key={round} id={`round-${round}`}>

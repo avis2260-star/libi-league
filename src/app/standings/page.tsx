@@ -1,10 +1,11 @@
 export const dynamic = 'force-dynamic';
 
-import { NORTH_TABLE, SOUTH_TABLE, type Standing } from '@/lib/league-data';
+import { type Standing } from '@/lib/league-data';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import StandingsTables, { type StandingWithStreak } from './StandingsTables';
 import { getLang, st } from '@/lib/get-lang';
 import { makeNameResolver } from '@/lib/team-name-resolver';
+import { mergeDivisionNames, normalizeTeamName } from '@/lib/excel-sync-parsers';
 import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
 import SeasonPicker from '@/components/SeasonPicker';
 import ArchiveBanner from '@/components/ArchiveBanner';
@@ -39,7 +40,7 @@ type GameResultRow = {
   techni: boolean | null;
 };
 
-type TeamRow = { name: string; logo_url: string | null };
+type TeamRow = { name: string; logo_url: string | null; division?: string | null };
 
 async function getStandings(season: string): Promise<{
   north: StandingWithStreak[];
@@ -53,7 +54,7 @@ async function getStandings(season: string): Promise<{
       { data: results },
     ] = await Promise.all([
       supabaseAdmin.from('standings').select('*').eq('season', season).order('rank', { ascending: true }),
-      supabaseAdmin.from('teams').select('name, logo_url'),
+      supabaseAdmin.from('teams').select('name, logo_url, division'),
       // Pull round results from the Excel-sync table. Sort by round DESC so
       // the most recent round is first — string dates like "22.11.25" don't
       // sort chronologically, but the round number does.
@@ -64,7 +65,7 @@ async function getStandings(season: string): Promise<{
         .order('round', { ascending: false }),
     ]);
 
-    if (error || !data || data.length === 0) throw new Error('no data');
+    if (error || !data) throw new Error('no data');
 
     const teamRows = (teamsData ?? []) as TeamRow[];
     const gameRows = (results ?? []) as GameResultRow[];
@@ -141,16 +142,32 @@ async function getStandings(season: string): Promise<{
     const north = rows.filter(r => r.division === 'North').map(enrich);
     const south = rows.filter(r => r.division === 'South').map(enrich);
 
-    if (north.length === 0 && south.length === 0) throw new Error('empty');
+    // No standings synced for this season yet → show every team at 0 rather
+    // than an empty table, and NEVER last season's numbers. Derived live from
+    // the teams table (hard-coded rosters merged with teams.division), so a
+    // new / removed / moved team is reflected without a code change.
+    if (north.length === 0 && south.length === 0) {
+      const { north: northNames, south: southNames } = mergeDivisionNames(teamRows);
+      const northSet = new Set(northNames.map(normalizeTeamName));
+      const southSet = new Set(southNames.map(normalizeTeamName));
+      const zeroRow = (name: string, rank: number): StandingWithStreak => ({
+        rank, name: resolveName(name), games: 0, wins: 0, losses: 0,
+        pf: 0, pa: 0, diff: 0, techni: 0, penalty: 0, pts: 0, streak: '', form: [],
+      });
+      const zNorth: StandingWithStreak[] = [];
+      const zSouth: StandingWithStreak[] = [];
+      for (const t of teamRows) {
+        const n = normalizeTeamName(t.name);
+        if (t.division === 'North' || northSet.has(n)) zNorth.push(zeroRow(t.name, zNorth.length + 1));
+        else if (t.division === 'South' || southSet.has(n)) zSouth.push(zeroRow(t.name, zSouth.length + 1));
+      }
+      return { north: zNorth, south: zSouth, logos };
+    }
 
     return { north, south, logos };
   } catch {
-    const empty = { streak: '', form: [] as { result: 'W' | 'L'; round: number }[] };
-    return {
-      north: NORTH_TABLE.map(s => ({ ...s, ...empty })),
-      south: SOUTH_TABLE.map(s => ({ ...s, ...empty })),
-      logos: {},
-    };
+    // Genuine DB error — empty, never fabricated standings.
+    return { north: [], south: [], logos: {} };
   }
 }
 

@@ -9,10 +9,12 @@ import {
   parseStandings,
   parseRoundDates,
   parseResults,
+  parseSchedule,
   parseCupGames,
   mergeDivisionNames,
   type StandingRow,
   type GameResultRow,
+  type ScheduleGameRow,
   type CupGameRow,
 } from '@/lib/excel-sync-parsers';
 
@@ -48,10 +50,14 @@ export async function POST(req: NextRequest) {
     // Parse results
     const resultsSheet = wb.SheetNames.find((n) => n.includes('תוצאות'));
     let results: GameResultRow[] = [];
+    let schedule: ScheduleGameRow[] = [];
     let roundDatesMap: Record<number, string> = {};
     if (resultsSheet) {
       const resultsRows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[resultsSheet], { header: 1 });
       results = parseResults(resultsRows);
+      // The full fixture list — played AND upcoming — so the games table can be
+      // seeded with a new season's schedule, not just its finished games.
+      schedule = parseSchedule(resultsRows);
       // Extract ALL round dates (including future rounds with no scores yet)
       roundDatesMap = parseRoundDates(resultsRows);
     }
@@ -74,11 +80,38 @@ export async function POST(req: NextRequest) {
       }
     } catch { /* cup sheet parsing failed — skip silently */ }
 
-    if (north.length === 0 && south.length === 0 && results.length === 0) {
+    if (north.length === 0 && south.length === 0 && results.length === 0 && schedule.length === 0) {
       return NextResponse.json({ error: 'No data found in Excel file' }, { status: 400 });
     }
 
     const season = await getCurrentSeason();
+
+    // ── Persist the full schedule for this season (reliable, migration-free) ──
+    // Store every fixture (played + upcoming) as a JSON blob in league_settings
+    // keyed by season. getSeasonSchedule() reads this when the games table has
+    // no round-bearing rows, so the לוח המשחקים / scoreboard / upcoming strips
+    // show this season's dates the moment the file is uploaded — even before
+    // the games.round migration is run. Done FIRST and best-effort so it lands
+    // even if a later step (standings/results) fails.
+    if (schedule.length > 0) {
+      try {
+        const scheduleEntries = schedule
+          .map((g) => ({
+            round: g.round,
+            date: toIsoDate(g.date),
+            homeTeam: g.home_team,
+            awayTeam: g.away_team,
+            division: g.division,
+          }))
+          .filter((e) => e.round > 0 && e.date && e.homeTeam && e.awayTeam);
+        if (scheduleEntries.length > 0) {
+          await supabaseAdmin.from('league_settings').upsert(
+            { key: `schedule:${season}`, value: JSON.stringify(scheduleEntries) },
+            { onConflict: 'key' },
+          );
+        }
+      } catch { /* league_settings unavailable — schedule still shows via games table */ }
+    }
 
     // Snapshot existing data before replacing (current-season only — we never
     // touch prior-season rows).
@@ -101,22 +134,31 @@ export async function POST(req: NextRequest) {
     const prevCupPreviews = await snapshotCup('match_previews');
 
     // ── Replace standings for the current season ──
+    // Dedupe by division + normalized name: parseStandings can emit the same
+    // team twice when the sheet repeats a name, and a duplicate would trip a
+    // unique constraint on the standings table and fail the whole sync.
+    const seenStanding = new Set<string>();
     const standingRows = [
       ...north.map((r) => ({ ...r, division: 'North', season })),
       ...south.map((r) => ({ ...r, division: 'South', season })),
-    ];
+    ].filter((r) => {
+      const key = `${r.division}|${normalizeTeamName(r.name)}`;
+      if (seenStanding.has(key)) return false;
+      seenStanding.add(key);
+      return true;
+    });
 
     if (standingRows.length > 0) {
       const { error: delErr } = await supabaseAdmin
         .from('standings')
         .delete()
         .eq('season', season);
-      if (delErr) throw delErr;
+      if (delErr) throw new Error(`standings delete: ${delErr.message}`);
 
       const { error: insErr } = await supabaseAdmin
         .from('standings')
         .insert(standingRows);
-      if (insErr) throw insErr;
+      if (insErr) throw new Error(`standings insert: ${insErr.message}`);
     }
 
     // ── Replace game results for the current season ──
@@ -126,31 +168,40 @@ export async function POST(req: NextRequest) {
         .from('game_results')
         .delete()
         .eq('season', season);
-      if (delErr) throw delErr;
+      if (delErr) throw new Error(`game_results delete: ${delErr.message}`);
     }
     if (results.length > 0) {
       const stamped = results.map((r) => ({ ...r, season }));
       const { error: insErr } = await supabaseAdmin
         .from('game_results')
         .insert(stamped);
-      if (insErr) throw insErr;
+      if (insErr) throw new Error(`game_results insert: ${insErr.message}`);
       resultsCount = results.length;
     }
 
-    // ── Auto-upsert games table from results ───────────────────────────
-    // The `games` table holds the schedule (used by /submit, scoreboard,
-    // upcoming games, etc.). Admins don't always pre-schedule rounds — but
-    // if a result was synced for a date, the game should exist as a
-    // 'Finished' record so users can submit stats for it.
+    // ── Auto-upsert games table from the schedule ─────────────────────────
+    // The `games` table holds the schedule (used by /submit, scoreboard, the
+    // public "upcoming games" strips, and the admin round groupings). We drive
+    // it from the FULL fixture list (played + upcoming) so a new season's
+    // schedule appears the moment the file is uploaded — not only its finished
+    // games. Every row is stamped with its `round` so nothing has to guess the
+    // round from a hard-coded schedule any more.
+    //
+    // Played fixtures become 'Finished' with their scores; unplayed fixtures
+    // become 'Scheduled' at 0-0. Existing rows are updated in place (scores +
+    // round), and a stale 'Scheduled' row on a different date for the same
+    // matchup is migrated (its admin-filled time/location preserved) rather
+    // than duplicated.
     let gamesCreated = 0;
     let gamesUpdated = 0;
     let gamesDeleted = 0;
+    let gamesWarning = '';
     try {
       const { data: teamsList } = await supabaseAdmin
         .from('teams')
         .select('id, name');
 
-      if (teamsList && teamsList.length > 0 && results.length > 0) {
+      if (teamsList && teamsList.length > 0 && schedule.length > 0) {
         // Build name → id map (normalized)
         const teamMap = new Map<string, string>();
         for (const t of teamsList) teamMap.set(normalizeTeamName(t.name), t.id);
@@ -159,13 +210,13 @@ export async function POST(req: NextRequest) {
         // preserve admin-filled values when migrating a rescheduled row.
         const { data: existingGames } = await supabaseAdmin
           .from('games')
-          .select('id, home_team_id, away_team_id, game_date, game_time, location, status, home_score, away_score')
+          .select('id, home_team_id, away_team_id, game_date, game_time, location, status, home_score, away_score, round')
           .eq('season', season);
 
         type ExistingGame = {
           id: string; date: string; status: string;
           home_score: number; away_score: number;
-          game_time: string; location: string;
+          game_time: string; location: string; round: number | null;
         };
         const existingByKey = new Map<string, ExistingGame>();
         // Group by team-pair so we can detect stale duplicates from a
@@ -177,6 +228,7 @@ export async function POST(req: NextRequest) {
             home_score: g.home_score, away_score: g.away_score,
             game_time: g.game_time ?? '00:00:00',
             location: g.location ?? 'TBD',
+            round: (g as { round?: number | null }).round ?? null,
           };
           existingByKey.set(`${g.home_team_id}|${g.away_team_id}|${g.game_date}`, row);
           const pairKey = `${g.home_team_id}|${g.away_team_id}`;
@@ -188,21 +240,27 @@ export async function POST(req: NextRequest) {
           home_team_id: string; away_team_id: string;
           game_date: string; game_time: string; location: string;
           home_score: number; away_score: number; status: string;
-          season: string;
+          season: string; round: number;
         }[] = [];
-        const toUpdate: { id: string; home_score: number; away_score: number; status: string }[] = [];
+        const toUpdate: {
+          id: string; home_score: number; away_score: number; status: string; round: number;
+        }[] = [];
         // For stale rescheduled rows we MIGRATE (update date) instead of
         // delete-then-insert so admin-filled time/location aren't lost.
         const toMigrate: {
-          id: string; new_date: string;
-          home_score: number; away_score: number;
+          id: string; new_date: string; round: number;
+          home_score: number; away_score: number; status: string;
         }[] = [];
 
-        for (const r of results) {
+        for (const r of schedule) {
           const homeId = resolveTeamId(r.home_team, teamMap);
           const awayId = resolveTeamId(r.away_team, teamMap);
           const isoDate = toIsoDate(r.date);
           if (!homeId || !awayId || !isoDate) continue;
+
+          const status = r.played ? 'Finished' : 'Scheduled';
+          const homeScore = r.played ? (r.home_score ?? 0) : 0;
+          const awayScore = r.played ? (r.away_score ?? 0) : 0;
 
           const key = `${homeId}|${awayId}|${isoDate}`;
           const existing = existingByKey.get(key);
@@ -210,46 +268,50 @@ export async function POST(req: NextRequest) {
           const allForPair = existingByPair.get(pairKey) ?? [];
 
           if (existing) {
-            // Exact-date match: update scores + status if changed
-            if (
-              existing.status !== 'Finished' ||
-              existing.home_score !== r.home_score ||
-              existing.away_score !== r.away_score
-            ) {
+            // Exact-date match. Keep an already-Finished game's scores intact if
+            // the schedule row has no result yet; otherwise sync scores/status.
+            const scoreChanged =
+              r.played &&
+              (existing.status !== 'Finished' ||
+                existing.home_score !== homeScore ||
+                existing.away_score !== awayScore);
+            const roundMissing = existing.round !== r.round;
+            if (scoreChanged || roundMissing) {
               toUpdate.push({
                 id: existing.id,
-                home_score: r.home_score,
-                away_score: r.away_score,
-                status: 'Finished',
+                // Don't blank a played game just because this row is unplayed.
+                home_score: r.played ? homeScore : existing.home_score,
+                away_score: r.played ? awayScore : existing.away_score,
+                status: r.played ? 'Finished' : existing.status,
+                round: r.round,
               });
             }
             continue;
           }
 
-          // No exact-date match. Look for a stale 'Scheduled' row on a
-          // different date — that's a rescheduled fixture from when the
-          // schedule sheet had a different date. Migrate it (preserve
-          // admin-filled time/location) instead of inserting fresh.
-          const staleScheduled = allForPair.find(
-            (c) => c.date !== isoDate && c.status !== 'Finished',
-          );
-          if (staleScheduled) {
+          // No exact-date match. Look for a stale row on a different date for
+          // the same matchup — a rescheduled fixture from when the sheet had a
+          // different date. Migrate it (preserve admin-filled time/location)
+          // instead of inserting a duplicate.
+          const stale = allForPair.find((c) => c.date !== isoDate && c.status !== 'Finished');
+          if (stale) {
             toMigrate.push({
-              id: staleScheduled.id,
+              id: stale.id,
               new_date: isoDate,
-              home_score: r.home_score,
-              away_score: r.away_score,
+              round: r.round,
+              home_score: r.played ? homeScore : stale.home_score,
+              away_score: r.played ? awayScore : stale.away_score,
+              status: r.played ? 'Finished' : stale.status,
             });
-            // Mark as consumed so a second result for the same pair doesn't
-            // also try to migrate it.
-            staleScheduled.status = 'Finished';
+            // Mark consumed so a second fixture for the same pair doesn't reuse it.
+            stale.date = isoDate;
+            if (r.played) stale.status = 'Finished';
           } else {
             toInsert.push({
               home_team_id: homeId, away_team_id: awayId,
               game_date: isoDate, game_time: '19:00:00', location: 'TBD',
-              home_score: r.home_score, away_score: r.away_score,
-              status: 'Finished',
-              season,
+              home_score: homeScore, away_score: awayScore, status,
+              season, round: r.round,
             });
           }
         }
@@ -257,24 +319,26 @@ export async function POST(req: NextRequest) {
         if (toInsert.length > 0) {
           const { error: insErr } = await supabaseAdmin.from('games').insert(toInsert);
           if (!insErr) gamesCreated = toInsert.length;
+          else { console.error('games insert failed:', insErr.message); gamesWarning = insErr.message; }
         }
         for (const u of toUpdate) {
           const { error: updErr } = await supabaseAdmin
             .from('games')
-            .update({ home_score: u.home_score, away_score: u.away_score, status: u.status })
+            .update({ home_score: u.home_score, away_score: u.away_score, status: u.status, round: u.round })
             .eq('id', u.id);
           if (!updErr) gamesUpdated++;
         }
-        // Migrate rescheduled rows: update date + score + status, KEEP the
-        // existing game_time and location (admin may have filled them in).
+        // Migrate rescheduled rows: update date + round (+ score/status when
+        // played), KEEP the existing game_time and location.
         for (const m of toMigrate) {
           const { error: migErr } = await supabaseAdmin
             .from('games')
             .update({
               game_date: m.new_date,
+              round: m.round,
               home_score: m.home_score,
               away_score: m.away_score,
-              status: 'Finished',
+              status: m.status,
             })
             .eq('id', m.id);
           if (!migErr) gamesDeleted++; // reusing the counter for "moved" rows
@@ -282,7 +346,10 @@ export async function POST(req: NextRequest) {
       }
     } catch (e) {
       console.error('auto-upsert games failed:', e);
-      // Don't fail the whole sync — auto-create is a nice-to-have
+      // Don't fail the whole sync — auto-create is a nice-to-have. Surface the
+      // reason so a missing `round` column (migration not run) is visible.
+      gamesWarning = e instanceof Error ? e.message
+        : (typeof e === 'object' && e && 'message' in e ? String((e as { message: unknown }).message) : String(e));
     }
 
     // ── Cup games: NON-destructive sync ───────────────────────────────────
@@ -358,14 +425,29 @@ export async function POST(req: NextRequest) {
     if (gamesCreated > 0) parts.push(`${gamesCreated} משחקים נוצרו אוטומטית`);
     if (gamesUpdated > 0) parts.push(`${gamesUpdated} משחקים עודכנו`);
     if (gamesDeleted > 0) parts.push(`${gamesDeleted} משחקים שמוקמו מחדש (שעה+מיקום נשמרו)`);
+    if (parts.length === 0) parts.push('לא נמצאו נתונים לעדכון');
 
-    return NextResponse.json({
-      success: true,
-      message: `✅ עודכנו: ${parts.join(' + ')}`,
-    });
+    // If the schedule/games couldn't be created, say so loudly — the most
+    // common cause is the games.round column not existing yet (migration not
+    // run). Standings/results still synced, so this is a warning, not a failure.
+    let message = `✅ עודכנו: ${parts.join(' + ')}`;
+    if (gamesWarning) {
+      const migrationHint = /round/i.test(gamesWarning)
+        ? ' — כנראה שעמודת games.round חסרה. הרץ את המיגרציה 20260919_game_round.sql ב-Supabase ונסה שוב.'
+        : '';
+      message += `\n⚠️ לוח המשחקים לא נוצר (${gamesWarning})${migrationHint}`;
+    }
+
+    return NextResponse.json({ success: true, message });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Sync failed';
-    console.error('sync-excel-file error:', msg);
+    // Surface the REAL reason. Supabase throws plain objects (not Error
+    // instances), so pull `.message` off those too instead of a generic string.
+    const msg =
+      err instanceof Error ? err.message
+      : (typeof err === 'object' && err && 'message' in err
+          ? String((err as { message: unknown }).message)
+          : 'Sync failed');
+    console.error('sync-excel-file error:', err);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

@@ -6,7 +6,13 @@ import { getLang, st } from '@/lib/get-lang';
 import { displayName } from '@/lib/names';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { getCurrentSeason } from '@/lib/current-season';
-import { seriesWinner } from '@/lib/playoff-format';
+import {
+  playoffSeriesWinner,
+  cupFinalWinner,
+  type PlayoffSeries,
+  type PlayoffGame,
+  type CupGame,
+} from '@/lib/hall-of-fame-live';
 
 type Season = {
   id: string;
@@ -21,6 +27,9 @@ type Season = {
   mvp_stats: string | null;
   is_current: boolean | null;
   sort_order: number | null;
+  // true for a card derived live from playoff/cup results (no curated
+  // history row, so it has no clickable detail page).
+  auto?: boolean;
 };
 
 type Record = {
@@ -43,29 +52,6 @@ type RenderedRecord = {
   holder: string | null;
   value: string | null;
   auto: boolean;
-};
-
-type PlayoffSeries = {
-  series_number: number;
-  team_a: string;
-  team_b: string;
-};
-
-type PlayoffGame = {
-  series_number: number;
-  game_number: number;
-  home_score: number | null;
-  away_score: number | null;
-  played: boolean | null;
-};
-
-type CupGame = {
-  round: string | null;
-  home_team: string | null;
-  away_team: string | null;
-  home_score: number | null;
-  away_score: number | null;
-  played: boolean | null;
 };
 
 /* ── helpers ───────────────────────────────────────────────────────────── */
@@ -236,29 +222,6 @@ function buildComputedRecords(
   return out;
 }
 
-function homeForGame(s: PlayoffSeries, gNum: number) {
-  return gNum === 2 ? s.team_b : s.team_a;
-}
-
-function playoffSeriesWinner(s: PlayoffSeries, games: PlayoffGame[]): string | null {
-  let winsA = 0, winsB = 0;
-  for (const g of games.filter(g => g.series_number === s.series_number && g.played)) {
-    const home = homeForGame(s, g.game_number);
-    const homeWon = (g.home_score ?? 0) > (g.away_score ?? 0);
-    if ((homeWon && home === s.team_a) || (!homeWon && home !== s.team_a)) winsA++;
-    else winsB++;
-  }
-  return seriesWinner(s.series_number, winsA, s.team_a, winsB, s.team_b);
-}
-
-function cupFinalWinner(games: CupGame[]): string | null {
-  const finalGame = games.find(g => g.round === 'גמר' && g.played && g.home_score !== null && g.away_score !== null);
-  if (!finalGame) return null;
-  return (finalGame.home_score ?? 0) > (finalGame.away_score ?? 0)
-    ? finalGame.home_team
-    : finalGame.away_team;
-}
-
 /* ── Trophy card component ────────────────────────────────────────────── */
 function TrophyCard({
   title,
@@ -326,8 +289,16 @@ export default async function HallOfFamePage() {
   let renderedRecords: RenderedRecord[] = [];
   let leagueChampion: string | null = null;
   let leagueChampionLogo: string | null = null;
+  let championSeason: string | null = null;
   let cupHolder: string | null = null;
   let cupHolderLogo: string | null = null;
+  let cupSeason: string | null = null;
+  // The wall lists: curated league_history_seasons merged with live-derived
+  // champions/cup-holders for every decided season EXCEPT the one currently
+  // reigning at the top. So once a new season crowns winners, the previous
+  // season drops into the walls automatically.
+  let championsWall: Season[] = [];
+  let cupWall: Season[] = [];
 
   try {
     // league_history_seasons / league_history_records are intentionally
@@ -349,9 +320,12 @@ export default async function HallOfFamePage() {
     ] = await Promise.all([
       supabaseAdmin.from('league_history_seasons').select('*').order('year', { ascending: false }),
       supabaseAdmin.from('league_history_records').select('*').order('sort_order'),
-      supabaseAdmin.from('playoff_series').select('series_number, team_a, team_b').eq('season', season).order('series_number'),
-      supabaseAdmin.from('playoff_games').select('series_number, game_number, home_score, away_score, played').eq('season', season),
-      supabaseAdmin.from('cup_games').select('round, home_team, away_team, home_score, away_score, played').eq('season', season),
+      // Reigning champions come from the most-recent DECIDED finals across ALL
+      // seasons (not just the current one), so a freshly-started season still
+      // shows last season's champion + cup holder until new finals are decided.
+      supabaseAdmin.from('playoff_series').select('series_number, team_a, team_b, season').order('series_number'),
+      supabaseAdmin.from('playoff_games').select('series_number, game_number, home_score, away_score, played, season'),
+      supabaseAdmin.from('cup_games').select('round, home_team, away_team, home_score, away_score, played, season'),
       supabaseAdmin.from('teams').select('name, logo_url'),
       supabaseAdmin.from('players').select('id, name, points, three_pointers, team:teams(name)'),
       supabaseAdmin.from('game_stats').select('player_id, points, three_pointers').eq('season', season),
@@ -367,27 +341,85 @@ export default async function HallOfFamePage() {
     // Resolve cached cup_games / playoff team strings to the current admin name.
     const resolveName = makeNameResolver(teamList.map(t => ({ id: t.name, name: t.name })));
 
-    /* ── League champion: ONLY the live winner of the playoff finals
-       (playoff_series #7). Nothing shown until the finals are decided. ── */
-    const finalSeries = (playoffSeries ?? []).find(
-      (ps: PlayoffSeries) => ps.series_number === 7 && ps.team_a && ps.team_b,
-    ) as PlayoffSeries | undefined;
-
-    if (finalSeries) {
-      const winner = playoffSeriesWinner(finalSeries, (playoffGames ?? []) as PlayoffGame[]);
+    /* ── League champion: winner of the most-recent DECIDED playoff final
+       (playoff_series #7), scanning seasons newest-first. So after a new
+       season starts (its finals not played yet), last season's champion
+       still reigns instead of the card vanishing. ── */
+    const seriesAll = (playoffSeries ?? []) as (PlayoffSeries & { season: string })[];
+    const gamesAll = (playoffGames ?? []) as (PlayoffGame & { season: string })[];
+    const finalBySeason = new Map<string, PlayoffSeries & { season: string }>();
+    for (const ps of seriesAll) {
+      if (ps.series_number === 7 && ps.team_a && ps.team_b) finalBySeason.set(ps.season, ps);
+    }
+    for (const sea of [...finalBySeason.keys()].sort((a, b) => b.localeCompare(a))) {
+      const fs = finalBySeason.get(sea)!;
+      const winner = playoffSeriesWinner(fs, gamesAll.filter((g) => g.season === sea));
       if (winner) {
         leagueChampion = resolveName(winner);
         leagueChampionLogo = findLogo(leagueChampion) ?? findLogo(winner);
+        championSeason = sea;
+        break;
       }
     }
 
-    /* ── Cup holder: ONLY the live winner of the cup final (round='גמר').
-       Nothing shown until the final is played. ── */
-    const cupWinner = cupFinalWinner((cupGames ?? []) as CupGame[]);
-    if (cupWinner) {
-      cupHolder = resolveName(cupWinner);
-      cupHolderLogo = findLogo(cupHolder) ?? findLogo(cupWinner);
+    /* ── Cup holder: winner of the most-recent DECIDED cup final (round='גמר'),
+       newest season first — same reigning-until-replaced behaviour. ── */
+    const cupAll = (cupGames ?? []) as (CupGame & { season: string })[];
+    const cupBySeason = new Map<string, (CupGame & { season: string })[]>();
+    for (const g of cupAll) {
+      const arr = cupBySeason.get(g.season) ?? [];
+      arr.push(g);
+      cupBySeason.set(g.season, arr);
     }
+    for (const sea of [...cupBySeason.keys()].sort((a, b) => b.localeCompare(a))) {
+      const cupWinner = cupFinalWinner(cupBySeason.get(sea)!);
+      if (cupWinner) {
+        cupHolder = resolveName(cupWinner);
+        cupHolderLogo = findLogo(cupHolder) ?? findLogo(cupWinner);
+        cupSeason = sea;
+        break;
+      }
+    }
+
+    /* ── Wall lists: curated history + live-derived past seasons ─────────────
+       For every season with a decided playoff / cup final, derive a card and
+       add it to the walls — but skip the season currently reigning at the top,
+       and skip any year already curated in league_history_seasons (the curated
+       row, with its MVP + final details, wins). So the moment 2026-2027 crowns
+       new champions, 2025-2026 auto-appears in the walls below. ── */
+    const curatedYears = new Set(seasons.map((s) => s.year));
+    const blankSeason = (year: string, patch: Partial<Season>): Season => ({
+      id: `auto-${year}`, year,
+      champion_name: null, champion_logo: null, champion_captain: null,
+      runner_up_name: null, cup_holder_name: null, cup_holder_logo: null,
+      mvp_name: null, mvp_stats: null, is_current: null, sort_order: null,
+      auto: true, ...patch,
+    });
+
+    // Champion (+ runner-up) per decided playoff final.
+    const autoChampionByYear = new Map<string, { champion: string; runnerUp: string }>();
+    for (const [sea, fs] of finalBySeason) {
+      const winner = playoffSeriesWinner(fs, gamesAll.filter((g) => g.season === sea));
+      if (!winner) continue;
+      const runnerUpRaw = winner === fs.team_a ? fs.team_b : fs.team_a;
+      autoChampionByYear.set(sea, { champion: resolveName(winner), runnerUp: resolveName(runnerUpRaw) });
+    }
+    // Cup holder per decided cup final.
+    const autoCupByYear = new Map<string, string>();
+    for (const [sea, games] of cupBySeason) {
+      const w = cupFinalWinner(games);
+      if (w) autoCupByYear.set(sea, resolveName(w));
+    }
+
+    const autoChampionCards: Season[] = [...autoChampionByYear.entries()]
+      .filter(([year]) => !curatedYears.has(year) && year !== championSeason)
+      .map(([year, v]) => blankSeason(year, { champion_name: v.champion, runner_up_name: v.runnerUp }));
+    championsWall = [...seasons, ...autoChampionCards].sort((a, b) => b.year.localeCompare(a.year));
+
+    const autoCupCards: Season[] = [...autoCupByYear.entries()]
+      .filter(([year]) => !curatedYears.has(year) && year !== cupSeason)
+      .map(([year, holder]) => blankSeason(year, { cup_holder_name: holder }));
+    cupWall = [...seasons.filter((s) => s.cup_holder_name), ...autoCupCards].sort((a, b) => b.year.localeCompare(a.year));
 
     /* ── All-time records: merge live-computed entries with admin-curated
        ones. Admin-entered records take precedence on title match (case-
@@ -437,7 +469,11 @@ export default async function HallOfFamePage() {
           {leagueChampion && (
             <TrophyCard
               title={T('אלופת הליגה')}
-              subtitle={T('מחזיקת הצלחת לשנים 2025–2026')}
+              subtitle={
+                lang === 'en'
+                  ? `League champion · ${(championSeason ?? '').replace('-', '–')}`
+                  : `מחזיקת הצלחת לשנים ${(championSeason ?? '').replace('-', '–')}`
+              }
               team={leagueChampion}
               teamLabel={T(leagueChampion)}
               logo={leagueChampionLogo}
@@ -448,7 +484,11 @@ export default async function HallOfFamePage() {
           {cupHolder && (
             <TrophyCard
               title={T('מחזיקת הגביע')}
-              subtitle={T('אלופת הגביע · 2025–2026')}
+              subtitle={
+                lang === 'en'
+                  ? `Cup holder · ${(cupSeason ?? '').replace('-', '–')}`
+                  : `אלופת הגביע · ${(cupSeason ?? '').replace('-', '–')}`
+              }
               team={cupHolder}
               teamLabel={T(cupHolder)}
               logo={cupHolderLogo}
@@ -464,11 +504,11 @@ export default async function HallOfFamePage() {
         <h2 className="font-heading text-2xl mb-6 flex items-center gap-2">
           <span className="w-8 h-px bg-orange-500 inline-block"></span> {T('אלופות הליגה')}
         </h2>
-        {seasons.length === 0 ? (
+        {championsWall.length === 0 ? (
           <p className="text-slate-300 font-bold text-center py-12">{T('אין עונות להצגה עדיין')}</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {seasons.map((season) => (
+            {championsWall.map((season) => (
               <Link
                 key={season.id}
                 href={`/hall-of-fame/${encodeURIComponent(season.year)}`}
@@ -514,11 +554,11 @@ export default async function HallOfFamePage() {
         <h2 className="font-heading text-2xl mb-6 flex items-center gap-2">
           <span className="w-8 h-px bg-yellow-400 inline-block"></span> {T('מחזיקות הגביע')}
         </h2>
-        {seasons.filter(s => s.cup_holder_name).length === 0 ? (
+        {cupWall.length === 0 ? (
           <p className="font-bold text-[#8aaac8] text-center py-12">{T('אין מחזיקות גביע להצגה עדיין')}</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {seasons.filter(s => s.cup_holder_name).map((season) => (
+            {cupWall.map((season) => (
               <div
                 key={`cup-${season.id}`}
                 className="relative overflow-hidden rounded-2xl bg-slate-900 border border-yellow-400/20 p-6 hover:border-yellow-400/60 transition-all"

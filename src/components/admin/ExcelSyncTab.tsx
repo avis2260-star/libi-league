@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { mergeDivisionNames } from '@/lib/excel-sync-parsers';
+import { mergeDivisionNames, parseSchedule } from '@/lib/excel-sync-parsers';
 
 type StandingRow = {
   rank: number;
@@ -33,6 +33,12 @@ type Preview = {
   north: StandingRow[];
   south: StandingRow[];
   results: GameResultRow[];
+  // Full fixture count (played + upcoming) from the schedule — this is what
+  // seeds the games table / "upcoming games", so a schedule-only file (no
+  // scores yet) is still a valid upload.
+  scheduleCount: number;
+  scheduleMin: number;
+  scheduleMax: number;
 };
 
 // ── Standings parser ────────────────────────────────────────────────────────
@@ -210,18 +216,23 @@ export default function ExcelSyncTab({
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [fileName, setFileName] = useState('');
+  // The raw file is what we send to the server on sync — the server re-parses
+  // it and does the FULL sync (standings + results + schedule/games + round
+  // dates + cup). The client parse below is only for the on-screen preview.
+  const [file, setFile] = useState<File | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setFileName(file.name);
+    const selected = e.target.files?.[0];
+    if (!selected) return;
+    setFileName(selected.name);
     setResult(null);
     setPreview(null);
+    setFile(selected);
 
     try {
       const XLSX = await import('xlsx');
-      const buffer = await file.arrayBuffer();
+      const buffer = await selected.arrayBuffer();
       const wb = XLSX.read(buffer, { type: 'array' });
 
       // Parse standings from טבלאות sheet. Division rosters = hard-coded
@@ -232,35 +243,46 @@ export default function ExcelSyncTab({
       const standingsRows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[standingsSheet], { header: 1 });
       const { north, south } = parseStandings(standingsRows, northNames, southNames);
 
-      // Parse game results from תוצאות sheet
+      // Parse game results + the full fixture list from תוצאות sheet
       const resultsSheet = wb.SheetNames.find((n) => n.includes('תוצאות'));
       let results: GameResultRow[] = [];
+      let scheduleRounds: number[] = [];
       if (resultsSheet) {
         const resultsRows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[resultsSheet], { header: 1 });
         results = parseResults(resultsRows);
+        scheduleRounds = parseSchedule(resultsRows).map((g) => g.round);
       }
 
-      if (north.length === 0 && south.length === 0 && results.length === 0) {
+      const scheduleCount = scheduleRounds.length;
+      if (north.length === 0 && south.length === 0 && results.length === 0 && scheduleCount === 0) {
         setResult({ ok: false, msg: 'לא נמצאו נתונים מוכרים בקובץ.' });
         return;
       }
 
-      setPreview({ north, south, results });
+      setPreview({
+        north, south, results,
+        scheduleCount,
+        scheduleMin: scheduleCount > 0 ? Math.min(...scheduleRounds) : 0,
+        scheduleMax: scheduleCount > 0 ? Math.max(...scheduleRounds) : 0,
+      });
     } catch {
       setResult({ ok: false, msg: 'שגיאה בקריאת הקובץ. ודא שזה קובץ Excel תקין.' });
     }
   }
 
   async function handleSync() {
-    if (!preview) return;
+    if (!file) return;
     setLoading(true);
     setResult(null);
 
     try {
-      const res = await fetch('/api/admin/sync-excel', {
+      // Send the raw file to the server, which does the complete sync
+      // (standings + results + schedule/games with round + round dates + cup).
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch('/api/admin/sync-excel-file', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(preview),
+        body: form,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'שגיאה');
@@ -277,6 +299,7 @@ export default function ExcelSyncTab({
     setPreview(null);
     setResult(null);
     setFileName('');
+    setFile(null);
     if (inputRef.current) inputRef.current.value = '';
   }
 
@@ -322,6 +345,17 @@ export default function ExcelSyncTab({
             <div className="mb-4 rounded-lg border border-blue-700/50 bg-blue-900/20 p-4">
               <p className="text-sm font-semibold text-blue-300">
                 🏀 נמצאו {preview.results.length} תוצאות משחקים (מחזורים {Math.min(...preview.results.map(r => r.round))}–{Math.max(...preview.results.map(r => r.round))})
+              </p>
+            </div>
+          )}
+
+          {preview.scheduleCount > 0 && (
+            <div className="mb-4 rounded-lg border border-orange-700/50 bg-orange-900/20 p-4">
+              <p className="text-sm font-semibold text-orange-300">
+                📅 נמצא לוח משחקים: {preview.scheduleCount} משחקים (מחזורים {preview.scheduleMin}–{preview.scheduleMax})
+              </p>
+              <p className="mt-1 text-xs text-orange-200/80">
+                כל המשחקים ייווצרו בלוח — כולל משחקים עתידיים שטרם שוחקו — כדי שיופיעו כ&quot;משחקים קרובים&quot;.
               </p>
             </div>
           )}

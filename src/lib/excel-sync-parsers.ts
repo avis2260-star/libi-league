@@ -33,9 +33,12 @@ export const TEAM_ALIASES: Record<string, string> = {
   'אריות ק גת':           'אריות קריית גת',
   'אס ק גת':              'אריות קריית גת',
   'אט ק גת':              'אריות קריית גת',
+  'א.ט. ק.גת':            'אריות קריית גת', // short form used in the קבוצות sheet
   'הה גדרה':              "החבר'ה הטובים גדרה",
   'החברה הטובים':         "החבר'ה הטובים גדרה",
   'החברה הטובים גדרה':    "החבר'ה הטובים גדרה",
+  'כח עולה בת ים':        'כ.ע. בת-ים',      // full name in the קבוצות sheet
+  'אדיס אשדוד':           'שועלי אדיס אשדוד', // pre-rename short form
 };
 
 /**
@@ -153,6 +156,24 @@ export type CupGameRow = {
   away_score: number | null;
   date: string;
   played: boolean;
+};
+
+/**
+ * One league fixture parsed from the "תוצאות" sheet — INCLUDING games that
+ * haven't been played yet (unlike GameResultRow, which is played games only).
+ * `played` is false and the scores are null until the sheet carries a result.
+ */
+export type ScheduleGameRow = {
+  round: number;
+  date: string;
+  division: 'North' | 'South';
+  home_team: string;
+  away_team: string;
+  home_score: number | null;
+  away_score: number | null;
+  played: boolean;
+  techni: boolean;
+  techni_note: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -318,6 +339,73 @@ export function parseResults(rows: unknown[][]): GameResultRow[] {
   }
 
   return results;
+}
+
+// ---------------------------------------------------------------------------
+// parseSchedule
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse the FULL league schedule from the "תוצאות" sheet — every fixture,
+ * played or not. Same column layout and date/round/division state machine as
+ * parseResults, but it does NOT drop rows that have no score yet: those come
+ * back with `played: false` and null scores, which is exactly what the games
+ * importer needs to create the "upcoming games" rows for a fresh season.
+ *
+ * Unlike parseResults this starts scanning at row 0, because in some files the
+ * first round's date sits on the header row itself (e.g. "24.10.26" alongside
+ * the "מחזור"/"מחוז" labels). The header can never become a fixture — it has
+ * no round number, so the round-0 guard drops it — but reading it first lets
+ * round 1 inherit that date.
+ */
+export function parseSchedule(rows: unknown[][]): ScheduleGameRow[] {
+  const out: ScheduleGameRow[] = [];
+  let currentDate = '';
+  let currentRound = 0;
+  let currentDivision: 'North' | 'South' = 'South';
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.length < 7) continue;
+
+    const col0  = String(row[0]  ?? '').trim();
+    const col1  = row[1];
+    const col2  = String(row[2]  ?? '').trim();
+    const col3  = String(row[3]  ?? '').trim();
+    const col4  = row[4];
+    const col5  = row[5];
+    const col6  = String(row[6]  ?? '').trim();
+    const col10 = String(row[10] ?? '').trim();
+
+    if (col0.includes('פגרה') || col0.includes('גביע')) continue;
+    if (col0 && /\d{1,2}[./]\d{1,2}[./]\d{2,4}/.test(col0)) currentDate = col0;
+    if (typeof col1 === 'number' && col1 > 0) currentRound = col1;
+    if (col2 === 'צפון') currentDivision = 'North';
+    else if (col2 === 'דרום') currentDivision = 'South';
+
+    // Must have both team names and belong to a round. This also drops the
+    // header row (round still 0) and blank separator rows.
+    if (!col3 || !col6 || currentRound === 0) continue;
+
+    const homeScore = typeof col4 === 'number' ? col4 : parseInt(String(col4 ?? ''));
+    const awayScore = typeof col5 === 'number' ? col5 : parseInt(String(col5 ?? ''));
+    const played = !isNaN(homeScore) && !isNaN(awayScore);
+
+    out.push({
+      round:       currentRound,
+      date:        currentDate,
+      division:    currentDivision,
+      home_team:   col3,
+      away_team:   col6,
+      home_score:  played ? homeScore : null,
+      away_score:  played ? awayScore : null,
+      played,
+      techni:      col10.startsWith('טכני'),
+      techni_note: col10,
+    });
+  }
+
+  return out;
 }
 
 // ---------------------------------------------------------------------------

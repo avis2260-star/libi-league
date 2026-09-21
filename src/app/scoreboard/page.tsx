@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
+import { getSeasonSchedule } from '@/lib/season-schedule';
 import ScoreboardClient from './ScoreboardClient';
 import { getLang } from '@/lib/get-lang';
 import { getCurrentSeason } from '@/lib/current-season';
@@ -61,12 +61,13 @@ export default async function ScoreboardPage() {
     .order('round', { ascending: false })
     .limit(1);
 
+  const schedule = await getSeasonSchedule(season);
   const lastResultRound = lastResultRow?.[0]?.round ?? 0;
-  const maxRound = Math.max(...LIBI_SCHEDULE.map(g => g.round));
+  const maxRound = schedule.length > 0 ? Math.max(...schedule.map(g => g.round)) : lastResultRound + 1;
   const nextRound = Math.min(lastResultRound + 1, maxRound);
 
   // 3. Get all games for that round
-  const roundGames = LIBI_SCHEDULE.filter(g => g.round === nextRound);
+  const roundGames = schedule.filter(g => g.round === nextRound);
 
   const games: ScoreboardGame[] = roundGames.map(g => {
     const ht = findTeam(g.homeTeam);
