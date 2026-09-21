@@ -326,8 +326,10 @@ export default async function HallOfFamePage() {
   let renderedRecords: RenderedRecord[] = [];
   let leagueChampion: string | null = null;
   let leagueChampionLogo: string | null = null;
+  let championSeason: string | null = null;
   let cupHolder: string | null = null;
   let cupHolderLogo: string | null = null;
+  let cupSeason: string | null = null;
 
   try {
     // league_history_seasons / league_history_records are intentionally
@@ -349,9 +351,12 @@ export default async function HallOfFamePage() {
     ] = await Promise.all([
       supabaseAdmin.from('league_history_seasons').select('*').order('year', { ascending: false }),
       supabaseAdmin.from('league_history_records').select('*').order('sort_order'),
-      supabaseAdmin.from('playoff_series').select('series_number, team_a, team_b').eq('season', season).order('series_number'),
-      supabaseAdmin.from('playoff_games').select('series_number, game_number, home_score, away_score, played').eq('season', season),
-      supabaseAdmin.from('cup_games').select('round, home_team, away_team, home_score, away_score, played').eq('season', season),
+      // Reigning champions come from the most-recent DECIDED finals across ALL
+      // seasons (not just the current one), so a freshly-started season still
+      // shows last season's champion + cup holder until new finals are decided.
+      supabaseAdmin.from('playoff_series').select('series_number, team_a, team_b, season').order('series_number'),
+      supabaseAdmin.from('playoff_games').select('series_number, game_number, home_score, away_score, played, season'),
+      supabaseAdmin.from('cup_games').select('round, home_team, away_team, home_score, away_score, played, season'),
       supabaseAdmin.from('teams').select('name, logo_url'),
       supabaseAdmin.from('players').select('id, name, points, three_pointers, team:teams(name)'),
       supabaseAdmin.from('game_stats').select('player_id, points, three_pointers').eq('season', season),
@@ -367,26 +372,44 @@ export default async function HallOfFamePage() {
     // Resolve cached cup_games / playoff team strings to the current admin name.
     const resolveName = makeNameResolver(teamList.map(t => ({ id: t.name, name: t.name })));
 
-    /* ── League champion: ONLY the live winner of the playoff finals
-       (playoff_series #7). Nothing shown until the finals are decided. ── */
-    const finalSeries = (playoffSeries ?? []).find(
-      (ps: PlayoffSeries) => ps.series_number === 7 && ps.team_a && ps.team_b,
-    ) as PlayoffSeries | undefined;
-
-    if (finalSeries) {
-      const winner = playoffSeriesWinner(finalSeries, (playoffGames ?? []) as PlayoffGame[]);
+    /* ── League champion: winner of the most-recent DECIDED playoff final
+       (playoff_series #7), scanning seasons newest-first. So after a new
+       season starts (its finals not played yet), last season's champion
+       still reigns instead of the card vanishing. ── */
+    const seriesAll = (playoffSeries ?? []) as (PlayoffSeries & { season: string })[];
+    const gamesAll = (playoffGames ?? []) as (PlayoffGame & { season: string })[];
+    const finalBySeason = new Map<string, PlayoffSeries & { season: string }>();
+    for (const ps of seriesAll) {
+      if (ps.series_number === 7 && ps.team_a && ps.team_b) finalBySeason.set(ps.season, ps);
+    }
+    for (const sea of [...finalBySeason.keys()].sort((a, b) => b.localeCompare(a))) {
+      const fs = finalBySeason.get(sea)!;
+      const winner = playoffSeriesWinner(fs, gamesAll.filter((g) => g.season === sea));
       if (winner) {
         leagueChampion = resolveName(winner);
         leagueChampionLogo = findLogo(leagueChampion) ?? findLogo(winner);
+        championSeason = sea;
+        break;
       }
     }
 
-    /* ── Cup holder: ONLY the live winner of the cup final (round='גמר').
-       Nothing shown until the final is played. ── */
-    const cupWinner = cupFinalWinner((cupGames ?? []) as CupGame[]);
-    if (cupWinner) {
-      cupHolder = resolveName(cupWinner);
-      cupHolderLogo = findLogo(cupHolder) ?? findLogo(cupWinner);
+    /* ── Cup holder: winner of the most-recent DECIDED cup final (round='גמר'),
+       newest season first — same reigning-until-replaced behaviour. ── */
+    const cupAll = (cupGames ?? []) as (CupGame & { season: string })[];
+    const cupBySeason = new Map<string, (CupGame & { season: string })[]>();
+    for (const g of cupAll) {
+      const arr = cupBySeason.get(g.season) ?? [];
+      arr.push(g);
+      cupBySeason.set(g.season, arr);
+    }
+    for (const sea of [...cupBySeason.keys()].sort((a, b) => b.localeCompare(a))) {
+      const cupWinner = cupFinalWinner(cupBySeason.get(sea)!);
+      if (cupWinner) {
+        cupHolder = resolveName(cupWinner);
+        cupHolderLogo = findLogo(cupHolder) ?? findLogo(cupWinner);
+        cupSeason = sea;
+        break;
+      }
     }
 
     /* ── All-time records: merge live-computed entries with admin-curated
@@ -437,7 +460,11 @@ export default async function HallOfFamePage() {
           {leagueChampion && (
             <TrophyCard
               title={T('אלופת הליגה')}
-              subtitle={T('מחזיקת הצלחת לשנים 2025–2026')}
+              subtitle={
+                lang === 'en'
+                  ? `League champion · ${(championSeason ?? '').replace('-', '–')}`
+                  : `מחזיקת הצלחת לשנים ${(championSeason ?? '').replace('-', '–')}`
+              }
               team={leagueChampion}
               teamLabel={T(leagueChampion)}
               logo={leagueChampionLogo}
@@ -448,7 +475,11 @@ export default async function HallOfFamePage() {
           {cupHolder && (
             <TrophyCard
               title={T('מחזיקת הגביע')}
-              subtitle={T('אלופת הגביע · 2025–2026')}
+              subtitle={
+                lang === 'en'
+                  ? `Cup holder · ${(cupSeason ?? '').replace('-', '–')}`
+                  : `אלופת הגביע · ${(cupSeason ?? '').replace('-', '–')}`
+              }
               team={cupHolder}
               teamLabel={T(cupHolder)}
               logo={cupHolderLogo}
