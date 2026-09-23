@@ -87,6 +87,7 @@ export const DICT: Record<string, string> = {
   'נקודות נגד': 'Points Against',
   'אחוז נצחונות': 'Win %',
   'קפטן': 'Captain',
+  'מאמן': 'Coach',
   'ממוצעים עונתיים': 'Season Averages',
   'טרם שוחק': 'Not played yet',
 
@@ -296,6 +297,7 @@ export const DICT: Record<string, string> = {
 
   // Teams page
   'קפטן:': 'Captain:',
+  'מאמן:': 'Coach:',
   'פרטי קשר:': 'Contact:',
   'לא נמצאו קבוצות במסד הנתונים.': 'No teams found in the database.',
   'הוסף קבוצות דרך לוח הניהול.': 'Add teams via the admin panel.',
