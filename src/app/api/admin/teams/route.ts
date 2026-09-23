@@ -91,13 +91,13 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH — update logo_url, name, and/or division for a team
+// PATCH — update logo_url, name, division and/or captain_name for a team
 export async function PATCH(req: NextRequest) {
   const unauthorized = await requireAdmin();
   if (unauthorized) return unauthorized;
 
   try {
-    const body = await req.json() as { id?: string; logo_url?: string; name?: string; division?: unknown };
+    const body = await req.json() as { id?: string; logo_url?: string; name?: string; division?: unknown; captain_name?: unknown };
     const { id, logo_url, name } = body;
     if (!id) return NextResponse.json({ error: 'חסר id' }, { status: 400 });
 
@@ -105,6 +105,16 @@ export async function PATCH(req: NextRequest) {
 
     if (logo_url !== undefined) {
       update.logo_url = logo_url;
+    }
+
+    // Head of team / coach. captain_name is NOT NULL, so store a trimmed string
+    // (empty string clears it).
+    if (body.captain_name !== undefined) {
+      const captain = String(body.captain_name ?? '').trim();
+      if (captain.length > 80) {
+        return NextResponse.json({ error: 'שם ארוך מדי (מקסימום 80 תווים)' }, { status: 400 });
+      }
+      update.captain_name = captain;
     }
 
     if (body.division !== undefined) {
@@ -146,6 +156,56 @@ export async function PATCH(req: NextRequest) {
       .from('teams')
       .update(update)
       .eq('id', id);
+    if (error) throw error;
+    return NextResponse.json({ success: true });
+  } catch (err: unknown) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'שגיאה' }, { status: 500 });
+  }
+}
+
+// DELETE — remove a team. games.home_team_id / away_team_id are ON DELETE
+// CASCADE, so deleting a team that still has games would silently wipe those
+// games (and their box scores). To keep this from being a destructive foot-gun
+// we refuse when the team is still referenced by games or players, and tell the
+// admin what to clear first. Only a team with no games and no players — e.g. a
+// leftover test row — can be deleted outright.
+export async function DELETE(req: NextRequest) {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
+  try {
+    const id = req.nextUrl.searchParams.get('id');
+    if (!id) return NextResponse.json({ error: 'חסר id' }, { status: 400 });
+
+    const [{ count: gameCount, error: gamesErr }, { count: playerCount, error: playersErr }] =
+      await Promise.all([
+        supabaseAdmin
+          .from('games')
+          .select('id', { count: 'exact', head: true })
+          .or(`home_team_id.eq.${id},away_team_id.eq.${id}`),
+        supabaseAdmin
+          .from('players')
+          .select('id', { count: 'exact', head: true })
+          .eq('team_id', id),
+      ]);
+    if (gamesErr) throw gamesErr;
+    if (playersErr) throw playersErr;
+
+    const blockers: string[] = [];
+    if ((gameCount ?? 0) > 0) blockers.push(`${gameCount} משחקים`);
+    if ((playerCount ?? 0) > 0) blockers.push(`${playerCount} שחקנים`);
+    if (blockers.length > 0) {
+      return NextResponse.json(
+        {
+          error:
+            `לא ניתן למחוק — לקבוצה משויכים ${blockers.join(' ו-')}. ` +
+            'יש להסיר אותם קודם (מחיקת הקבוצה הייתה מוחקת גם את המשחקים שלה).',
+        },
+        { status: 409 },
+      );
+    }
+
+    const { error } = await supabaseAdmin.from('teams').delete().eq('id', id);
     if (error) throw error;
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
