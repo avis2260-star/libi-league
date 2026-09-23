@@ -1,0 +1,11 @@
+-- Teams can withdraw from the league mid-run (or between seasons) without their
+-- history being destroyed. `active = false` marks a withdrawn team: it stays in
+-- the database with all its games, players and past standings intact, but it is
+-- hidden from the LIVE season (teams list, current-season standings, schedule).
+-- Reinstating it next season is a single flag flip. Deleting a team, by
+-- contrast, cascade-wipes its games and box scores and cannot be undone, so
+-- withdrawal — not deletion — is the right tool for a team that may return.
+--
+-- Existing teams default to active. Run this once in the Supabase SQL editor
+-- (migrations here are applied manually).
+ALTER TABLE teams ADD COLUMN IF NOT EXISTS active boolean NOT NULL DEFAULT true;

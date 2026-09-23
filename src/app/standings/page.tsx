@@ -40,7 +40,7 @@ type GameResultRow = {
   techni: boolean | null;
 };
 
-type TeamRow = { name: string; logo_url: string | null; division?: string | null };
+type TeamRow = { name: string; logo_url: string | null; division?: string | null; active?: boolean };
 
 async function getStandings(season: string): Promise<{
   north: StandingWithStreak[];
@@ -54,7 +54,7 @@ async function getStandings(season: string): Promise<{
       { data: results },
     ] = await Promise.all([
       supabaseAdmin.from('standings').select('*').eq('season', season).order('rank', { ascending: true }),
-      supabaseAdmin.from('teams').select('name, logo_url, division'),
+      supabaseAdmin.from('teams').select('name, logo_url, division, active'),
       // Pull round results from the Excel-sync table. Sort by round DESC so
       // the most recent round is first — string dates like "22.11.25" don't
       // sort chronologically, but the round number does.
@@ -157,6 +157,8 @@ async function getStandings(season: string): Promise<{
       const zNorth: StandingWithStreak[] = [];
       const zSouth: StandingWithStreak[] = [];
       for (const t of teamRows) {
+        // Withdrawn teams are hidden from the live table.
+        if (t.active === false) continue;
         const n = normalizeTeamName(t.name);
         if (t.division === 'North' || northSet.has(n)) zNorth.push(zeroRow(t.name, zNorth.length + 1));
         else if (t.division === 'South' || southSet.has(n)) zSouth.push(zeroRow(t.name, zSouth.length + 1));

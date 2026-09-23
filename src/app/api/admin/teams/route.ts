@@ -21,7 +21,7 @@ export async function GET() {
 
   const { data, error } = await supabaseAdmin
     .from('teams')
-    .select('id,name,logo_url,captain_name,contact_info,division')
+    .select('id,name,logo_url,captain_name,contact_info,division,active')
     .order('name');
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ teams: data });
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
         logo_url: body.logo_url?.trim() || null,
         division,
       })
-      .select('id,name,logo_url,captain_name,contact_info,division')
+      .select('id,name,logo_url,captain_name,contact_info,division,active')
       .single();
 
     if (error) throw error;
@@ -97,7 +97,7 @@ export async function PATCH(req: NextRequest) {
   if (unauthorized) return unauthorized;
 
   try {
-    const body = await req.json() as { id?: string; logo_url?: string; name?: string; division?: unknown; captain_name?: unknown };
+    const body = await req.json() as { id?: string; logo_url?: string; name?: string; division?: unknown; captain_name?: unknown; active?: unknown };
     const { id, logo_url, name } = body;
     if (!id) return NextResponse.json({ error: 'חסר id' }, { status: 400 });
 
@@ -105,6 +105,15 @@ export async function PATCH(req: NextRequest) {
 
     if (logo_url !== undefined) {
       update.logo_url = logo_url;
+    }
+
+    // Withdraw (false) / reinstate (true) a team. Only a real boolean is
+    // accepted so a stray value can't silently flip a team's league status.
+    if (body.active !== undefined) {
+      if (typeof body.active !== 'boolean') {
+        return NextResponse.json({ error: 'active חייב להיות ערך בוליאני' }, { status: 400 });
+      }
+      update.active = body.active;
     }
 
     // Head of team / coach. captain_name is NOT NULL, so store a trimmed string

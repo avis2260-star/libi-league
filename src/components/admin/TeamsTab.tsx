@@ -9,6 +9,9 @@ type TeamRow = {
   captain_name: string | null;
   contact_info: string | null;
   division: string | null;
+  // false = withdrawn from the league (hidden from the live season, kept in DB).
+  // Undefined on rows fetched before the column existed → treated as active.
+  active?: boolean;
 };
 
 // UI labels for the two standings divisions. The stored value is the English
@@ -36,6 +39,9 @@ export default function TeamsTab({ teams: initial }: { teams: TeamRow[] }) {
 
   // Per-team delete state (id currently being deleted)
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Per-team withdraw/reinstate state (id currently being toggled)
+  const [savingActive, setSavingActive] = useState<string | null>(null);
 
   // Add-team form state
   const [newName, setNewName] = useState('');
@@ -178,6 +184,36 @@ export default function TeamsTab({ teams: initial }: { teams: TeamRow[] }) {
     }
   }
 
+  async function toggleActive(team: TeamRow) {
+    const isActive = team.active !== false;
+    const next = !isActive;
+    if (isActive && !window.confirm(
+      `לסמן את "${team.name}" כפרשה מהליגה? הקבוצה תוסתר מהטבלה, מרשימת הקבוצות ומלוח המשחקים של העונה הנוכחית, אך כל ההיסטוריה שלה תישמר וניתן יהיה להחזירה בכל עת.`,
+    )) return;
+    setSavingActive(team.id);
+    setMsg(null);
+    try {
+      const res = await fetch('/api/admin/teams', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: team.id, active: next }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'שגיאה בעדכון סטטוס הקבוצה');
+      setTeams((prev) => prev.map((t) => (t.id === team.id ? { ...t, active: next } : t)));
+      setMsg({
+        ok: true,
+        text: next
+          ? `✅ ${team.name} הוחזרה לליגה`
+          : `📤 ${team.name} סומנה כפרשה מהליגה (ההיסטוריה נשמרה)`,
+      });
+    } catch (err) {
+      setMsg({ ok: false, text: err instanceof Error ? err.message : 'שגיאה' });
+    } finally {
+      setSavingActive(null);
+    }
+  }
+
   async function handleAddTeam(e: React.FormEvent) {
     e.preventDefault();
     const name = newName.trim();
@@ -311,10 +347,14 @@ export default function TeamsTab({ teams: initial }: { teams: TeamRow[] }) {
       </form>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {teams.map((team) => (
+        {teams.map((team) => {
+          const isActive = team.active !== false;
+          return (
           <div
             key={team.id}
-            className="flex items-center gap-4 rounded-xl border border-gray-700 bg-gray-900 p-4"
+            className={`flex items-center gap-4 rounded-xl border p-4 ${
+              isActive ? 'border-gray-700 bg-gray-900' : 'border-yellow-600/40 bg-yellow-900/10 opacity-80'
+            }`}
           >
             {/* Logo preview */}
             <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border-2 border-gray-600 bg-gray-800 flex items-center justify-center">
@@ -370,6 +410,11 @@ export default function TeamsTab({ teams: initial }: { teams: TeamRow[] }) {
               ) : (
                 <div className="flex items-center gap-2 mb-1 min-w-0">
                   <p className="font-bold text-white truncate">{team.name}</p>
+                  {!isActive && (
+                    <span className="shrink-0 rounded-md bg-yellow-500/15 px-1.5 py-0.5 text-[11px] font-bold text-yellow-300" title="הקבוצה מוסתרת מהעונה הנוכחית">
+                      פרשה מהליגה
+                    </span>
+                  )}
                   <button
                     onClick={() => startEditName(team)}
                     className="shrink-0 rounded-md border border-gray-600 px-1.5 py-0.5 text-[11px] text-gray-400 hover:text-white hover:border-orange-500/60 hover:bg-orange-500/10 transition"
@@ -440,17 +485,34 @@ export default function TeamsTab({ teams: initial }: { teams: TeamRow[] }) {
                   {uploading === team.id ? 'מעלה...' : team.logo_url ? '🔄 החלף לוגו' : '⬆️ העלה לוגו'}
                 </button>
                 <button
+                  onClick={() => toggleActive(team)}
+                  disabled={savingActive === team.id}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${
+                    isActive
+                      ? 'border-yellow-500/40 bg-yellow-500/10 text-yellow-300 hover:bg-yellow-500/20 hover:text-yellow-200'
+                      : 'border-green-500/40 bg-green-500/10 text-green-300 hover:bg-green-500/20 hover:text-green-200'
+                  }`}
+                  title={isActive ? 'סמן כפרשה מהליגה (מסתיר מהעונה, שומר היסטוריה)' : 'החזר את הקבוצה לליגה'}
+                >
+                  {savingActive === team.id
+                    ? 'שומר...'
+                    : isActive
+                      ? '📤 פרשה מהליגה'
+                      : '↩️ החזר לליגה'}
+                </button>
+                <button
                   onClick={() => handleDelete(team)}
                   disabled={deletingId === team.id}
                   className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-bold text-red-300 hover:bg-red-500/20 hover:text-red-200 disabled:opacity-50 transition"
-                  title="מחק קבוצה"
+                  title="מחק קבוצה לצמיתות (כולל המשחקים שלה)"
                 >
                   {deletingId === team.id ? 'מוחק...' : '🗑️ מחק'}
                 </button>
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

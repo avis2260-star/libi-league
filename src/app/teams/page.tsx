@@ -163,7 +163,10 @@ function TeamCard({
 
 export default async function TeamsPage() {
   const season = await getCurrentSeason();
-  const [teams, standings, lang] = await Promise.all([getTeams(), getLiveStandings(season), getLang()]);
+  const [allTeams, standings, lang] = await Promise.all([getTeams(), getLiveStandings(season), getLang()]);
+  // Hide teams that have withdrawn from the league (active === false). Their
+  // row and history stay in the DB; they just don't appear in the live season.
+  const teams = allTeams.filter((t) => t.active !== false);
   const T = (he: string) => st(he, lang);
   const findStats  = makeFind(standings);
   const DIVISION_MAP = makeDivisionMap(standings);
