@@ -24,7 +24,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { LIBI_SCHEDULE, type ScheduleEntry } from '@/lib/libi-schedule';
 import { SCHEDULE_2026_2027 } from '@/lib/schedule-2026';
 import { FALLBACK_SEASON } from '@/lib/current-season';
-import { mergeDivisionNames, normalizeTeamName } from '@/lib/excel-sync-parsers';
+import { mergeDivisionNames, normalizeTeamName, isByeTeam } from '@/lib/excel-sync-parsers';
 
 // Static per-season schedules, used ONLY as a fallback when the database has no
 // imported games for that season yet. As soon as an Excel upload creates games
@@ -81,6 +81,14 @@ async function fallbackSchedule(season: string): Promise<ScheduleEntry[]> {
 }
 
 export async function getSeasonSchedule(season: string): Promise<ScheduleEntry[]> {
+  const raw = await getSeasonScheduleRaw(season);
+  // A side listed as פגרה (league break) or גביע (cup week) is a bye, not a
+  // real fixture. Filter these out here, at the single source every schedule
+  // surface reads, so already-imported / persisted bye rows never display.
+  return raw.filter((e) => !isByeTeam(e.homeTeam) && !isByeTeam(e.awayTeam));
+}
+
+async function getSeasonScheduleRaw(season: string): Promise<ScheduleEntry[]> {
   // The 2025-2026 season predates DB-stored rounds — serve the static schedule.
   if (season === FALLBACK_SEASON) return LIBI_SCHEDULE;
 

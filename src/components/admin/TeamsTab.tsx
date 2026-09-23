@@ -29,11 +29,25 @@ export default function TeamsTab({ teams: initial }: { teams: TeamRow[] }) {
   // Per-team division save state (id currently being saved)
   const [savingDivision, setSavingDivision] = useState<string | null>(null);
 
+  // Per-team head-of-team / coach (captain_name) editing. Drafts are keyed by
+  // team id so each card edits independently; only diverging drafts are saved.
+  const [captainDrafts, setCaptainDrafts] = useState<Record<string, string>>({});
+  const [savingCaptain, setSavingCaptain] = useState<string | null>(null);
+
+  // Per-team delete state (id currently being deleted)
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   // Add-team form state
   const [newName, setNewName] = useState('');
   const [newDivision, setNewDivision] = useState('');
   const [newCaptain, setNewCaptain] = useState('');
   const [adding, setAdding] = useState(false);
+
+  // The current value shown in a team's captain field: its live draft if the
+  // admin has started typing, otherwise the stored captain_name.
+  function captainValue(team: TeamRow): string {
+    return captainDrafts[team.id] ?? team.captain_name ?? '';
+  }
 
   function startEditName(team: TeamRow) {
     setEditingId(team.id);
@@ -102,6 +116,65 @@ export default function TeamsTab({ teams: initial }: { teams: TeamRow[] }) {
       setMsg({ ok: false, text: err instanceof Error ? err.message : 'שגיאה' });
     } finally {
       setSavingDivision(null);
+    }
+  }
+
+  async function saveCaptain(team: TeamRow) {
+    const value = captainValue(team).trim();
+    if (value === (team.captain_name ?? '').trim()) {
+      // Nothing changed — drop the draft so the field falls back to stored.
+      setCaptainDrafts((prev) => {
+        const next = { ...prev };
+        delete next[team.id];
+        return next;
+      });
+      return;
+    }
+    setSavingCaptain(team.id);
+    setMsg(null);
+    try {
+      const res = await fetch('/api/admin/teams', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: team.id, captain_name: value }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'שגיאה בעדכון ראש הקבוצה');
+      setTeams((prev) => prev.map((t) => (t.id === team.id ? { ...t, captain_name: value } : t)));
+      setCaptainDrafts((prev) => {
+        const next = { ...prev };
+        delete next[team.id];
+        return next;
+      });
+      setMsg({
+        ok: true,
+        text: value
+          ? `✅ ראש הקבוצה / מאמן של ${team.name} עודכן ל-"${value}"`
+          : `✅ הוסר ראש הקבוצה / מאמן של ${team.name}`,
+      });
+    } catch (err) {
+      setMsg({ ok: false, text: err instanceof Error ? err.message : 'שגיאה' });
+    } finally {
+      setSavingCaptain(null);
+    }
+  }
+
+  async function handleDelete(team: TeamRow) {
+    if (!window.confirm(`למחוק את הקבוצה "${team.name}"? פעולה זו אינה הפיכה.`)) return;
+    setDeletingId(team.id);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/admin/teams?id=${encodeURIComponent(team.id)}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'שגיאה במחיקת הקבוצה');
+      setTeams((prev) => prev.filter((t) => t.id !== team.id));
+      setMsg({ ok: true, text: `🗑️ הקבוצה "${team.name}" נמחקה` });
+    } catch (err) {
+      setMsg({ ok: false, text: err instanceof Error ? err.message : 'שגיאה' });
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -326,6 +399,25 @@ export default function TeamsTab({ teams: initial }: { teams: TeamRow[] }) {
                 {savingDivision === team.id && <span className="text-xs text-gray-500">שומר…</span>}
               </div>
 
+              {/* Head of team / coach (captain_name) */}
+              <div className="mb-2 flex items-center gap-2">
+                <span className="shrink-0 text-xs text-gray-500">ראש קבוצה / מאמן:</span>
+                <input
+                  type="text"
+                  value={captainValue(team)}
+                  onChange={(e) => setCaptainDrafts((prev) => ({ ...prev, [team.id]: e.target.value }))}
+                  onBlur={() => saveCaptain(team)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
+                  }}
+                  disabled={savingCaptain === team.id}
+                  maxLength={80}
+                  placeholder="שם ראש הקבוצה / המאמן"
+                  className="min-w-0 flex-1 rounded-md border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none disabled:opacity-50"
+                />
+                {savingCaptain === team.id && <span className="shrink-0 text-xs text-gray-500">שומר…</span>}
+              </div>
+
               {/* Hidden file input */}
               <input
                 ref={(el) => { inputRefs.current[team.id] = el; }}
@@ -339,13 +431,23 @@ export default function TeamsTab({ teams: initial }: { teams: TeamRow[] }) {
                 }}
               />
 
-              <button
-                onClick={() => inputRefs.current[team.id]?.click()}
-                disabled={uploading === team.id}
-                className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-600 disabled:opacity-50 transition"
-              >
-                {uploading === team.id ? 'מעלה...' : team.logo_url ? '🔄 החלף לוגו' : '⬆️ העלה לוגו'}
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => inputRefs.current[team.id]?.click()}
+                  disabled={uploading === team.id}
+                  className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-600 disabled:opacity-50 transition"
+                >
+                  {uploading === team.id ? 'מעלה...' : team.logo_url ? '🔄 החלף לוגו' : '⬆️ העלה לוגו'}
+                </button>
+                <button
+                  onClick={() => handleDelete(team)}
+                  disabled={deletingId === team.id}
+                  className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-bold text-red-300 hover:bg-red-500/20 hover:text-red-200 disabled:opacity-50 transition"
+                  title="מחק קבוצה"
+                >
+                  {deletingId === team.id ? 'מוחק...' : '🗑️ מחק'}
+                </button>
+              </div>
             </div>
           </div>
         ))}
