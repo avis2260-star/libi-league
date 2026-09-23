@@ -551,6 +551,18 @@ describe('parseSchedule', () => {
     ];
     expect(parseSchedule(rows)).toEqual([]);
   });
+
+  it('skips a bye row where a team cell is פגרה (or גביע)', () => {
+    const rows: unknown[][] = [
+      ['header'],
+      [null, 1, 'צפון', 'ידרסל חדרה', '', '', 'בני נתניה'], // real fixture
+      [null, 1, null, 'אחים קריית משה', '', '', 'פגרה'],    // bye — must be dropped
+      [null, 1, null, 'פגרה', '', '', 'קריית מלאכי'],        // bye on the home side too
+    ];
+    const out = parseSchedule(rows);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ home_team: 'ידרסל חדרה', away_team: 'בני נתניה' });
+  });
 });
 
 // ===========================================================================

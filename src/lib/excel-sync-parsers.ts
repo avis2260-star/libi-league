@@ -14,6 +14,17 @@
 // Team-name helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * A "team" cell that is really a non-team slot: a league break (פגרה) or a cup
+ * week (גביע). A fixture whose home OR away side is one of these is a bye, not a
+ * real game, and must never be imported or displayed anywhere on the site.
+ */
+export function isByeTeam(name: string): boolean {
+  const n = String(name ?? '').trim();
+  if (!n) return false;
+  return n.includes('פגרה') || n.includes('גביע');
+}
+
 /** Strip quotes/gereshim, normalise hyphens and whitespace, lowercase. */
 export function normalizeTeamName(s: string): string {
   return s
@@ -324,6 +335,7 @@ export function parseResults(rows: unknown[][]): GameResultRow[] {
     const awayScore = typeof col5 === 'number' ? col5 : parseInt(String(col5 ?? ''));
 
     if (!col3 || !col6 || isNaN(homeScore) || isNaN(awayScore) || currentRound === 0) continue;
+    if (isByeTeam(col3) || isByeTeam(col6)) continue; // bye / break row, not a real game
 
     results.push({
       round:       currentRound,
@@ -386,6 +398,8 @@ export function parseSchedule(rows: unknown[][]): ScheduleGameRow[] {
     // Must have both team names and belong to a round. This also drops the
     // header row (round still 0) and blank separator rows.
     if (!col3 || !col6 || currentRound === 0) continue;
+    // A side listed as פגרה / גביע is a bye, not a real fixture — skip it.
+    if (isByeTeam(col3) || isByeTeam(col6)) continue;
 
     const homeScore = typeof col4 === 'number' ? col4 : parseInt(String(col4 ?? ''));
     const awayScore = typeof col5 === 'number' ? col5 : parseInt(String(col5 ?? ''));
