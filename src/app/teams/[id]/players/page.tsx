@@ -192,7 +192,7 @@ export default async function TeamPlayersPage({ params }: { params: Promise<{ id
         <div className="flex-1">
           <p className="font-bold text-white group-hover:text-orange-400 transition-colors">{translatedTeamName}</p>
           {team.captain_name && team.captain_name !== 'TBD' && (
-            <p className="text-sm text-[#5a7a9a]">{T('קפטן')}: <span className="text-[#8aaac8]">{displayName(team.captain_name, lang)}</span></p>
+            <p className="text-sm text-[#5a7a9a]">{T('מאמן')}: <span className="text-[#8aaac8]">{displayName(team.captain_name, lang)}</span></p>
           )}
           {team.contact_info && (
             <p className="text-sm text-[#5a7a9a]">{en ? 'Contact' : 'פרטי קשר'}: <span className="text-[#8aaac8]">{team.contact_info}</span></p>

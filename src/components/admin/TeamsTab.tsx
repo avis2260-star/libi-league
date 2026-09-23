@@ -155,8 +155,8 @@ export default function TeamsTab({ teams: initial }: { teams: TeamRow[] }) {
       setMsg({
         ok: true,
         text: value
-          ? `✅ ראש הקבוצה / מאמן של ${team.name} עודכן ל-"${value}"`
-          : `✅ הוסר ראש הקבוצה / מאמן של ${team.name}`,
+          ? `✅ המאמן של ${team.name} עודכן ל-"${value}"`
+          : `✅ הוסר המאמן של ${team.name}`,
       });
     } catch (err) {
       setMsg({ ok: false, text: err instanceof Error ? err.message : 'שגיאה' });
@@ -328,11 +328,11 @@ export default function TeamsTab({ teams: initial }: { teams: TeamRow[] }) {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs text-gray-400">קפטן (לא חובה)</label>
+            <label className="mb-1 block text-xs text-gray-400">מאמן (לא חובה)</label>
             <input
               value={newCaptain}
               onChange={(e) => setNewCaptain(e.target.value)}
-              placeholder="שם הקפטן"
+              placeholder="שם המאמן"
               className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
             />
           </div>
@@ -446,7 +446,7 @@ export default function TeamsTab({ teams: initial }: { teams: TeamRow[] }) {
 
               {/* Head of team / coach (captain_name) */}
               <div className="mb-2 flex items-center gap-2">
-                <span className="shrink-0 text-xs text-gray-500">ראש קבוצה / מאמן:</span>
+                <span className="shrink-0 text-xs text-gray-500">מאמן:</span>
                 <input
                   type="text"
                   value={captainValue(team)}
@@ -457,7 +457,7 @@ export default function TeamsTab({ teams: initial }: { teams: TeamRow[] }) {
                   }}
                   disabled={savingCaptain === team.id}
                   maxLength={80}
-                  placeholder="שם ראש הקבוצה / המאמן"
+                  placeholder="שם המאמן"
                   className="min-w-0 flex-1 rounded-md border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none disabled:opacity-50"
                 />
                 {savingCaptain === team.id && <span className="shrink-0 text-xs text-gray-500">שומר…</span>}

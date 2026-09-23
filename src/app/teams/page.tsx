@@ -123,7 +123,7 @@ function TeamCard({
         {/* Captain */}
         {team.captain_name && team.captain_name !== 'TBD' && (
           <p className="mt-1 text-sm font-bold text-[#8aaac8]">
-            <span className="font-black text-[#c8d8e8]">{T('קפטן:')}</span>{' '}
+            <span className="font-black text-[#c8d8e8]">{T('מאמן:')}</span>{' '}
             <span className="font-black text-white">{team.captain_name}</span>
           </p>
         )}

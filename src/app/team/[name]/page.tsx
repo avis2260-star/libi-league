@@ -233,7 +233,7 @@ export default async function TeamStatsPage({
             )}
           </div>
           {teamInfo?.captain_name && teamInfo.captain_name !== 'TBD' && (
-            <p className="text-sm font-bold text-[#8aaac8] mt-1">{T('קפטן')}: <span className="font-black text-white">{teamInfo.captain_name}</span></p>
+            <p className="text-sm font-bold text-[#8aaac8] mt-1">{T('מאמן')}: <span className="font-black text-white">{teamInfo.captain_name}</span></p>
           )}
         </div>
       </div>
