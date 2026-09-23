@@ -9,6 +9,10 @@ export interface Team {
   captain_name: string;
   contact_info: string | null;
   created_at: string;
+  // false = withdrawn from the league: kept in the DB (history intact) but
+  // hidden from the live season. Optional because rows predating the column,
+  // or `select`s that omit it, leave it undefined (treated as active).
+  active?: boolean;
 }
 
 export type StaffRole = 'COACH' | 'ASST_COACH' | 'MANAGER';

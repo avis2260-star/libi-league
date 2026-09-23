@@ -86,9 +86,9 @@ export default async function AdminPage({
   }
 
   // Teams tab
-  let teamsForTab: { id: string; name: string; logo_url: string | null; captain_name: string | null; contact_info: string | null; division: string | null }[] = [];
+  let teamsForTab: { id: string; name: string; logo_url: string | null; captain_name: string | null; contact_info: string | null; division: string | null; active?: boolean }[] = [];
   if (tab === 'teams') {
-    const { data } = await supabaseAdmin.from('teams').select('id,name,logo_url,captain_name,contact_info,division').order('name');
+    const { data } = await supabaseAdmin.from('teams').select('id,name,logo_url,captain_name,contact_info,division,active').order('name');
     teamsForTab = (data ?? []) as typeof teamsForTab;
   }
 

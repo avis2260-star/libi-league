@@ -80,12 +80,33 @@ async function fallbackSchedule(season: string): Promise<ScheduleEntry[]> {
   return STATIC_FALLBACK[season] ?? [];
 }
 
+/** Normalized names of teams that have withdrawn from the league (active=false). */
+async function readInactiveTeamNames(): Promise<Set<string>> {
+  try {
+    const { data } = await supabaseAdmin.from('teams').select('name').eq('active', false);
+    return new Set((data ?? []).map((t) => normalizeTeamName((t as { name: string }).name)));
+  } catch {
+    // Column may not exist yet (migration not run) → treat all teams as active.
+    return new Set();
+  }
+}
+
 export async function getSeasonSchedule(season: string): Promise<ScheduleEntry[]> {
   const raw = await getSeasonScheduleRaw(season);
   // A side listed as פגרה (league break) or גביע (cup week) is a bye, not a
   // real fixture. Filter these out here, at the single source every schedule
   // surface reads, so already-imported / persisted bye rows never display.
-  return raw.filter((e) => !isByeTeam(e.homeTeam) && !isByeTeam(e.awayTeam));
+  const noBye = raw.filter((e) => !isByeTeam(e.homeTeam) && !isByeTeam(e.awayTeam));
+
+  // The 2025-2026 archive is served verbatim — never hide its fixtures. For the
+  // live / other seasons, drop any fixture involving a withdrawn team so a team
+  // that left the league disappears from the schedule and the upcoming card.
+  if (season === FALLBACK_SEASON) return noBye;
+  const inactive = await readInactiveTeamNames();
+  if (inactive.size === 0) return noBye;
+  return noBye.filter(
+    (e) => !inactive.has(normalizeTeamName(e.homeTeam)) && !inactive.has(normalizeTeamName(e.awayTeam)),
+  );
 }
 
 async function getSeasonScheduleRaw(season: string): Promise<ScheduleEntry[]> {

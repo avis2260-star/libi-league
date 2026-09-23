@@ -389,10 +389,12 @@ export async function seedStandingsAtZero(): Promise<SeedStandingsResult> {
 
   const { data: teamRows, error: teamErr } = await supabaseAdmin
     .from('teams')
-    .select('name, division')
+    .select('name, division, active')
     .order('name');
   if (teamErr) return { error: teamErr.message };
-  const teams = (teamRows ?? []) as { name: string; division: string | null }[];
+  // Withdrawn teams (active === false) are left out of the seeded table.
+  const teams = ((teamRows ?? []) as { name: string; division: string | null; active?: boolean }[])
+    .filter((t) => t.active !== false);
   if (teams.length === 0) return { error: 'לא נמצאו קבוצות במסד הנתונים' };
 
   // Standings rows that already exist for this season — never overwrite them.
