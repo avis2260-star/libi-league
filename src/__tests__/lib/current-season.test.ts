@@ -247,10 +247,11 @@ describe('listKnownSeasons', () => {
   });
 
   it('always includes the current season even when tables are empty', async () => {
-    // from() is called three times:
+    // from() is called four times:
     //   1st → league_settings (for getCurrentSeason)
     //   2nd → games
     //   3rd → game_results
+    //   4th → standings
     const maybeSingle = jest.fn().mockResolvedValue({ data: { value: '2025-2026' } });
     const eq = jest.fn().mockReturnValue({ maybeSingle });
     const settingsSelect = jest.fn().mockReturnValue({ eq });
@@ -258,10 +259,45 @@ describe('listKnownSeasons', () => {
     (supabaseAdmin.from as jest.Mock)
       .mockImplementationOnce(() => ({ select: settingsSelect })) // league_settings
       .mockImplementationOnce(() => makeSelectBuilder([]))        // games (empty)
-      .mockImplementationOnce(() => makeSelectBuilder([]));       // game_results (empty)
+      .mockImplementationOnce(() => makeSelectBuilder([]))        // game_results (empty)
+      .mockImplementationOnce(() => makeSelectBuilder([]));       // standings (empty)
 
     const seasons = await listKnownSeasons();
     expect(seasons).toContain('2025-2026');
+  });
+
+  it('always offers the archive season (2025-2026) when current is later and tables omit it', async () => {
+    // Regression: the season picker must always let you go back to 2025-2026,
+    // even when the current season is 2026-2027 and games/game_results/standings
+    // contain no 2025-2026 rows for it to discover.
+    const maybeSingle = jest.fn().mockResolvedValue({ data: { value: '2026-2027' } });
+    const eq = jest.fn().mockReturnValue({ maybeSingle });
+    const settingsSelect = jest.fn().mockReturnValue({ eq });
+
+    (supabaseAdmin.from as jest.Mock)
+      .mockImplementationOnce(() => ({ select: settingsSelect }))              // league_settings → 2026-2027
+      .mockImplementationOnce(() => makeSelectBuilder([{ season: '2026-2027' }])) // games
+      .mockImplementationOnce(() => makeSelectBuilder([]))                     // game_results (empty)
+      .mockImplementationOnce(() => makeSelectBuilder([]));                    // standings (empty)
+
+    const seasons = await listKnownSeasons();
+    expect(seasons).toContain('2025-2026');
+    expect(seasons).toEqual(['2026-2027', '2025-2026']);
+  });
+
+  it('includes seasons that only appear in the standings table', async () => {
+    const maybeSingle = jest.fn().mockResolvedValue({ data: { value: '2026-2027' } });
+    const eq = jest.fn().mockReturnValue({ maybeSingle });
+    const settingsSelect = jest.fn().mockReturnValue({ eq });
+
+    (supabaseAdmin.from as jest.Mock)
+      .mockImplementationOnce(() => ({ select: settingsSelect }))          // league_settings → 2026-2027
+      .mockImplementationOnce(() => makeSelectBuilder([]))                 // games (empty)
+      .mockImplementationOnce(() => makeSelectBuilder([]))                 // game_results (empty)
+      .mockImplementationOnce(() => makeSelectBuilder([{ season: '2024-2025' }])); // standings
+
+    const seasons = await listKnownSeasons();
+    expect(seasons).toContain('2024-2025');
   });
 
   it('returns seasons sorted newest first', async () => {
@@ -274,7 +310,8 @@ describe('listKnownSeasons', () => {
       .mockImplementationOnce(() =>
         makeSelectBuilder([{ season: '2023-2024' }, { season: '2024-2025' }]),
       )
-      .mockImplementationOnce(() => makeSelectBuilder([{ season: '2022-2023' }]));
+      .mockImplementationOnce(() => makeSelectBuilder([{ season: '2022-2023' }]))
+      .mockImplementationOnce(() => makeSelectBuilder([]));
 
     const seasons = await listKnownSeasons();
     // Should be sorted descending
@@ -290,6 +327,7 @@ describe('listKnownSeasons', () => {
 
     (supabaseAdmin.from as jest.Mock)
       .mockImplementationOnce(() => ({ select: settingsSelect }))
+      .mockImplementationOnce(() => makeSelectBuilder([{ season: '2024-2025' }]))
       .mockImplementationOnce(() => makeSelectBuilder([{ season: '2024-2025' }]))
       .mockImplementationOnce(() => makeSelectBuilder([{ season: '2024-2025' }]));
 
