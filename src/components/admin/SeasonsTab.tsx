@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { resetSeason, startNewSeason, seedStandingsAtZero } from '@/app/admin/actions';
+import { resetSeason, startNewSeason, seedStandingsAtZero, createGamesFromSchedule } from '@/app/admin/actions';
 
 type Season = {
   id: string;
@@ -329,6 +329,9 @@ export default function SeasonsTab({ seasons: initial }: { seasons: Season[] }) 
       {/* ── Seed the standings table at 0 for the current season ── */}
       <SeedStandingsPanel />
 
+      {/* ── Create games rows from the current season's schedule ── */}
+      <SeedGamesPanel />
+
       {/* ── Reset Season (destructive — only when you really mean it) ── */}
       <ResetSeasonPanel />
     </div>
@@ -384,6 +387,67 @@ function SeedStandingsPanel() {
         className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-50"
       >
         {running ? 'מאתחל...' : '📊 אתחל טבלה עם אפסים'}
+      </button>
+    </div>
+  );
+}
+
+/* ── Seed Games Panel ───────────────────────────────────────────────────────── */
+function SeedGamesPanel() {
+  const [running, setRunning] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function handleSeed() {
+    setRunning(true);
+    setMsg(null);
+    try {
+      const res = await createGamesFromSchedule();
+      if (res.error) {
+        setMsg({ ok: false, text: res.error });
+      } else {
+        const bits: string[] = [];
+        if (res.created > 0) bits.push(`נוצרו ${res.created} משחקים`);
+        if (res.skipped > 0) bits.push(`${res.skipped} כבר היו קיימים`);
+        let text =
+          res.created > 0
+            ? `✅ ${bits.join(' · ')}`
+            : res.skipped > 0
+              ? `כל המשחקים כבר קיימים (${res.skipped}) — לא נוצר דבר`
+              : 'לא נמצאו משחקים ליצירה';
+        if (res.warning) text += `\n⚠️ ${res.warning}`;
+        if (res.unmatched?.length) {
+          text += `\n⚠️ קבוצות שלא זוהו (הוסף אותן בלשונית "קבוצות" בדיוק באותו שם): ${res.unmatched.join(', ')}`;
+        }
+        setMsg({ ok: res.created > 0 || res.skipped > 0, text });
+      }
+    } catch (e: unknown) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : 'שגיאה' });
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-sky-700/50 bg-sky-950/20 p-5 space-y-3">
+      <div>
+        <h3 className="font-bold text-sky-300 text-base">🗓️ צור משחקים מלוח המשחקים</h3>
+        <p className="text-xs text-gray-400 mt-0.5">
+          יוצר רשומת משחק במסד הנתונים לכל מפגש בלוח המשחקים של העונה הנוכחית, כדי שתוכל להזין תוצאות
+          וסטטיסטיקות. אינו דורס משחקים קיימים — רק משלים חסרים. משחק שאחת מקבוצותיו אינה קיימת בלשונית
+          &quot;קבוצות&quot; מדולג, ושם הקבוצה יוצג כדי שתוכל להוסיף אותה.
+        </p>
+      </div>
+      {msg && (
+        <p className={`whitespace-pre-line rounded-lg px-3 py-2 text-sm font-medium ${msg.ok ? 'bg-green-900/40 text-green-300' : 'bg-red-900/40 text-red-300'}`}>
+          {msg.text}
+        </p>
+      )}
+      <button
+        onClick={handleSeed}
+        disabled={running}
+        className="rounded-lg bg-sky-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-sky-700 disabled:opacity-50"
+      >
+        {running ? 'יוצר...' : '🗓️ צור משחקים מלוח המשחקים'}
       </button>
     </div>
   );
