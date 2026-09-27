@@ -68,12 +68,12 @@ function groupByRound(games: GameWithTeams[]): GroupedRound[] {
     if (!byRound.has(r)) byRound.set(r, []);
     byRound.get(r)!.push(g);
   }
-  // Descending: latest round first; "other" (round 0) at the bottom.
+  // Ascending: earliest round first (מחזור 1, 2, 3 …); "other" (round 0) last.
   return [...byRound.entries()]
     .sort((a, b) => {
       if (a[0] === 0) return 1;
       if (b[0] === 0) return -1;
-      return b[0] - a[0];
+      return a[0] - b[0];
     })
     .map(([round, games]) => ({ round, games }));
 }
@@ -90,7 +90,7 @@ export default function BoxScoreTab({ games, initialGameId }: Props) {
   const today = todayISO();
 
   // Split into upcoming (status != Finished AND date >= today) vs previous.
-  // Then group each by round, latest round first.
+  // Then group each by round in ascending order (מחזור 1, 2, 3 …).
   const { upcoming, previous } = useMemo(() => {
     const up: GameWithTeams[] = [];
     const pv: GameWithTeams[] = [];
