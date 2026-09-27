@@ -67,29 +67,33 @@ export async function resolveSeasonFromParams(
 /**
  * List every season the DB has data for, newest first.
  *
- * We union DISTINCT season values across the high-volume operational tables
- * (games + game_results). Anything older that never had a games row also
- * wouldn't show up here, but in practice every season produces games rows.
- * Always includes the current_season value so the picker can show "now"
- * even on a freshly-bumped season that has no data yet.
+ * We union DISTINCT season values across the operational tables (games,
+ * game_results and standings) so any archived season is offered. The live
+ * `current_season` and the built-in archive season (FALLBACK_SEASON) are
+ * ALWAYS included: 2025-2026 is the app's baseline archive — its schedule is
+ * served from static data and its record may live only in `standings` — so it
+ * must stay selectable even when `games`/`game_results` hold no rows for it.
  */
 export async function listKnownSeasons(): Promise<string[]> {
   const current = await getCurrentSeason();
+  // Floor: the live season and the built-in archive are always selectable.
+  const all = new Set<string>([current, FALLBACK_SEASON]);
   try {
-    const [{ data: g }, { data: r }] = await Promise.all([
+    const [{ data: g }, { data: r }, { data: s }] = await Promise.all([
       supabaseAdmin.from('games').select('season'),
       supabaseAdmin.from('game_results').select('season'),
+      supabaseAdmin.from('standings').select('season'),
     ]);
-    const all = new Set<string>([current]);
-    for (const row of (g ?? []) as { season?: string | null }[]) {
+    for (const row of [
+      ...((g ?? []) as { season?: string | null }[]),
+      ...((r ?? []) as { season?: string | null }[]),
+      ...((s ?? []) as { season?: string | null }[]),
+    ]) {
       if (row.season) all.add(row.season);
     }
-    for (const row of (r ?? []) as { season?: string | null }[]) {
-      if (row.season) all.add(row.season);
-    }
-    // Sort newest first — '2026-2027' > '2025-2026' lexicographically.
-    return [...all].sort((a, b) => b.localeCompare(a));
   } catch {
-    return [current];
+    // Fall through — current + fallback are already in the set.
   }
+  // Sort newest first — '2026-2027' > '2025-2026' lexicographically.
+  return [...all].sort((a, b) => b.localeCompare(a));
 }

@@ -1,7 +1,8 @@
 'use client';
 
 import { useMemo, useState, useTransition, useEffect } from 'react';
-import { saveBoxScore, type PlayerStatInput } from '@/app/admin/actions';
+import { useRouter } from 'next/navigation';
+import { saveBoxScore, createGamesFromSchedule, type PlayerStatInput } from '@/app/admin/actions';
 import { supabase } from '@/lib/supabase';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import type { GameWithTeams } from '@/types';
@@ -206,11 +207,7 @@ export default function BoxScoreTab({ games, initialGameId }: Props) {
       {/* ── Step 1: pick a game ── */}
       {!selectedGame && (
         <div className="space-y-4">
-          {games.length === 0 && (
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] py-10 text-center text-sm font-bold text-[#8aaac8]">
-              לא נמצאו משחקים.
-            </div>
-          )}
+          {games.length === 0 && <SeedGamesFromSchedule />}
 
           {upcoming.length > 0 && (
             <Section
@@ -487,5 +484,67 @@ function StatCell({ value, onChange }: { value: number; onChange: (v: string) =>
       onChange={(e) => onChange(e.target.value)}
       className="h-11 w-full rounded-lg border border-white/10 bg-white/[0.03] text-center text-base font-black text-white focus:border-orange-500/50 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
     />
+  );
+}
+
+// Empty-state helper: the current season shows a schedule (from the uploaded
+// file / fallback) but has no `games` rows to score against yet. This turns
+// that schedule into real games in one click, and names any team that couldn't
+// be matched so the admin knows exactly what to fix in the Teams tab.
+function SeedGamesFromSchedule() {
+  const router = useRouter();
+  const [running, setRunning] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function run() {
+    setRunning(true);
+    setMsg(null);
+    try {
+      const res = await createGamesFromSchedule();
+      if (res.error) {
+        setMsg({ ok: false, text: res.error });
+      } else {
+        const bits: string[] = [];
+        if (res.created > 0) bits.push(`נוצרו ${res.created} משחקים`);
+        if (res.skipped > 0) bits.push(`${res.skipped} כבר היו קיימים`);
+        let text =
+          res.created > 0
+            ? `✅ ${bits.join(' · ')}`
+            : res.skipped > 0
+              ? `כל המשחקים כבר קיימים (${res.skipped})`
+              : 'לא נמצאו משחקים ליצירה';
+        if (res.warning) text += `\n⚠️ ${res.warning}`;
+        if (res.unmatched?.length) {
+          text += `\n⚠️ קבוצות שלא זוהו (הוסף אותן בלשונית "קבוצות" בדיוק באותו שם): ${res.unmatched.join(', ')}`;
+        }
+        setMsg({ ok: res.created > 0, text });
+        if (res.created > 0) router.refresh();
+      }
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : 'שגיאה' });
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 text-center space-y-3">
+      <p className="text-sm font-bold text-[#8aaac8]">לא נמצאו משחקים לעונה הנוכחית.</p>
+      <p className="mx-auto max-w-md text-xs font-medium text-[#5a7a9a]">
+        לוח המשחקים מוצג מהקובץ שהעלית, אך עדיין לא נוצרו רשומות משחק במסד הנתונים. לחץ כדי ליצור אותן מלוח המשחקים של העונה — לאחר מכן תוכל להזין תוצאות.
+      </p>
+      {msg && (
+        <p className={`mx-auto max-w-md whitespace-pre-line rounded-lg px-3 py-2 text-sm font-medium ${msg.ok ? 'bg-green-900/40 text-green-300' : 'bg-red-900/40 text-red-300'}`}>
+          {msg.text}
+        </p>
+      )}
+      <button
+        onClick={run}
+        disabled={running}
+        className="rounded-lg bg-orange-500 px-5 py-2 text-sm font-bold text-white transition hover:bg-orange-600 disabled:opacity-50"
+      >
+        {running ? 'יוצר...' : '🗓️ צור משחקים מלוח המשחקים'}
+      </button>
+    </div>
   );
 }

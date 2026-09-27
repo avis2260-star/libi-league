@@ -5,8 +5,9 @@ import type { GameStatus } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import { findPlayerForExtracted, type ExtractedPlayer } from '@/lib/match-player';
-import { mergeDivisionNames, normalizeTeamName } from '@/lib/excel-sync-parsers';
+import { mergeDivisionNames, normalizeTeamName, resolveTeamId } from '@/lib/excel-sync-parsers';
 import { getCurrentSeason, clearCurrentSeasonCache } from '@/lib/current-season';
+import { getSeasonSchedule } from '@/lib/season-schedule';
 import { serializeAutoConfig, type AutoTickerConfig } from '@/lib/ticker-auto';
 import { assertAdmin } from '@/lib/require-admin';
 
@@ -101,7 +102,113 @@ export async function bulkImportGames(): Promise<ImportResult> {
   return { inserted: rows.length, skipped };
 }
 
-// ── Game score + status ───────────────────────────────────────────────────────
+// ── Create games from the current season's schedule ───────────────────────────
+// The public schedule (לוח משחקים) can show a season's fixtures from a persisted
+// / static fallback WITHOUT there being real `games` rows in the DB. But score
+// entry, box scores and /submit all need actual `games` rows. This materializes
+// the schedule getSeasonSchedule() already serves into real `games` rows so the
+// admin can enter scores — without re-uploading the Excel. It matches fixtures
+// to teams by normalized name (aliases included) and reports any team names that
+// don't match a team in the DB, which is the usual reason a fixture is skipped.
+
+export type SeedGamesResult = {
+  created: number;
+  skipped: number;
+  unmatched?: string[];
+  warning?: string;
+  error?: string;
+};
+
+export async function createGamesFromSchedule(): Promise<SeedGamesResult> {
+  await assertAdmin();
+  const season = await getCurrentSeason();
+
+  const schedule = await getSeasonSchedule(season);
+  if (schedule.length === 0) {
+    return { created: 0, skipped: 0, error: 'אין לוח משחקים לעונה זו — העלה תחילה את קובץ ה-Excel של העונה.' };
+  }
+
+  const { data: teams, error: teamsError } = await supabaseAdmin
+    .from('teams')
+    .select('id, name');
+  if (teamsError) return { created: 0, skipped: 0, error: teamsError.message };
+  if (!teams?.length) {
+    return { created: 0, skipped: 0, error: 'לא נמצאו קבוצות במסד הנתונים — הוסף קבוצות תחילה.' };
+  }
+
+  // Normalized name → id, so alias/quote/spacing differences still match.
+  const teamMap = new Map<string, string>();
+  for (const t of teams) teamMap.set(normalizeTeamName(t.name), t.id);
+
+  // Existing games for this season — skip a fixture that already has a row.
+  const { data: existing } = await supabaseAdmin
+    .from('games')
+    .select('home_team_id, away_team_id, game_date')
+    .eq('season', season);
+  const existingSet = new Set(
+    (existing ?? []).map((g) => `${g.home_team_id}|${g.away_team_id}|${g.game_date}`),
+  );
+
+  const unmatched = new Set<string>();
+  const rows: Record<string, unknown>[] = [];
+  let skipped = 0;
+
+  for (const e of schedule) {
+    const homeId = resolveTeamId(e.homeTeam, teamMap);
+    const awayId = resolveTeamId(e.awayTeam, teamMap);
+    if (!homeId) unmatched.add(e.homeTeam);
+    if (!awayId) unmatched.add(e.awayTeam);
+    if (!homeId || !awayId || !e.date) continue;
+
+    const key = `${homeId}|${awayId}|${e.date}`;
+    if (existingSet.has(key)) { skipped++; continue; }
+    existingSet.add(key); // guard against a duplicate within the schedule itself
+
+    rows.push({
+      home_team_id: homeId,
+      away_team_id: awayId,
+      game_date: e.date,
+      game_time: e.time ?? '19:00:00',
+      location: e.location ?? 'TBD',
+      home_score: 0,
+      away_score: 0,
+      status: 'Scheduled' as GameStatus,
+      season,
+      round: e.round,
+    });
+  }
+
+  let created = 0;
+  let warning = '';
+  if (rows.length > 0) {
+    let insErr = (await supabaseAdmin.from('games').insert(rows)).error;
+    // If the games.round column doesn't exist yet (migration not run), the
+    // insert fails on `round`. Retry without it so the games still get created
+    // (ungrouped) and tell the admin how to enable round grouping.
+    if (insErr && /round/i.test(insErr.message)) {
+      const rowsNoRound = rows.map((r) => { const c = { ...r }; delete c.round; return c; });
+      insErr = (await supabaseAdmin.from('games').insert(rowsNoRound)).error;
+      if (!insErr) {
+        warning = 'המשחקים נוצרו ללא שיוך מחזור. הרץ את המיגרציה 20260919_game_round.sql ב-Supabase כדי לקבץ אותם לפי מחזורים.';
+      }
+    }
+    if (insErr) {
+      return { created: 0, skipped, unmatched: unmatched.size ? [...unmatched] : undefined, error: insErr.message };
+    }
+    created = rows.length;
+  }
+
+  revalidatePath('/admin');
+  revalidatePath('/');
+  revalidatePath('/games');
+
+  return {
+    created,
+    skipped,
+    unmatched: unmatched.size ? [...unmatched] : undefined,
+    warning: warning || undefined,
+  };
+}
 
 export async function updateGameScore(
   gameId: string,
