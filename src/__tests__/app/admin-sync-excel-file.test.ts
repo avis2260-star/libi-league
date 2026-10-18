@@ -24,13 +24,21 @@ jest.mock('@/lib/current-season', () => ({
   getCurrentSeason: jest.fn().mockResolvedValue('2024-2025'),
 }));
 
+// Storing the uploaded file is covered in excel-uploads.test; here it defaults
+// to "not stored" so the orchestration tests don't touch storage.
+jest.mock('@/lib/excel-uploads', () => ({
+  storeUploadedExcel: jest.fn().mockResolvedValue(null),
+}));
+
 import * as XLSX from 'xlsx';
 import { NextRequest } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { queryResult } from '../helpers/supabase-mock';
 import { POST } from '@/app/api/admin/sync-excel-file/route';
+import { storeUploadedExcel } from '@/lib/excel-uploads';
 
 const fromMock = supabaseAdmin.from as jest.Mock;
+const storeMock = storeUploadedExcel as jest.Mock;
 
 function mockFileReq(file: File | null): NextRequest {
   const fd = { get: () => file } as unknown as FormData;
@@ -119,5 +127,66 @@ describe('sync-excel-file POST', () => {
     // The route now surfaces the real Supabase message, labelled by step,
     // instead of a generic string — so admins can see what actually broke.
     expect(await res.json()).toMatchObject({ error: 'standings delete: delete blew up' });
+  });
+
+  describe('keeping the uploaded file', () => {
+    const standingsFile = () =>
+      xlsxFile({ 'טבלאות': [[1, 'חולון', 14, 10, 4, 360, 300, 60, 0, 0, 24]] }, 'לוח 2026.xlsx');
+
+    // sync_logs builder that records every .update() payload.
+    function recordingLogs() {
+      const updates: unknown[] = [];
+      const builder = queryResult({ data: { id: 'log1' }, error: null });
+      builder.update = (payload: unknown) => {
+        updates.push(payload);
+        return builder;
+      };
+      fromMock.mockImplementation((table: string) =>
+        table === 'sync_logs' ? builder : queryResult({ data: [], error: null }),
+      );
+      return updates;
+    }
+
+    it('stores the file after a successful sync and links it on the log row', async () => {
+      storeMock.mockResolvedValueOnce('2024-2025/123-upload.xlsx');
+      const updates = recordingLogs();
+
+      const res = await POST(mockFileReq(standingsFile()));
+      expect(res.status).toBe(200);
+      expect(storeMock).toHaveBeenCalledWith(
+        expect.anything(),
+        'לוח 2026.xlsx',
+        '2024-2025',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      expect(updates).toContainEqual({ file_path: '2024-2025/123-upload.xlsx' });
+      expect((await res.json()).message).toContain('📁 הקובץ נשמר');
+    });
+
+    it('still syncs when the file could not be stored', async () => {
+      storeMock.mockResolvedValueOnce(null);
+      const updates = recordingLogs();
+
+      const res = await POST(mockFileReq(standingsFile()));
+      expect(res.status).toBe(200);
+      expect(updates).not.toContainEqual(expect.objectContaining({ file_path: expect.anything() }));
+      expect((await res.json()).message).not.toContain('📁');
+    });
+
+    it('points at the migration when the log has no file_path column yet', async () => {
+      storeMock.mockResolvedValueOnce('2024-2025/123-upload.xlsx');
+      const builder = queryResult({ data: { id: 'log1' }, error: null });
+      builder.update = (payload: Record<string, unknown>) =>
+        'file_path' in payload
+          ? queryResult({ error: { message: 'column "file_path" of relation "sync_logs" does not exist' } })
+          : builder;
+      fromMock.mockImplementation((table: string) =>
+        table === 'sync_logs' ? builder : queryResult({ data: [], error: null }),
+      );
+
+      const res = await POST(mockFileReq(standingsFile()));
+      expect(res.status).toBe(200);
+      expect((await res.json()).message).toContain('20261018_sync_logs_file.sql');
+    });
   });
 });

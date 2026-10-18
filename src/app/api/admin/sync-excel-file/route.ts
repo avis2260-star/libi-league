@@ -2,6 +2,7 @@ import { requireAdmin } from '@/lib/require-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCurrentSeason } from '@/lib/current-season';
+import { storeUploadedExcel } from '@/lib/excel-uploads';
 import {
   normalizeTeamName,
   resolveTeamId,
@@ -392,6 +393,12 @@ export async function POST(req: NextRequest) {
       }
     } catch { /* cup_games table not created yet — run SQL in Supabase */ }
 
+    // Keep the uploaded workbook so it can be downloaded again from the sync
+    // log. Done only now, after the sync succeeded, and best-effort: a storage
+    // problem never fails the sync.
+    const storedPath = await storeUploadedExcel(buffer, file.name, season, file.type);
+    let fileNote = '';
+
     // Insert sync log (silently skip if table doesn't exist yet). The cup
     // snapshots are attached in a SEPARATE best-effort update so that, before
     // the 20260530 migration adds those columns, the base log still records.
@@ -415,6 +422,22 @@ export async function POST(req: NextRequest) {
           }).eq('id', logRow.id);
         } catch { /* cup snapshot columns not added yet — base log still saved */ }
       }
+
+      // The stored file's path, in its own update for the same reason: before
+      // the 20261018 migration adds file_path, the log row must still save.
+      if (logRow?.id && storedPath) {
+        try {
+          const { error: fileErr } = await supabaseAdmin
+            .from('sync_logs')
+            .update({ file_path: storedPath })
+            .eq('id', logRow.id);
+          if (!fileErr) {
+            fileNote = '\n📁 הקובץ נשמר — ניתן להוריד אותו מיומן הסנכרון.';
+          } else if (/file_path/i.test(fileErr.message)) {
+            fileNote = '\n⚠️ הקובץ לא נשמר ביומן — הרץ את המיגרציה 20261018_sync_logs_file.sql ב-Supabase.';
+          }
+        } catch { /* file stays in storage; only the link on the log is missing */ }
+      }
     } catch { /* sync_logs table not created yet — run SQL in Supabase */ }
 
     const parts = [];
@@ -437,6 +460,8 @@ export async function POST(req: NextRequest) {
         : '';
       message += `\n⚠️ לוח המשחקים לא נוצר (${gamesWarning})${migrationHint}`;
     }
+
+    message += fileNote;
 
     return NextResponse.json({ success: true, message });
   } catch (err: unknown) {

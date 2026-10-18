@@ -1,7 +1,10 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { mergeDivisionNames, parseSchedule } from '@/lib/excel-sync-parsers';
+import type { ScheduleEntry } from '@/lib/libi-schedule';
+import SeasonSchedulePanel from '@/components/admin/SeasonSchedulePanel';
 
 type StandingRow = {
   rank: number;
@@ -209,9 +212,14 @@ function PreviewTable({ rows, title }: { rows: StandingRow[]; title: string }) {
 
 export default function ExcelSyncTab({
   teamDivisions = [],
+  season,
+  schedule = [],
 }: {
   teamDivisions?: { name: string; division: string | null }[];
+  season: string;
+  schedule?: ScheduleEntry[];
 }) {
+  const router = useRouter();
   const [preview, setPreview] = useState<Preview | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -287,6 +295,7 @@ export default function ExcelSyncTab({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'שגיאה');
       setResult({ ok: true, msg: data.message });
+      router.refresh(); // reload the round dates below from the new upload
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'שגיאה לא ידועה';
       setResult({ ok: false, msg });
@@ -325,7 +334,7 @@ export default function ExcelSyncTab({
 
       {/* Result message */}
       {result && (
-        <div className={`rounded-lg border p-4 text-sm font-medium ${result.ok ? 'border-green-700 bg-green-900/40 text-green-300' : 'border-red-700 bg-red-900/40 text-red-300'}`}>
+        <div className={`whitespace-pre-line rounded-lg border p-4 text-sm font-medium ${result.ok ? 'border-green-700 bg-green-900/40 text-green-300' : 'border-red-700 bg-red-900/40 text-red-300'}`}>
           {result.ok ? '✅ ' : '❌ '}{result.msg}
         </div>
       )}
@@ -369,6 +378,8 @@ export default function ExcelSyncTab({
           </button>
         </div>
       )}
+
+      <SeasonSchedulePanel season={season} schedule={schedule} />
     </div>
   );
 }

@@ -28,6 +28,8 @@ import PerGameStatsTab, { type PerGameInfo, type PerGameStatRow } from '@/compon
 import MatchPreviewsTab, { type CupGameLite, type Preview } from '@/components/admin/MatchPreviewsTab';
 import SeasonReviewsTab, { type SeasonReview } from '@/components/admin/SeasonReviewsTab';
 import { getSeasonSchedule } from '@/lib/season-schedule';
+import type { ScheduleEntry } from '@/lib/libi-schedule';
+import { listSyncLogs, type SyncLogRow } from '@/lib/excel-uploads';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
 import SeasonPicker from '@/components/SeasonPicker';
@@ -456,15 +458,19 @@ export default async function AdminPage({
   }
 
   // Sync log tab
-  let syncLogs: { id: string; uploaded_at: string; filename: string | null; north_count: number; south_count: number; results_count: number; is_rolled_back: boolean }[] = [];
+  let syncLogs: SyncLogRow[] = [];
   if (tab === 'synclog') {
-    const { data } = await supabaseAdmin
-      .from('sync_logs')
-      .select('id,uploaded_at,filename,north_count,south_count,results_count,is_rolled_back')
-      .eq('season', season)
-      .order('uploaded_at', { ascending: false })
-      .limit(20);
-    syncLogs = (data ?? []) as typeof syncLogs;
+    try {
+      syncLogs = await listSyncLogs(season);
+    } catch { /* sync_logs table missing — show an empty log */ }
+  }
+
+  // Excel sync + sync log tabs both show the season's game dates for the two
+  // divisions (and export them to Excel) — the same schedule the public
+  // לוח משחקים page serves.
+  let excelTabSchedule: ScheduleEntry[] = [];
+  if (tab === 'sync' || tab === 'synclog') {
+    excelTabSchedule = await getSeasonSchedule(season);
   }
 
   // Season reviews tab
@@ -548,14 +554,14 @@ export default async function AdminPage({
       {tab === 'teams'         && <TeamsTab teams={teamsForTab} />}
       {tab === 'boxscore'      && <BoxScoreTab games={games} initialGameId={gameId} />}
       {tab === 'media'         && <MediaTab games={games} />}
-      {tab === 'sync'          && <ExcelSyncTab teamDivisions={syncTeamDivisions} />}
+      {tab === 'sync'          && <ExcelSyncTab teamDivisions={syncTeamDivisions} season={season} schedule={excelTabSchedule} />}
       {tab === 'players'       && <PlayersTab teams={teams} players={players} />}
       {tab === 'seasons'       && <SeasonsTab seasons={seasons} />}
       {tab === 'officials'     && <OfficialsTab officials={officials} />}
       {tab === 'disciplinary'  && <DisciplinaryTab records={disciplinaryRecords} players={playerOptions} />}
       {tab === 'settings'      && <LeagueSettingsTab settings={leagueSettings} />}
       {tab === 'announcements' && <AnnouncementsTab announcements={announcements} tickerSpeed={tickerSpeed} autoTicker={autoTicker} />}
-      {tab === 'synclog'       && <SyncLogTab logs={syncLogs} />}
+      {tab === 'synclog'       && <SyncLogTab logs={syncLogs} season={season} schedule={excelTabSchedule} />}
       {tab === 'previews'      && <MatchPreviewsTab cupGames={previewCupGames} previews={matchPreviews} />}
       {tab === 'takanon'       && <TakanonTab />}
       {tab === 'forms'         && <DownloadFormsTab />}

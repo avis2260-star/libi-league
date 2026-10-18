@@ -1,21 +1,40 @@
 'use client';
 
 import { useState } from 'react';
+import type { SyncLogRow as SyncLog } from '@/lib/excel-uploads';
+import type { ScheduleEntry } from '@/lib/libi-schedule';
+import SeasonSchedulePanel from '@/components/admin/SeasonSchedulePanel';
 
-type SyncLog = {
-  id: string;
-  uploaded_at: string;
-  filename: string | null;
-  north_count: number;
-  south_count: number;
-  results_count: number;
-  is_rolled_back: boolean;
-};
-
-export default function SyncLogTab({ logs: initial }: { logs: SyncLog[] }) {
+export default function SyncLogTab({
+  logs: initial,
+  season,
+  schedule,
+}: {
+  logs: SyncLog[];
+  season: string;
+  schedule: ScheduleEntry[];
+}) {
   const [list, setList]       = useState<SyncLog[]>(initial);
   const [rolling, setRolling] = useState(false);
+  const [downloading, setDownloading] = useState<string | null>(null);
   const [msg, setMsg]         = useState<{ ok: boolean; text: string } | null>(null);
+
+  // The uploaded file lives in a private bucket — ask for a short-lived signed
+  // link, then let the browser download it under its original name.
+  async function handleDownload(log: SyncLog) {
+    setDownloading(log.id);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/admin/sync-logs/file?id=${encodeURIComponent(log.id)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'ההורדה נכשלה');
+      window.location.href = data.url;
+    } catch (err: unknown) {
+      setMsg({ ok: false, text: err instanceof Error ? err.message : 'שגיאה' });
+    } finally {
+      setDownloading(null);
+    }
+  }
 
   // Most recent non-rolled-back log
   const rollbackTarget = list.find((l) => !l.is_rolled_back) ?? null;
@@ -47,6 +66,9 @@ export default function SyncLogTab({ logs: initial }: { logs: SyncLog[] }) {
       <div>
         <h2 className="text-xl font-bold text-white">יומן סנכרון</h2>
         <p className="text-sm text-gray-400">היסטוריית העלאות קובץ Excel · {list.length} רשומות אחרונות</p>
+        <p className="mt-1 text-xs text-gray-500">
+          ⬇️ ניתן להוריד את הקובץ המקורי של כל העלאה. הקבצים נשמרים מעכשיו והלאה — העלאות קודמות לא נשמרו.
+        </p>
       </div>
 
       {/* Rollback section */}
@@ -77,7 +99,7 @@ export default function SyncLogTab({ logs: initial }: { logs: SyncLog[] }) {
       {/* Logs table */}
       {list.length > 0 ? (
         <div className="rounded-xl border border-gray-700 overflow-hidden overflow-x-auto">
-          <table className="w-full text-sm text-right min-w-[600px]">
+          <table className="w-full text-sm text-right min-w-[680px]">
             <thead className="bg-gray-800/80 text-gray-400 text-xs uppercase tracking-wide">
               <tr>
                 <th className="px-4 py-3">תאריך ושעה</th>
@@ -86,6 +108,7 @@ export default function SyncLogTab({ logs: initial }: { logs: SyncLog[] }) {
                 <th className="px-4 py-3 text-center">דרום</th>
                 <th className="px-4 py-3 text-center">תוצאות</th>
                 <th className="px-4 py-3 text-center">סטטוס</th>
+                <th className="px-4 py-3 text-center">קובץ מקורי</th>
               </tr>
             </thead>
             <tbody>
@@ -111,6 +134,19 @@ export default function SyncLogTab({ logs: initial }: { logs: SyncLog[] }) {
                       </span>
                     )}
                   </td>
+                  <td className="px-4 py-3 text-center">
+                    {log.file_path ? (
+                      <button
+                        onClick={() => handleDownload(log)}
+                        disabled={downloading === log.id}
+                        className="rounded-lg border border-emerald-600/60 px-3 py-1 text-xs font-bold text-emerald-300 transition hover:bg-emerald-900/30 disabled:opacity-50"
+                      >
+                        {downloading === log.id ? 'מוריד...' : '⬇️ הורד'}
+                      </button>
+                    ) : (
+                      <span className="text-xs text-gray-600" title="הקובץ של העלאה זו לא נשמר">—</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -119,6 +155,8 @@ export default function SyncLogTab({ logs: initial }: { logs: SyncLog[] }) {
       ) : (
         <p className="text-center text-gray-500 py-8">אין רשומות סנכרון עדיין</p>
       )}
+
+      <SeasonSchedulePanel season={season} schedule={schedule} />
     </div>
   );
 }
