@@ -169,6 +169,42 @@ describe('sync-excel-file POST', () => {
     expect(message).toContain('קבוצה לא מוכרת');
   });
 
+  it("fills teams the standings sheet is missing (#N/A from tied ranks) from the חישובים sheet", async () => {
+    let inserted: { name: string; division: string; rank: number }[] = [];
+    const standings = queryResult({ data: [], error: null });
+    standings.insert = (rows: typeof inserted) => {
+      inserted = rows;
+      return standings;
+    };
+    fromMock.mockImplementation((table: string) =>
+      table === 'standings' ? standings : queryResult({ data: [], error: null }),
+    );
+
+    const header = ['מיקום', 'קבוצה', 'משחקים', 'ניצחונות', 'הפסדים', '%', 'זכות', 'חובה', 'הפרש', 'ניקוד'];
+    const file = xlsxFile({
+      'טבלאות': [
+        ['טבלה - צפון'],
+        [1, 'ידרסל חדרה', 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [2, null, null, null, 0],                     // #N/A — no name
+        [3, 'גוטלמן השרון', 0, 0, 0, 0, 0, 0, 0, 0, -1],
+      ],
+      'חישובים': [
+        header,
+        [1, 'ידרסל חדרה', 0, 0, 0, 0, 0, 0, 0, 0],
+        [3, 'גוטלמן השרון', 0, 0, 0, 0, 0, 0, 0, -1],
+        [1, 'חולון', 0, 0, 0, 0, 0, 0, 0, 0],      // tied at rank 1
+      ],
+    });
+    const res = await POST(mockFileReq(file));
+    expect(res.status).toBe(200);
+    expect(inserted.map((r) => [r.division, r.rank, r.name])).toEqual([
+      ['North', 1, 'ידרסל חדרה'],
+      ['North', 2, 'חולון'],
+      ['North', 3, 'גוטלמן השרון'],
+    ]);
+    expect((await res.json()).message).toContain('הושלמו מגיליון "חישובים": חולון');
+  });
+
   describe('keeping the uploaded file', () => {
     const standingsFile = () =>
       xlsxFile({ 'טבלאות': [[1, 'חולון', 14, 10, 4, 360, 300, 60, 0, 0, 24]] }, 'לוח 2026.xlsx');

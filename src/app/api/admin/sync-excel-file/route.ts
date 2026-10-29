@@ -14,6 +14,8 @@ import {
   parseCupGames,
   mergeDivisionNames,
   reconcileStandings,
+  parseCalcSheet,
+  fillStandingsFromCalc,
   type StandingRow,
   type GameResultRow,
   type ScheduleGameRow,
@@ -49,7 +51,22 @@ export async function POST(req: NextRequest) {
     // Parse standings
     const standingsSheet = wb.SheetNames.find((n) => n.includes('טבלאות')) ?? wb.SheetNames[0];
     const standingsRows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[standingsSheet], { header: 1 });
-    const { north, south, unplaced } = parseStandings(standingsRows, divisions);
+    const parsedStandings = parseStandings(standingsRows, divisions);
+
+    // At the start of a season the file's טבלאות sheet can be missing teams
+    // (#N/A — its ranking formula gives tied teams the same rank). The
+    // חישובים sheet lists every team, so fill the gaps from it.
+    const calcSheet = wb.SheetNames.find((n) => n.includes('חישובים'));
+    const filled = calcSheet
+      ? fillStandingsFromCalc(
+          parsedStandings,
+          parseCalcSheet(XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[calcSheet], { header: 1 })),
+          divisions,
+        )
+      : { north: parsedStandings.north, south: parsedStandings.south, added: [] as string[] };
+    const { north, south } = filled;
+    const filledNames = new Set(filled.added.map(normalizeTeamName));
+    const unplaced = parsedStandings.unplaced.filter((n) => !filledNames.has(normalizeTeamName(n)));
 
     // Parse results
     const resultsSheet = wb.SheetNames.find((n) => n.includes('תוצאות'));
@@ -468,6 +485,10 @@ export async function POST(req: NextRequest) {
         ? ' — כנראה שעמודת games.round חסרה. הרץ את המיגרציה 20260919_game_round.sql ב-Supabase ונסה שוב.'
         : '';
       message += `\n⚠️ לוח המשחקים לא נוצר (${gamesWarning})${migrationHint}`;
+    }
+
+    if (filled.added.length > 0) {
+      message += `\nℹ️ בגיליון "טבלאות" בקובץ חסרו ${filled.added.length} קבוצות (#N/A — נוסחת המיקום בגיליון "חישובים" נותנת לקבוצות בתיקו אותו מיקום), והן הושלמו מגיליון "חישובים": ${filled.added.join(', ')}`;
     }
 
     // The standings table is REPLACED by what the file's table holds, so say

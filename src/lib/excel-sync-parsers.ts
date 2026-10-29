@@ -350,6 +350,120 @@ export function parseStandings(
   return { north, south, unplaced };
 }
 
+// ---------------------------------------------------------------------------
+// Filling standings gaps from the "חישובים" sheet
+// ---------------------------------------------------------------------------
+
+/** A team's record from one block of the "חישובים" (calculations) sheet. */
+export type CalcTeam = StandingRow & { block: number };
+
+const CALC_LABELS = {
+  name: 'קבוצה', games: 'משחקים', wins: 'ניצחונות', losses: 'הפסדים',
+  pf: 'זכות', pa: 'חובה', diff: 'הפרש', techni: 'טכני', penalty: '*', pts: 'ניקוד',
+} as const;
+
+/**
+ * Read every team record from the "חישובים" sheet. Each block starts with a
+ * header row holding קבוצה and ניקוד; columns are found by their header text
+ * (the first match — the sheet repeats ניצחונות/הפסדים for home/away), and
+ * rows are read until the first row without a team name.
+ */
+export function parseCalcSheet(rows: unknown[][]): CalcTeam[] {
+  const out: CalcTeam[] = [];
+  let block = -1;
+  let col: Partial<Record<keyof typeof CALC_LABELS, number>> | null = null;
+
+  for (const row of rows) {
+    if (!Array.isArray(row)) { col = null; continue; }
+    const texts = Array.from(row, (v) => String(v ?? '').trim());
+    if (texts.includes(CALC_LABELS.name) && texts.includes(CALC_LABELS.pts)) {
+      col = {};
+      for (const [key, label] of Object.entries(CALC_LABELS) as [keyof typeof CALC_LABELS, string][]) {
+        const i = texts.indexOf(label);
+        if (i >= 0) col[key] = i;
+      }
+      block++;
+      continue;
+    }
+    if (!col || col.name === undefined) continue;
+    const name = texts[col.name];
+    const games = col.games !== undefined ? numericValue(row[col.games]) : null;
+    if (!name || numericValue(name) !== null || games === null) { col = null; continue; }
+    const num = (k: keyof typeof CALC_LABELS) => (col![k] !== undefined ? numericValue(row[col![k]!]) ?? 0 : 0);
+    out.push({
+      block, rank: 0, name,
+      games: num('games'), wins: num('wins'), losses: num('losses'),
+      pf: num('pf'), pa: num('pa'), diff: num('diff'),
+      techni: num('techni'), penalty: num('penalty'), pts: num('pts'),
+    });
+  }
+  return out;
+}
+
+/**
+ * At the start of a season every team is tied, and the league file's ranking
+ * formula (חישובים, column C) gives tied teams the SAME rank — so the
+ * טבלאות sheet's "who is rank N" lookups return #N/A and those teams come out
+ * with no name at all. The "חישובים" sheet still lists every team, so add the
+ * teams the standings are missing:
+ *   • each block's division is the one most of its already-placed teams are in
+ *     (else the rosters), so a team goes where the file's own sheet puts it;
+ *   • a division that gained teams is re-ranked by points, then +/-, then
+ *     points for (stable, so the file's order breaks remaining ties).
+ * A complete standings sheet is returned unchanged.
+ */
+export function fillStandingsFromCalc(
+  standings: { north: StandingRow[]; south: StandingRow[] },
+  calc: CalcTeam[],
+  divisions: DivisionNames = { north: NORTH_NAMES, south: SOUTH_NAMES },
+): { north: StandingRow[]; south: StandingRow[]; added: string[] } {
+  const placed = new Map<string, Div>();
+  for (const r of standings.north) placed.set(normalizeTeamName(r.name), 'North');
+  for (const r of standings.south) placed.set(normalizeTeamName(r.name), 'South');
+
+  const known = (name: string): Div | null =>
+    placed.get(normalizeTeamName(name)) ??
+    (looselyInList(divisions.north, name) ? 'North' : looselyInList(divisions.south, name) ? 'South' : null);
+
+  const blockDiv = new Map<number, Div | null>();
+  for (const b of new Set(calc.map((t) => t.block))) {
+    let n = 0;
+    let s = 0;
+    for (const t of calc.filter((c) => c.block === b)) {
+      const d = known(t.name);
+      if (d === 'North') n++;
+      else if (d === 'South') s++;
+    }
+    blockDiv.set(b, n > s ? 'North' : s > n ? 'South' : null);
+  }
+
+  const north = [...standings.north];
+  const south = [...standings.south];
+  const added: string[] = [];
+  for (const t of calc) {
+    if (placed.has(normalizeTeamName(t.name))) continue;
+    const div = blockDiv.get(t.block) ?? known(t.name);
+    if (!div) continue;
+    const { block: _block, ...row } = t;
+    (div === 'North' ? north : south).push(row);
+    placed.set(normalizeTeamName(t.name), div);
+    added.push(t.name);
+  }
+
+  const rerank = (list: StandingRow[]) =>
+    list
+      .map((r, i) => ({ r, i }))
+      .sort((a, b) => b.r.pts - a.r.pts || b.r.diff - a.r.diff || b.r.pf - a.r.pf || a.i - b.i)
+      .map(({ r }, i) => ({ ...r, rank: i + 1 }));
+
+  const addedSet = new Set(added);
+  return {
+    north: north.some((r) => addedSet.has(r.name)) ? rerank(north) : north,
+    south: south.some((r) => addedSet.has(r.name)) ? rerank(south) : south,
+    added,
+  };
+}
+
 /**
  * Line parsed standings up with the Teams tab before they're saved:
  *   • each row is renamed to the team's name in the teams table (exact or alias

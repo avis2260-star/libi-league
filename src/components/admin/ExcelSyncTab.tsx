@@ -2,7 +2,14 @@
 
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { mergeDivisionNames, parseSchedule, parseStandings } from '@/lib/excel-sync-parsers';
+import {
+  mergeDivisionNames,
+  parseSchedule,
+  parseStandings,
+  parseCalcSheet,
+  fillStandingsFromCalc,
+  normalizeTeamName,
+} from '@/lib/excel-sync-parsers';
 import type { ScheduleEntry } from '@/lib/libi-schedule';
 import SeasonSchedulePanel from '@/components/admin/SeasonSchedulePanel';
 
@@ -37,6 +44,8 @@ type Preview = {
   south: StandingRow[];
   // Rows that look like standings but couldn't be placed in a division.
   unplaced: string[];
+  // Teams the טבלאות sheet was missing (#N/A), filled in from חישובים.
+  filledFromCalc: string[];
   results: GameResultRow[];
   // Full fixture count (played + upcoming) from the schedule — this is what
   // seeds the games table / "upcoming games", so a schedule-only file (no
@@ -184,7 +193,21 @@ export default function ExcelSyncTab({
       // admin is recognised here without a code change.
       const standingsSheet = wb.SheetNames.find((n) => n.includes('טבלאות')) ?? wb.SheetNames[0];
       const standingsRows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[standingsSheet], { header: 1 });
-      const { north, south, unplaced } = parseStandings(standingsRows, mergeDivisionNames(teamDivisions));
+      const divisions = mergeDivisionNames(teamDivisions);
+      const parsed = parseStandings(standingsRows, divisions);
+      // Same gap-filling as the server sync: teams the טבלאות sheet is missing
+      // (#N/A from tied ranks) come from the חישובים sheet.
+      const calcSheet = wb.SheetNames.find((n) => n.includes('חישובים'));
+      const filled = calcSheet
+        ? fillStandingsFromCalc(
+            parsed,
+            parseCalcSheet(XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[calcSheet], { header: 1 })),
+            divisions,
+          )
+        : { north: parsed.north, south: parsed.south, added: [] as string[] };
+      const { north, south } = filled;
+      const filledNames = new Set(filled.added.map(normalizeTeamName));
+      const unplaced = parsed.unplaced.filter((n) => !filledNames.has(normalizeTeamName(n)));
 
       // Parse game results + the full fixture list from תוצאות sheet
       const resultsSheet = wb.SheetNames.find((n) => n.includes('תוצאות'));
@@ -203,7 +226,7 @@ export default function ExcelSyncTab({
       }
 
       setPreview({
-        north, south, unplaced, results,
+        north, south, unplaced, filledFromCalc: filled.added, results,
         scheduleCount,
         scheduleMin: scheduleCount > 0 ? Math.min(...scheduleRounds) : 0,
         scheduleMax: scheduleCount > 0 ? Math.max(...scheduleRounds) : 0,
@@ -284,6 +307,17 @@ export default function ExcelSyncTab({
 
           <PreviewTable rows={preview.south} title="מחוז דרום" />
           <PreviewTable rows={preview.north} title="מחוז צפון" />
+
+          {preview.filledFromCalc.length > 0 && (
+            <div className="mb-4 rounded-lg border border-sky-700/50 bg-sky-900/20 p-4">
+              <p className="text-sm font-semibold text-sky-300">
+                ℹ️ בגיליון &quot;טבלאות&quot; בקובץ חסרו {preview.filledFromCalc.length} קבוצות (#N/A), והן הושלמו מגיליון &quot;חישובים&quot;: {preview.filledFromCalc.join(', ')}
+              </p>
+              <p className="mt-1 text-xs text-sky-200/80">
+                הסיבה: נוסחת המיקום בגיליון &quot;חישובים&quot; נותנת לקבוצות בתיקו אותו מיקום. כדאי לתקן אותה בקובץ.
+              </p>
+            </div>
+          )}
 
           {preview.unplaced.length > 0 && (
             <div className="mb-4 rounded-lg border border-yellow-700/50 bg-yellow-900/20 p-4">
