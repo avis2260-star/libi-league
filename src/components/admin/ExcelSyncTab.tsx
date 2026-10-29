@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { mergeDivisionNames, parseSchedule } from '@/lib/excel-sync-parsers';
+import { mergeDivisionNames, parseSchedule, parseStandings } from '@/lib/excel-sync-parsers';
 import type { ScheduleEntry } from '@/lib/libi-schedule';
 import SeasonSchedulePanel from '@/components/admin/SeasonSchedulePanel';
 
@@ -35,6 +35,8 @@ type GameResultRow = {
 type Preview = {
   north: StandingRow[];
   south: StandingRow[];
+  // Rows that look like standings but couldn't be placed in a division.
+  unplaced: string[];
   results: GameResultRow[];
   // Full fixture count (played + upcoming) from the schedule — this is what
   // seeds the games table / "upcoming games", so a schedule-only file (no
@@ -45,74 +47,8 @@ type Preview = {
 };
 
 // ── Standings parser ────────────────────────────────────────────────────────
-
-// The North/South rosters that drive recognition of standings rows come from
-// mergeDivisionNames(teamDivisions) at call time — the hard-coded fallback in
-// the shared lib merged with every team that has a `division` set in the DB —
-// so a team added via the admin is recognised without a code change. The match
-// is substring-tolerant in both directions, so a renamed team in libi.xlsx
-// that still contains the old name (e.g. "אדיס אשדוד" → "שועלי אדיס אשדוד")
-// is still picked up.
-
-function normTeam(s: string): string {
-  return s.replace(/["""''`״׳]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
-}
-
-// Substring-tolerant membership: matches if names are equal OR either
-// contains the other (e.g. "שועלי אדיס אשדוד" matches "אדיס אשדוד").
-function loosely(list: string[], cell: string): boolean {
-  const target = normTeam(cell);
-  if (!target) return false;
-  for (const name of list) {
-    const n = normTeam(name);
-    if (n === target || n.includes(target) || target.includes(n)) return true;
-  }
-  return false;
-}
-
-function parseStandings(
-  rows: unknown[][],
-  northNames: string[],
-  southNames: string[],
-): { north: StandingRow[]; south: StandingRow[] } {
-  const north: StandingRow[] = [];
-  const south: StandingRow[] = [];
-
-  for (const row of rows) {
-    for (let i = 0; i < row.length; i++) {
-      const cell = String(row[i] ?? '').trim();
-      const inNorth = loosely(northNames, cell);
-      const inSouth = loosely(southNames, cell);
-      if (!inNorth && !inSouth) continue;
-
-      const nums = (row.slice(i + 1) as unknown[])
-        .map((v) => (typeof v === 'number' ? v : parseFloat(String(v ?? 0)) || 0));
-      const rankCell = row[i - 1];
-      const rank = typeof rankCell === 'number' ? rankCell : (inNorth ? north.length : south.length) + 1;
-
-      const standing: StandingRow = {
-        rank,
-        name: cell,
-        games:   nums[0] ?? 0,
-        wins:    nums[1] ?? 0,
-        losses:  nums[2] ?? 0,
-        pf:      nums[3] ?? 0,
-        pa:      nums[4] ?? 0,
-        diff:    nums[5] ?? 0,
-        techni:  nums[6] ?? 0,
-        penalty: nums[7] ?? 0,
-        pts:     nums[8] ?? 0,
-      };
-
-      if (inNorth) north.push(standing);
-      else south.push(standing);
-    }
-  }
-
-  north.sort((a, b) => a.rank - b.rank);
-  south.sort((a, b) => a.rank - b.rank);
-  return { north, south };
-}
+// The preview uses the SAME parser as the server sync (lib/excel-sync-parsers),
+// so what you see here is exactly what will be saved.
 
 // ── Results parser ──────────────────────────────────────────────────────────
 
@@ -246,10 +182,9 @@ export default function ExcelSyncTab({
       // Parse standings from טבלאות sheet. Division rosters = hard-coded
       // fallback merged with the DB `division` values, so a team added in the
       // admin is recognised here without a code change.
-      const { north: northNames, south: southNames } = mergeDivisionNames(teamDivisions);
       const standingsSheet = wb.SheetNames.find((n) => n.includes('טבלאות')) ?? wb.SheetNames[0];
       const standingsRows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[standingsSheet], { header: 1 });
-      const { north, south } = parseStandings(standingsRows, northNames, southNames);
+      const { north, south, unplaced } = parseStandings(standingsRows, mergeDivisionNames(teamDivisions));
 
       // Parse game results + the full fixture list from תוצאות sheet
       const resultsSheet = wb.SheetNames.find((n) => n.includes('תוצאות'));
@@ -268,7 +203,7 @@ export default function ExcelSyncTab({
       }
 
       setPreview({
-        north, south, results,
+        north, south, unplaced, results,
         scheduleCount,
         scheduleMin: scheduleCount > 0 ? Math.min(...scheduleRounds) : 0,
         scheduleMax: scheduleCount > 0 ? Math.max(...scheduleRounds) : 0,
@@ -349,6 +284,17 @@ export default function ExcelSyncTab({
 
           <PreviewTable rows={preview.south} title="מחוז דרום" />
           <PreviewTable rows={preview.north} title="מחוז צפון" />
+
+          {preview.unplaced.length > 0 && (
+            <div className="mb-4 rounded-lg border border-yellow-700/50 bg-yellow-900/20 p-4">
+              <p className="text-sm font-semibold text-yellow-300">
+                ⚠️ שורות שלא שויכו למחוז ולא יישמרו: {preview.unplaced.join(', ')}
+              </p>
+              <p className="mt-1 text-xs text-yellow-200/80">
+                הגדר לקבוצות האלה מחוז בלשונית &quot;קבוצות&quot;, או הוסף כותרת &quot;צפון&quot; / &quot;דרום&quot; מעל כל טבלה בקובץ.
+              </p>
+            </div>
+          )}
 
           {preview.results.length > 0 && (
             <div className="mb-4 rounded-lg border border-blue-700/50 bg-blue-900/20 p-4">

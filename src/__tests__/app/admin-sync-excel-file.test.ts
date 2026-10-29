@@ -129,6 +129,46 @@ describe('sync-excel-file POST', () => {
     expect(await res.json()).toMatchObject({ error: 'standings delete: delete blew up' });
   });
 
+  it('keeps teams the rosters do not know, renames them to the Teams tab names, and reports gaps', async () => {
+    const teams = [
+      { id: 't1', name: 'חולון', division: 'North' },
+      { id: 't2', name: 'בני נתניה', division: 'North' },
+      { id: 't3', name: 'כ.ע. בת-ים', division: 'North' },
+    ];
+    let inserted: { name: string; division: string }[] = [];
+    const standings = queryResult({ data: [], error: null });
+    standings.insert = (rows: typeof inserted) => {
+      inserted = rows;
+      return standings;
+    };
+    fromMock.mockImplementation((table: string) =>
+      table === 'teams' ? queryResult({ data: teams, error: null })
+      : table === 'standings' ? standings
+      : queryResult({ data: [], error: null }),
+    );
+
+    const file = xlsxFile({
+      'טבלאות': [
+        ['טבלת מחוז צפון'],
+        [1, 'חולון', 0, 0, 0, 0, 0, 0, null, null, 0],
+        [2, 'כח עולה בת ים', 0, 0, 0, 0, 0, 0, null, null, 0],  // alias of כ.ע. בת-ים
+        [3, 'קבוצה לא מוכרת', 0, 0, 0, 0, 0, 0, null, -1, -1], // no such team
+      ],
+    });
+    const res = await POST(mockFileReq(file));
+    expect(res.status).toBe(200);
+
+    expect(inserted.map((r) => [r.division, r.name])).toEqual([
+      ['North', 'חולון'],
+      ['North', 'כ.ע. בת-ים'],
+      ['North', 'קבוצה לא מוכרת'],
+    ]);
+    const { message } = await res.json();
+    expect(message).toContain('שאינן מופיעות בטבלת הקובץ: בני נתניה');
+    expect(message).toContain('שלא זוהו כקבוצה קיימת');
+    expect(message).toContain('קבוצה לא מוכרת');
+  });
+
   describe('keeping the uploaded file', () => {
     const standingsFile = () =>
       xlsxFile({ 'טבלאות': [[1, 'חולון', 14, 10, 4, 360, 300, 60, 0, 0, 24]] }, 'לוח 2026.xlsx');

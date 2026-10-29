@@ -13,6 +13,7 @@ import {
   parseSchedule,
   parseCupGames,
   mergeDivisionNames,
+  reconcileStandings,
   type StandingRow,
   type GameResultRow,
   type ScheduleGameRow,
@@ -37,16 +38,18 @@ export async function POST(req: NextRequest) {
 
     // Division rosters come from the DB (teams.division) merged over the
     // hard-coded fallback, so a team added via the admin is recognised in the
-    // standings sheet without a code change.
-    const { data: teamDivisions } = await supabaseAdmin
-      .from('teams')
-      .select('name, division');
-    const divisions = mergeDivisionNames(teamDivisions ?? []);
+    // standings sheet without a code change. select('*') so this works with
+    // or without the optional columns (division, active).
+    const { data: teamData } = await supabaseAdmin.from('teams').select('*');
+    const teamList = (teamData ?? []) as {
+      id: string; name: string; division?: string | null; active?: boolean | null;
+    }[];
+    const divisions = mergeDivisionNames(teamList);
 
     // Parse standings
     const standingsSheet = wb.SheetNames.find((n) => n.includes('טבלאות')) ?? wb.SheetNames[0];
     const standingsRows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[standingsSheet], { header: 1 });
-    const { north, south } = parseStandings(standingsRows, divisions);
+    const { north, south, unplaced } = parseStandings(standingsRows, divisions);
 
     // Parse results
     const resultsSheet = wb.SheetNames.find((n) => n.includes('תוצאות'));
@@ -138,11 +141,17 @@ export async function POST(req: NextRequest) {
     // Dedupe by division + normalized name: parseStandings can emit the same
     // team twice when the sheet repeats a name, and a duplicate would trip a
     // unique constraint on the standings table and fail the whole sync.
+    // Rows are first lined up with the Teams tab (renamed to the team's name
+    // there) and anything that doesn't line up is reported in the message.
+    const reconciled = reconcileStandings(
+      [
+        ...north.map((r) => ({ ...r, division: 'North', season })),
+        ...south.map((r) => ({ ...r, division: 'South', season })),
+      ],
+      teamList,
+    );
     const seenStanding = new Set<string>();
-    const standingRows = [
-      ...north.map((r) => ({ ...r, division: 'North', season })),
-      ...south.map((r) => ({ ...r, division: 'South', season })),
-    ].filter((r) => {
+    const standingRows = reconciled.rows.filter((r) => {
       const key = `${r.division}|${normalizeTeamName(r.name)}`;
       if (seenStanding.has(key)) return false;
       seenStanding.add(key);
@@ -459,6 +468,20 @@ export async function POST(req: NextRequest) {
         ? ' — כנראה שעמודת games.round חסרה. הרץ את המיגרציה 20260919_game_round.sql ב-Supabase ונסה שוב.'
         : '';
       message += `\n⚠️ לוח המשחקים לא נוצר (${gamesWarning})${migrationHint}`;
+    }
+
+    // The standings table is REPLACED by what the file's table holds, so say
+    // plainly when it doesn't line up with the Teams tab.
+    if (standingRows.length > 0) {
+      if (reconciled.missing.length > 0) {
+        message += `\n⚠️ קבוצות מלשונית "קבוצות" שאינן מופיעות בטבלת הקובץ: ${reconciled.missing.join(', ')}`;
+      }
+      if (reconciled.unmatched.length > 0) {
+        message += `\n⚠️ שמות בטבלת הקובץ שלא זוהו כקבוצה קיימת (נשמרו כפי שנכתבו — כדאי להתאים את השם בלשונית "קבוצות"): ${reconciled.unmatched.join(', ')}`;
+      }
+    }
+    if (unplaced.length > 0) {
+      message += `\n⚠️ שורות בטבלה שלא שויכו למחוז ולכן לא נשמרו (הגדר להן מחוז בלשונית "קבוצות"): ${unplaced.join(', ')}`;
     }
 
     message += fileNote;

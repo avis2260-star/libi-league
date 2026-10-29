@@ -107,10 +107,14 @@ export const SOUTH_NAMES: string[] = [
 
 /**
  * Merge the hard-coded division rosters with the `division` values stored on
- * the teams table. The constants act as a permanent fallback base (so the
- * original teams can never drop out of the standings), while any team that has
- * a `division` set in the DB is layered on top — which is how a newly added
- * team gets recognised without a code change.
+ * the teams table. The constants act as a fallback base (so the original teams
+ * are recognised even without a DB division), while any team that has a
+ * `division` set in the DB is layered on top — which is how a newly added team
+ * gets recognised without a code change.
+ *
+ * A DB division always wins: a team the admin moved to the other division is
+ * taken OFF the fallback list it came from. (Before, it stayed on both lists,
+ * and since North is checked first a North→South move never took effect.)
  */
 export function mergeDivisionNames(
   teams: { name: string; division?: string | null }[],
@@ -119,8 +123,13 @@ export function mergeDivisionNames(
   const south = new Set(SOUTH_NAMES);
   for (const t of teams) {
     if (!t.name) continue;
-    if (t.division === 'North') north.add(t.name);
-    else if (t.division === 'South') south.add(t.name);
+    if (t.division !== 'North' && t.division !== 'South') continue;
+    const [into, from] = t.division === 'North' ? [north, south] : [south, north];
+    const norm = normalizeTeamName(t.name);
+    for (const n of [...from]) {
+      if (normalizeTeamName(n) === norm) from.delete(n);
+    }
+    into.add(t.name);
   }
   return { north: [...north], south: [...south] };
 }
@@ -136,7 +145,10 @@ export function looselyInList(list: string[], cell: string): boolean {
   if (!target) return false;
   for (const name of list) {
     const n = normalizeTeamName(name);
-    if (n === target || n.includes(target) || target.includes(n)) return true;
+    if (n === target || target.includes(n)) return true;
+    // A cell that is part of a longer name must be a real fragment, not a
+    // one- or two-letter header like ה' / נ' (which every name "contains").
+    if (target.length >= 3 && n.includes(target)) return true;
   }
   return false;
 }
@@ -192,15 +204,6 @@ export type ScheduleGameRow = {
 // ---------------------------------------------------------------------------
 
 /**
- * Extract North and South standings from the raw rows of the "טבלאות" sheet.
- *
- * Each row is scanned cell-by-cell.  The first cell that matches a known
- * team name (via looselyInList) anchors the row:
- *   • cell before it  → rank
- *   • cells after it  → numeric stats (games, wins, losses, pf, pa, diff,
- *                        techni, penalty, pts)
- */
-/**
  * Team-name lists that drive North/South recognition. Defaults to the
  * hard-coded rosters, but callers (the Excel sync route) pass DB-derived
  * lists — the hard-coded names merged with every team that has a `division`
@@ -208,51 +211,195 @@ export type ScheduleGameRow = {
  */
 export type DivisionNames = { north: string[]; south: string[] };
 
+type Div = 'North' | 'South';
+
+function numericValue(v: unknown): number | null {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v.trim()))) return Number(v.trim());
+  return null;
+}
+
+/** 'צפון' / 'דרום' when the text names exactly one of the two divisions. */
+function divisionWord(text: string): Div | null {
+  const north = text.includes('צפון');
+  const south = text.includes('דרום');
+  if (north === south) return null;
+  return north ? 'North' : 'South';
+}
+
+/**
+ * Does the cell at row[i] look like the team-name cell of a standings row?
+ * Rank number before it, and after it a record whose numbers add up
+ * (games = wins + losses, or diff = pf − pa). Blank stat cells count as 0, so
+ * a fresh season where every team is still at 0 qualifies too.
+ */
+function isStandingsRow(row: unknown[], i: number): boolean {
+  const name = String(row[i] ?? '').trim();
+  if (name.length < 2 || numericValue(name) !== null || !/[\p{L}]/u.test(name)) return false;
+  const rank = numericValue(row[i - 1]);
+  if (rank === null || !Number.isInteger(rank) || rank < 1 || rank > 50) return false;
+  // By position, not .slice/.map: blank Excel cells arrive as array holes.
+  const stats = Array.from({ length: 9 }, (_, k) => numericValue(row[i + 1 + k]));
+  if (stats.filter((v) => v !== null).length < 6) return false;
+  const [games, wins, losses, pf, pa, diff] = stats.map((v) => v ?? 0);
+  return games === wins + losses || diff === pf - pa;
+}
+
+/**
+ * Extract North and South standings from the raw rows of the "טבלאות" sheet.
+ *
+ * A standings row is a team-name cell with the rank in the cell before it and
+ * the stats after it (games, wins, losses, pf, pa, diff, techni, penalty, pts).
+ * Rows are found two ways:
+ *   • the name matches a known team (`divisions`, loosely), as before; or
+ *   • the row is shaped like a standings row (see isStandingsRow) — so a team
+ *     whose name isn't on any roster yet (new team, new spelling) is KEPT
+ *     instead of silently dropped.
+ *
+ * The division comes from the sheet itself first: a צפון/דרום cell on the
+ * same row, else the nearest צפון/דרום heading above it (on a tie, the one in
+ * the closest column — tables placed side by side). The rosters are the
+ * fallback, and are also used to sanity-check the headings: if the headings
+ * disagree with the rosters more often than they agree, they're ignored.
+ * Rows that can't be placed either way are returned in `unplaced`.
+ */
 export function parseStandings(
   rows: unknown[][],
   divisions: DivisionNames = { north: NORTH_NAMES, south: SOUTH_NAMES },
-): { north: StandingRow[]; south: StandingRow[] } {
-  const north: StandingRow[] = [];
-  const south: StandingRow[] = [];
+): { north: StandingRow[]; south: StandingRow[]; unplaced: string[] } {
+  type Candidate = { r: number; i: number; name: string; roster: Div | null };
+  const candidates: Candidate[] = [];
 
-  for (const row of rows) {
+  rows.forEach((row, r) => {
+    if (!Array.isArray(row)) return;
     for (let i = 0; i < row.length; i++) {
       const cell = String(row[i] ?? '').trim();
+      if (!cell) continue;
       const inNorth = looselyInList(divisions.north, cell);
       const inSouth = looselyInList(divisions.south, cell);
-      if (!inNorth && !inSouth) continue;
-
-      const nums = (row.slice(i + 1) as unknown[]).map(
-        (v) => (typeof v === 'number' ? v : parseFloat(String(v ?? 0)) || 0),
-      );
-      const rankCell = row[i - 1];
-      const rank =
-        typeof rankCell === 'number'
-          ? rankCell
-          : (inNorth ? north.length : south.length) + 1;
-
-      const standing: StandingRow = {
-        rank,
-        name:    cell,
-        games:   nums[0] ?? 0,
-        wins:    nums[1] ?? 0,
-        losses:  nums[2] ?? 0,
-        pf:      nums[3] ?? 0,
-        pa:      nums[4] ?? 0,
-        diff:    nums[5] ?? 0,
-        techni:  nums[6] ?? 0,
-        penalty: nums[7] ?? 0,
-        pts:     nums[8] ?? 0,
-      };
-
-      if (inNorth) north.push(standing);
-      else south.push(standing);
+      if (!inNorth && !inSouth && !isStandingsRow(row, i)) continue;
+      candidates.push({ r, i, name: cell, roster: inNorth ? 'North' : inSouth ? 'South' : null });
     }
+  });
+
+  // צפון/דרום headings, skipping the team-name cells themselves.
+  const nameCells = new Set(candidates.map((c) => `${c.r}:${c.i}`));
+  const markers: { r: number; c: number; div: Div }[] = [];
+  rows.forEach((row, r) => {
+    if (!Array.isArray(row)) return;
+    row.forEach((v, c) => {
+      if (typeof v !== 'string' || v.length > 60 || nameCells.has(`${r}:${c}`)) return;
+      const div = divisionWord(v);
+      if (div) markers.push({ r, c, div });
+    });
+  });
+
+  function fromSheet(cand: Candidate): Div | null {
+    const sameRow = markers.filter((m) => m.r === cand.r);
+    const above = markers.filter((m) => m.r < cand.r);
+    const pool = sameRow.length > 0
+      ? sameRow
+      : above.filter((m) => m.r === Math.max(...above.map((a) => a.r)));
+    if (pool.length === 0) return null;
+    return pool.reduce((best, m) => (Math.abs(m.c - cand.i) < Math.abs(best.c - cand.i) ? m : best)).div;
   }
+
+  let agree = 0;
+  let disagree = 0;
+  const sheetDivs = candidates.map((c) => {
+    const d = fromSheet(c);
+    if (d && c.roster) {
+      if (d === c.roster) agree++;
+      else disagree++;
+    }
+    return d;
+  });
+  const trustSheet = agree >= disagree;
+
+  const north: StandingRow[] = [];
+  const south: StandingRow[] = [];
+  const unplaced: string[] = [];
+
+  candidates.forEach((cand, k) => {
+    const div = (trustSheet ? sheetDivs[k] : null) ?? cand.roster;
+    if (!div) {
+      unplaced.push(cand.name);
+      return;
+    }
+    const row = rows[cand.r];
+    const nums = (row.slice(cand.i + 1) as unknown[]).map((v) => numericValue(v) ?? 0);
+    const list = div === 'North' ? north : south;
+    const rankCell = numericValue(row[cand.i - 1]);
+    list.push({
+      rank:    rankCell ?? list.length + 1,
+      name:    cand.name,
+      games:   nums[0] ?? 0,
+      wins:    nums[1] ?? 0,
+      losses:  nums[2] ?? 0,
+      pf:      nums[3] ?? 0,
+      pa:      nums[4] ?? 0,
+      diff:    nums[5] ?? 0,
+      techni:  nums[6] ?? 0,
+      penalty: nums[7] ?? 0,
+      pts:     nums[8] ?? 0,
+    });
+  });
 
   north.sort((a, b) => a.rank - b.rank);
   south.sort((a, b) => a.rank - b.rank);
-  return { north, south };
+  return { north, south, unplaced };
+}
+
+/**
+ * Line parsed standings up with the Teams tab before they're saved:
+ *   • each row is renamed to the team's name in the teams table (exact or alias
+ *     match, else a unique fragment match), so logos, links and renames line up;
+ *   • `unmatched` — names from the file that match no team (saved as written);
+ *   • `missing`   — active teams that have no row in the file's table.
+ * Nothing is dropped here; this only names what doesn't line up, so a sync
+ * can never shrink the table without saying so.
+ */
+export function reconcileStandings<T extends { name: string }>(
+  rows: T[],
+  teams: { id: string; name: string; active?: boolean | null }[],
+): { rows: T[]; unmatched: string[]; missing: string[] } {
+  const teamMap = new Map<string, string>();
+  const nameById = new Map<string, string>();
+  for (const t of teams) {
+    if (!t.name) continue;
+    teamMap.set(normalizeTeamName(t.name), t.id);
+    nameById.set(t.id, t.name);
+  }
+
+  function matchId(raw: string): string | null {
+    const exact = resolveTeamId(raw, teamMap);
+    if (exact) return exact;
+    const target = normalizeTeamName(raw);
+    if (target.length < 3) return null;
+    const hits = new Set<string>();
+    for (const [norm, id] of teamMap) {
+      if (norm.length >= 3 && (norm.includes(target) || target.includes(norm))) hits.add(id);
+    }
+    return hits.size === 1 ? [...hits][0] : null;
+  }
+
+  const matched = new Set<string>();
+  const unmatched: string[] = [];
+  const out = rows.map((row) => {
+    const id = matchId(row.name);
+    if (!id) {
+      unmatched.push(row.name);
+      return row;
+    }
+    matched.add(id);
+    return { ...row, name: nameById.get(id) ?? row.name };
+  });
+
+  const missing = teams
+    .filter((t) => t.name && t.active !== false && !matched.has(t.id))
+    .map((t) => t.name);
+
+  return { rows: out, unmatched, missing };
 }
 
 // ---------------------------------------------------------------------------
