@@ -2,6 +2,7 @@ import { requireAdmin } from '@/lib/require-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCurrentSeason } from '@/lib/current-season';
+import { listSyncLogs } from '@/lib/excel-uploads';
 
 export async function GET() {
   const unauthorized = await requireAdmin();
@@ -9,14 +10,8 @@ export async function GET() {
 
   try {
     const season = await getCurrentSeason();
-    const { data, error } = await supabaseAdmin
-      .from('sync_logs')
-      .select('id,uploaded_at,filename,north_count,south_count,results_count,is_rolled_back')
-      .eq('season', season)
-      .order('uploaded_at', { ascending: false })
-      .limit(20);
-    if (error) throw error;
-    return NextResponse.json({ logs: data });
+    const logs = await listSyncLogs(season);
+    return NextResponse.json({ logs });
   } catch (err: unknown) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'שגיאה' }, { status: 500 });
   }

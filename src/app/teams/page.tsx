@@ -60,7 +60,7 @@ function Avatar({ name, displayName, logoUrl }: { name: string; displayName: str
 function StatPair({ value, label, color }: { value: number; label: string; color: string }) {
   return (
     <span className={`inline-flex items-baseline gap-1 ${color}`}>
-      <span className="text-base font-stats font-black tabular-nums leading-none min-w-[2ch] text-center">
+      <span dir="ltr" className="text-base font-stats font-black tabular-nums leading-none min-w-[2ch] text-center">
         {value}
       </span>
       <span className="text-[13px] font-body font-bold opacity-90 leading-none">

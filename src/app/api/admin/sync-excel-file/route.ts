@@ -2,6 +2,7 @@ import { requireAdmin } from '@/lib/require-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCurrentSeason } from '@/lib/current-season';
+import { storeUploadedExcel } from '@/lib/excel-uploads';
 import {
   normalizeTeamName,
   resolveTeamId,
@@ -12,6 +13,9 @@ import {
   parseSchedule,
   parseCupGames,
   mergeDivisionNames,
+  reconcileStandings,
+  parseCalcSheet,
+  fillStandingsFromCalc,
   type StandingRow,
   type GameResultRow,
   type ScheduleGameRow,
@@ -36,16 +40,33 @@ export async function POST(req: NextRequest) {
 
     // Division rosters come from the DB (teams.division) merged over the
     // hard-coded fallback, so a team added via the admin is recognised in the
-    // standings sheet without a code change.
-    const { data: teamDivisions } = await supabaseAdmin
-      .from('teams')
-      .select('name, division');
-    const divisions = mergeDivisionNames(teamDivisions ?? []);
+    // standings sheet without a code change. select('*') so this works with
+    // or without the optional columns (division, active).
+    const { data: teamData } = await supabaseAdmin.from('teams').select('*');
+    const teamList = (teamData ?? []) as {
+      id: string; name: string; division?: string | null; active?: boolean | null;
+    }[];
+    const divisions = mergeDivisionNames(teamList);
 
     // Parse standings
     const standingsSheet = wb.SheetNames.find((n) => n.includes('טבלאות')) ?? wb.SheetNames[0];
     const standingsRows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[standingsSheet], { header: 1 });
-    const { north, south } = parseStandings(standingsRows, divisions);
+    const parsedStandings = parseStandings(standingsRows, divisions);
+
+    // At the start of a season the file's טבלאות sheet can be missing teams
+    // (#N/A — its ranking formula gives tied teams the same rank). The
+    // חישובים sheet lists every team, so fill the gaps from it.
+    const calcSheet = wb.SheetNames.find((n) => n.includes('חישובים'));
+    const filled = calcSheet
+      ? fillStandingsFromCalc(
+          parsedStandings,
+          parseCalcSheet(XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[calcSheet], { header: 1 })),
+          divisions,
+        )
+      : { north: parsedStandings.north, south: parsedStandings.south, added: [] as string[] };
+    const { north, south } = filled;
+    const filledNames = new Set(filled.added.map(normalizeTeamName));
+    const unplaced = parsedStandings.unplaced.filter((n) => !filledNames.has(normalizeTeamName(n)));
 
     // Parse results
     const resultsSheet = wb.SheetNames.find((n) => n.includes('תוצאות'));
@@ -137,11 +158,17 @@ export async function POST(req: NextRequest) {
     // Dedupe by division + normalized name: parseStandings can emit the same
     // team twice when the sheet repeats a name, and a duplicate would trip a
     // unique constraint on the standings table and fail the whole sync.
+    // Rows are first lined up with the Teams tab (renamed to the team's name
+    // there) and anything that doesn't line up is reported in the message.
+    const reconciled = reconcileStandings(
+      [
+        ...north.map((r) => ({ ...r, division: 'North', season })),
+        ...south.map((r) => ({ ...r, division: 'South', season })),
+      ],
+      teamList,
+    );
     const seenStanding = new Set<string>();
-    const standingRows = [
-      ...north.map((r) => ({ ...r, division: 'North', season })),
-      ...south.map((r) => ({ ...r, division: 'South', season })),
-    ].filter((r) => {
+    const standingRows = reconciled.rows.filter((r) => {
       const key = `${r.division}|${normalizeTeamName(r.name)}`;
       if (seenStanding.has(key)) return false;
       seenStanding.add(key);
@@ -392,6 +419,12 @@ export async function POST(req: NextRequest) {
       }
     } catch { /* cup_games table not created yet — run SQL in Supabase */ }
 
+    // Keep the uploaded workbook so it can be downloaded again from the sync
+    // log. Done only now, after the sync succeeded, and best-effort: a storage
+    // problem never fails the sync.
+    const storedPath = await storeUploadedExcel(buffer, file.name, season, file.type);
+    let fileNote = '';
+
     // Insert sync log (silently skip if table doesn't exist yet). The cup
     // snapshots are attached in a SEPARATE best-effort update so that, before
     // the 20260530 migration adds those columns, the base log still records.
@@ -415,6 +448,22 @@ export async function POST(req: NextRequest) {
           }).eq('id', logRow.id);
         } catch { /* cup snapshot columns not added yet — base log still saved */ }
       }
+
+      // The stored file's path, in its own update for the same reason: before
+      // the 20261018 migration adds file_path, the log row must still save.
+      if (logRow?.id && storedPath) {
+        try {
+          const { error: fileErr } = await supabaseAdmin
+            .from('sync_logs')
+            .update({ file_path: storedPath })
+            .eq('id', logRow.id);
+          if (!fileErr) {
+            fileNote = '\n📁 הקובץ נשמר — ניתן להוריד אותו מיומן הסנכרון.';
+          } else if (/file_path/i.test(fileErr.message)) {
+            fileNote = '\n⚠️ הקובץ לא נשמר ביומן — הרץ את המיגרציה 20261018_sync_logs_file.sql ב-Supabase.';
+          }
+        } catch { /* file stays in storage; only the link on the log is missing */ }
+      }
     } catch { /* sync_logs table not created yet — run SQL in Supabase */ }
 
     const parts = [];
@@ -437,6 +486,26 @@ export async function POST(req: NextRequest) {
         : '';
       message += `\n⚠️ לוח המשחקים לא נוצר (${gamesWarning})${migrationHint}`;
     }
+
+    if (filled.added.length > 0) {
+      message += `\nℹ️ בגיליון "טבלאות" בקובץ חסרו ${filled.added.length} קבוצות (#N/A — נוסחת המיקום בגיליון "חישובים" נותנת לקבוצות בתיקו אותו מיקום), והן הושלמו מגיליון "חישובים": ${filled.added.join(', ')}`;
+    }
+
+    // The standings table is REPLACED by what the file's table holds, so say
+    // plainly when it doesn't line up with the Teams tab.
+    if (standingRows.length > 0) {
+      if (reconciled.missing.length > 0) {
+        message += `\n⚠️ קבוצות מלשונית "קבוצות" שאינן מופיעות בטבלת הקובץ: ${reconciled.missing.join(', ')}`;
+      }
+      if (reconciled.unmatched.length > 0) {
+        message += `\n⚠️ שמות בטבלת הקובץ שלא זוהו כקבוצה קיימת (נשמרו כפי שנכתבו — כדאי להתאים את השם בלשונית "קבוצות"): ${reconciled.unmatched.join(', ')}`;
+      }
+    }
+    if (unplaced.length > 0) {
+      message += `\n⚠️ שורות בטבלה שלא שויכו למחוז ולכן לא נשמרו (הגדר להן מחוז בלשונית "קבוצות"): ${unplaced.join(', ')}`;
+    }
+
+    message += fileNote;
 
     return NextResponse.json({ success: true, message });
   } catch (err: unknown) {

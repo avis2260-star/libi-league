@@ -24,13 +24,21 @@ jest.mock('@/lib/current-season', () => ({
   getCurrentSeason: jest.fn().mockResolvedValue('2024-2025'),
 }));
 
+// Storing the uploaded file is covered in excel-uploads.test; here it defaults
+// to "not stored" so the orchestration tests don't touch storage.
+jest.mock('@/lib/excel-uploads', () => ({
+  storeUploadedExcel: jest.fn().mockResolvedValue(null),
+}));
+
 import * as XLSX from 'xlsx';
 import { NextRequest } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { queryResult } from '../helpers/supabase-mock';
 import { POST } from '@/app/api/admin/sync-excel-file/route';
+import { storeUploadedExcel } from '@/lib/excel-uploads';
 
 const fromMock = supabaseAdmin.from as jest.Mock;
+const storeMock = storeUploadedExcel as jest.Mock;
 
 function mockFileReq(file: File | null): NextRequest {
   const fd = { get: () => file } as unknown as FormData;
@@ -119,5 +127,142 @@ describe('sync-excel-file POST', () => {
     // The route now surfaces the real Supabase message, labelled by step,
     // instead of a generic string — so admins can see what actually broke.
     expect(await res.json()).toMatchObject({ error: 'standings delete: delete blew up' });
+  });
+
+  it('keeps teams the rosters do not know, renames them to the Teams tab names, and reports gaps', async () => {
+    const teams = [
+      { id: 't1', name: 'חולון', division: 'North' },
+      { id: 't2', name: 'בני נתניה', division: 'North' },
+      { id: 't3', name: 'כ.ע. בת-ים', division: 'North' },
+    ];
+    let inserted: { name: string; division: string }[] = [];
+    const standings = queryResult({ data: [], error: null });
+    standings.insert = (rows: typeof inserted) => {
+      inserted = rows;
+      return standings;
+    };
+    fromMock.mockImplementation((table: string) =>
+      table === 'teams' ? queryResult({ data: teams, error: null })
+      : table === 'standings' ? standings
+      : queryResult({ data: [], error: null }),
+    );
+
+    const file = xlsxFile({
+      'טבלאות': [
+        ['טבלת מחוז צפון'],
+        [1, 'חולון', 0, 0, 0, 0, 0, 0, null, null, 0],
+        [2, 'כח עולה בת ים', 0, 0, 0, 0, 0, 0, null, null, 0],  // alias of כ.ע. בת-ים
+        [3, 'קבוצה לא מוכרת', 0, 0, 0, 0, 0, 0, null, -1, -1], // no such team
+      ],
+    });
+    const res = await POST(mockFileReq(file));
+    expect(res.status).toBe(200);
+
+    expect(inserted.map((r) => [r.division, r.name])).toEqual([
+      ['North', 'חולון'],
+      ['North', 'כ.ע. בת-ים'],
+      ['North', 'קבוצה לא מוכרת'],
+    ]);
+    const { message } = await res.json();
+    expect(message).toContain('שאינן מופיעות בטבלת הקובץ: בני נתניה');
+    expect(message).toContain('שלא זוהו כקבוצה קיימת');
+    expect(message).toContain('קבוצה לא מוכרת');
+  });
+
+  it("fills teams the standings sheet is missing (#N/A from tied ranks) from the חישובים sheet", async () => {
+    let inserted: { name: string; division: string; rank: number }[] = [];
+    const standings = queryResult({ data: [], error: null });
+    standings.insert = (rows: typeof inserted) => {
+      inserted = rows;
+      return standings;
+    };
+    fromMock.mockImplementation((table: string) =>
+      table === 'standings' ? standings : queryResult({ data: [], error: null }),
+    );
+
+    const header = ['מיקום', 'קבוצה', 'משחקים', 'ניצחונות', 'הפסדים', '%', 'זכות', 'חובה', 'הפרש', 'ניקוד'];
+    const file = xlsxFile({
+      'טבלאות': [
+        ['טבלה - צפון'],
+        [1, 'ידרסל חדרה', 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [2, null, null, null, 0],                     // #N/A — no name
+        [3, 'גוטלמן השרון', 0, 0, 0, 0, 0, 0, 0, 0, -1],
+      ],
+      'חישובים': [
+        header,
+        [1, 'ידרסל חדרה', 0, 0, 0, 0, 0, 0, 0, 0],
+        [3, 'גוטלמן השרון', 0, 0, 0, 0, 0, 0, 0, -1],
+        [1, 'חולון', 0, 0, 0, 0, 0, 0, 0, 0],      // tied at rank 1
+      ],
+    });
+    const res = await POST(mockFileReq(file));
+    expect(res.status).toBe(200);
+    expect(inserted.map((r) => [r.division, r.rank, r.name])).toEqual([
+      ['North', 1, 'ידרסל חדרה'],
+      ['North', 2, 'חולון'],
+      ['North', 3, 'גוטלמן השרון'],
+    ]);
+    expect((await res.json()).message).toContain('הושלמו מגיליון "חישובים": חולון');
+  });
+
+  describe('keeping the uploaded file', () => {
+    const standingsFile = () =>
+      xlsxFile({ 'טבלאות': [[1, 'חולון', 14, 10, 4, 360, 300, 60, 0, 0, 24]] }, 'לוח 2026.xlsx');
+
+    // sync_logs builder that records every .update() payload.
+    function recordingLogs() {
+      const updates: unknown[] = [];
+      const builder = queryResult({ data: { id: 'log1' }, error: null });
+      builder.update = (payload: unknown) => {
+        updates.push(payload);
+        return builder;
+      };
+      fromMock.mockImplementation((table: string) =>
+        table === 'sync_logs' ? builder : queryResult({ data: [], error: null }),
+      );
+      return updates;
+    }
+
+    it('stores the file after a successful sync and links it on the log row', async () => {
+      storeMock.mockResolvedValueOnce('2024-2025/123-upload.xlsx');
+      const updates = recordingLogs();
+
+      const res = await POST(mockFileReq(standingsFile()));
+      expect(res.status).toBe(200);
+      expect(storeMock).toHaveBeenCalledWith(
+        expect.anything(),
+        'לוח 2026.xlsx',
+        '2024-2025',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      expect(updates).toContainEqual({ file_path: '2024-2025/123-upload.xlsx' });
+      expect((await res.json()).message).toContain('📁 הקובץ נשמר');
+    });
+
+    it('still syncs when the file could not be stored', async () => {
+      storeMock.mockResolvedValueOnce(null);
+      const updates = recordingLogs();
+
+      const res = await POST(mockFileReq(standingsFile()));
+      expect(res.status).toBe(200);
+      expect(updates).not.toContainEqual(expect.objectContaining({ file_path: expect.anything() }));
+      expect((await res.json()).message).not.toContain('📁');
+    });
+
+    it('points at the migration when the log has no file_path column yet', async () => {
+      storeMock.mockResolvedValueOnce('2024-2025/123-upload.xlsx');
+      const builder = queryResult({ data: { id: 'log1' }, error: null });
+      builder.update = (payload: Record<string, unknown>) =>
+        'file_path' in payload
+          ? queryResult({ error: { message: 'column "file_path" of relation "sync_logs" does not exist' } })
+          : builder;
+      fromMock.mockImplementation((table: string) =>
+        table === 'sync_logs' ? builder : queryResult({ data: [], error: null }),
+      );
+
+      const res = await POST(mockFileReq(standingsFile()));
+      expect(res.status).toBe(200);
+      expect((await res.json()).message).toContain('20261018_sync_logs_file.sql');
+    });
   });
 });

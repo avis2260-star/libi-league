@@ -13,6 +13,9 @@ import {
   parseSummarySheet,
   parseSummaryTeamQuarters,
   mergeDivisionNames,
+  reconcileStandings,
+  parseCalcSheet,
+  fillStandingsFromCalc,
   NORTH_NAMES,
   SOUTH_NAMES,
 } from '@/lib/excel-sync-parsers';
@@ -191,6 +194,11 @@ describe('looselyInList', () => {
   it('returns false for an empty list', () => {
     expect(looselyInList([], 'חולון')).toBe(false);
   });
+
+  it("does not treat a one- or two-letter header like ה' or נק' as part of a team name", () => {
+    expect(looselyInList(NORTH_NAMES, "ה'")).toBe(false);
+    expect(looselyInList(NORTH_NAMES, "נק'")).toBe(false);
+  });
 });
 
 // ===========================================================================
@@ -295,6 +303,240 @@ describe('parseStandings', () => {
   });
 });
 
+// Rows exactly as the sync reads them: written with the real xlsx library and
+// read back with sheet_to_json({ header: 1 }), so blank cells arrive as holes.
+function sheetRows(aoa: unknown[][]): unknown[][] {
+  return XLSX.utils.sheet_to_json<unknown[]>(XLSX.utils.aoa_to_sheet(aoa), { header: 1 });
+}
+
+const HEADER = ['#', 'קבוצה', "מ'", "נ'", "ה'", 'זכות', 'חובה', '+/-', "טכ'", '*', "נק'"];
+// A fresh-season row: everything 0, blank techni / penalty unless given.
+const fresh = (rank: number, name: string, penalty?: number) =>
+  [rank, name, 0, 0, 0, 0, 0, 0, null, penalty ?? null, penalty ?? 0];
+
+describe('parseStandings — a new season\'s sheet', () => {
+  it('keeps every team under its צפון / דרום heading, even names no roster knows', () => {
+    const rows = sheetRows([
+      ['טבלת מחוז צפון'],
+      HEADER,
+      fresh(1, 'ידרסל חדרה'),
+      fresh(2, 'כח עולה בת ים'),          // spelling no roster entry matches
+      fresh(3, 'ראשון גפן לציון', -1),    // fallback roster says South
+      fresh(4, 'גוטלמן השרון', -1),
+      [],
+      ['טבלת מחוז דרום'],
+      HEADER,
+      fresh(1, 'אחים קריית משה'),
+      fresh(2, 'שועלי אדיס אשדוד', -1),
+      fresh(3, 'קבוצה חדשה לגמרי', -1),  // brand-new team
+      ['* הורדת נקודות על אי-הגעה לגמר אליפות / מפגש פתיחת עונה'],
+    ]);
+    const { north, south, unplaced } = parseStandings(rows);
+    expect(north.map((r) => [r.rank, r.name])).toEqual([
+      [1, 'ידרסל חדרה'],
+      [2, 'כח עולה בת ים'],
+      [3, 'ראשון גפן לציון'],
+      [4, 'גוטלמן השרון'],
+    ]);
+    expect(south.map((r) => r.name)).toEqual(['אחים קריית משה', 'שועלי אדיס אשדוד', 'קבוצה חדשה לגמרי']);
+    expect(north[2]).toMatchObject({ games: 0, techni: 0, penalty: -1, pts: -1 });
+    expect(unplaced).toEqual([]);
+  });
+
+  it('reads two tables placed side by side', () => {
+    const rows = sheetRows([
+      ['טבלת דרום', null, null, null, null, null, null, null, null, null, null, null, 'טבלת צפון'],
+      [...fresh(1, 'אחים קריית משה'), null, ...fresh(1, 'ידרסל חדרה')],
+      [...fresh(2, 'קבוצה דרומית חדשה'), null, ...fresh(2, 'קבוצה צפונית חדשה')],
+    ]);
+    const { north, south } = parseStandings(rows);
+    expect(north.map((r) => r.name)).toEqual(['ידרסל חדרה', 'קבוצה צפונית חדשה']);
+    expect(south.map((r) => r.name)).toEqual(['אחים קריית משה', 'קבוצה דרומית חדשה']);
+  });
+
+  it('uses a צפון / דרום cell on the row itself', () => {
+    const rows = sheetRows([
+      HEADER,
+      [...fresh(1, 'קבוצה חדשה א'), 'צפון'],
+      [...fresh(1, 'קבוצה חדשה ב'), 'דרום'],
+    ]);
+    const { north, south } = parseStandings(rows);
+    expect(north.map((r) => r.name)).toEqual(['קבוצה חדשה א']);
+    expect(south.map((r) => r.name)).toEqual(['קבוצה חדשה ב']);
+  });
+
+  it('ignores the headings when they contradict the rosters (falls back to the rosters)', () => {
+    // Headings swapped relative to every known team → not trusted.
+    const rows = sheetRows([
+      ['צפון'],
+      fresh(1, 'אחים קריית משה'),
+      fresh(2, 'שועלי אדיס אשדוד'),
+      ['דרום'],
+      fresh(1, 'ידרסל חדרה'),
+    ]);
+    const { north, south } = parseStandings(rows);
+    expect(north.map((r) => r.name)).toEqual(['ידרסל חדרה']);
+    expect(south.map((r) => r.name)).toEqual(['אחים קריית משה', 'שועלי אדיס אשדוד']);
+  });
+
+  it('does not mistake another numeric list (numbers that do not add up) for a team row', () => {
+    const rows = sheetRows([
+      ['טבלת מחוז צפון'],
+      fresh(1, 'ידרסל חדרה'),
+      ['מלך הסלים'],
+      [1, 'יוסי כהן', 12, 30, 5, 3, 7, 2, 1, 0, 9], // 12 ≠ 30+5 and 2 ≠ 3−7
+    ]);
+    const { north, unplaced } = parseStandings(rows);
+    expect(north.map((r) => r.name)).toEqual(['ידרסל חדרה']);
+    expect(unplaced).toEqual([]);
+  });
+
+  it('does not turn short column headers into teams', () => {
+    const rows = sheetRows([['טבלת מחוז צפון'], HEADER, fresh(1, 'ידרסל חדרה')]);
+    expect(parseStandings(rows).north.map((r) => r.name)).toEqual(['ידרסל חדרה']);
+  });
+
+  it('reports a team row it cannot place (no heading, unknown name) instead of dropping it silently', () => {
+    const { north, south, unplaced } = parseStandings(sheetRows([fresh(1, 'קבוצה חדשה לגמרי')]));
+    expect(north).toHaveLength(0);
+    expect(south).toHaveLength(0);
+    expect(unplaced).toEqual(['קבוצה חדשה לגמרי']);
+  });
+});
+
+// ===========================================================================
+// Season start: the טבלאות sheet has #N/A gaps, חישובים has every team
+// ===========================================================================
+
+// Shaped like the league file: a header row per division block (ניצחונות /
+// הפסדים repeat for the home/away split), and an unrelated table further down.
+const CALC_HEADER = ['מיקום', 'קבוצה', 'משחקים', 'ניצחונות', 'הפסדים', '%', 'זכות', 'חובה', 'הפרש', 'ניקוד', '*', 'ניצחונות', 'הפסדים'];
+const calcRow = (rank: number, name: string, pts: number) => [rank, name, 0, 0, 0, 0, 0, 0, 0, pts, null, 0, 0];
+const CALC_SHEET = [
+  CALC_HEADER,
+  calcRow(1, 'ידרסל חדרה', 0),
+  calcRow(3, 'ראשון "גפן" לציון', -1),
+  calcRow(4, 'גוטלמן השרון', -1), // tied ranks — the formula bug
+  calcRow(4, 'בני נתניה', -1),
+  calcRow(1, 'בני מוצקין', 0),
+  [],
+  CALC_HEADER,
+  calcRow(2, 'שועלי אדיס אשדוד', -1),
+  calcRow(1, 'אחים קריית משה', 0),
+  calcRow(2, 'קריית מלאכי', -1),
+  [],
+  [null, null, null, null, 'אי הגעה'],
+  [null, null, null, 'V', 'בני מוצקין', 1],
+];
+
+describe('parseCalcSheet', () => {
+  it('reads every team of each block by header text, stopping at the first blank row', () => {
+    const teams = parseCalcSheet(sheetRows(CALC_SHEET));
+    expect(teams.map((t) => [t.block, t.name])).toEqual([
+      [0, 'ידרסל חדרה'], [0, 'ראשון "גפן" לציון'], [0, 'גוטלמן השרון'], [0, 'בני נתניה'], [0, 'בני מוצקין'],
+      [1, 'שועלי אדיס אשדוד'], [1, 'אחים קריית משה'], [1, 'קריית מלאכי'],
+    ]);
+    expect(teams[1]).toMatchObject({ games: 0, wins: 0, losses: 0, pts: -1, penalty: 0 });
+  });
+
+  it('returns nothing for a sheet without a standings header', () => {
+    expect(parseCalcSheet(sheetRows([['abc'], [1, 'ידרסל חדרה', 0]]))).toEqual([]);
+  });
+});
+
+describe('fillStandingsFromCalc', () => {
+  // The טבלאות sheet as the league file has it at season start: the "who is
+  // rank N" lookups for tied ranks return #N/A, so those rows have no name.
+  const gappy = () =>
+    parseStandings(
+      sheetRows([
+        ['טבלת משחקי ליגה - צפון', null, null, null, null, null, null, null, null, null, null, null, null, null, 'טבלת משחקי ליגה - דרום'],
+        [...fresh(1, 'ידרסל חדרה'), null, null, null, ...fresh(1, 'אחים קריית משה')],
+        [2, null, null, null, 0, null, null, null, 0, null, null, null, null, null, 2, 'שועלי אדיס אשדוד', 0, 0, 0, 0, 0, 0, null, -1, -1],
+        [...fresh(3, 'ראשון "גפן" לציון', -1), null, null, null, 3],
+      ]),
+      mergeDivisionNames([{ name: 'ראשון גפן לציון', division: 'North' }]),
+    );
+
+  it('adds the missing teams to their division and re-ranks it', () => {
+    const before = gappy();
+    expect(before.north.map((r) => r.name)).toEqual(['ידרסל חדרה', 'ראשון "גפן" לציון']);
+
+    const { north, south, added } = fillStandingsFromCalc(before, parseCalcSheet(sheetRows(CALC_SHEET)));
+    expect(north.map((r) => [r.rank, r.name, r.pts])).toEqual([
+      [1, 'ידרסל חדרה', 0],
+      [2, 'בני מוצקין', 0],
+      [3, 'ראשון "גפן" לציון', -1],
+      [4, 'גוטלמן השרון', -1],
+      [5, 'בני נתניה', -1],
+    ]);
+    expect(south.map((r) => [r.rank, r.name])).toEqual([
+      [1, 'אחים קריית משה'],
+      [2, 'שועלי אדיס אשדוד'],
+      [3, 'קריית מלאכי'],
+    ]);
+    expect(added).toEqual(['גוטלמן השרון', 'בני נתניה', 'בני מוצקין', 'קריית מלאכי']);
+  });
+
+  it("places a team by its block in the file, even when the fallback roster says otherwise", () => {
+    // ראשון "גפן" לציון is South on the built-in roster; the file has it in the North block.
+    const { north } = fillStandingsFromCalc(
+      { north: [], south: [] },
+      parseCalcSheet(sheetRows(CALC_SHEET)),
+    );
+    expect(north.map((r) => r.name)).toContain('ראשון "גפן" לציון');
+  });
+
+  it('leaves a complete standings table untouched', () => {
+    const complete = {
+      north: [{ rank: 1, name: 'ידרסל חדרה', games: 0, wins: 0, losses: 0, pf: 0, pa: 0, diff: 0, techni: 0, penalty: 0, pts: 0 }],
+      south: [],
+    };
+    const calc = parseCalcSheet(sheetRows([CALC_HEADER, calcRow(1, 'ידרסל חדרה', 0)]));
+    const out = fillStandingsFromCalc(complete, calc);
+    expect(out.added).toEqual([]);
+    expect(out.north).toEqual(complete.north);
+  });
+});
+
+// ===========================================================================
+// reconcileStandings
+// ===========================================================================
+
+describe('reconcileStandings', () => {
+  const teams = [
+    { id: 't1', name: 'כ.ע. בת-ים', active: true },
+    { id: 't2', name: 'ידרסל חדרה' },
+    { id: 't3', name: 'שועלי אדיס אשדוד' },
+    { id: 't4', name: 'ב.ע. בת-ים', active: false }, // withdrew
+    { id: 't5', name: 'חולון' },
+  ];
+
+  it("renames rows to the team's name in the Teams tab (alias, exact or fragment match)", () => {
+    const { rows } = reconcileStandings(
+      [{ name: 'כח עולה בת ים' }, { name: 'ידרסל חדרה' }, { name: 'אדיס אשדוד' }],
+      teams,
+    );
+    expect(rows.map((r) => r.name)).toEqual(['כ.ע. בת-ים', 'ידרסל חדרה', 'שועלי אדיס אשדוד']);
+  });
+
+  it('lists file names that match no team, and active teams missing from the file', () => {
+    const { rows, unmatched, missing } = reconcileStandings(
+      [{ name: 'ידרסל חדרה' }, { name: 'קבוצה לא מוכרת' }],
+      teams,
+    );
+    expect(rows.map((r) => r.name)).toEqual(['ידרסל חדרה', 'קבוצה לא מוכרת']); // kept as written
+    expect(unmatched).toEqual(['קבוצה לא מוכרת']);
+    // The withdrawn team is not reported as missing.
+    expect(missing).toEqual(['כ.ע. בת-ים', 'שועלי אדיס אשדוד', 'חולון']);
+  });
+
+  it('does not guess when a fragment matches more than one team', () => {
+    const { unmatched } = reconcileStandings([{ name: 'בת ים' }], teams);
+    expect(unmatched).toEqual(['בת ים']);
+  });
+});
+
 // ===========================================================================
 // mergeDivisionNames
 // ===========================================================================
@@ -324,6 +566,20 @@ describe('mergeDivisionNames', () => {
   it('does not duplicate a team already present in the fallback roster', () => {
     const { north } = mergeDivisionNames([{ name: 'חולון', division: 'North' }]);
     expect(north.filter((n) => n === 'חולון')).toHaveLength(1);
+  });
+
+  it('moves a team to the division set in the Teams tab, taking it off the other list', () => {
+    // גוטלמן השרון is a hard-coded North team; the admin moved it to South.
+    const { north, south } = mergeDivisionNames([{ name: 'גוטלמן השרון', division: 'South' }]);
+    expect(north).not.toContain('גוטלמן השרון');
+    expect(south).toContain('גוטלמן השרון');
+  });
+
+  it('matches the fallback entry across spelling differences when moving a team', () => {
+    // Fallback has 'ראשון "גפן" לציון' (South); the DB spells it without quotes.
+    const { north, south } = mergeDivisionNames([{ name: 'ראשון גפן לציון', division: 'North' }]);
+    expect(south).not.toContain('ראשון "גפן" לציון');
+    expect(north).toContain('ראשון גפן לציון');
   });
 });
 

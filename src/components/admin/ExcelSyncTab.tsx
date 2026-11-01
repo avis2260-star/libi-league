@@ -1,7 +1,17 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { mergeDivisionNames, parseSchedule } from '@/lib/excel-sync-parsers';
+import { useRouter } from 'next/navigation';
+import {
+  mergeDivisionNames,
+  parseSchedule,
+  parseStandings,
+  parseCalcSheet,
+  fillStandingsFromCalc,
+  normalizeTeamName,
+} from '@/lib/excel-sync-parsers';
+import type { ScheduleEntry } from '@/lib/libi-schedule';
+import SeasonSchedulePanel from '@/components/admin/SeasonSchedulePanel';
 
 type StandingRow = {
   rank: number;
@@ -32,6 +42,10 @@ type GameResultRow = {
 type Preview = {
   north: StandingRow[];
   south: StandingRow[];
+  // Rows that look like standings but couldn't be placed in a division.
+  unplaced: string[];
+  // Teams the טבלאות sheet was missing (#N/A), filled in from חישובים.
+  filledFromCalc: string[];
   results: GameResultRow[];
   // Full fixture count (played + upcoming) from the schedule — this is what
   // seeds the games table / "upcoming games", so a schedule-only file (no
@@ -42,74 +56,8 @@ type Preview = {
 };
 
 // ── Standings parser ────────────────────────────────────────────────────────
-
-// The North/South rosters that drive recognition of standings rows come from
-// mergeDivisionNames(teamDivisions) at call time — the hard-coded fallback in
-// the shared lib merged with every team that has a `division` set in the DB —
-// so a team added via the admin is recognised without a code change. The match
-// is substring-tolerant in both directions, so a renamed team in libi.xlsx
-// that still contains the old name (e.g. "אדיס אשדוד" → "שועלי אדיס אשדוד")
-// is still picked up.
-
-function normTeam(s: string): string {
-  return s.replace(/["""''`״׳]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
-}
-
-// Substring-tolerant membership: matches if names are equal OR either
-// contains the other (e.g. "שועלי אדיס אשדוד" matches "אדיס אשדוד").
-function loosely(list: string[], cell: string): boolean {
-  const target = normTeam(cell);
-  if (!target) return false;
-  for (const name of list) {
-    const n = normTeam(name);
-    if (n === target || n.includes(target) || target.includes(n)) return true;
-  }
-  return false;
-}
-
-function parseStandings(
-  rows: unknown[][],
-  northNames: string[],
-  southNames: string[],
-): { north: StandingRow[]; south: StandingRow[] } {
-  const north: StandingRow[] = [];
-  const south: StandingRow[] = [];
-
-  for (const row of rows) {
-    for (let i = 0; i < row.length; i++) {
-      const cell = String(row[i] ?? '').trim();
-      const inNorth = loosely(northNames, cell);
-      const inSouth = loosely(southNames, cell);
-      if (!inNorth && !inSouth) continue;
-
-      const nums = (row.slice(i + 1) as unknown[])
-        .map((v) => (typeof v === 'number' ? v : parseFloat(String(v ?? 0)) || 0));
-      const rankCell = row[i - 1];
-      const rank = typeof rankCell === 'number' ? rankCell : (inNorth ? north.length : south.length) + 1;
-
-      const standing: StandingRow = {
-        rank,
-        name: cell,
-        games:   nums[0] ?? 0,
-        wins:    nums[1] ?? 0,
-        losses:  nums[2] ?? 0,
-        pf:      nums[3] ?? 0,
-        pa:      nums[4] ?? 0,
-        diff:    nums[5] ?? 0,
-        techni:  nums[6] ?? 0,
-        penalty: nums[7] ?? 0,
-        pts:     nums[8] ?? 0,
-      };
-
-      if (inNorth) north.push(standing);
-      else south.push(standing);
-    }
-  }
-
-  north.sort((a, b) => a.rank - b.rank);
-  south.sort((a, b) => a.rank - b.rank);
-  return { north, south };
-}
+// The preview uses the SAME parser as the server sync (lib/excel-sync-parsers),
+// so what you see here is exactly what will be saved.
 
 // ── Results parser ──────────────────────────────────────────────────────────
 
@@ -195,7 +143,7 @@ function PreviewTable({ rows, title }: { rows: StandingRow[]; title: string }) {
                 <td dir="ltr" className="px-3 py-1.5">{r.diff > 0 ? `+${r.diff}` : r.diff}</td>
                 <td className="px-3 py-1.5">{r.techni || ''}</td>
                 <td dir="ltr" className="px-3 py-1.5 text-red-400">{r.penalty < 0 ? r.penalty : ''}</td>
-                <td className="px-3 py-1.5 font-bold text-orange-400">{r.pts}</td>
+                <td dir="ltr" className="px-3 py-1.5 font-bold text-orange-400">{r.pts}</td>
               </tr>
             ))}
           </tbody>
@@ -209,9 +157,14 @@ function PreviewTable({ rows, title }: { rows: StandingRow[]; title: string }) {
 
 export default function ExcelSyncTab({
   teamDivisions = [],
+  season,
+  schedule = [],
 }: {
   teamDivisions?: { name: string; division: string | null }[];
+  season: string;
+  schedule?: ScheduleEntry[];
 }) {
+  const router = useRouter();
   const [preview, setPreview] = useState<Preview | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -238,10 +191,23 @@ export default function ExcelSyncTab({
       // Parse standings from טבלאות sheet. Division rosters = hard-coded
       // fallback merged with the DB `division` values, so a team added in the
       // admin is recognised here without a code change.
-      const { north: northNames, south: southNames } = mergeDivisionNames(teamDivisions);
       const standingsSheet = wb.SheetNames.find((n) => n.includes('טבלאות')) ?? wb.SheetNames[0];
       const standingsRows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[standingsSheet], { header: 1 });
-      const { north, south } = parseStandings(standingsRows, northNames, southNames);
+      const divisions = mergeDivisionNames(teamDivisions);
+      const parsed = parseStandings(standingsRows, divisions);
+      // Same gap-filling as the server sync: teams the טבלאות sheet is missing
+      // (#N/A from tied ranks) come from the חישובים sheet.
+      const calcSheet = wb.SheetNames.find((n) => n.includes('חישובים'));
+      const filled = calcSheet
+        ? fillStandingsFromCalc(
+            parsed,
+            parseCalcSheet(XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[calcSheet], { header: 1 })),
+            divisions,
+          )
+        : { north: parsed.north, south: parsed.south, added: [] as string[] };
+      const { north, south } = filled;
+      const filledNames = new Set(filled.added.map(normalizeTeamName));
+      const unplaced = parsed.unplaced.filter((n) => !filledNames.has(normalizeTeamName(n)));
 
       // Parse game results + the full fixture list from תוצאות sheet
       const resultsSheet = wb.SheetNames.find((n) => n.includes('תוצאות'));
@@ -260,7 +226,7 @@ export default function ExcelSyncTab({
       }
 
       setPreview({
-        north, south, results,
+        north, south, unplaced, filledFromCalc: filled.added, results,
         scheduleCount,
         scheduleMin: scheduleCount > 0 ? Math.min(...scheduleRounds) : 0,
         scheduleMax: scheduleCount > 0 ? Math.max(...scheduleRounds) : 0,
@@ -287,6 +253,7 @@ export default function ExcelSyncTab({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'שגיאה');
       setResult({ ok: true, msg: data.message });
+      router.refresh(); // reload the round dates below from the new upload
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'שגיאה לא ידועה';
       setResult({ ok: false, msg });
@@ -325,7 +292,7 @@ export default function ExcelSyncTab({
 
       {/* Result message */}
       {result && (
-        <div className={`rounded-lg border p-4 text-sm font-medium ${result.ok ? 'border-green-700 bg-green-900/40 text-green-300' : 'border-red-700 bg-red-900/40 text-red-300'}`}>
+        <div className={`whitespace-pre-line rounded-lg border p-4 text-sm font-medium ${result.ok ? 'border-green-700 bg-green-900/40 text-green-300' : 'border-red-700 bg-red-900/40 text-red-300'}`}>
           {result.ok ? '✅ ' : '❌ '}{result.msg}
         </div>
       )}
@@ -340,6 +307,28 @@ export default function ExcelSyncTab({
 
           <PreviewTable rows={preview.south} title="מחוז דרום" />
           <PreviewTable rows={preview.north} title="מחוז צפון" />
+
+          {preview.filledFromCalc.length > 0 && (
+            <div className="mb-4 rounded-lg border border-sky-700/50 bg-sky-900/20 p-4">
+              <p className="text-sm font-semibold text-sky-300">
+                ℹ️ בגיליון &quot;טבלאות&quot; בקובץ חסרו {preview.filledFromCalc.length} קבוצות (#N/A), והן הושלמו מגיליון &quot;חישובים&quot;: {preview.filledFromCalc.join(', ')}
+              </p>
+              <p className="mt-1 text-xs text-sky-200/80">
+                הסיבה: נוסחת המיקום בגיליון &quot;חישובים&quot; נותנת לקבוצות בתיקו אותו מיקום. כדאי לתקן אותה בקובץ.
+              </p>
+            </div>
+          )}
+
+          {preview.unplaced.length > 0 && (
+            <div className="mb-4 rounded-lg border border-yellow-700/50 bg-yellow-900/20 p-4">
+              <p className="text-sm font-semibold text-yellow-300">
+                ⚠️ שורות שלא שויכו למחוז ולא יישמרו: {preview.unplaced.join(', ')}
+              </p>
+              <p className="mt-1 text-xs text-yellow-200/80">
+                הגדר לקבוצות האלה מחוז בלשונית &quot;קבוצות&quot;, או הוסף כותרת &quot;צפון&quot; / &quot;דרום&quot; מעל כל טבלה בקובץ.
+              </p>
+            </div>
+          )}
 
           {preview.results.length > 0 && (
             <div className="mb-4 rounded-lg border border-blue-700/50 bg-blue-900/20 p-4">
@@ -369,6 +358,8 @@ export default function ExcelSyncTab({
           </button>
         </div>
       )}
+
+      <SeasonSchedulePanel season={season} schedule={schedule} />
     </div>
   );
 }
