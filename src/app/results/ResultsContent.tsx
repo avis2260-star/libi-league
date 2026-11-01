@@ -30,7 +30,7 @@ function TeamLogo({ name, logos }: { name: string; logos: Record<string, string>
 const isTechniScore = (sh: number, sa: number) =>
   (sh === 20 && sa === 0) || (sh === 0 && sa === 20);
 
-function GameCard({ game, logos, t }: { game: GameResult; logos: Record<string, string>; t: (he: string) => string }) {
+function GameCard({ game, logos, t, linkQuery }: { game: GameResult; logos: Record<string, string>; t: (he: string) => string; linkQuery: string }) {
   const homeWins     = game.sh > game.sa;
   const awayWins     = game.sa > game.sh;
   const techni       = !!game.techni || isTechniScore(game.sh, game.sa);
@@ -41,7 +41,7 @@ function GameCard({ game, logos, t }: { game: GameResult; logos: Record<string, 
 
   return (
     <Link
-      href={`/games/${game.round}/${encodeURIComponent(game.home)}`}
+      href={`/games/${game.round}/${encodeURIComponent(game.home)}${linkQuery}`}
       className="group grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 transition hover:-translate-y-0.5 hover:border-orange-500/40 hover:bg-orange-500/[0.04] cursor-pointer"
     >
       {/* Home */}
@@ -79,13 +79,6 @@ function GameCard({ game, logos, t }: { game: GameResult; logos: Record<string, 
   );
 }
 
-const FALLBACK_DATES: Record<number, string> = {
-  1:'01.11.25',2:'08.11.25',3:'29.11.25',4:'20.12.25',
-  5:'10.01.26',6:'17.01.26',7:'07.02.26',8:'21.02.26',
-  9:'24.04.26',10:'01.05.26',11:'08.05.26',
-  12:'05.06.26',13:'12.06.26',14:'19.06.26',
-};
-
 function formatDate(d: string | undefined): string {
   if (!d) return '';
   if (/^\d{1,2}\.\d{1,2}\.\d{2,4}$/.test(d)) return d;
@@ -94,7 +87,20 @@ function formatDate(d: string | undefined): string {
   return d;
 }
 
-export default function ResultsContent({ games, logos }: { games: GameResult[]; logos: Record<string, string> }) {
+export default function ResultsContent({
+  games,
+  logos,
+  roundDates,
+  archiveSeason,
+}: {
+  games: GameResult[];
+  logos: Record<string, string>;
+  // The viewed season's round dates — used when a round's games carry no date.
+  roundDates: Record<number, string>;
+  // Set when viewing an archived season, so game links open that season.
+  archiveSeason?: string;
+}) {
+  const linkQuery = archiveSeason ? `?season=${encodeURIComponent(archiveSeason)}` : '';
   const { t, lang } = useLang();
   const ROUNDS = [...new Set(games.map((g) => g.round))].sort((a, b) => b - a);
 
@@ -179,13 +185,13 @@ export default function ResultsContent({ games, logos }: { games: GameResult[]; 
           <div key={r}>
             <div className="mb-3 flex items-center gap-3">
               <div className="rounded-2xl border border-orange-500/30 bg-orange-500/15 px-4 py-2 text-base font-black text-orange-400">
-                {t('מחזור')} {r} · {formatDate(grouped[r][0]?.date) || FALLBACK_DATES[r] || ''}
+                {t('מחזור')} {r} · {formatDate(grouped[r].find((g) => g.date)?.date) || roundDates[r] || ''}
               </div>
               <div className="h-px flex-1 bg-white/[0.05]" />
               <span className="text-sm font-black text-[#8aaac8]">{grouped[r].length} {lang === 'en' ? 'games' : 'משחקים'}</span>
             </div>
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-              {grouped[r].map((g, i) => <GameCard key={i} game={g} logos={logos} t={t} />)}
+              {grouped[r].map((g, i) => <GameCard key={i} game={g} logos={logos} t={t} linkQuery={linkQuery} />)}
             </div>
           </div>
         ))

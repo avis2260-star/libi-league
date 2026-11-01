@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { TOTAL_ROUNDS } from '@/lib/league-data';
 import { getSeasonSchedule } from '@/lib/season-schedule';
+import { roundDatesForSeason } from '@/lib/schedule-format';
 import { getTeams } from '@/lib/supabase';
 import ScoreboardStrip from '@/components/ScoreboardStrip';
 import PlayoffScoreboardStrip, { type PlayoffStripGame } from '@/components/PlayoffScoreboardStrip';
@@ -22,13 +23,6 @@ import { getCurrentSeason } from '@/lib/current-season';
 import { winsNeeded } from '@/lib/playoff-format';
 import { getAutoTickerItems } from '@/lib/ticker-auto-data';
 import { autoTickerMessage } from '@/lib/ticker-auto';
-
-const ROUND_DATES: Record<number, string> = {
-  1: '01.11.25', 2: '08.11.25', 3: '29.11.25', 4:  '20.12.25',
-  5: '10.01.26', 6: '17.01.26', 7: '07.02.26', 8:  '21.02.26',
-  9: '24.04.26', 10: '01.05.26', 11: '08.05.26',
-  12: '05.06.26', 13: '12.06.26', 14: '19.06.26',
-};
 
 type Standing = { rank: number; name: string; wins: number; losses: number; pts: number; pf: number; division: string };
 type GameRow  = { round: number; date: string; home_team: string; away_team: string; home_score: number; away_score: number; techni: boolean };
@@ -1167,8 +1161,12 @@ export default async function HomePage() {
   );
   const T = (he: string) => st(he, lang);
 
-  // Merge static ROUND_DATES with DB values (DB takes priority)
-  const ROUND_DATES_MERGED: Record<number, string> = { ...ROUND_DATES, ...dbRoundDates };
+  // This season's round dates (its own schedule; 2025-2026's actual dates for
+  // that season) with the DB round_dates the last sync wrote taking priority.
+  const ROUND_DATES_MERGED: Record<number, string> = {
+    ...roundDatesForSeason(season, schedule),
+    ...dbRoundDates,
+  };
 
   // Build logo lookup
   function norm(s: string) { return s.replace(/["""''`״׳]/g, '').replace(/\s+/g, ' ').trim(); }

@@ -10,6 +10,8 @@ import { getTeams } from '@/lib/supabase';
 import { getLang, st } from '@/lib/get-lang';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { getCurrentSeason } from '@/lib/current-season';
+import { getSeasonSchedule } from '@/lib/season-schedule';
+import { roundDatesForSeason } from '@/lib/schedule-format';
 
 type ResultRow = {
   round: number;
@@ -241,7 +243,12 @@ export default async function LastRoundResults() {
     videoByPair.get(`${lcNorm(g.home_team)}|${lcNorm(g.away_team)}`) ??
     null;
 
-  const date = roundGames[0]?.date ?? '';
+  // A round's games can arrive without a date (round 1's sits in the sheet's
+  // header row) — then use the date in this season's own schedule.
+  const date =
+    roundGames.find((g) => g.date)?.date ||
+    roundDatesForSeason(season, await getSeasonSchedule(season))[lastRound] ||
+    '';
 
   return (
     <section dir={dir}>

@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getSeasonSchedule } from '@/lib/season-schedule';
+import { roundDatesForSeason } from '@/lib/schedule-format';
 import ScoreboardClient from './ScoreboardClient';
 import { getLang } from '@/lib/get-lang';
 import { getCurrentSeason } from '@/lib/current-season';
@@ -16,13 +17,6 @@ export type ScoreboardGame = {
   away_logo: string | null;
   home_team_id: string;
   away_team_id: string;
-};
-
-const FALLBACK_DATES: Record<number, string> = {
-  1:'01.11.25',2:'08.11.25',3:'29.11.25',4:'20.12.25',
-  5:'10.01.26',6:'17.01.26',7:'07.02.26',8:'21.02.26',
-  9:'24.04.26',10:'01.05.26',11:'08.05.26',
-  12:'05.06.26',13:'12.06.26',14:'19.06.26',
 };
 
 export type ScoreboardPlayer = {
@@ -85,8 +79,9 @@ export default async function ScoreboardPage() {
     };
   });
 
-  // 3b. Get round date from DB, fall back to static
-  let roundDate = FALLBACK_DATES[nextRound] ?? '';
+  // 3b. Round date: the DB round_dates the last sync wrote, else this season's
+  // own schedule date (never another season's calendar).
+  let roundDate = roundDatesForSeason(season, schedule)[nextRound] ?? '';
   try {
     const { data: rdData } = await supabaseAdmin
       .from('league_settings').select('value').eq('key', 'round_dates').maybeSingle();

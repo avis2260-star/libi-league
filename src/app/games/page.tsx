@@ -115,7 +115,7 @@ export default async function GamesPage({
         currentRound={currentRound}
         logos={logos}
         closeGames={closeGamesResolved}
-        roundDates={roundDatesData}
+        roundDates={isArchive ? {} : roundDatesData} // round_dates isn't per season
         displayNames={displayNames}
         schedule={schedule}
         season={viewing}

@@ -1,10 +1,18 @@
+// current-season (for FALLBACK_SEASON) imports the Supabase admin client.
+jest.mock('@/lib/supabase-admin', () => ({ supabaseAdmin: { from: jest.fn() } }));
+
 import {
   formatIsoDate,
   hebrewWeekday,
   sortSchedule,
   summarizeRounds,
   formatDatesWithDay,
+  shortDate,
+  roundDatesForSeason,
+  LEGACY_SEASON,
+  ROUND_DATES_2025_2026,
 } from '@/lib/schedule-format';
+import { FALLBACK_SEASON } from '@/lib/current-season';
 import type { ScheduleEntry } from '@/lib/libi-schedule';
 
 const g = (
@@ -80,5 +88,42 @@ describe('formatDatesWithDay', () => {
     expect(formatDatesWithDay(['2026-10-24'])).toBe('24.10.2026 (שבת)');
     expect(formatDatesWithDay(['2026-10-24', '2026-10-25'])).toBe('24.10.2026 (שבת) / 25.10.2026 (ראשון)');
     expect(formatDatesWithDay([])).toBe('');
+  });
+});
+
+describe('roundDatesForSeason', () => {
+  const schedule = [
+    g(2, '2026-11-07', 'א', 'ב', 'North'),
+    g(1, '2026-10-31', 'ג', 'ד', 'South'),
+    g(1, '2026-10-31', 'ה', 'ו', 'North'),
+  ];
+
+  it("gives a new season its own schedule's dates", () => {
+    expect(roundDatesForSeason('2026-2027', schedule)).toEqual({ 1: '31.10.26', 2: '07.11.26' });
+  });
+
+  it("never fills a new season's rounds with 2025-2026 dates", () => {
+    const dates = roundDatesForSeason('2026-2027', schedule);
+    expect(dates[3]).toBeUndefined();
+    expect(Object.values(dates)).not.toContain('01.11.25');
+  });
+
+  it("gives 2025-2026 its actual dates, including the moved rounds 6 and 7", () => {
+    const original = [g(6, '2026-01-24', 'א', 'ב', 'North'), g(7, '2026-01-31', 'ג', 'ד', 'North')];
+    const dates = roundDatesForSeason(LEGACY_SEASON, original);
+    expect(dates[6]).toBe('17.01.26');
+    expect(dates[7]).toBe('07.02.26');
+    expect(dates).toEqual(ROUND_DATES_2025_2026);
+  });
+
+  it('LEGACY_SEASON is the archive season the rest of the app uses', () => {
+    expect(LEGACY_SEASON).toBe(FALLBACK_SEASON);
+  });
+});
+
+describe('shortDate', () => {
+  it('turns YYYY-MM-DD into DD.MM.YY and leaves other text alone', () => {
+    expect(shortDate('2026-10-31')).toBe('31.10.26');
+    expect(shortDate('31.10.26')).toBe('31.10.26');
   });
 });

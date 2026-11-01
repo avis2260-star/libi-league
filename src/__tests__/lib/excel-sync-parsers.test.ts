@@ -500,6 +500,37 @@ describe('fillStandingsFromCalc', () => {
 });
 
 // ===========================================================================
+// Round 1's date sits in the header row of the league file's תוצאות sheet
+// ===========================================================================
+
+describe('round 1 date in the header row', () => {
+  // As in the 2026-2027 file: A1 holds round 1's date, beside the column titles.
+  const rows = [
+    ['31.10.26', 'מחזור', 'מחוז', 'בית ', 'סלים בית', 'סלים חוץ', 'חוץ', 'הפרש'],
+    [null, 1, 'צפון', 'ידרסל חדרה', 67, 71, 'ראשון "גפן" לציון', -4],
+    [null, 1, 'דרום', 'אחים קריית משה', 43, 59, 'אופק רחובות', -16],
+    [],
+    ['07.11.26', 2, 'צפון', 'גוטלמן השרון', '', '', 'בני נתניה', 0],
+  ];
+
+  it('parseResults gives round 1 games the date from the header row', () => {
+    const results = parseResults(rows);
+    expect(results.map((r) => [r.round, r.date, r.home_team])).toEqual([
+      [1, '31.10.26', 'ידרסל חדרה'],
+      [1, '31.10.26', 'אחים קריית משה'],
+    ]);
+  });
+
+  it('parseRoundDates includes round 1', () => {
+    expect(parseRoundDates(rows)).toEqual({ 1: '31.10.26', 2: '07.11.26' });
+  });
+
+  it('never reads the header row itself as a game', () => {
+    expect(parseResults(rows).some((r) => r.home_team === 'בית')).toBe(false);
+  });
+});
+
+// ===========================================================================
 // reconcileStandings
 // ===========================================================================
 
@@ -631,9 +662,11 @@ describe('parseRoundDates', () => {
     expect(parseRoundDates(rows)).toEqual({});
   });
 
-  it('ignores the first row (treated as a header)', () => {
+  it("never takes a round number from the header row's text", () => {
+    // Row 0 is the header: its round column is text, so it adds no round —
+    // only a date, when the file puts round 1's date there (tested below).
     const rows: unknown[][] = [
-      ['1.5.25', 1], // row 0 — skipped
+      ['תאריך', 'מחזור', 'מחוז'],
       ['8.5.25', 2],
     ];
     expect(parseRoundDates(rows)).toEqual({ 2: '8.5.25' });
