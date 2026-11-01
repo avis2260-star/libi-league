@@ -1639,7 +1639,7 @@ export default async function HomePage() {
                 <Link href={`/team/${encodeURIComponent(dbDisplayName(team.name))}`} className="text-xl font-black text-[#e0c97a] hover:underline underline-offset-2 transition-colors font-heading">{T(dbDisplayName(team.name))}</Link>
                 <p className="mt-1 text-sm font-bold text-[#8aaac8] font-body">
                   {lang === 'en' ? `${team.wins}W / ${team.losses}L · ` : `${team.wins}נ / ${team.losses}ה · `}
-                  <span className="font-bold text-orange-400 font-stats">{team.pts} {lang === 'en' ? 'pts' : 'נקודות'}</span>
+                  <span className="font-bold text-orange-400 font-stats"><span dir="ltr">{team.pts}</span> {lang === 'en' ? 'pts' : 'נקודות'}</span>
                 </p>
               </div>
             </div>

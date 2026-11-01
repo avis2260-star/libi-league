@@ -318,8 +318,9 @@ function StandingsTable({
                   {hasPenalty ? team.penalty : ''}
                 </td>
 
-                {/* Total points */}
-                <td className="px-1 sm:px-2 py-2.5 text-center font-stats text-lg sm:text-2xl font-bold text-orange-400">
+                {/* Total points — can be negative after a deduction; dir="ltr" keeps
+                    the minus before the number ("-1", not "1-") on the RTL page. */}
+                <td dir="ltr" className="px-1 sm:px-2 py-2.5 text-center font-stats text-lg sm:text-2xl font-bold text-orange-400">
                   {team.pts}
                 </td>
 

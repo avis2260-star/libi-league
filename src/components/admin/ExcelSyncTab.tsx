@@ -143,7 +143,7 @@ function PreviewTable({ rows, title }: { rows: StandingRow[]; title: string }) {
                 <td dir="ltr" className="px-3 py-1.5">{r.diff > 0 ? `+${r.diff}` : r.diff}</td>
                 <td className="px-3 py-1.5">{r.techni || ''}</td>
                 <td dir="ltr" className="px-3 py-1.5 text-red-400">{r.penalty < 0 ? r.penalty : ''}</td>
-                <td className="px-3 py-1.5 font-bold text-orange-400">{r.pts}</td>
+                <td dir="ltr" className="px-3 py-1.5 font-bold text-orange-400">{r.pts}</td>
               </tr>
             ))}
           </tbody>
