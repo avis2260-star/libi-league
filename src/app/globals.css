@@ -125,6 +125,27 @@ body {
   transition: background-color 0.25s ease, color 0.2s ease;
 }
 
+/* ── Native dropdowns (<select>) ─────────────────────────────────────────────
+   The browser draws the OPEN list of a <select> itself, on its default light
+   background. Our dropdowns use white text over a see-through fill (e.g. the
+   season picker), so the options came out white-on-white: invisible until the
+   mouse highlighted one. Give the list the theme's own colours instead — dark
+   navy + light text, or white + dark text in light mode — and let
+   color-scheme draw the popup (scrollbar, highlight) in the matching theme.
+   An explicit bg/text class on an <option> still wins over this. */
+select {
+  color-scheme: dark;
+}
+html.light select {
+  color-scheme: light;
+}
+select option,
+select optgroup {
+  background-color: var(--bg-card);
+  color: var(--text-1);
+  font-weight: 700;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    LIGHT MODE — comprehensive overrides
    ═══════════════════════════════════════════════════════════════════════════ */
