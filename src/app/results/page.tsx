@@ -5,6 +5,8 @@ import ResultsContent from './ResultsContent';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
 import SeasonPicker from '@/components/SeasonPicker';
+import { getSeasonSchedule } from '@/lib/season-schedule';
+import { roundDatesForSeason } from '@/lib/schedule-format';
 import ArchiveBanner from '@/components/ArchiveBanner';
 
 async function getResults(season: string): Promise<GameResult[]> {
@@ -53,11 +55,12 @@ export default async function ResultsPage({
 }) {
   const params = await searchParams;
   const { viewing, current, isArchive } = await resolveSeasonFromParams(params);
-  const [games, logos, { data: teamRows }, seasons] = await Promise.all([
+  const [games, logos, { data: teamRows }, seasons, schedule] = await Promise.all([
     getResults(viewing),
     getTeamLogos(),
     supabaseAdmin.from('teams').select('id, name'),
     listKnownSeasons(),
+    getSeasonSchedule(viewing),
   ]);
 
   // Resolve every cached game_results row name through the admin Teams
@@ -75,7 +78,12 @@ export default async function ResultsPage({
         <SeasonPicker current={current} viewing={viewing} seasons={seasons} />
       </div>
       {isArchive && <ArchiveBanner viewing={viewing} current={current} pathname="/results" />}
-      <ResultsContent games={gamesResolved} logos={logos} />
+      <ResultsContent
+        games={gamesResolved}
+        logos={logos}
+        roundDates={roundDatesForSeason(viewing, schedule)}
+        archiveSeason={isArchive ? viewing : undefined}
+      />
     </div>
   );
 }

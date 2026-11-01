@@ -288,7 +288,7 @@ export default async function TeamStatsPage({
             {[...gameDetails].sort((a, b) => b.round - a.round).map((g, i) => (
               <Link
                 key={i}
-                href={`/games/${g.round}/${encodeURIComponent(g.homeTeam)}`}
+                href={`/games/${g.round}/${encodeURIComponent(g.homeTeam)}${isArchive ? `?season=${encodeURIComponent(viewing)}` : ''}`}
                 className={`group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.06] ${g.won ? 'bg-green-500/[0.03]' : ''}`}
               >
                 <span className={`shrink-0 rounded-full w-6 h-6 flex items-center justify-center text-[10px] font-black ${

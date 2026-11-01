@@ -5,16 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import type { ScheduleEntry } from '@/lib/libi-schedule';
 import { useLang } from '@/components/TranslationProvider';
-
-// Fallback dates for the 2025-2026 season when neither the schedule entry nor
-// the DB round_dates setting carries one. Newer seasons supply their own dates
-// through the `schedule` prop, so these are never used for them.
-const ALL_ROUND_DATES: Record<number, string> = {
-  1: '01.11.25', 2: '08.11.25', 3: '29.11.25', 4: '20.12.25',
-  5: '10.01.26', 6: '17.01.26', 7: '07.02.26', 8: '21.02.26',
-  9: '24.04.26', 10: '01.05.26', 11: '08.05.26',
-  12: '05.06.26', 13: '12.06.26', 14: '19.06.26',
-};
+import { roundDatesForSeason } from '@/lib/schedule-format';
 
 type Filter = 'all' | 'upcoming' | 'finished' | 'close';
 
@@ -117,13 +108,10 @@ export default function GamesContent({
   season: string;
 }) {
   const { t, lang } = useLang();
-  // Dates: schedule (this season's own fixture dates) override the static
-  // 2025-2026 fallback, and an explicit DB round_dates override wins over both.
-  const scheduleDates: Record<number, string> = {};
-  for (const g of schedule) {
-    if (scheduleDates[g.round] === undefined) scheduleDates[g.round] = formatDate(g.date);
-  }
-  const DATES = { ...ALL_ROUND_DATES, ...scheduleDates, ...roundDates };
+  // Dates: this season's own (schedule; 2025-2026's actual moved dates for that
+  // season), with the DB round_dates the last sync wrote on top. The page only
+  // passes round_dates for the current season — it isn't stored per season.
+  const DATES = { ...roundDatesForSeason(season, schedule), ...roundDates };
   const searchParams = useSearchParams();
   const urlFilter = searchParams.get('filter') as Filter | null;
   const [filter, setFilter] = useState<Filter>(

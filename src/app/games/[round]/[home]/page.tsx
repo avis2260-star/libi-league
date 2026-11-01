@@ -2,13 +2,14 @@ export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
 import { getTeams } from '@/lib/supabase';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getLang, st } from '@/lib/get-lang';
 import { displayName } from '@/lib/names';
 import { makeNameResolver } from '@/lib/team-name-resolver';
-import { getCurrentSeason } from '@/lib/current-season';
+import { resolveSeasonFromParams } from '@/lib/current-season';
+import { getSeasonSchedule } from '@/lib/season-schedule';
+import { roundDatesForSeason } from '@/lib/schedule-format';
 
 // One team's box-score table. Adds per-quarter points (ר1..רN) + the 2-pointers
 // made column when the scoresheet recorded them; otherwise renders as before.
@@ -65,13 +66,6 @@ function LeagueBoxTable({ players, en, lang }: { players: LeagueBoxRow[]; en: bo
   );
 }
 
-const ROUND_DATES: Record<number, string> = {
-  1: '01.11.25', 2: '08.11.25', 3: '29.11.25', 4: '20.12.25',
-  5: '10.01.26', 6: '17.01.26', 7: '07.02.26', 8: '21.02.26',
-  9: '24.04.26', 10: '01.05.26', 11: '08.05.26',
-  12: '05.06.26', 13: '12.06.26', 14: '19.06.26',
-};
-
 const HE_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 const EN_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -99,10 +93,15 @@ function findStat(standings: StandingRow[], name: string): StandingRow | undefin
 
 export default async function GamePreviewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ round: string; home: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { round: roundStr, home: homeEncoded } = await params;
+  // The current season, or an archived one via ?season= (links from archive
+  // pages carry it). Every lookup below — the fixture, standings, games — uses it.
+  const { viewing: season } = await resolveSeasonFromParams(await searchParams);
   const round = parseInt(roundStr, 10);
   const homeTeam = decodeURIComponent(homeEncoded);
   const lang = await getLang();
@@ -111,12 +110,15 @@ export default async function GamePreviewPage({
 
   // Fetch teams up-front so we can resolve the URL home-team name to its
   // canonical form. This lets the lookup survive admin renames — e.g. the
-  // URL says "שועלי אדיס אשדוד" but LIBI_SCHEDULE still has "אדיס אשדוד".
+  // URL says "שועלי אדיס אשדוד" but the schedule still has "אדיס אשדוד".
   const teams = await getTeams();
   const resolveTeamName = makeNameResolver(teams.map(t => ({ id: t.id, name: t.name })));
   const canonicalHome = resolveTeamName(homeTeam);
 
-  const game = LIBI_SCHEDULE.find(
+  // This season's fixture — not last season's (a new season reuses the same
+  // round numbers and home teams with different opponents).
+  const schedule = await getSeasonSchedule(season);
+  const game = schedule.find(
     (g) => g.round === round && normalize(resolveTeamName(g.homeTeam)) === normalize(canonicalHome),
   );
   if (!game) notFound();
@@ -124,12 +126,11 @@ export default async function GamePreviewPage({
   // Fetch logos + standings + Supabase game details in parallel.
   //
   // Note: we deliberately do NOT filter by `game_date`. The DB row's
-  // `game_date` can drift from the canonical LIBI_SCHEDULE date after a
+  // `game_date` can drift from the season schedule's date after a
   // reschedule (the row keeps its old date until the next Excel sync), so
   // a date filter would silently miss the row and the time/location entered
   // in admin would never appear here. Instead we filter by team pair, which
   // is unique per matchup per round and survives date drifts.
-  const season = await getCurrentSeason();
   const [standingsRes, dbGamesRes, resultRes] = await Promise.all([
     supabaseAdmin.from('standings').select('name,rank,wins,losses,diff,pts,games,pf,pa').eq('season', season).order('rank'),
     supabaseAdmin
@@ -323,7 +324,7 @@ export default async function GamePreviewPage({
   // a rescheduled game shows the stale round date next to its updated time.
   const dbIso = dbMatch?.game_date ? dbMatch.game_date.slice(0, 10) : null;
   const toDmy = (iso: string) => { const [y, m, d] = iso.split('-'); return `${d}.${m}.${y.slice(2)}`; };
-  const dateStr    = dbIso ? toDmy(dbIso) : (ROUND_DATES[round] ?? game.date);
+  const dateStr    = dbIso ? toDmy(dbIso) : (roundDatesForSeason(season, schedule)[round] ?? toDmy(game.date));
   const dowDate    = dbIso ?? game.date;
   const dayOfWeek  = dowDate
     ? (en ? EN_DAYS[new Date(dowDate).getDay()] : HE_DAYS[new Date(dowDate).getDay()])

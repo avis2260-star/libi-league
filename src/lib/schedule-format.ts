@@ -62,3 +62,45 @@ export function summarizeRounds(schedule: ScheduleEntry[]): RoundSummary[] {
 export function formatDatesWithDay(dates: string[]): string {
   return dates.map((d) => `${formatIsoDate(d)} (${hebrewWeekday(d)})`).join(' / ');
 }
+
+// ---------------------------------------------------------------------------
+// Round dates per season
+// ---------------------------------------------------------------------------
+
+/** The archived season whose round dates are kept below (= FALLBACK_SEASON). */
+export const LEGACY_SEASON = '2025-2026';
+
+/**
+ * 2025-2026's ACTUAL round dates. Rounds 6 and 7 were moved after the fixture
+ * list was published, so they differ from LIBI_SCHEDULE (17.01 / 07.02 instead
+ * of 24.01 / 31.01). Used for that season only — never for another season.
+ */
+export const ROUND_DATES_2025_2026: Record<number, string> = {
+  1: '01.11.25', 2: '08.11.25', 3: '29.11.25', 4: '20.12.25',
+  5: '10.01.26', 6: '17.01.26', 7: '07.02.26', 8: '21.02.26',
+  9: '24.04.26', 10: '01.05.26', 11: '08.05.26',
+  12: '05.06.26', 13: '12.06.26', 14: '19.06.26',
+};
+
+/** 'YYYY-MM-DD' → 'DD.MM.YY'. Anything else is returned unchanged. */
+export function shortDate(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  return m ? `${m[3]}.${m[2]}.${m[1].slice(2)}` : iso;
+}
+
+/**
+ * Round → display date ('DD.MM.YY') for a season: the first date of each round
+ * in that season's own schedule, plus 2025-2026's actual (moved) dates for
+ * that season. Never another season's dates — a new season can't show last
+ * season's calendar.
+ */
+export function roundDatesForSeason(
+  season: string,
+  schedule: ScheduleEntry[],
+): Record<number, string> {
+  const out: Record<number, string> = {};
+  for (const e of sortSchedule(schedule)) {
+    if (!(e.round in out) && e.date) out[e.round] = shortDate(e.date);
+  }
+  return season === LEGACY_SEASON ? { ...out, ...ROUND_DATES_2025_2026 } : out;
+}

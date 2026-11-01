@@ -533,7 +533,8 @@ export function reconcileStandings<T extends { name: string }>(
 export function parseRoundDates(rows: unknown[][]): Record<number, string> {
   const map: Record<number, string> = {};
   let currentDate = '';
-  for (let i = 1; i < rows.length; i++) {
+  // Row 0 included: round 1's date sits in the header row (see parseResults).
+  for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     if (!row) continue;
     const col0 = String(row[0] ?? '').trim();
@@ -573,7 +574,10 @@ export function parseResults(rows: unknown[][]): GameResultRow[] {
   let currentRound = 0;
   let currentDivision: 'North' | 'South' = 'South';
 
-  for (let i = 1; i < rows.length; i++) {
+  // Start at row 0: the league file puts round 1's date in the HEADER row
+  // (next to "מחזור", "מחוז", …). The header itself never parses as a game —
+  // its round cell is text, so currentRound stays 0 — but its date is kept.
+  for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     if (!row || row.length < 7) continue;
 
