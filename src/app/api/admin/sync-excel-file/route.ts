@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCurrentSeason } from '@/lib/current-season';
 import { storeUploadedExcel } from '@/lib/excel-uploads';
+import { planCupSync, type SeasonCupGame, type OtherSeasonCupGame } from '@/lib/cup-sync';
 import {
   normalizeTeamName,
   resolveTeamId,
@@ -384,37 +385,53 @@ export async function POST(req: NextRequest) {
     // quarters, video, location, match previews). This used to delete every
     // cup_games row for the season and reinsert from the Excel — which wiped
     // all of that (and cascade-deleted cup_game_stats / match_previews via
-    // their ON DELETE CASCADE foreign keys). Now we ONLY insert matchups that
-    // don't already exist (matched by the unordered team pair — a cup is
-    // single-elimination, so each pair meets at most once). Existing rows are
-    // left untouched, so nothing the admin entered is ever erased.
+    // their ON DELETE CASCADE foreign keys). Now existing games are never
+    // touched: the sheet only fills the empty TBD slots of a tournament the
+    // admin opened, or adds games that aren't there yet — and never re-adds
+    // an earlier season's results (a workbook carried over from last year
+    // still holds last year's cup sheet). Rules in lib/cup-sync.ts.
     let cupInserted = 0;
+    let cupStaleSkipped = 0;
     try {
       if (cupGames.length > 0) {
-        const { data: existingCup } = await supabaseAdmin
-          .from('cup_games')
-          .select('home_team, away_team, round')
-          .eq('season', season);
+        const [{ data: seasonCup }, { data: otherCup }] = await Promise.all([
+          supabaseAdmin
+            .from('cup_games')
+            .select('id, round, game_number, home_team, away_team, home_score, away_score, played')
+            .eq('season', season),
+          supabaseAdmin
+            .from('cup_games')
+            .select('round, home_team, away_team, home_score, away_score')
+            .neq('season', season),
+        ]);
 
-        const pairKey = (a: string, b: string) =>
-          [normalizeTeamName(a), normalizeTeamName(b)].sort().join('|');
-        const existingPairs = new Set(
-          (existingCup ?? []).map((g) => pairKey(g.home_team as string, g.away_team as string)),
+        const plan = planCupSync(
+          cupGames,
+          (seasonCup ?? []) as SeasonCupGame[],
+          (otherCup ?? []) as OtherSeasonCupGame[],
         );
-        // A cup is single-elimination: exactly ONE final ('גמר'). If a final
-        // already exists, never auto-insert another from the Excel sheet — a
-        // duplicate/incomplete final row would hide the real cup champion on
-        // the home-page hero card.
-        const hasFinal = (existingCup ?? []).some((g) => g.round === 'גמר');
+        cupStaleSkipped = plan.staleSkipped;
 
-        const newCup = cupGames
-          .filter((g) => !existingPairs.has(pairKey(g.home_team, g.away_team)))
-          .filter((g) => !(g.round === 'גמר' && hasFinal))
-          .map((g) => ({ ...g, season }));
+        for (const { id, game } of plan.fill) {
+          const { error } = await supabaseAdmin
+            .from('cup_games')
+            .update({
+              home_team: game.home_team,
+              away_team: game.away_team,
+              home_score: game.home_score,
+              away_score: game.away_score,
+              played: game.played,
+              ...(game.date ? { date: game.date } : {}),
+            })
+            .eq('id', id);
+          if (!error) cupInserted++;
+        }
 
-        if (newCup.length > 0) {
-          const { error: cupErr } = await supabaseAdmin.from('cup_games').insert(newCup);
-          if (!cupErr) cupInserted = newCup.length;
+        if (plan.insert.length > 0) {
+          const { error: cupErr } = await supabaseAdmin
+            .from('cup_games')
+            .insert(plan.insert.map((g) => ({ ...g, season })));
+          if (!cupErr) cupInserted += plan.insert.length;
         }
       }
     } catch { /* cup_games table not created yet — run SQL in Supabase */ }
@@ -471,6 +488,7 @@ export async function POST(req: NextRequest) {
     if (south.length > 0) parts.push(`${south.length} קבוצות דרום`);
     if (resultsCount > 0) parts.push(`${resultsCount} תוצאות משחקים`);
     if (cupInserted > 0) parts.push(`${cupInserted} משחקי גביע חדשים`);
+    if (cupStaleSkipped > 0) parts.push(`${cupStaleSkipped} משחקי גביע מעונה קודמת לא יובאו (גיליון הגביע בקובץ עדיין של עונה קודמת)`);
     if (gamesCreated > 0) parts.push(`${gamesCreated} משחקים נוצרו אוטומטית`);
     if (gamesUpdated > 0) parts.push(`${gamesUpdated} משחקים עודכנו`);
     if (gamesDeleted > 0) parts.push(`${gamesDeleted} משחקים שמוקמו מחדש (שעה+מיקום נשמרו)`);
