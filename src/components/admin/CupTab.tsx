@@ -48,6 +48,7 @@ export type CupGame = {
 };
 
 type Props = {
+  season: string;      // the season being edited (cup data is per season)
   teamIds: string[];   // selected participating-team UUIDs
   teams: Team[];       // all teams in the league
   games: CupGame[];    // existing cup_games rows
@@ -55,7 +56,7 @@ type Props = {
   cupStats: CupStatRow[];                         // existing per-game stats
 };
 
-export default function CupTab({ teamIds: tInit, teams, games: gInit, rostersByTeam, cupStats }: Props) {
+export default function CupTab({ season, teamIds: tInit, teams, games: gInit, rostersByTeam, cupStats }: Props) {
   // ── Section A — participating teams ────────────────────────────────────
   const [selected, setSelected] = useState<Set<string>>(new Set(tInit));
   const [savingTeams, setSavingTeams] = useState(false);
@@ -79,7 +80,7 @@ export default function CupTab({ teamIds: tInit, teams, games: gInit, rostersByT
   function saveTeams() {
     setSavingTeams(true);
     startTransition(async () => {
-      const result = await saveCupSetting('cup_tournament_teams', JSON.stringify([...selected]));
+      const result = await saveCupSetting('cup_tournament_teams', JSON.stringify([...selected]), season);
       setSavingTeams(false);
       if (result.error) flash(result.error, false);
       else flash('✓ רשימת קבוצות נשמרה', true);
@@ -148,6 +149,7 @@ export default function CupTab({ teamIds: tInit, teams, games: gInit, rostersByT
           home_team: defaults?.home_team ?? teams[0]?.name ?? '',
           away_team: defaults?.away_team ?? teams[1]?.name ?? '',
           date: defaults?.date ?? null,
+          season,
         }),
       });
       const data = await res.json();

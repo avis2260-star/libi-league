@@ -8,6 +8,7 @@ import { findPlayerForExtracted, type ExtractedPlayer } from '@/lib/match-player
 import { mergeDivisionNames, normalizeTeamName, resolveTeamId } from '@/lib/excel-sync-parsers';
 import { getCurrentSeason, clearCurrentSeasonCache } from '@/lib/current-season';
 import { getSeasonSchedule } from '@/lib/season-schedule';
+import { cupTeamsKey } from '@/lib/cup-settings';
 import { serializeAutoConfig, type AutoTickerConfig } from '@/lib/ticker-auto';
 import { assertAdmin } from '@/lib/require-admin';
 
@@ -1495,11 +1496,15 @@ export type CupSettingKey = 'cup_tournament_teams';
 export async function saveCupSetting(
   key: CupSettingKey,
   value: string,
+  season?: string,
 ): Promise<ActionResult> {
   await assertAdmin();
+  // Kept per season (see lib/cup-settings), so a new tournament's list never
+  // overwrites — or starts from — last year's.
+  const forSeason = season && /^\d{4}-\d{4}$/.test(season) ? season : await getCurrentSeason();
   const { error } = await supabaseAdmin
     .from('league_settings')
-    .upsert({ key, value }, { onConflict: 'key' });
+    .upsert({ key: cupTeamsKey(forSeason), value }, { onConflict: 'key' });
 
   if (error) return { error: error.message };
   revalidatePath('/cup');

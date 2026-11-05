@@ -452,6 +452,20 @@ describe('settings savers', () => {
     expect(await saveCupSetting('cup_tournament_teams', '["t1","t2"]')).toEqual({});
   });
 
+  it("saveCupSetting stores the cup team list under the season's own key", async () => {
+    const upserts: { key: string; value: string }[] = [];
+    const builder = queryResult({ error: null });
+    builder.upsert = (row: { key: string; value: string }) => { upserts.push(row); return builder; };
+    fromMock.mockReturnValue(builder);
+
+    await saveCupSetting('cup_tournament_teams', '["t1"]', '2026-2027');
+    await saveCupSetting('cup_tournament_teams', '["t2"]'); // no season → the current one
+    expect(upserts.map((u) => u.key)).toEqual([
+      'cup_tournament_teams:2026-2027',
+      'cup_tournament_teams:2024-2025', // the current season this file mocks
+    ]);
+  });
+
   it('saveAboutSetting upserts', async () => {
     fromMock.mockReturnValue(queryResult({ error: null }));
     expect(await saveAboutSetting('about_story', 'Once upon a time')).toEqual({});

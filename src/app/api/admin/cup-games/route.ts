@@ -2,6 +2,7 @@ import { requireAdmin } from '@/lib/require-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { revalidatePath } from 'next/cache';
+import { getCurrentSeason } from '@/lib/current-season';
 
 export async function POST(req: NextRequest) {
   const unauthorized = await requireAdmin();
@@ -13,6 +14,13 @@ export async function POST(req: NextRequest) {
     if (!round?.trim() || !home_team?.trim() || !away_team?.trim()) {
       return NextResponse.json({ error: 'סיבוב, קבוצת בית וקבוצת חוץ הם שדות חובה' }, { status: 400 });
     }
+    // The season being edited in the admin (default: the current one). Without
+    // it the row took the column's DB default, 2025-2026 — so a new
+    // tournament's games were filed under last season.
+    const season =
+      typeof body.season === 'string' && /^\d{4}-\d{4}$/.test(body.season)
+        ? body.season
+        : await getCurrentSeason();
 
     const { data, error } = await supabaseAdmin
       .from('cup_games')
@@ -26,6 +34,7 @@ export async function POST(req: NextRequest) {
         home_score: home_score ?? null,
         away_score: away_score ?? null,
         played: !!played,
+        season,
       })
       .select()
       .single();
