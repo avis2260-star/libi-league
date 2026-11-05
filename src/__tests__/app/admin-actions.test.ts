@@ -50,6 +50,7 @@ import {
   saveTermsSetting,
   saveAccessibilitySetting,
   saveCupSetting,
+  startCupTournament,
   saveAboutSetting,
   markMessageRead,
   setMessageHandled,
@@ -452,6 +453,20 @@ describe('settings savers', () => {
     expect(await saveCupSetting('cup_tournament_teams', '["t1","t2"]')).toEqual({});
   });
 
+  it("saveCupSetting stores the cup team list under the season's own key", async () => {
+    const upserts: { key: string; value: string }[] = [];
+    const builder = queryResult({ error: null });
+    builder.upsert = (row: { key: string; value: string }) => { upserts.push(row); return builder; };
+    fromMock.mockReturnValue(builder);
+
+    await saveCupSetting('cup_tournament_teams', '["t1"]', '2026-2027');
+    await saveCupSetting('cup_tournament_teams', '["t2"]'); // no season → the current one
+    expect(upserts.map((u) => u.key)).toEqual([
+      'cup_tournament_teams:2026-2027',
+      'cup_tournament_teams:2024-2025', // the current season this file mocks
+    ]);
+  });
+
   it('saveAboutSetting upserts', async () => {
     fromMock.mockReturnValue(queryResult({ error: null }));
     expect(await saveAboutSetting('about_story', 'Once upon a time')).toEqual({});
@@ -617,5 +632,93 @@ describe('saveGameQuarters', () => {
     fromMock.mockReturnValue(builder);
     const res = await saveGameQuarters({ gameId: 'g1', homeQuarters: [10, 10, 10, 10], awayQuarters: [9, 9, 9, 9] });
     expect(res).toEqual({ error: 'update boom' });
+  });
+});
+
+// ===========================================================================
+// startCupTournament
+// ===========================================================================
+
+describe('startCupTournament', () => {
+  type Call = { table: string; op: string; arg?: unknown };
+
+  // One builder per from() call; existing cup rows come back from the select.
+  function setup(existing: unknown[]) {
+    const calls: Call[] = [];
+    fromMock.mockImplementation((table: string) => {
+      const b = queryResult({ data: [], error: null });
+      b.select = () => { calls.push({ table, op: 'select' }); return b; };
+      b.delete = () => { calls.push({ table, op: 'delete' }); return b; };
+      b.insert = (rows: unknown) => {
+        calls.push({ table, op: 'insert', arg: rows });
+        const ins = queryResult({
+          data: (rows as object[]).map((r, i) => ({ id: `n${i}`, ...r })), error: null,
+        });
+        return ins;
+      };
+      b.upsert = (row: unknown) => { calls.push({ table, op: 'upsert', arg: row }); return b; };
+      b.then = (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) =>
+        Promise.resolve({ data: table === 'cup_games' ? existing : [], error: null }).then(res, rej);
+      return b;
+    });
+    return calls;
+  }
+
+  const base = {
+    season: '2026-2027', firstRound: 'רבע גמר' as const, firstRoundGames: 4,
+    teamIds: ['t1', 't2'], date: '2026-12-05',
+  };
+
+  it("creates the season's empty bracket and saves its team list", async () => {
+    const calls = setup([]);
+    const res = await startCupTournament(base);
+    expect(res.error).toBeUndefined();
+
+    const insert = calls.find((c) => c.op === 'insert')!;
+    const rows = insert.arg as { round: string; season: string; home_team: string; date: string | null }[];
+    expect(rows).toHaveLength(7); // 4 QF + 2 SF + final
+    expect(rows.every((r) => r.season === '2026-2027' && r.home_team === 'TBD')).toBe(true);
+    expect(rows.filter((r) => r.date === '2026-12-05').map((r) => r.round)).toEqual(Array(4).fill('רבע גמר'));
+    expect(calls.find((c) => c.op === 'upsert')!.arg).toEqual({
+      key: 'cup_tournament_teams:2026-2027', value: '["t1","t2"]',
+    });
+    expect(calls.some((c) => c.op === 'delete')).toBe(false);
+    expect(res.games!.map((g) => g.round)).toEqual(
+      ['רבע גמר', 'רבע גמר', 'רבע גמר', 'רבע גמר', 'חצי גמר', 'חצי גמר', 'גמר'],
+    );
+  });
+
+  it('refuses when the season already has a real game, changing nothing', async () => {
+    const calls = setup([
+      { id: 'g1', home_team: 'בני מוצקין', away_team: 'TBD', played: false, home_score: null, away_score: null },
+    ]);
+    const res = await startCupTournament(base);
+    expect(res.error).toMatch(/2026-2027/);
+    expect(calls.filter((c) => c.op !== 'select')).toEqual([]);
+  });
+
+  it('refuses when a TBD slot already carries a result', async () => {
+    const calls = setup([
+      { id: 'g1', home_team: 'TBD', away_team: 'TBD', played: false, home_score: 70, away_score: 60 },
+    ]);
+    expect((await startCupTournament(base)).error).toBeDefined();
+    expect(calls.some((c) => c.op === 'delete' || c.op === 'insert')).toBe(false);
+  });
+
+  it('replaces empty TBD placeholders instead of doubling them', async () => {
+    const calls = setup([
+      { id: 'p1', home_team: 'TBD', away_team: 'TBD', played: false, home_score: null, away_score: null },
+    ]);
+    const res = await startCupTournament(base);
+    expect(res.error).toBeUndefined();
+    const ops = calls.filter((c) => c.table === 'cup_games').map((c) => c.op);
+    expect(ops).toEqual(['select', 'delete', 'insert']);
+  });
+
+  it('uses the current season when none is given', async () => {
+    const calls = setup([]);
+    await startCupTournament({ ...base, season: '' });
+    const rows = calls.find((c) => c.op === 'insert')!.arg as { season: string }[];
+    expect(rows[0].season).toBe('2024-2025');
   });
 });

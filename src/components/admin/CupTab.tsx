@@ -1,7 +1,8 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import { saveCupSetting, upsertCupGameStat, saveCupGameQuarters } from '@/app/admin/actions';
+import { saveCupSetting, upsertCupGameStat, saveCupGameQuarters, startCupTournament } from '@/app/admin/actions';
+import { CUP_ROUNDS, isPlaceholderTeam, type CupRoundName } from '@/lib/cup-settings';
 import GameStatsEditor, { type RosterPlayer } from '@/components/admin/GameStatsEditor';
 
 type Team = { id: string; name: string };
@@ -48,6 +49,7 @@ export type CupGame = {
 };
 
 type Props = {
+  season: string;      // the season being edited (cup data is per season)
   teamIds: string[];   // selected participating-team UUIDs
   teams: Team[];       // all teams in the league
   games: CupGame[];    // existing cup_games rows
@@ -55,9 +57,10 @@ type Props = {
   cupStats: CupStatRow[];                         // existing per-game stats
 };
 
-export default function CupTab({ teamIds: tInit, teams, games: gInit, rostersByTeam, cupStats }: Props) {
+export default function CupTab({ season, teamIds: tInit, teams, games: gInit, rostersByTeam, cupStats }: Props) {
   // ── Section A — participating teams ────────────────────────────────────
   const [selected, setSelected] = useState<Set<string>>(new Set(tInit));
+  const [savedTeams, setSavedTeams] = useState<string[]>(tInit);
   const [savingTeams, setSavingTeams] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [, startTransition] = useTransition();
@@ -78,15 +81,16 @@ export default function CupTab({ teamIds: tInit, teams, games: gInit, rostersByT
 
   function saveTeams() {
     setSavingTeams(true);
+    const list = [...selected];
     startTransition(async () => {
-      const result = await saveCupSetting('cup_tournament_teams', JSON.stringify([...selected]));
+      const result = await saveCupSetting('cup_tournament_teams', JSON.stringify(list), season);
       setSavingTeams(false);
       if (result.error) flash(result.error, false);
-      else flash('✓ רשימת קבוצות נשמרה', true);
+      else { setSavedTeams(list); flash('✓ רשימת קבוצות נשמרה', true); }
     });
   }
 
-  const teamsChanged = JSON.stringify([...selected].sort()) !== JSON.stringify([...tInit].sort());
+  const teamsChanged = JSON.stringify([...selected].sort()) !== JSON.stringify([...savedTeams].sort());
 
   // ── Section B — bracket builder ────────────────────────────────────────
   const [games, setGames] = useState<CupGame[]>(gInit);
@@ -148,6 +152,7 @@ export default function CupTab({ teamIds: tInit, teams, games: gInit, rostersByT
           home_team: defaults?.home_team ?? teams[0]?.name ?? '',
           away_team: defaults?.away_team ?? teams[1]?.name ?? '',
           date: defaults?.date ?? null,
+          season,
         }),
       });
       const data = await res.json();
@@ -238,6 +243,58 @@ export default function CupTab({ teamIds: tInit, teams, games: gInit, rostersByT
     }
   }
 
+  // ── Start the season's tournament ──────────────────────────────────────
+  // A season "has" a tournament once any game names a real team or has been
+  // played. Until then (no games, or only empty TBD slots) the admin gets the
+  // start card, which builds the whole empty bracket for this season.
+  const hasTournament = games.some(
+    g => g.played || !isPlaceholderTeam(g.home_team) || !isPlaceholderTeam(g.away_team),
+  );
+  const fullGames = (name: CupRoundName) => CUP_ROUNDS.find(r => r.name === name)!.games;
+  // Suggest the opening round from the number of selected teams: the smallest
+  // round that fits them, and as many games as it takes to cut the field to
+  // the next round (e.g. 15 teams → שמינית גמר with 7 games, one bye).
+  const suggestedRound: CupRoundName =
+    selected.size > 8 ? 'שמינית גמר' : selected.size > 4 ? 'רבע גמר' : 'חצי גמר';
+  const suggestedGames = (name: CupRoundName) =>
+    Math.min(fullGames(name), Math.max(1, selected.size - fullGames(name)));
+  const [startRound, setStartRound] = useState<CupRoundName | null>(null);
+  const [startGames, setStartGames] = useState<number | null>(null);
+  const [startDate, setStartDate] = useState('');
+  const [starting, setStarting] = useState(false);
+  const firstRound = startRound ?? suggestedRound;
+  const firstRoundGames = Math.min(fullGames(firstRound), startGames ?? suggestedGames(firstRound));
+
+  async function startTournament() {
+    const later = CUP_ROUNDS.slice(CUP_ROUNDS.findIndex(r => r.name === firstRound) + 1).map(r => r.name);
+    const placeholders = games.length;
+    const lines = [
+      `לפתוח טורניר גביע לעונת ${season}?`,
+      `• ${firstRound}: ${firstRoundGames} משחקים`,
+      ...(later.length ? [`• ואחריו: ${later.join(' ← ')}`] : []),
+      `• ${selected.size} קבוצות משתתפות יישמרו לעונה הזו`,
+      ...(placeholders ? [`• ${placeholders} משבצות ריקות (TBD) של העונה יוחלפו`] : []),
+      '',
+      'כל המשחקים ייווצרו כ-TBD — תזין את ההגרלה של כל סיבוב בבראקט.',
+    ];
+    if (!confirm(lines.join('\n'))) return;
+    setStarting(true);
+    const list = [...selected];
+    try {
+      const result = await startCupTournament({
+        season, firstRound, firstRoundGames, teamIds: list, date: startDate || null,
+      });
+      if (result.error) { flash(result.error, false); return; }
+      setGames(result.games ?? []);
+      if (list.length > 0) setSavedTeams(list);
+      flash(`🏆 טורניר הגביע לעונת ${season} נפתח — הזן את ההגרלה של ${firstRound}`, true);
+    } catch (err: unknown) {
+      flash(err instanceof Error ? err.message : 'שגיאה', false);
+    } finally {
+      setStarting(false);
+    }
+  }
+
   async function addNewRound() {
     const name = prompt('שם הסיבוב החדש (לדוגמה: סיבוב ראשון, רבע גמר, חצי גמר, גמר):');
     if (!name?.trim()) return;
@@ -251,7 +308,10 @@ export default function CupTab({ teamIds: tInit, teams, games: gInit, rostersByT
   return (
     <div dir="rtl" className="space-y-8 max-w-4xl">
       <div>
-        <h2 className="text-lg font-black text-white">🏆 טורניר הגביע</h2>
+        <h2 className="text-lg font-black text-white">
+          🏆 טורניר הגביע
+          <span className="text-sm font-bold text-orange-300 mr-2">· עונת <span dir="ltr">{season}</span></span>
+        </h2>
         <p className="text-sm text-[#5a7a9a] mt-1">
           נהל את הקבוצות המשתתפות ואת הבראקט (לפי תוצאות ההגרלה).{' '}
           <a href="/cup" target="_blank" className="text-orange-400 hover:underline">/cup ↗</a>
@@ -321,6 +381,72 @@ export default function CupTab({ teamIds: tInit, teams, games: gInit, rostersByT
           )}
         </div>
       </div>
+
+      {/* Start this season's tournament — shown until the season has one */}
+      {!hasTournament && (
+        <div className="rounded-2xl border border-orange-500/30 bg-orange-500/[0.05] p-5 space-y-4">
+          <div>
+            <h3 className="text-base font-black text-white">🏆 פתח טורניר גביע לעונה {season}</h3>
+            <p className="text-xs text-[#8aaac8] mt-1 leading-relaxed">
+              לכל עונה טורניר גביע משלה. בחר את הקבוצות המשתתפות למעלה, ואת סיבוב הפתיחה —
+              ייווצר בראקט ריק עד הגמר (כל המשבצות TBD), ואז תזין את ההגרלה של כל סיבוב.
+              הטורנירים של עונות קודמות נשארים בארכיון ולא משתנים.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1 text-xs font-bold text-[#8aaac8]">
+              סיבוב פתיחה
+              <select
+                value={firstRound}
+                onChange={(e) => { setStartRound(e.target.value as CupRoundName); setStartGames(null); }}
+                className="rounded-md border border-white/[0.1] bg-[#0a1525] px-2 py-1.5 text-sm text-white focus:border-orange-500/40 focus:outline-none"
+              >
+                {CUP_ROUNDS.filter(r => r.name !== 'גמר').map(r => (
+                  <option key={r.name} value={r.name} style={{ backgroundColor: '#0a1525' }}>
+                    {r.name} (עד {r.games} משחקים)
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-bold text-[#8aaac8]">
+              משחקים בסיבוב הפתיחה
+              <input
+                type="number"
+                min={1}
+                max={fullGames(firstRound)}
+                value={firstRoundGames}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value, 10);
+                  setStartGames(Number.isFinite(n) ? Math.max(1, Math.min(fullGames(firstRound), n)) : null);
+                }}
+                className="w-24 rounded-md border border-white/[0.1] bg-[#0a1525] px-2 py-1.5 text-center text-sm text-white focus:border-orange-500/40 focus:outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-bold text-[#8aaac8]">
+              📅 תאריך סיבוב הפתיחה (רשות)
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="rounded-md border border-white/[0.1] bg-[#0a1525] px-2 py-1.5 text-sm text-white focus:border-orange-500/40 focus:outline-none"
+              />
+            </label>
+            <button
+              onClick={startTournament}
+              disabled={starting}
+              className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-black text-white hover:bg-orange-400 disabled:opacity-40 transition"
+            >
+              {starting ? 'יוצר...' : '🏆 פתח טורניר'}
+            </button>
+          </div>
+          <p className="text-[11px] text-[#5a7a9a]">
+            {selected.size} קבוצות נבחרו
+            {firstRoundGames < fullGames(firstRound) && (
+              <> · {fullGames(firstRound) - firstRoundGames} משבצות ב{CUP_ROUNDS[CUP_ROUNDS.findIndex(r => r.name === firstRound) + 1]?.name ?? 'סיבוב הבא'} יתמלאו בקבוצות שעולות ישירות (פטור)</>
+            )}
+          </p>
+        </div>
+      )}
 
       {/* Section B — Bracket builder */}
       <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 space-y-4">

@@ -10,6 +10,7 @@ import SeasonPicker from '@/components/SeasonPicker';
 import ArchiveBanner from '@/components/ArchiveBanner';
 import { deriveCupScores } from '@/lib/cup-derived-scores';
 import CupChampionCelebration from '@/components/CupChampionCelebration';
+import { cupTeamsKeysFor, pickCupTeamIds } from '@/lib/cup-settings';
 
 async function getLogoUrl() {
   try {
@@ -31,7 +32,7 @@ export default async function CupPage({
     supabaseAdmin
       .from('league_settings')
       .select('key,value')
-      .eq('key', 'cup_tournament_teams'),
+      .in('key', cupTeamsKeysFor(viewing)),
     supabaseAdmin.from('cup_game_stats').select('cup_game_id, team_id, points').eq('season', viewing),
     getLogoUrl(),
     getLang(),
@@ -87,14 +88,7 @@ export default async function CupPage({
 
   // Participating teams (date + location were dropped — each game is played
   // at the home_team's venue and dates live per-game on cup_games).
-  let cupTeamIds: string[] = [];
-  try {
-    const raw = (settings ?? []).find((r) => r.key === 'cup_tournament_teams')?.value;
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) cupTeamIds = parsed.filter((x): x is string => typeof x === 'string');
-    }
-  } catch { /* malformed — ignore */ }
+  const cupTeamIds = pickCupTeamIds(settings, viewing);
   const teamById = new Map((teams ?? []).map((t) => [t.id, t]));
   const participatingTeams = cupTeamIds.map((id) => teamById.get(id)).filter((t): t is NonNullable<typeof t> => !!t);
 

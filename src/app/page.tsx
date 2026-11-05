@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { isPlaceholderTeam } from '@/lib/cup-settings';
 import { TOTAL_ROUNDS } from '@/lib/league-data';
 import { getSeasonSchedule } from '@/lib/season-schedule';
 import { roundDatesForSeason } from '@/lib/schedule-format';
@@ -481,7 +482,11 @@ async function getCupFinal(season: string): Promise<CupFinal> {
       .eq('season', season)
       .eq('round', 'גמר')
       .order('game_number', { ascending: false });
-    const rows = (data ?? []) as NonNullable<CupFinal>[];
+    // A freshly opened tournament's final is an empty "TBD vs TBD" slot —
+    // treat that as "not set yet" rather than printing TBD on the card.
+    const rows = ((data ?? []) as NonNullable<CupFinal>[]).filter(
+      (r) => r.played || !(isPlaceholderTeam(r.home_team) && isPlaceholderTeam(r.away_team)),
+    );
     if (rows.length === 0) return null;
     return (
       rows.find((r) => r.played && r.home_score != null && r.away_score != null) ??
@@ -1076,6 +1081,8 @@ function buildUpcomingCupEvents(opts: {
   // hidden — the section is meant for "the cup match is approaching",
   // not a season-long timeline.
   for (const c of cupGames) {
+    // A bracket slot whose draw hasn't been entered yet has no matchup to show.
+    if (isPlaceholderTeam(c.home_team) || isPlaceholderTeam(c.away_team)) continue;
     const d = parseFlexibleDate(c.date, season);
     if (!d) continue;
     d.setHours(0, 0, 0, 0);

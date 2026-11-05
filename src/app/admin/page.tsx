@@ -30,6 +30,7 @@ import SeasonReviewsTab, { type SeasonReview } from '@/components/admin/SeasonRe
 import { getSeasonSchedule } from '@/lib/season-schedule';
 import type { ScheduleEntry } from '@/lib/libi-schedule';
 import { listSyncLogs, type SyncLogRow } from '@/lib/excel-uploads';
+import { cupTeamsKeysFor, pickCupTeamIds } from '@/lib/cup-settings';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { resolveSeasonFromParams, listKnownSeasons } from '@/lib/current-season';
 import SeasonPicker from '@/components/SeasonPicker';
@@ -266,18 +267,14 @@ export default async function AdminPage({
       supabaseAdmin
         .from('league_settings')
         .select('key,value')
-        .eq('key', 'cup_tournament_teams'),
+        .in('key', cupTeamsKeysFor(season)),
       supabaseAdmin.from('teams').select('id,name').order('name'),
-      supabaseAdmin.from('cup_games').select('*').order('round_order').order('game_number'),
+      // Only this season's cup — a new tournament must not list last year's
+      // games (and "apply round date" edits every game listed in a round).
+      supabaseAdmin.from('cup_games').select('*').eq('season', season).order('round_order').order('game_number'),
       supabaseAdmin.from('players').select('id,name,jersey_number,team_id').eq('is_active', true).order('name'),
     ]);
-    const teamsRaw = (settings ?? []).find((r) => r.key === 'cup_tournament_teams')?.value;
-    if (teamsRaw) {
-      try {
-        const parsed = JSON.parse(teamsRaw);
-        if (Array.isArray(parsed)) cupTeamIds = parsed.filter((x): x is string => typeof x === 'string');
-      } catch { /* ignore malformed */ }
-    }
+    cupTeamIds = pickCupTeamIds(settings, season);
     cupTeams = (teamsList ?? []) as { id: string; name: string }[];
     cupGames = (cupGamesData ?? []) as CupGame[];
 
@@ -567,7 +564,7 @@ export default async function AdminPage({
       {tab === 'forms'         && <DownloadFormsTab />}
       {tab === 'analytics'     && <AnalyticsTab />}
       {tab === 'rules'         && <RulesTab rules={rules} />}
-      {tab === 'cup'           && <CupTab teamIds={cupTeamIds} teams={cupTeams} games={cupGames} rostersByTeam={cupRostersByTeam} cupStats={cupStats} />}
+      {tab === 'cup'           && <CupTab season={season} teamIds={cupTeamIds} teams={cupTeams} games={cupGames} rostersByTeam={cupRostersByTeam} cupStats={cupStats} />}
       {tab === 'playoff'       && <PlayoffTab />}
       {tab === 'submissions'   && <SubmissionsTab submissions={submissions} />}
       {tab === 'gamestats'     && <PerGameStatsTab games={perGameInfos} existingStats={perGameExisting} initialRound={perGameInitialRound} />}

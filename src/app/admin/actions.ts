@@ -8,6 +8,14 @@ import { findPlayerForExtracted, type ExtractedPlayer } from '@/lib/match-player
 import { mergeDivisionNames, normalizeTeamName, resolveTeamId } from '@/lib/excel-sync-parsers';
 import { getCurrentSeason, clearCurrentSeasonCache } from '@/lib/current-season';
 import { getSeasonSchedule } from '@/lib/season-schedule';
+import {
+  cupTeamsKey,
+  buildCupSkeleton,
+  isPlaceholderTeam,
+  type CupRoundName,
+  type CupSlot,
+} from '@/lib/cup-settings';
+import type { CupGame } from '@/components/admin/CupTab';
 import { serializeAutoConfig, type AutoTickerConfig } from '@/lib/ticker-auto';
 import { assertAdmin } from '@/lib/require-admin';
 
@@ -1490,16 +1498,101 @@ export async function saveAccessibilitySetting(
 // team UUIDs. Per-game date / home / away / scores live on the cup_games
 // rows — managed via /api/admin/cup-games.
 
+// ── Start a season's cup tournament ──────────────────────────────────────────
+// Every season runs its own cup. This creates the season's empty bracket — the
+// chosen first round with its draw slots, then each later round down to the
+// final, all "TBD" — and saves the participating teams with it. The admin then
+// enters each round's draw as before. One tournament per season: it refuses
+// when the season already has a real game, and replaces only empty, unplayed
+// TBD placeholders (such as the ones the Excel upload adds), so nothing is
+// doubled or lost.
+
+export type StartCupResult = { error?: string; games?: CupGame[] };
+
+export async function startCupTournament(input: {
+  season: string;
+  firstRound: CupRoundName;
+  firstRoundGames: number;
+  teamIds: string[];
+  date?: string | null;
+}): Promise<StartCupResult> {
+  await assertAdmin();
+  const season = /^\d{4}-\d{4}$/.test(input.season ?? '') ? input.season : await getCurrentSeason();
+
+  let slots: CupSlot[];
+  try {
+    slots = buildCupSkeleton(input.firstRound, input.firstRoundGames);
+  } catch {
+    return { error: 'סיבוב פתיחה לא תקין' };
+  }
+
+  const { data: existing, error: exErr } = await supabaseAdmin
+    .from('cup_games')
+    .select('id, home_team, away_team, played, home_score, away_score')
+    .eq('season', season);
+  if (exErr) return { error: exErr.message };
+  const rows = (existing ?? []) as {
+    id: string; home_team: string; away_team: string;
+    played: boolean; home_score: number | null; away_score: number | null;
+  }[];
+  const isEmptySlot = (g: (typeof rows)[number]) =>
+    isPlaceholderTeam(g.home_team) && isPlaceholderTeam(g.away_team) &&
+    !g.played && g.home_score == null && g.away_score == null;
+  if (rows.some((g) => !isEmptySlot(g))) {
+    return { error: `לעונת ${season} כבר יש טורניר גביע — המשך לנהל אותו בבראקט למטה.` };
+  }
+
+  if (rows.length > 0) {
+    const { error } = await supabaseAdmin.from('cup_games').delete().in('id', rows.map((g) => g.id));
+    if (error) return { error: error.message };
+  }
+
+  const date = input.date && /^\d{4}-\d{2}-\d{2}$/.test(input.date) ? input.date : null;
+  const { data: created, error: insErr } = await supabaseAdmin
+    .from('cup_games')
+    .insert(
+      slots.map((slot) => ({
+        ...slot,
+        home_team: 'TBD',
+        away_team: 'TBD',
+        played: false,
+        season,
+        date: slot.round_order === slots[0].round_order ? date : null, // opening round only
+      })),
+    )
+    .select('*');
+  if (insErr) return { error: insErr.message };
+
+  const teamIds = (input.teamIds ?? []).filter((x): x is string => typeof x === 'string');
+  if (teamIds.length > 0) {
+    const { error } = await supabaseAdmin
+      .from('league_settings')
+      .upsert({ key: cupTeamsKey(season), value: JSON.stringify(teamIds) }, { onConflict: 'key' });
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath('/admin');
+  revalidatePath('/cup');
+  const games = ((created ?? []) as CupGame[]).sort(
+    (a, b) => a.round_order - b.round_order || a.game_number - b.game_number,
+  );
+  return { games };
+}
+
 export type CupSettingKey = 'cup_tournament_teams';
 
 export async function saveCupSetting(
   key: CupSettingKey,
   value: string,
+  season?: string,
 ): Promise<ActionResult> {
   await assertAdmin();
+  // Kept per season (see lib/cup-settings), so a new tournament's list never
+  // overwrites — or starts from — last year's.
+  const forSeason = season && /^\d{4}-\d{4}$/.test(season) ? season : await getCurrentSeason();
   const { error } = await supabaseAdmin
     .from('league_settings')
-    .upsert({ key, value }, { onConflict: 'key' });
+    .upsert({ key: cupTeamsKey(forSeason), value }, { onConflict: 'key' });
 
   if (error) return { error: error.message };
   revalidatePath('/cup');

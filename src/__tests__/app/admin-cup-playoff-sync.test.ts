@@ -40,6 +40,34 @@ describe('cup-games', () => {
     expect(await res.json()).toEqual({ game: { id: 'c1' } });
   });
 
+  describe('POST files the game under the right season', () => {
+    function recordInsert() {
+      const rows: Record<string, unknown>[] = [];
+      const builder = queryResult({ data: { id: 'c1' }, error: null });
+      builder.insert = (row: Record<string, unknown>) => { rows.push(row); return builder; };
+      fromMock.mockReturnValue(builder);
+      return rows;
+    }
+
+    it('uses the season being edited', async () => {
+      const rows = recordInsert();
+      await cup.POST(postJson({ round: 'שמינית גמר', home_team: 'A', away_team: 'B', season: '2026-2027' }));
+      expect(rows[0]).toMatchObject({ season: '2026-2027' });
+    });
+
+    it('defaults to the current season — never the column default', async () => {
+      const rows = recordInsert();
+      await cup.POST(postJson({ round: 'שמינית גמר', home_team: 'A', away_team: 'B' }));
+      expect(rows[0]).toMatchObject({ season: '2025-2026' }); // the mocked current season
+    });
+
+    it('ignores a malformed season', async () => {
+      const rows = recordInsert();
+      await cup.POST(postJson({ round: 'גמר', home_team: 'A', away_team: 'B', season: 'next year' }));
+      expect(rows[0]).toMatchObject({ season: '2025-2026' });
+    });
+  });
+
   it('PATCH requires an id', async () => {
     expect((await cup.PATCH(patchJson({ home_score: 10 }))).status).toBe(400);
   });
