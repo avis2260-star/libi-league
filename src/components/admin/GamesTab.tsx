@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { updateGameScore, updateGameDetails, resetAllGameDetails, setGameDelayed } from '@/app/admin/actions';
+import { updateGameScore, updateGameDetails, resetAllGameDetails, setGameDelayed, setGameDelayNote } from '@/app/admin/actions';
+import { DELAY_NOTE_MAX, DELAY_NOTE_PRESETS } from '@/lib/delay-note';
 import type { GameStatus, GameWithTeams } from '@/types';
 import BulkImportButton from './BulkImportButton';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
@@ -355,6 +356,10 @@ function GameScoreCard({ game }: { game: GameWithTeams }) {
   const [location, setLocation] = useState(game.location ?? '');
   const [gameDate, setGameDate] = useState(game.game_date ?? '');
   const [delayed, setDelayed] = useState<boolean>(!!game.delayed);
+  const [delayNote, setDelayNote] = useState(game.delay_note ?? '');
+  const [savedDelayNote, setSavedDelayNote] = useState(game.delay_note ?? '');
+  const [noteFeedback, setNoteFeedback] = useState<{ ok?: boolean; msg?: string }>({});
+  const [isNotePending, startNoteTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ ok?: boolean; msg?: string }>({});
   const [detailsFeedback, setDetailsFeedback] = useState<{ ok?: boolean; msg?: string }>({});
   const [isPending, startTransition] = useTransition();
@@ -367,6 +372,22 @@ function GameScoreCard({ game }: { game: GameWithTeams }) {
     startDelayedTransition(async () => {
       const result = await setGameDelayed(game.id, next);
       if (result?.error) setDelayed(!next); // revert on failure
+    });
+  }
+
+  function handleSaveDelayNote() {
+    setNoteFeedback({});
+    const note = delayNote;
+    startNoteTransition(async () => {
+      const result = await setGameDelayNote(game.id, note);
+      if (result?.error) {
+        setNoteFeedback({ ok: false, msg: result.error });
+      } else {
+        const clean = note.replace(/\s+/g, ' ').trim();
+        setDelayNote(clean);
+        setSavedDelayNote(clean);
+        setNoteFeedback({ ok: true, msg: clean ? 'ההערה נשמרה' : 'ההערה נמחקה' });
+      }
     });
   }
 
@@ -418,6 +439,9 @@ function GameScoreCard({ game }: { game: GameWithTeams }) {
             {homeTeam} <span className="text-gray-500">vs</span> {awayTeam}
           </p>
           <p className="mt-0.5 text-xs text-gray-500">{dateStr} · {game.location}</p>
+          {delayed && savedDelayNote && (
+            <p className="mt-0.5 truncate text-xs text-amber-400/90">💬 {savedDelayNote}</p>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {game.status === 'Finished' && (
@@ -486,6 +510,58 @@ function GameScoreCard({ game }: { game: GameWithTeams }) {
             <p className="mt-1.5 text-[11px] leading-relaxed text-gray-600">
               משחק דחוי נשמר מיד ויוצג בדף הבית — ככרטיס ממתין כל עוד לא שוחק, ולאחר עדכון התוצאה כתוצאה המתויגת במספר המחזור, עד שהמחזור הבא ישוחק.
             </p>
+
+            {delayed && (
+              <div className="mt-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.05] p-3">
+                <label htmlFor={`delay-note-${game.id}`} className="mb-2 block text-xs font-semibold text-amber-300">
+                  💬 הערה לאוהדים — סיבת הדחייה / ההפסקה
+                </label>
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {DELAY_NOTE_PRESETS.map(p => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => { setDelayNote(p); setNoteFeedback({}); }}
+                      className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${
+                        delayNote === p
+                          ? 'border-amber-400 bg-amber-500/20 text-amber-200'
+                          : 'border-gray-700 text-gray-400 hover:border-amber-500/50 hover:text-amber-200'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    id={`delay-note-${game.id}`}
+                    type="text"
+                    dir="rtl"
+                    value={delayNote}
+                    maxLength={DELAY_NOTE_MAX}
+                    onChange={e => { setDelayNote(e.target.value); setNoteFeedback({}); }}
+                    placeholder="למשל: המשחק הופסק ברבע השלישי בגלל גשם, יושלם במועד חדש"
+                    className="h-10 min-w-0 flex-1 rounded-xl border border-gray-700 bg-gray-900 px-3 text-sm text-white placeholder-gray-600 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveDelayNote}
+                    disabled={isNotePending || delayNote.trim() === savedDelayNote.trim()}
+                    className="h-10 shrink-0 rounded-xl bg-amber-500 px-4 text-sm font-semibold text-black transition hover:bg-amber-400 active:scale-95 disabled:opacity-40"
+                  >
+                    {isNotePending ? '…' : delayNote.trim() || !savedDelayNote ? 'שמור הערה' : 'מחק הערה'}
+                  </button>
+                </div>
+                <p className="mt-1.5 text-[11px] leading-relaxed text-gray-600">
+                  מוצגת בדף הבית ובעמוד המשחק כל עוד המשחק מסומן כדחוי. {delayNote.length}/{DELAY_NOTE_MAX}
+                </p>
+                {noteFeedback.msg && (
+                  <p className={`mt-2 rounded-lg px-3 py-1.5 text-xs ${noteFeedback.ok ? 'bg-green-900/40 text-green-400' : 'bg-red-900/40 text-red-400'}`}>
+                    {noteFeedback.msg}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="mb-4">

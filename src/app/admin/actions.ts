@@ -1,6 +1,7 @@
 'use server';
 
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { cleanDelayNote } from '@/lib/delay-note';
 import type { GameStatus } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { LIBI_SCHEDULE } from '@/lib/libi-schedule';
@@ -260,6 +261,31 @@ export async function setGameDelayed(gameId: string, delayed: boolean): Promise<
     .eq('id', gameId);
 
   if (error) return { error: error.message };
+
+  revalidatePath('/admin');
+  revalidatePath('/');
+  revalidatePath('/games');
+  return {};
+}
+
+// ── Delay note ────────────────────────────────────────────────────────────────
+// A short public note on a postponed game — why it was postponed or stopped
+// ("הופסק בגלל מזג האוויר"). Shown wherever the delayed game appears; an empty
+// note clears it.
+
+export async function setGameDelayNote(gameId: string, note: string): Promise<ActionResult> {
+  await assertAdmin();
+  const { error } = await supabaseAdmin
+    .from('games')
+    .update({ delay_note: cleanDelayNote(note) })
+    .eq('id', gameId);
+
+  if (error) {
+    if (/delay_note/.test(error.message)) {
+      return { error: 'עמודת ההערה עדיין לא קיימת — הרץ ב-Supabase את supabase/migrations/20261107_game_delay_note.sql' };
+    }
+    return { error: error.message };
+  }
 
   revalidatePath('/admin');
   revalidatePath('/');

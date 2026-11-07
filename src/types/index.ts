@@ -47,6 +47,7 @@ export interface Game {
   away_score: number;
   status: GameStatus;
   delayed?: boolean;   // postponed/makeup game — surfaced on the home page until played
+  delay_note?: string | null; // why it was postponed/stopped — shown to fans while delayed
   round?: number | null; // league round this fixture belongs to (null on pre-2026 archive rows)
   created_at: string;
   // Joined

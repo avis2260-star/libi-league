@@ -51,6 +51,7 @@ import {
   saveAccessibilitySetting,
   saveCupSetting,
   startCupTournament,
+  setGameDelayNote,
   saveAboutSetting,
   markMessageRead,
   setMessageHandled,
@@ -720,5 +721,37 @@ describe('startCupTournament', () => {
     await startCupTournament({ ...base, season: '' });
     const rows = calls.find((c) => c.op === 'insert')!.arg as { season: string }[];
     expect(rows[0].season).toBe('2024-2025');
+  });
+});
+
+// ===========================================================================
+// setGameDelayNote
+// ===========================================================================
+
+describe('setGameDelayNote', () => {
+  function capture(error: unknown = null) {
+    const updates: unknown[] = [];
+    const b = queryResult({ error });
+    b.update = (patch: unknown) => { updates.push(patch); return b; };
+    fromMock.mockReturnValue(b);
+    return updates;
+  }
+
+  it('saves the cleaned note', async () => {
+    const updates = capture();
+    expect(await setGameDelayNote('g1', '  הופסק  בגלל מזג האוויר ')).toEqual({});
+    expect(updates).toEqual([{ delay_note: 'הופסק בגלל מזג האוויר' }]);
+  });
+
+  it('clears the note when it is empty', async () => {
+    const updates = capture();
+    await setGameDelayNote('g1', '   ');
+    expect(updates).toEqual([{ delay_note: null }]);
+  });
+
+  it('says which migration to run when the column is missing', async () => {
+    capture({ message: "Could not find the 'delay_note' column of 'games' in the schema cache" });
+    const res = await setGameDelayNote('g1', 'x');
+    expect(res.error).toContain('20261107_game_delay_note.sql');
   });
 });

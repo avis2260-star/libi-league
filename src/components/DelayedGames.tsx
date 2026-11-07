@@ -14,6 +14,7 @@ export type DelayedPendingCard = {
   dayLabel: string;    // "שישי" / "Fri" — empty when no date
   time: string | null;
   location: string | null;
+  note: string | null;   // why it was postponed/stopped (admin note)
   href: string;
 };
 
@@ -26,6 +27,7 @@ export type DelayedFinishedCard = {
   homeScore: number;
   awayScore: number;
   dateLabel: string;
+  note: string | null;
   href: string;
 };
 
@@ -118,6 +120,9 @@ export default function DelayedGames({
                 {g.location && (
                   <p className="mt-0.5 break-words text-[10px] font-bold text-[#5a7a9a] font-body">📍 {g.location}</p>
                 )}
+                {g.note && (
+                  <p className="mt-1.5 break-words rounded-md bg-amber-500/10 px-2 py-1 text-[10px] font-bold leading-snug text-amber-200/90 font-body">💬 {g.note}</p>
+                )}
               </Link>
             ))}
           </div>
@@ -155,6 +160,9 @@ export default function DelayedGames({
                     <p className={`min-w-0 break-words text-sm font-bold leading-tight font-heading ${!homeWins ? 'text-white' : 'text-[#8aaac8]'}`}>{t(g.awayTeam)}</p>
                   </div>
                 </div>
+                {g.note && (
+                  <p className="mt-1.5 break-words text-[11px] font-bold leading-snug text-amber-200/80 font-body">💬 {g.note}</p>
+                )}
               </Link>
             );
           })}
