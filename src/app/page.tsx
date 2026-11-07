@@ -884,16 +884,22 @@ type DelayedGameRow = {
   gameDate: string | null;
   gameTime: string | null;
   location: string | null;
+  note: string | null;
 };
 
 async function getDelayedGames(season: string): Promise<DelayedGameRow[]> {
   try {
-    const { data } = await supabaseAdmin
+    const base = 'round, home_score, away_score, status, game_date, game_time, location, home_team:teams!games_home_team_id_fkey(name), away_team:teams!games_away_team_id_fkey(name)';
+    const query = (cols: string) => supabaseAdmin
       .from('games')
-      .select('round, home_score, away_score, status, game_date, game_time, location, home_team:teams!games_home_team_id_fkey(name), away_team:teams!games_away_team_id_fkey(name)')
+      .select(cols)
       .eq('season', season)
       .eq('delayed', true)
       .order('game_date', { ascending: true });
+    // The note column comes from a later migration — if it isn't there yet,
+    // load the games without it rather than losing the whole strip.
+    let { data, error } = await query(`${base}, delay_note`);
+    if (error) ({ data } = await query(base));
 
     type Row = {
       round: number | null;
@@ -901,6 +907,7 @@ async function getDelayedGames(season: string): Promise<DelayedGameRow[]> {
       game_date: string | null; game_time: string | null; location: string | null;
       home_team: { name: string } | { name: string }[] | null;
       away_team: { name: string } | { name: string }[] | null;
+      delay_note?: string | null;
     };
     const nameOf = (tm: Row['home_team']): string => {
       if (!tm) return '';
@@ -908,7 +915,7 @@ async function getDelayedGames(season: string): Promise<DelayedGameRow[]> {
     };
 
     const out: DelayedGameRow[] = [];
-    for (const r of (data ?? []) as Row[]) {
+    for (const r of (data ?? []) as unknown as Row[]) {
       const home = nameOf(r.home_team);
       const away = nameOf(r.away_team);
       if (!home || !away) continue;
@@ -922,6 +929,7 @@ async function getDelayedGames(season: string): Promise<DelayedGameRow[]> {
         gameDate:  r.game_date,
         gameTime:  (r.game_time && r.game_time !== '00:00:00') ? r.game_time.slice(0, 5) : null,
         location:  (r.location && r.location !== 'TBD') ? r.location : null,
+        note:      r.delay_note?.trim() || null,
       });
     }
     return out;
@@ -1446,6 +1454,7 @@ export default async function HomePage() {
         dateLabel, dayLabel,
         time: g.gameTime,
         location: g.location,
+        note: g.note,
         href: delayedHref(g.round, home),
       };
     });
@@ -1468,6 +1477,7 @@ export default async function HomePage() {
         homeScore: g.homeScore!,
         awayScore: g.awayScore!,
         dateLabel,
+        note: g.note,
         href: delayedHref(g.round, home),
       };
     });

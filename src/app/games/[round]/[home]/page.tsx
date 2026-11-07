@@ -218,6 +218,23 @@ export default async function GamePreviewPage({
     }
   }
 
+  // Postponed flag + the admin's note on it (why it was postponed/stopped).
+  // Its own query so a missing column (migration not run yet) can never take
+  // the time/location lookup above down with it.
+  let delayed = false;
+  let delayNote: string | null = null;
+  if (gameId) {
+    const { data: delayRow, error: delayErr } = await supabaseAdmin
+      .from('games')
+      .select('delayed, delay_note')
+      .eq('id', gameId)
+      .maybeSingle();
+    if (!delayErr && delayRow) {
+      delayed = !!delayRow.delayed;
+      delayNote = (delayRow.delay_note as string | null)?.trim() || null;
+    }
+  }
+
   // Result from game_results (matched by round + team pair)
   type ResultRow = {
     round: number; home_team: string; away_team: string;
@@ -352,6 +369,17 @@ export default async function GamePreviewPage({
           {divLabel}
         </span>
       </div>
+
+      {/* Postponed-game notice — with the admin's note when there is one */}
+      {delayed && (
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/[0.07] px-5 py-4">
+          <span className="text-xl leading-none">⏱️</span>
+          <div className="min-w-0">
+            <p className="text-sm font-black text-amber-300">{en ? 'Postponed game' : 'משחק דחוי'}</p>
+            {delayNote && <p className="mt-1 break-words text-sm font-bold text-[#e8edf5]">{delayNote}</p>}
+          </div>
+        </div>
+      )}
 
       {/* Main matchup card */}
       <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] overflow-hidden">
