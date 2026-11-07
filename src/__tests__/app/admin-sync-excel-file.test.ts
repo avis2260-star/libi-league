@@ -266,3 +266,81 @@ describe('sync-excel-file POST', () => {
     });
   });
 });
+
+describe('sync-excel-file POST — cup sheet', () => {
+  // A results sheet so the upload has league data; the cup sheet is what's tested.
+  const leagueSheet = { 'טבלאות': [[1, 'חולון', 14, 10, 4, 360, 300, 60, 0, 0, 24]] };
+  const cupSheet = {
+    'גביע': [
+      ['1.12.26', 'רבע גמר'],
+      [null, 'בית', 'קבוצה א', 80],
+      [null, 'חוץ', 'קבוצה ב', 70],
+      [null, 'בית', 'קבוצה ג', 65],
+      [null, 'חוץ', 'קבוצה ד', 60],
+    ],
+  };
+
+  function mockCup(season: unknown[], otherSeasons: unknown[]) {
+    const updates: { patch: Record<string, unknown>; id?: unknown }[] = [];
+    let inserted: Record<string, unknown>[] = [];
+    fromMock.mockImplementation((table: string) => {
+      const b = queryResult({ data: [], error: null });
+      if (table !== 'cup_games') return b;
+      let scope: 'season' | 'other' | null = null;
+      b.eq = (col: string, v: unknown) => {
+        if (col === 'season') scope = 'season';
+        if (col === 'id') updates[updates.length - 1].id = v;
+        return b;
+      };
+      b.neq = () => { scope = 'other'; return b; };
+      b.update = (patch: Record<string, unknown>) => { updates.push({ patch }); return b; };
+      b.insert = (rows: Record<string, unknown>[]) => { inserted = rows; return b; };
+      b.then = (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) =>
+        Promise.resolve({
+          data: scope === 'season' ? season : scope === 'other' ? otherSeasons : [], error: null,
+        }).then(res, rej);
+      return b;
+    });
+    return { updates, inserted: () => inserted };
+  }
+
+  it("fills the opened tournament's TBD slots and skips last season's results", async () => {
+    const tbd = { home_team: 'TBD', away_team: 'TBD', home_score: null, away_score: null, played: false };
+    const cup = mockCup(
+      [
+        { id: 'qf1', round: 'רבע גמר', game_number: 1, ...tbd },
+        { id: 'qf2', round: 'רבע גמר', game_number: 2, ...tbd },
+      ],
+      // Last season: קבוצה א beat קבוצה ב 80–70 in the quarter-final.
+      [{ round: 'רבע גמר', home_team: 'קבוצה א', away_team: 'קבוצה ב', home_score: 80, away_score: 70 }],
+    );
+
+    const res = await POST(mockFileReq(xlsxFile({ ...leagueSheet, ...cupSheet })));
+    expect(res.status).toBe(200);
+
+    expect(cup.updates).toEqual([
+      {
+        id: 'qf1',
+        patch: {
+          home_team: 'קבוצה ג', away_team: 'קבוצה ד', home_score: 65, away_score: 60,
+          played: true, date: '1.12.26',
+        },
+      },
+    ]);
+    expect(cup.inserted()).toEqual([]);
+    const { message } = await res.json();
+    expect(message).toContain('1 משחקי גביע חדשים');
+    expect(message).toContain('1 משחקי גביע מעונה קודמת לא יובאו');
+  });
+
+  it('inserts the sheet games under the season when the season has no cup yet', async () => {
+    const cup = mockCup([], []);
+    const res = await POST(mockFileReq(xlsxFile({ ...leagueSheet, ...cupSheet })));
+    expect(res.status).toBe(200);
+    expect(cup.updates).toEqual([]);
+    expect(cup.inserted().map((g) => [g.home_team, g.game_number, g.season])).toEqual([
+      ['קבוצה א', 1, '2024-2025'],
+      ['קבוצה ג', 2, '2024-2025'],
+    ]);
+  });
+});
