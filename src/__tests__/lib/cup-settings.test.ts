@@ -1,6 +1,6 @@
 import {
   cupTeamsKey, cupTeamsKeysFor, pickCupTeamIds, LEGACY_CUP_TEAMS_KEY,
-  buildCupSkeleton, isPlaceholderTeam,
+  buildCupSkeleton, isPlaceholderTeam, cupGameTime,
 } from '@/lib/cup-settings';
 
 describe('cup team list per season', () => {
@@ -76,5 +76,20 @@ describe('isPlaceholderTeam', () => {
     expect(isPlaceholderTeam('')).toBe(true);
     expect(isPlaceholderTeam(null)).toBe(true);
     expect(isPlaceholderTeam('בני מוצקין')).toBe(false);
+  });
+});
+
+describe('cupGameTime', () => {
+  it('reads HH:MM and HH:MM:SS as HH:MM', () => {
+    expect(cupGameTime('20:30')).toBe('20:30');
+    expect(cupGameTime('8:05')).toBe('08:05');
+    expect(cupGameTime('20:30:00')).toBe('20:30');
+  });
+
+  it('returns null for nothing or a non-time', () => {
+    expect(cupGameTime(null)).toBeNull();
+    expect(cupGameTime('')).toBeNull();
+    expect(cupGameTime('TBD')).toBeNull();
+    expect(cupGameTime('24:00')).toBeNull();
   });
 });

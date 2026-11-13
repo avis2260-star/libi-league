@@ -3,6 +3,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { revalidatePath } from 'next/cache';
 import { getCurrentSeason } from '@/lib/current-season';
+import { cupGameTime, CUP_TIME_DELAY_MIGRATION } from '@/lib/cup-settings';
+import { cleanDelayNote } from '@/lib/delay-note';
+
+// A save that touches a column the cup time/postponed migration adds, before
+// that migration was run, fails with a schema error naming the column.
+const NEW_COLUMNS = /game_time|delayed|delay_note/;
 
 export async function POST(req: NextRequest) {
   const unauthorized = await requireAdmin();
@@ -56,7 +62,7 @@ export async function PATCH(req: NextRequest) {
     const { id, ...fields } = body;
     if (!id) return NextResponse.json({ error: 'חסר id' }, { status: 400 });
 
-    const allowed = ['round', 'round_order', 'game_number', 'home_team', 'away_team', 'home_score', 'away_score', 'date', 'played', 'video_url', 'location'];
+    const allowed = ['round', 'round_order', 'game_number', 'home_team', 'away_team', 'home_score', 'away_score', 'date', 'played', 'video_url', 'location', 'game_time', 'delayed', 'delay_note'];
     const update: Record<string, unknown> = {};
     for (const key of allowed) {
       if (key in fields) update[key] = fields[key];
@@ -79,13 +85,36 @@ export async function PATCH(req: NextRequest) {
       update.location = trimmed || null;
     }
 
+    // Time: "HH:MM" or nothing.
+    if ('game_time' in update) {
+      const raw = update.game_time;
+      const time = typeof raw === 'string' ? cupGameTime(raw) : null;
+      if (typeof raw === 'string' && raw.trim() && !time) {
+        return NextResponse.json({ error: 'שעה לא תקינה — השתמש בפורמט HH:MM' }, { status: 400 });
+      }
+      update.game_time = time;
+    }
+    if ('delayed' in update) update.delayed = !!update.delayed;
+    if ('delay_note' in update) {
+      update.delay_note = cleanDelayNote(typeof update.delay_note === 'string' ? update.delay_note : null);
+    }
+
     const { error } = await supabaseAdmin
       .from('cup_games')
       .update(update)
       .eq('id', id);
 
-    if (error) throw error;
+    if (error) {
+      if (NEW_COLUMNS.test(error.message ?? '')) {
+        return NextResponse.json(
+          { error: `השדות שעה / משחק דחוי עדיין לא קיימים בגביע — הרץ ב-Supabase את ${CUP_TIME_DELAY_MIGRATION}` },
+          { status: 500 },
+        );
+      }
+      throw error;
+    }
     revalidatePath('/cup');
+    revalidatePath('/');
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'שגיאה' }, { status: 500 });

@@ -8,6 +8,7 @@ import { getLang, st } from '@/lib/get-lang';
 import { displayName } from '@/lib/names';
 import { makeNameResolver } from '@/lib/team-name-resolver';
 import { bucketGameStats, type RawStat } from '@/lib/box-score';
+import { cupGameTime } from '@/lib/cup-settings';
 
 export default async function CupGameBoxScorePage({
   params,
@@ -48,6 +49,9 @@ export default async function CupGameBoxScorePage({
     teamNameToId(game.away_team),
   );
 
+  const gameTime = cupGameTime(game.game_time);
+  const delayNote = game.delayed ? (game.delay_note as string | null)?.trim() || null : null;
+
   const hasQuarters = (game.home_quarters?.length ?? 0) > 0 || (game.away_quarters?.length ?? 0) > 0;
   const hasStats = (statRows?.length ?? 0) > 0 || hasQuarters;
 
@@ -61,6 +65,12 @@ export default async function CupGameBoxScorePage({
           <h1 className="text-xl sm:text-2xl font-black text-white font-heading">
             {T(game.home_team)} <span className="text-[#5a7a9a]">vs</span> {T(game.away_team)}
           </h1>
+          {(game.date || gameTime) && (
+            <p className="mt-1 text-xs font-bold text-[#8aaac8]">
+              📅 {game.date || (en ? 'Date TBD' : 'תאריך טרם נקבע')}
+              {gameTime && <> · ⏰ <span dir="ltr">{gameTime}</span></>}
+            </p>
+          )}
           {game.location && (
             <p className="mt-1 text-xs font-bold text-[#8aaac8]">📍 {displayName(game.location, lang)}</p>
           )}
@@ -69,6 +79,16 @@ export default async function CupGameBoxScorePage({
           {en ? 'Bracket →' : '← לבראקט'}
         </Link>
       </div>
+
+      {game.delayed && (
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/[0.07] px-5 py-4">
+          <span className="text-xl leading-none">⏱️</span>
+          <div className="min-w-0">
+            <p className="text-sm font-black text-amber-300">{en ? 'Postponed game' : 'משחק דחוי'}</p>
+            {delayNote && <p className="mt-1 break-words text-sm font-bold text-[#e8edf5]">{delayNote}</p>}
+          </div>
+        </div>
+      )}
 
       {hasStats ? (
         <PublicBoxScore

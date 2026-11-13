@@ -79,3 +79,20 @@ export function buildCupSkeleton(firstRound: CupRoundName, firstRoundGames: numb
   });
   return slots;
 }
+
+// ---------------------------------------------------------------------------
+// Game time
+// ---------------------------------------------------------------------------
+
+/** The migration that adds game_time / delayed / delay_note to cup_games. */
+export const CUP_TIME_DELAY_MIGRATION = 'supabase/migrations/20261113_cup_game_time_delay.sql';
+
+/** A cup game's start time as "HH:MM", or null when unset or not a time. */
+export function cupGameTime(raw: string | null | undefined): string | null {
+  const m = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec((raw ?? '').trim());
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h > 23 || min > 59) return null;
+  return `${String(h).padStart(2, '0')}:${m[2]}`;
+}

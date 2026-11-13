@@ -2,7 +2,8 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { saveCupSetting, upsertCupGameStat, saveCupGameQuarters, startCupTournament } from '@/app/admin/actions';
-import { CUP_ROUNDS, isPlaceholderTeam, type CupRoundName } from '@/lib/cup-settings';
+import { CUP_ROUNDS, isPlaceholderTeam, cupGameTime, type CupRoundName } from '@/lib/cup-settings';
+import { DELAY_NOTE_MAX, DELAY_NOTE_PRESETS } from '@/lib/delay-note';
 import GameStatsEditor, { type RosterPlayer } from '@/components/admin/GameStatsEditor';
 
 type Team = { id: string; name: string };
@@ -46,6 +47,10 @@ export type CupGame = {
   away_quarters: number[] | null;
   video_url: string | null;
   location: string | null;
+  // Added by the cup time/postponed migration — absent on rows read before it.
+  game_time?: string | null;
+  delayed?: boolean;
+  delay_note?: string | null;
 };
 
 type Props = {
@@ -597,7 +602,7 @@ function GameRow({
   if (isEditing && draft) {
     return (
       <div className="rounded-lg border border-orange-500/30 bg-orange-500/[0.04] p-3 space-y-2">
-        <div className="grid grid-cols-2 sm:grid-cols-[2fr,2fr,1fr,1fr,1fr,auto] gap-2 items-center text-sm">
+        <div className="grid grid-cols-2 sm:grid-cols-[2fr,2fr,1.4fr,1fr,1fr,1fr,auto] gap-2 items-center text-sm">
           <select
             value={draft.home_team}
             onChange={(e) => onDraft({ ...draft, home_team: e.target.value })}
@@ -622,6 +627,14 @@ function GameRow({
             type="date"
             value={draft.date ?? ''}
             onChange={(e) => onDraft({ ...draft, date: e.target.value || null })}
+            className="rounded-md border border-white/[0.1] bg-[#0a1525] px-2 py-1.5 text-white focus:border-orange-500/40 focus:outline-none"
+          />
+          <input
+            type="time"
+            aria-label="שעת המשחק"
+            title="שעת המשחק"
+            value={cupGameTime(draft.game_time) ?? ''}
+            onChange={(e) => onDraft({ ...draft, game_time: e.target.value || null })}
             className="rounded-md border border-white/[0.1] bg-[#0a1525] px-2 py-1.5 text-white focus:border-orange-500/40 focus:outline-none"
           />
           <input
@@ -670,6 +683,48 @@ function GameRow({
             className="flex-1 rounded-md border border-white/[0.1] bg-[#0a1525] px-3 py-1.5 text-sm text-white placeholder:text-[#3a5a7a] focus:border-orange-500/40 focus:outline-none"
           />
         </div>
+        {/* Postponed — the same flag + public note the league games have */}
+        <div className={`rounded-lg border p-2.5 ${draft.delayed ? 'border-amber-500/30 bg-amber-500/[0.06]' : 'border-white/[0.06]'}`}>
+          <label className="flex items-center gap-2 text-xs font-bold text-[#8aaac8] cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!!draft.delayed}
+              onChange={(e) => onDraft({ ...draft, delayed: e.target.checked })}
+              className="accent-amber-500"
+            />
+            <span className={draft.delayed ? 'text-amber-300' : ''}>⏱️ משחק דחוי</span>
+            <span className="font-normal text-[#5a7a9a]">— נדחה או הופסק, ויושלם במועד חדש</span>
+          </label>
+          {draft.delayed && (
+            <div className="mt-2 space-y-2">
+              <div className="flex flex-wrap gap-1.5">
+                {DELAY_NOTE_PRESETS.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => onDraft({ ...draft, delay_note: p })}
+                    className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition ${
+                      draft.delay_note === p
+                        ? 'border-amber-400 bg-amber-500/20 text-amber-200'
+                        : 'border-white/[0.12] text-[#8aaac8] hover:border-amber-500/50 hover:text-amber-200'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="text"
+                aria-label="הערה לאוהדים"
+                value={draft.delay_note ?? ''}
+                maxLength={DELAY_NOTE_MAX}
+                onChange={(e) => onDraft({ ...draft, delay_note: e.target.value || null })}
+                placeholder="💬 הערה לאוהדים — למשל: הופסק ברבע השלישי בגלל גשם"
+                className="w-full rounded-md border border-white/[0.1] bg-[#0a1525] px-3 py-1.5 text-sm text-white placeholder:text-[#3a5a7a] focus:border-amber-500/40 focus:outline-none"
+              />
+            </div>
+          )}
+        </div>
         <div className="flex gap-2 justify-end">
           <button
             onClick={onSave}
@@ -693,8 +748,12 @@ function GameRow({
     ? game.home_score > game.away_score ? 'home' : game.away_score > game.home_score ? 'away' : null
     : null;
 
+  const time = cupGameTime(game.game_time);
+  const note = game.delayed ? game.delay_note?.trim() : null;
+
   return (
-    <div className="grid grid-cols-[2fr,auto,2fr,auto,auto,auto,auto] items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-sm">
+    <div className={`rounded-lg border px-3 py-2 text-sm ${game.delayed ? 'border-amber-500/30 bg-amber-500/[0.04]' : 'border-white/[0.06] bg-white/[0.02]'}`}>
+    <div className="grid grid-cols-[2fr,auto,2fr,auto,auto,auto,auto] items-center gap-2">
       <span className={`truncate font-bold ${winner === 'home' ? 'text-orange-400' : 'text-white'}`}>
         {game.home_team}
         <span className="text-[10px] font-bold text-[#5a7a9a] mr-1">בית</span>
@@ -709,7 +768,11 @@ function GameRow({
         <span className="text-[10px] font-bold text-[#5a7a9a] mr-1">חוץ</span>
       </span>
       <span className="text-xs text-[#5a7a9a] tabular-nums whitespace-nowrap flex items-center gap-1">
+        {game.delayed && (
+          <span title={note || 'משחק דחוי'} className="rounded-full bg-amber-500/20 px-1.5 py-px text-[10px] font-bold text-amber-300">⏱️ דחוי</span>
+        )}
         {formatCupDate(game.date)}
+        {time && <><span>·</span><span dir="ltr">{time}</span></>}
         {game.location && (
           <span title={game.location} className="text-emerald-400/80">📍</span>
         )}
@@ -749,6 +812,8 @@ function GameRow({
       >
         {isBusy ? '...' : '🗑'}
       </button>
+    </div>
+    {note && <p className="mt-1 break-words text-xs font-bold text-amber-300/90">💬 {note}</p>}
     </div>
   );
 }
