@@ -87,3 +87,37 @@ describe('CupTab — start a season tournament', () => {
     expect(screen.getByText('🏆 פתח טורניר גביע לעונה 2026-2027')).toBeInTheDocument();
   });
 });
+
+describe('CupTab — game time and postponed games', () => {
+  const real = { home_team: 'קבוצה 1', away_team: 'קבוצה 2', date: '2026-11-14' };
+
+  it('shows the time, a postponed badge and the note on the game row', () => {
+    renderTab([game({ ...real, game_time: '20:30', delayed: true, delay_note: 'הופסק בגלל מזג האוויר' })]);
+    expect(screen.getByText('20:30')).toBeInTheDocument();
+    expect(screen.getByText('⏱️ דחוי')).toBeInTheDocument();
+    expect(screen.getByText('💬 הופסק בגלל מזג האוויר')).toBeInTheDocument();
+  });
+
+  it('hides the note when the game is no longer postponed', () => {
+    renderTab([game({ ...real, delayed: false, delay_note: 'ישן' })]);
+    expect(screen.queryByText(/ישן/)).not.toBeInTheDocument();
+  });
+
+  it('saves the time, postponed flag and a preset note from the edit row', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true }) });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    renderTab([game({ ...real })]);
+
+    await userEvent.click(screen.getByTitle('ערוך'));
+    const time = screen.getByLabelText('שעת המשחק');
+    await userEvent.clear(time);
+    await userEvent.type(time, '20:30');
+    await userEvent.click(screen.getByLabelText(/משחק דחוי/));
+    await userEvent.click(screen.getByRole('button', { name: 'הופסק בגלל מזג האוויר' }));
+    await userEvent.click(screen.getByRole('button', { name: 'שמור' }));
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body).toMatchObject({ id: 'g1', game_time: '20:30', delayed: true, delay_note: 'הופסק בגלל מזג האוויר' });
+    await waitFor(() => expect(screen.getByText('💬 הופסק בגלל מזג האוויר')).toBeInTheDocument());
+  });
+});

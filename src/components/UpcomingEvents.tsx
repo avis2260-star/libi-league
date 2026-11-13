@@ -25,6 +25,11 @@ export type UpcomingEvent = {
   homeLogo: string | null;
   awayLogo: string | null;
   location: string | null;
+  /** Start time "HH:MM", when the admin set one. */
+  time: string | null;
+  /** Postponed / stopped, with the admin's note on why. */
+  delayed: boolean;
+  note: string | null;
 };
 
 function TeamLogo({ logo, name, large }: { logo: string | null; name: string; large?: boolean }) {
@@ -134,13 +139,19 @@ export default function UpcomingEvents({
                       {countdownLabel(ev.daysUntil, lang)}
                     </p>
                     <p className="mt-1 text-lg sm:text-xl font-black text-white tabular-nums font-stats leading-tight">
-                      {ev.heDayLabel} · {ev.displayDate}
+                      {ev.heDayLabel} · {ev.displayDate}{ev.time && <> · <span dir="ltr">{ev.time}</span></>}
                     </p>
                     {ev.location && (
                       <p className="mt-1 text-xs font-bold text-amber-700 dark:text-amber-200/80">📍 {ev.location}</p>
                     )}
                   </div>
                 </div>
+
+                {ev.delayed && (
+                  <p className="mb-4 break-words rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm font-bold text-amber-200">
+                    ⏱️ {en ? 'Postponed game' : 'משחק דחוי'}{ev.note ? ` · ${ev.note}` : ''}
+                  </p>
+                )}
 
                 {/* Matchup — big team logos and names */}
                 <div className="flex items-center justify-around gap-3 sm:gap-6">

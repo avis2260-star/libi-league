@@ -2,6 +2,7 @@
 
 import { Fragment, useMemo, useState } from 'react';
 import { useLang } from '@/components/TranslationProvider';
+import { cupGameTime } from '@/lib/cup-settings';
 
 type CupGame = {
   id: string; round: string; round_order: number; game_number: number;
@@ -9,6 +10,9 @@ type CupGame = {
   home_score: number | null; away_score: number | null;
   date: string; played: boolean;
   location?: string | null;
+  game_time?: string | null;
+  delayed?: boolean;
+  delay_note?: string | null;
 };
 
 function getWinner(g: CupGame): string | null {
@@ -500,7 +504,7 @@ function JourneyPanel({
                                 : 'bg-orange-500/15 text-orange-300 border-orange-500/30'
                           }`}
                         >
-                          {step.game.date}
+                          {step.game.date}{cupGameTime(step.game.game_time) ? ` · ${cupGameTime(step.game.game_time)}` : ''}
                         </span>
                       )}
                     </div>
@@ -528,6 +532,11 @@ function JourneyPanel({
                   </div>
                   {step.game.location && (
                     <p className="mt-1.5 text-[11px] font-bold text-[#8aaac8]">📍 {step.game.location}</p>
+                  )}
+                  {step.game.delayed && (
+                    <p className="mt-1.5 break-words rounded-md bg-amber-500/10 px-2 py-1 text-[11px] font-bold text-amber-200">
+                      ⏱️ {en ? 'Postponed' : 'נדחה'}{step.game.delay_note?.trim() ? ` · ${step.game.delay_note.trim()}` : ''}
+                    </p>
                   )}
                   {statsGameIds.has(step.game.id) && (
                     <a

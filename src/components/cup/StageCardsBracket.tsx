@@ -1,6 +1,7 @@
 'use client';
 
 import { useLang } from '@/components/TranslationProvider';
+import { cupGameTime } from '@/lib/cup-settings';
 
 type CupGame = {
   id: string; round: string; round_order: number; game_number: number;
@@ -8,7 +9,23 @@ type CupGame = {
   home_score: number | null; away_score: number | null;
   date: string; played: boolean;
   location?: string | null;
+  game_time?: string | null;
+  delayed?: boolean;
+  delay_note?: string | null;
 };
+
+/* ── Postponed notice (with the admin's note) ────────────────────────── */
+function PostponedLine({ game }: { game: CupGame }) {
+  const { lang } = useLang();
+  if (!game.delayed) return null;
+  const note = game.delay_note?.trim();
+  return (
+    <div className="flex items-start justify-center gap-1 px-3 py-1 border-t border-amber-500/20 bg-amber-500/[0.08] text-[10px] font-bold text-amber-200">
+      <span className="shrink-0">⏱️ {lang === 'en' ? 'Postponed' : 'נדחה'}</span>
+      {note && <span className="min-w-0 break-words">· {note}</span>}
+    </div>
+  );
+}
 
 function getWinner(g: CupGame): string | null {
   if (!g.played || g.home_score === null || g.away_score === null) return null;
@@ -82,11 +99,14 @@ function MatchCard({ game, teamLogos, statsLink }: { game: CupGame; teamLogos: R
       <Row name={game.home_team} score={game.home_score} isWinner={homeWin} placeholder={game.played && !homeWin} isHome />
       <div className="h-px bg-white/[0.05]" />
       <Row name={game.away_team} score={game.away_score} isWinner={awayWin} placeholder={game.played && !awayWin} isHome={false} />
-      {game.location && (
+      {(game.location || cupGameTime(game.game_time)) && (
         <div className="flex items-center justify-center gap-1 px-3 py-1 border-t border-white/[0.04] text-[10px] font-bold text-[#8aaac8]">
-          📍 <span className="min-w-0 break-words">{game.location}</span>
+          {cupGameTime(game.game_time) && <span dir="ltr" className="shrink-0 tabular-nums">⏰ {cupGameTime(game.game_time)}</span>}
+          {cupGameTime(game.game_time) && game.location && <span className="text-[#3a5a7a]">·</span>}
+          {game.location && <>📍 <span className="min-w-0 break-words">{game.location}</span></>}
         </div>
       )}
+      <PostponedLine game={game} />
       {statsLink && (
         <div className="flex items-center justify-center gap-1 px-3 py-1.5 border-t border-white/[0.04] bg-orange-500/[0.06]">
           <span className="text-[10px] font-bold text-orange-400">📊 {en ? 'Box score' : 'גיליון משחק'}</span>
@@ -123,9 +143,10 @@ function FinalCard({ game, teamLogos, statsLink }: { game: CupGame; teamLogos: R
       <div className="flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500/10 border-b border-orange-500/20">
         <span className="text-lg">🏆</span>
         <span className="text-[11px] font-black uppercase tracking-widest text-orange-400">
-          {t('הגמר')} · {game.date || t('תאריך טרם נקבע')} · {game.location ? game.location : t('מגרש ניטרלי')}
+          {t('הגמר')} · {game.date || t('תאריך טרם נקבע')}{cupGameTime(game.game_time) ? <> · <span dir="ltr">{cupGameTime(game.game_time)}</span></> : null} · {game.location ? game.location : t('מגרש ניטרלי')}
         </span>
       </div>
+      <PostponedLine game={game} />
       <div className="grid grid-cols-[1fr,auto,1fr] items-center gap-3 px-5 py-5">
         {/* Home team (right in RTL). Final is played on a neutral court so we
             don't show a בית/חוץ badge here. */}

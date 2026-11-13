@@ -79,6 +79,45 @@ describe('cup-games', () => {
     expect(await res.json()).toEqual({ success: true });
   });
 
+  describe('PATCH time + postponed', () => {
+    function capture(error: unknown = null) {
+      const updates: Record<string, unknown>[] = [];
+      const b = queryResult({ error });
+      b.update = (patch: Record<string, unknown>) => { updates.push(patch); return b; };
+      fromMock.mockReturnValue(b);
+      return updates;
+    }
+
+    it('saves the time, the postponed flag and a cleaned note', async () => {
+      const updates = capture();
+      const res = await cup.PATCH(patchJson({
+        id: 'c1', game_time: '20:30', delayed: 1, delay_note: '  הופסק  בגלל מזג האוויר ',
+      }));
+      expect(res.status).toBe(200);
+      expect(updates).toEqual([{ game_time: '20:30', delayed: true, delay_note: 'הופסק בגלל מזג האוויר' }]);
+    });
+
+    it('clears an empty time and note', async () => {
+      const updates = capture();
+      await cup.PATCH(patchJson({ id: 'c1', game_time: '', delay_note: '  ', delayed: false }));
+      expect(updates).toEqual([{ game_time: null, delay_note: null, delayed: false }]);
+    });
+
+    it('rejects a time that is not HH:MM', async () => {
+      const updates = capture();
+      const res = await cup.PATCH(patchJson({ id: 'c1', game_time: '25:99' }));
+      expect(res.status).toBe(400);
+      expect(updates).toEqual([]);
+    });
+
+    it('says which migration to run when the new columns are missing', async () => {
+      capture({ message: "Could not find the 'game_time' column of 'cup_games' in the schema cache" });
+      const res = await cup.PATCH(patchJson({ id: 'c1', game_time: '20:00' }));
+      expect(res.status).toBe(500);
+      expect((await res.json()).error).toContain('20261113_cup_game_time_delay.sql');
+    });
+  });
+
   it('DELETE requires an id', async () => {
     expect((await cup.DELETE(deleteReq())).status).toBe(400);
   });

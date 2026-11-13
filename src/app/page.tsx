@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { isPlaceholderTeam } from '@/lib/cup-settings';
+import { isPlaceholderTeam, cupGameTime } from '@/lib/cup-settings';
 import { TOTAL_ROUNDS } from '@/lib/league-data';
 import { getSeasonSchedule } from '@/lib/season-schedule';
 import { roundDatesForSeason } from '@/lib/schedule-format';
@@ -980,6 +980,9 @@ type CupRow = {
   date: string | null;
   played: boolean | null;
   location: string | null;
+  game_time?: string | null;
+  delayed?: boolean | null;
+  delay_note?: string | null;
 };
 
 /**
@@ -1034,12 +1037,17 @@ function parseFlexibleDate(s: string | null | undefined, season: string): Date |
 
 async function getUpcomingCupGames(season: string): Promise<CupRow[]> {
   try {
-    const { data } = await supabaseAdmin
+    const base = 'id, round, home_team, away_team, date, played, location';
+    const query = (cols: string) => supabaseAdmin
       .from('cup_games')
-      .select('id, round, home_team, away_team, date, played, location')
+      .select(cols)
       .eq('season', season)
       .eq('played', false);
-    return (data ?? []) as CupRow[];
+    // time / postponed come from a later migration — without it, load the
+    // games anyway rather than dropping the upcoming-cup card.
+    let { data, error } = await query(`${base}, game_time, delayed, delay_note`);
+    if (error) ({ data } = await query(base));
+    return (data ?? []) as unknown as CupRow[];
   } catch { return []; }
 }
 
@@ -1110,6 +1118,9 @@ function buildUpcomingCupEvents(opts: {
       homeLogo: logoLookup(c.home_team),
       awayLogo: logoLookup(c.away_team),
       location: c.location,
+      time: cupGameTime(c.game_time),
+      delayed: !!c.delayed,
+      note: c.delayed ? c.delay_note?.trim() || null : null,
     });
   }
 
