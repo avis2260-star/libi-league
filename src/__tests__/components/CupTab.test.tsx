@@ -121,3 +121,70 @@ describe('CupTab — game time and postponed games', () => {
     await waitFor(() => expect(screen.getByText('💬 הופסק בגלל מזג האוויר')).toBeInTheDocument());
   });
 });
+
+describe('CupTab — Excel stats import for a cup game', () => {
+  const real = { home_team: 'קבוצה 1', away_team: 'קבוצה 2', home_score: null, away_score: null };
+  const rosters = {
+    'קבוצה 1': [{ id: 'p1', name: 'יוסי כהן', jersey_number: 7 }],
+    'קבוצה 2': [{ id: 'p2', name: 'דני לוי', jersey_number: 9 }],
+  };
+
+  function renderWithRosters() {
+    return render(
+      <CupTab season="2026-2027" teamIds={[]} teams={teams} games={[game({ ...real })]} rostersByTeam={rosters} cupStats={[]} />,
+    );
+  }
+
+  it('offers the template download and upload in the game stats panel', async () => {
+    renderWithRosters();
+    await userEvent.click(screen.getByTitle('סטטיסטיקת שחקנים ורבעים'));
+    expect(screen.getByText('📊 ייבוא סטטיסטיקה מ-Excel')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '⬇️ הורד תבנית' })).toHaveAttribute(
+      'href', '/api/admin/cup-stats/template?cupGameId=g1',
+    );
+  });
+
+  it('uploads the file and shows the imported stats and quarters in place', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        message: '✅ נשמרו 2 שחקנים · ניקוד רבעים עודכן',
+        unmatched: ['זר'],
+        stats: [
+          { cup_game_id: 'g1', player_id: 'p1', points: 37, three_pointers: 2, fouls: 1 },
+          { cup_game_id: 'g1', player_id: 'p2', points: 41, three_pointers: 0, fouls: 4 },
+        ],
+        game: { ...game({ ...real }), home_quarters: [11, 12, 13, 14], away_quarters: [21, 22, 23, 24] },
+      }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    renderWithRosters();
+    await userEvent.click(screen.getByTitle('סטטיסטיקת שחקנים ורבעים'));
+
+    const file = new File(['x'], 'scoresheet.xlsx');
+    await userEvent.upload(screen.getByLabelText('קובץ סטטיסטיקה'), file);
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/admin/cup-stats/import', expect.objectContaining({ method: 'POST' }));
+    const fd = fetchMock.mock.calls[0][1].body as FormData;
+    expect(fd.get('cupGameId')).toBe('g1');
+    expect(await screen.findByText('✅ נשמרו 2 שחקנים · ניקוד רבעים עודכן')).toBeInTheDocument();
+    expect(screen.getByText('לא זוהו: זר')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('37')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('41')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('14')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('24')).toBeInTheDocument();
+  });
+
+  it('shows the error when the import is refused', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: 'לא זוהה אף שחקן מהקובץ', unmatched: ['א', 'ב'] }),
+    }) as unknown as typeof fetch;
+    renderWithRosters();
+    await userEvent.click(screen.getByTitle('סטטיסטיקת שחקנים ורבעים'));
+    await userEvent.upload(screen.getByLabelText('קובץ סטטיסטיקה'), new File(['x'], 'bad.xlsx'));
+    expect(await screen.findByText('❌ לא זוהה אף שחקן מהקובץ')).toBeInTheDocument();
+    expect(screen.getByText('לא זוהו: א, ב')).toBeInTheDocument();
+  });
+});

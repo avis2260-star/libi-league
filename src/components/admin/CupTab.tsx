@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useMemo, useRef, useState, useTransition, type ChangeEvent } from 'react';
 import { saveCupSetting, upsertCupGameStat, saveCupGameQuarters, startCupTournament } from '@/app/admin/actions';
 import { CUP_ROUNDS, isPlaceholderTeam, cupGameTime, type CupRoundName } from '@/lib/cup-settings';
 import { DELAY_NOTE_MAX, DELAY_NOTE_PRESETS } from '@/lib/delay-note';
@@ -104,16 +104,27 @@ export default function CupTab({ season, teamIds: tInit, teams, games: gInit, ro
   const [editDraft, setEditDraft] = useState<CupGame | null>(null);
   const [statsOpenId, setStatsOpenId] = useState<string | null>(null);
 
+  // Stats rows, kept in state so an Excel import can swap one game's rows in
+  // place; statsVersion remounts that game's editor so it shows them.
+  const [statRows, setStatRows] = useState<CupStatRow[]>(cupStats);
+  const [statsVersion, setStatsVersion] = useState<Record<string, number>>({});
+
+  function applyImport(gameId: string, rows: CupStatRow[], game: CupGame | null) {
+    setStatRows(prev => [...prev.filter(s => s.cup_game_id !== gameId), ...rows]);
+    if (game) setGames(prev => prev.map(g => (g.id === gameId ? { ...g, ...game } : g)));
+    setStatsVersion(prev => ({ ...prev, [gameId]: (prev[gameId] ?? 0) + 1 }));
+  }
+
   // cup_game_id → { player_id → stat values }
   const statsByGame = useMemo(() => {
     const m: Record<string, Record<string, { points: number; three_pointers: number; fouls: number }>> = {};
-    for (const s of cupStats) {
+    for (const s of statRows) {
       (m[s.cup_game_id] ??= {})[s.player_id] = {
         points: s.points, three_pointers: s.three_pointers, fouls: s.fouls,
       };
     }
     return m;
-  }, [cupStats]);
+  }, [statRows]);
   // Per-round date drafts. Keyed by round name. The admin sets one date
   // per round and it gets stamped on every game in the round — saves
   // re-typing the same date 4-8 times.
@@ -540,8 +551,13 @@ export default function CupTab({ season, teamIds: tInit, teams, games: gInit, ro
                       onToggleStats={() => setStatsOpenId(prev => prev === g.id ? null : g.id)}
                     />
                     {statsOpenId === g.id && (
-                      <div className="rounded-xl border border-orange-500/20 bg-orange-500/[0.03] p-3">
+                      <div className="rounded-xl border border-orange-500/20 bg-orange-500/[0.03] p-3 space-y-3">
+                        <CupStatsExcelTools
+                          gameId={g.id}
+                          onImported={(rows, updated) => applyImport(g.id, rows, updated)}
+                        />
                         <GameStatsEditor
+                          key={`${g.id}-${statsVersion[g.id] ?? 0}`}
                           homeTeamName={g.home_team}
                           awayTeamName={g.away_team}
                           homePlayers={rostersByTeam[g.home_team] ?? []}
@@ -577,6 +593,107 @@ export default function CupTab({ season, teamIds: tInit, teams, games: gInit, ro
           ➕ הוסף סיבוב חדש
         </button>
       </div>
+    </div>
+  );
+}
+
+// ── Excel import for one cup game ─────────────────────────────────────────
+// Same flow as the league box score: download a template pre-filled with both
+// rosters (or use the official referee scoresheet), fill it in and upload it.
+// The upload replaces this game's player stats; the scoresheet's quarter line
+// fills the quarters, and the score is filled only if none was entered yet.
+
+type CupImportReport =
+  | { ok: true; text: string; unmatched: string[] }
+  | { ok: false; text: string; unmatched?: string[] };
+
+function CupStatsExcelTools({
+  gameId,
+  onImported,
+}: {
+  gameId: string;
+  onImported: (rows: CupStatRow[], game: CupGame | null) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [report, setReport] = useState<CupImportReport | null>(null);
+
+  async function handleFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same filename
+    if (!file) return;
+    setBusy(true);
+    setReport(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('cupGameId', gameId);
+      const res = await fetch('/api/admin/cup-stats/import', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setReport({ ok: false, text: data.error ?? 'שגיאה בייבוא', unmatched: data.unmatched });
+        return;
+      }
+      setReport({ ok: true, text: data.message ?? '✅ יובא', unmatched: data.unmatched ?? [] });
+      onImported((data.stats ?? []) as CupStatRow[], (data.game ?? null) as CupGame | null);
+    } catch (err) {
+      setReport({ ok: false, text: err instanceof Error ? err.message : 'שגיאת רשת' });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.03] p-3 space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-black text-emerald-300">📊 ייבוא סטטיסטיקה מ-Excel</span>
+        <div className="flex-1" />
+        <a
+          href={`/api/admin/cup-stats/template?cupGameId=${gameId}`}
+          className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs font-bold text-[#c8d8e8] transition hover:border-emerald-500/40 hover:text-emerald-300"
+        >
+          ⬇️ הורד תבנית
+        </a>
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={busy}
+          className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-emerald-400 disabled:opacity-40"
+        >
+          {busy ? 'מעלה…' : '⬆️ העלה קובץ'}
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".xlsx,.xls"
+          onChange={handleFile}
+          aria-label="קובץ סטטיסטיקה"
+          className="hidden"
+        />
+      </div>
+
+      <p className="text-[11px] leading-relaxed text-[#5a7a9a]">
+        הורד את התבנית (כוללת את סגלי שתי הקבוצות), מלא נקודות / שלשות / עבירות לכל שחקן, והעלה חזרה.
+        אפשר גם להעלות ישירות את טופס השיפוט הרשמי — הנתונים נמשכים אוטומטית מגליון &quot;סיכום&quot; (שם, מספר, סה&quot;כ נק&apos;, שלשות, עבירות, וניקוד הרבעים).
+        הייבוא יחליף את הסטטיסטיקות הקיימות למשחק הגביע הזה. תוצאה שכבר הוזנה לא משתנה.
+      </p>
+
+      {report?.ok && (
+        <div className="rounded-lg bg-green-900/30 px-3 py-2 text-xs font-bold text-green-300">
+          {report.text}
+          {report.unmatched.length > 0 && (
+            <span className="mt-1 block text-yellow-300">לא זוהו: {report.unmatched.join(', ')}</span>
+          )}
+        </div>
+      )}
+      {report && !report.ok && (
+        <div className="rounded-lg bg-red-900/30 px-3 py-2 text-xs font-bold text-red-300">
+          ❌ {report.text}
+          {report.unmatched && report.unmatched.length > 0 && (
+            <span className="mt-1 block text-yellow-300">לא זוהו: {report.unmatched.join(', ')}</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
