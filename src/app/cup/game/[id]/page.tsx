@@ -56,7 +56,7 @@ export default async function CupGameBoxScorePage({
   const hasStats = (statRows?.length ?? 0) > 0 || hasQuarters;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4" dir={dir}>
+    <div className="mx-auto max-w-6xl space-y-4" dir={dir}>
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest text-[#5a7a9a]">
