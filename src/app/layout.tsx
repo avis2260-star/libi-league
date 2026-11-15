@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import type { Metadata } from 'next';
-import { Heebo, Teko, Assistant } from 'next/font/google';
+import localFont from 'next/font/local';
 import './globals.css';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import GroupedNav from '@/components/GroupedNav';
@@ -22,9 +22,12 @@ import BackButton from '@/components/BackButton';
 import ReportErrorButton from '@/components/ReportErrorButton';
 import { getLang, st } from '@/lib/get-lang';
 
-const heebo     = Heebo({ subsets: ['hebrew', 'latin'], weight: ['300','400','500','600','700','800','900'], variable: '--font-heebo' });
-const teko      = Teko({ subsets: ['latin'], weight: ['400','600','700'], variable: '--font-teko' });
-const assistant = Assistant({ subsets: ['hebrew', 'latin'], weight: ['400','600','700'], variable: '--font-assistant' });
+// Self-hosted (src/app/fonts) so builds never depend on downloading from
+// Google Fonts. Variable fonts trimmed to the same Hebrew/Latin subsets the
+// site used from Google; the weight ranges cover every weight used before.
+const heebo     = localFont({ src: './fonts/Heebo-Variable.woff2',     weight: '100 900', display: 'swap', variable: '--font-heebo' });
+const teko      = localFont({ src: './fonts/Teko-Variable.woff2',      weight: '300 700', display: 'swap', variable: '--font-teko' });
+const assistant = localFont({ src: './fonts/Assistant-Variable.woff2', weight: '200 800', display: 'swap', variable: '--font-assistant' });
 
 export const metadata: Metadata = {
   title: 'ליגת ליבי',
