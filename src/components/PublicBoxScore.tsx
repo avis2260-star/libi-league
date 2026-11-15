@@ -70,12 +70,12 @@ function PlayerTable({
             <table className="w-full text-sm">
               <thead className="bg-white/[0.02] text-[10px] font-bold uppercase tracking-wide text-[#6a86a4]">
                 <tr>
-                  <th className="px-3 py-2 text-right">{en ? 'Player' : 'שחקן'}</th>
-                  {hasQuarters && qTotals.map((_, i) => <th key={i} className="px-2 py-2 text-center">{qLabel(i)}</th>)}
-                  <th className="px-2 py-2 text-center">{en ? 'PTS' : 'נק׳'}</th>
-                  {hasTwo && <th className="px-2 py-2 text-center">{en ? '2PT' : '2נק׳'}</th>}
-                  <th className="px-2 py-2 text-center">{en ? '3PT' : '3נק׳'}</th>
-                  <th className="px-2 py-2 text-center">{en ? 'PF' : 'פאולים'}</th>
+                  <th className="ps-3 pe-1 py-2 text-start">{en ? 'Player' : 'שחקן'}</th>
+                  {hasQuarters && qTotals.map((_, i) => <th key={i} className="px-1 py-2 text-center">{qLabel(i)}</th>)}
+                  <th className="px-1 py-2 text-center">{en ? 'PTS' : 'נק׳'}</th>
+                  {hasTwo && <th className="px-1 py-2 text-center">{en ? '2PT' : '2נק׳'}</th>}
+                  <th className="px-1 py-2 text-center">{en ? '3PT' : '3נק׳'}</th>
+                  <th className="px-1 pe-3 py-2 text-center">{en ? 'PF' : 'עב׳'}</th>
                 </tr>
               </thead>
               <tbody>
@@ -83,34 +83,34 @@ function PlayerTable({
                   const isStar = i === 0 && topPts > 0;
                   return (
                     <tr key={i} className={`border-t border-white/[0.04] ${isStar ? 'bg-gradient-to-l from-orange-500/[0.20] to-orange-500/[0.04]' : ''}`}>
-                      <td className="px-3 py-2 whitespace-nowrap">
+                      <td className="ps-3 pe-1 py-2 min-w-[7.5rem] break-words leading-snug">
                         <span className={`text-sm ${isStar ? 'font-black text-[#ffe6d2]' : 'font-semibold text-white'}`}>{nameOf(p.name)}</span>
                         {p.jersey_number !== null && (
-                          <span className="mr-1.5 text-[11px] font-bold text-orange-400/75">#{p.jersey_number}</span>
+                          <span className="ms-1 whitespace-nowrap text-[11px] font-bold text-orange-400/75">#{p.jersey_number}</span>
                         )}
                         {isStar && (
-                          <span className="ms-2 inline-flex items-center gap-1 rounded-full border border-orange-400/55 bg-orange-400/25 px-2 py-px text-[10px] font-black text-[#ffd9b8] align-middle">
+                          <span className="ms-1.5 inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-orange-400/55 bg-orange-400/25 px-1.5 py-px text-[10px] font-black text-[#ffd9b8] align-middle">
                             👑 {en ? 'MVP' : 'מצטיין'}
                           </span>
                         )}
                       </td>
                       {hasQuarters && qTotals.map((_, qi) => (
-                        <td key={qi} className={`px-2 py-2 text-center tabular-nums ${isStar ? 'text-white' : 'text-[#c0d4e8]'}`}>{p.quarter_points?.[qi] ?? '·'}</td>
+                        <td key={qi} className={`px-1 py-2 text-center tabular-nums ${isStar ? 'text-white' : 'text-[#c0d4e8]'}`}>{p.quarter_points?.[qi] ?? '·'}</td>
                       ))}
-                      <td className={`px-2 py-2 text-center font-black tabular-nums ${isStar ? 'text-orange-400' : 'text-white'}`}>{p.points}</td>
-                      {hasTwo && <td className="px-2 py-2 text-center text-[#c0d4e8] tabular-nums">{p.two_pointers ?? '·'}</td>}
-                      <td className="px-2 py-2 text-center text-[#c0d4e8] tabular-nums">{p.three_pointers}</td>
-                      <td className="px-2 py-2 text-center text-[#c0d4e8] tabular-nums">{p.fouls}</td>
+                      <td className={`px-1 py-2 text-center font-black tabular-nums ${isStar ? 'text-orange-400' : 'text-white'}`}>{p.points}</td>
+                      {hasTwo && <td className="px-1 py-2 text-center text-[#c0d4e8] tabular-nums">{p.two_pointers ?? '·'}</td>}
+                      <td className="px-1 py-2 text-center text-[#c0d4e8] tabular-nums">{p.three_pointers}</td>
+                      <td className="px-1 pe-3 py-2 text-center text-[#c0d4e8] tabular-nums">{p.fouls}</td>
                     </tr>
                   );
                 })}
                 <tr className="bg-orange-500/[0.07] font-black border-t border-white/[0.06]">
-                  <td className="px-3 py-2 text-[#8aaac8] text-xs uppercase tracking-wide">{en ? 'Total' : 'סה״כ'}</td>
-                  {hasQuarters && qTotals.map((q, i) => <td key={i} className="px-2 py-2 text-center text-orange-300 tabular-nums">{q}</td>)}
-                  <td className="px-2 py-2 text-center text-orange-400 tabular-nums">{totals.pts}</td>
-                  {hasTwo && <td className="px-2 py-2 text-center text-orange-300 tabular-nums">{totals.two}</td>}
-                  <td className="px-2 py-2 text-center text-orange-300 tabular-nums">{totals.tp}</td>
-                  <td className="px-2 py-2 text-center text-orange-300 tabular-nums">{totals.f}</td>
+                  <td className="ps-3 pe-1 py-2 text-[#8aaac8] text-xs uppercase tracking-wide">{en ? 'Total' : 'סה״כ'}</td>
+                  {hasQuarters && qTotals.map((q, i) => <td key={i} className="px-1 py-2 text-center text-orange-300 tabular-nums">{q}</td>)}
+                  <td className="px-1 py-2 text-center text-orange-400 tabular-nums">{totals.pts}</td>
+                  {hasTwo && <td className="px-1 py-2 text-center text-orange-300 tabular-nums">{totals.two}</td>}
+                  <td className="px-1 py-2 text-center text-orange-300 tabular-nums">{totals.tp}</td>
+                  <td className="px-1 pe-3 py-2 text-center text-orange-300 tabular-nums">{totals.f}</td>
                 </tr>
               </tbody>
             </table>
