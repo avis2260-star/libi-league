@@ -17,6 +17,8 @@ import UpcomingEvents, { type UpcomingEvent } from '@/components/UpcomingEvents'
 import ChampionBanner, { type ChampionBannerProps } from '@/components/ChampionBanner';
 import { getSeasonPhaseSetting, resolveSeasonPhase } from '@/lib/season-phase';
 import { deriveCupScores, type CupGameLike } from '@/lib/cup-derived-scores';
+import { latestCupRoundResults, type CupResultGame, type CupRoundResults as CupRoundResultsData } from '@/lib/cup-round-results';
+import CupRoundResults from '@/components/CupRoundResults';
 import { getLang, st } from '@/lib/get-lang';
 import { displayName } from '@/lib/names';
 import { makeNameResolver } from '@/lib/team-name-resolver';
@@ -470,6 +472,34 @@ async function getLiveData(season: string): Promise<LiveData> {
 }
 
 type CupFinal = { date: string; home_team: string; away_team: string; home_score: number | null; away_score: number | null; played: boolean } | null;
+
+// ── Latest cup round's results (season-facts card) ──────────────────────────
+// Until the final's matchup is known, the season-facts cup card rotates
+// through the latest round that has results — the first round early on, then
+// each later round as it's played. Scores typed in the admin win; games
+// entered only as quarters / player stats use the derived score, as on /cup.
+
+async function getCupRoundResults(season: string): Promise<CupRoundResultsData | null> {
+  try {
+    const [{ data: games }, { data: stats }, { data: teamRows }] = await Promise.all([
+      supabaseAdmin
+        .from('cup_games')
+        .select('id, round, round_order, game_number, home_team, away_team, home_score, away_score, home_quarters, away_quarters')
+        .eq('season', season),
+      supabaseAdmin.from('cup_game_stats').select('cup_game_id, team_id, points').eq('season', season),
+      supabaseAdmin.from('teams').select('id, name'),
+    ]);
+    const list = (games ?? []) as (CupResultGame & CupGameLike)[];
+    const derived = deriveCupScores(
+      list,
+      (teamRows ?? []) as { id: string; name: string }[],
+      (stats ?? []) as { cup_game_id: string; team_id: string | null; points: number | null }[],
+    );
+    return latestCupRoundResults(list, derived);
+  } catch {
+    return null;
+  }
+}
 
 async function getCupFinal(season: string): Promise<CupFinal> {
   try {
@@ -1156,7 +1186,7 @@ function RecordCard({ icon, label, value, sub, detail, color }: { icon: string; 
 
 export default async function HomePage() {
   const season = await getCurrentSeason();
-  const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers, lang, dbRoundDates, cupFinal, upcomingCup, cupChampion, playoffChampion, autoTickerItems, cupHeroReviews, seasonPhaseSetting, playoffUpcoming, delayedGames, playoffTopScorers, playoffHighlights] = await Promise.all([
+  const [liveData, activeAnnouncements, teams, tickerSpeed, topScorers, lang, dbRoundDates, cupFinal, upcomingCup, cupChampion, playoffChampion, autoTickerItems, cupHeroReviews, seasonPhaseSetting, playoffUpcoming, delayedGames, playoffTopScorers, playoffHighlights, cupRound] = await Promise.all([
     getLiveData(season),
     getActiveAnnouncements(),
     getTeams(),
@@ -1175,6 +1205,7 @@ export default async function HomePage() {
     getDelayedGames(season),
     getPlayoffTopScorers(season),
     getPlayoffHighlights(season),
+    getCupRoundResults(season),
   ]);
 
   // This season's schedule (DB-driven; static 2025-2026 archive as fallback).
@@ -1872,6 +1903,19 @@ export default async function HomePage() {
                 {lang === 'en' ? 'vs ' : 'מול '}{T(dbDisplayName(playoffHighlights.highScore.opp))}
               </p>
             </Link>
+          ) : !cupFinal && cupRound ? (
+            // No final matchup yet → rotate through the latest round's results.
+            <CupRoundResults
+              lang={lang === 'en' ? 'en' : 'he'}
+              round={T(cupRound.round)}
+              games={cupRound.games.map((g) => ({
+                id: g.id,
+                homeTeam: T(dbDisplayName(g.home_team)),
+                awayTeam: T(dbDisplayName(g.away_team)),
+                homeScore: g.home_score,
+                awayScore: g.away_score,
+              }))}
+            />
           ) : (
             <Link href="/cup" className="group block p-5 transition-colors hover:bg-white/[0.03]">
               <p className="mb-1 text-sm font-bold text-[#8aaac8] font-body">
