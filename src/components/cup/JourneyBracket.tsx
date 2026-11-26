@@ -3,6 +3,7 @@
 import { Fragment, useMemo, useState } from 'react';
 import { useLang } from '@/components/TranslationProvider';
 import { cupGameTime } from '@/lib/cup-settings';
+import { formatCupDate, roundDateLabel } from '@/lib/cup-dates';
 
 type CupGame = {
   id: string; round: string; round_order: number; game_number: number;
@@ -20,9 +21,13 @@ function getWinner(g: CupGame): string | null {
   return g.home_score > g.away_score ? g.home_team : g.away_score > g.home_score ? g.away_team : null;
 }
 
-const HEADER_H = 48;
-const CARD_H   = 64;
-const PAD_Y    = 4;
+const HEADER_H = 92;
+// Height budget per card, as rendered: two team rows ≈ 76px, plus the
+// "📊 גיליון משחק" row on games with a box score. Too small a budget clipped
+// the last cards of a long round (the column is a fixed height).
+const CARD_H   = 78;
+const STATS_H  = 28;
+const PAD_Y    = 8;   // also absorbs a long team name wrapping to two lines
 const GAP_X    = 40;
 
 /* ── Team name helpers ──────────────────────────────────────────────── */
@@ -240,35 +245,38 @@ function RoundGap({ totalH }: { totalH: number }) {
 }
 
 /* ── Round header ────────────────────────────────────────────────────── */
-function RoundHeader({ label, date, allPlayed, isFinal, gamesLeft }: {
-  label: string; date: string; allPlayed: boolean; isFinal: boolean; gamesLeft: number;
+// dateLabel comes from all of the round's games (roundDateLabel): one day
+// ("שבת 14.11 · 20:30"), a range ("14.11 – 21.11"), or null when none is set.
+function RoundHeader({ label, dateLabel, allPlayed, isFinal, gamesLeft }: {
+  label: string; dateLabel: string | null; allPlayed: boolean; isFinal: boolean; gamesLeft: number;
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   return (
-    <div className="flex flex-col items-center shrink-0 pb-2" style={{ height: HEADER_H }}>
+    <div dir={lang === 'en' ? 'ltr' : 'rtl'} className="flex flex-col items-center justify-start gap-1.5 shrink-0 pb-3" style={{ height: HEADER_H }}>
       <div className="flex items-center gap-2">
-        <span className={`text-[10px] font-black uppercase tracking-widest ${isFinal ? 'text-orange-400' : 'text-[#e0c97a]'}`}>
+        <span className={`text-lg font-black leading-tight font-heading ${isFinal ? 'text-orange-400' : 'text-[#e0c97a]'}`}>
           {isFinal ? '🏆 ' : ''}{t(label)}
         </span>
         {allPlayed ? (
-          <span className="rounded-full bg-green-900/40 px-1.5 py-px text-[9px] font-bold text-green-400">✓</span>
+          <span className="rounded-full bg-green-900/40 px-2 py-0.5 text-xs font-bold text-green-400">✓</span>
         ) : (
-          <span className="rounded-full bg-orange-900/30 px-1.5 py-px text-[9px] font-bold text-orange-400">●</span>
+          <span className="rounded-full bg-orange-900/30 px-2 py-0.5 text-xs font-bold text-orange-400">●</span>
         )}
       </div>
-      {date ? (
-        <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-white/[0.04] border border-white/[0.06] px-2 py-px text-[10px] font-bold text-[#8aaac8]" dir="ltr">
-          📅 {date}
+      {dateLabel ? (
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e0c97a]/25 bg-[#e0c97a]/[0.08] px-3 py-1 text-sm font-black text-[#f0e2b0] whitespace-nowrap">
+          📅 {dateLabel}
         </span>
       ) : (
-        <span className="mt-1 text-[10px] text-[#3a5a7a]">—</span>
+        <span className="inline-flex items-center rounded-full border border-white/[0.06] px-3 py-1 text-sm font-bold text-[#5a7a9a]">
+          {t('תאריך טרם נקבע')}
+        </span>
       )}
-      {isFinal && (
-        <span className="mt-0.5 text-[9px] font-bold text-[#8aaac8]">{t('מגרש ניטרלי')}</span>
-      )}
-      {!isFinal && !allPlayed && gamesLeft > 0 && (
-        <span className="mt-0.5 text-[9px] text-[#5a7a9a]">{gamesLeft} {t('משחקים נותרו')}</span>
-      )}
+      {isFinal ? (
+        <span className="text-xs font-bold text-[#8aaac8]">{t('מגרש ניטרלי')}</span>
+      ) : !allPlayed && gamesLeft > 0 ? (
+        <span className="text-xs font-bold text-[#8aaac8]">{gamesLeft} {t('משחקים נותרו')}</span>
+      ) : null}
     </div>
   );
 }
@@ -335,10 +343,10 @@ function buildJourney(focusedTeam: string, games: CupGame[]): JourneyStep[] {
 }
 
 function JourneyPanel({
-  focusedTeam, teamLogos, games, statsGameIds, onClose,
+  focusedTeam, teamLogos, games, statsGameIds, onClose, season,
 }: {
   focusedTeam: string; teamLogos: Record<string, string>;
-  games: CupGame[]; statsGameIds: Set<string>; onClose: () => void;
+  games: CupGame[]; statsGameIds: Set<string>; onClose: () => void; season?: string;
 }) {
   const { t, lang } = useLang();
   const en = lang === 'en';
@@ -504,7 +512,7 @@ function JourneyPanel({
                                 : 'bg-orange-500/15 text-orange-300 border-orange-500/30'
                           }`}
                         >
-                          {step.game.date}{cupGameTime(step.game.game_time) ? ` · ${cupGameTime(step.game.game_time)}` : ''}
+                          {formatCupDate(step.game.date, en ? 'en' : 'he', season)}{cupGameTime(step.game.game_time) ? ` · ${cupGameTime(step.game.game_time)}` : ''}
                         </span>
                       )}
                     </div>
@@ -577,13 +585,16 @@ export default function JourneyBracket({
   games,
   teamLogos,
   statsGameIds = [],
+  season,
 }: {
   games: CupGame[];
   teamLogos: Record<string, string>;
   /** IDs of cup games that have box-score data. */
   statsGameIds?: string[];
+  /** The season shown — gives "14.11"-style dates (Excel) their year. */
+  season?: string;
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [focusedTeam, setFocusedTeam] = useState<string | null>(null);
   const statsSet = useMemo(() => new Set(statsGameIds), [statsGameIds]);
 
@@ -607,8 +618,10 @@ export default function JourneyBracket({
 
   const finalRound = rounds.find(r => r.label === 'גמר');
   const champion   = finalRound?.games[0] ? getWinner(finalRound.games[0]) : null;
-  const maxGames   = Math.max(...rounds.map(r => r.games.length));
-  const bracketH = HEADER_H + maxGames * CARD_H + (maxGames + 1) * PAD_Y;
+  // Tall enough for the busiest round's cards (connectors scale with it).
+  const roundH = (gs: CupGame[]) =>
+    gs.reduce((h, g) => h + CARD_H + (statsSet.has(g.id) ? STATS_H : 0), 0) + (gs.length + 1) * PAD_Y;
+  const bracketH = HEADER_H + Math.max(...rounds.map(r => roundH(r.games)));
 
   // Is a given game on the focused team's path?
   function gameOnPath(g: CupGame): boolean {
@@ -639,7 +652,7 @@ export default function JourneyBracket({
                   <div className="flex flex-col" style={{ width: colWidth, minWidth: colWidth }}>
                     <RoundHeader
                       label={round.label}
-                      date={round.games[0]?.date ?? ''}
+                      dateLabel={roundDateLabel(round.games, lang === 'en' ? 'en' : 'he', season)}
                       allPlayed={allPlayed}
                       isFinal={isFinal}
                       gamesLeft={gamesLeft}
@@ -691,6 +704,7 @@ export default function JourneyBracket({
 
       {focusedTeam && (
         <JourneyPanel
+          season={season}
           focusedTeam={focusedTeam}
           teamLogos={teamLogos}
           games={games}

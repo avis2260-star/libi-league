@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 import '@testing-library/jest-dom';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 jest.mock('@/app/admin/actions', () => ({
@@ -186,5 +186,31 @@ describe('CupTab — Excel stats import for a cup game', () => {
     await userEvent.upload(screen.getByLabelText('קובץ סטטיסטיקה'), new File(['x'], 'bad.xlsx'));
     expect(await screen.findByText('❌ לא זוהה אף שחקן מהקובץ')).toBeInTheDocument();
     expect(screen.getByText('לא זוהו: א, ב')).toBeInTheDocument();
+  });
+});
+
+describe('CupTab — round date is only saved on apply', () => {
+  it('warns while a picked round date is not saved yet', async () => {
+    renderTab([game({ home_team: 'קבוצה 1', away_team: 'קבוצה 2', date: null })]);
+    const input = screen.getByDisplayValue('') as HTMLInputElement;
+    expect(input).toHaveAttribute('type', 'date');
+    fireEvent.change(input, { target: { value: '2026-12-05' } });
+    expect(screen.getByText(/לא נשמר/)).toBeInTheDocument();
+  });
+
+  it('warns when some games in the round still have no date', () => {
+    renderTab([
+      game({ id: 'g1', game_number: 1, home_team: 'קבוצה 1', away_team: 'קבוצה 2', date: '2026-12-05' }),
+      game({ id: 'g2', game_number: 2, home_team: 'קבוצה 3', away_team: 'קבוצה 4', date: null }),
+    ]);
+    expect(screen.getByText('● 1 משחקים בסיבוב בלי תאריך')).toBeInTheDocument();
+  });
+
+  it('shows no warning when every game has the round date', () => {
+    renderTab([
+      game({ id: 'g1', game_number: 1, home_team: 'קבוצה 1', away_team: 'קבוצה 2', date: '2026-12-05' }),
+      game({ id: 'g2', game_number: 2, home_team: 'קבוצה 3', away_team: 'קבוצה 4', date: '2026-12-05' }),
+    ]);
+    expect(screen.queryByText(/לא נשמר|בלי תאריך/)).not.toBeInTheDocument();
   });
 });
