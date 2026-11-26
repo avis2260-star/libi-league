@@ -183,12 +183,12 @@ export default async function CupPage({
         {/* Mobile: stacked round cards. statsGameIds tells the bracket which
             game cards link out to their per-game box-score page. */}
         <div className="sm:hidden">
-          <StageCardsBracket games={cupGames} teamLogos={teamLogos} statsGameIds={statsGameIds} />
+          <StageCardsBracket games={cupGames} teamLogos={teamLogos} statsGameIds={statsGameIds} season={viewing} />
         </div>
 
         {/* Desktop/tablet: interactive bracket with team-journey overlay */}
         <div className="hidden sm:block">
-          <JourneyBracket games={cupGames} teamLogos={teamLogos} statsGameIds={statsGameIds} />
+          <JourneyBracket games={cupGames} teamLogos={teamLogos} statsGameIds={statsGameIds} season={viewing} />
         </div>
       </div>
     </>

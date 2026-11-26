@@ -2,6 +2,7 @@
 
 import { useLang } from '@/components/TranslationProvider';
 import { cupGameTime } from '@/lib/cup-settings';
+import { formatCupDate, roundDateLabel } from '@/lib/cup-dates';
 
 type CupGame = {
   id: string; round: string; round_order: number; game_number: number;
@@ -131,7 +132,7 @@ function MatchCard({ game, teamLogos, statsLink }: { game: CupGame; teamLogos: R
 }
 
 /* ── Featured final card (big, centered) ─────────────────────────────── */
-function FinalCard({ game, teamLogos, statsLink }: { game: CupGame; teamLogos: Record<string, string>; statsLink?: string }) {
+function FinalCard({ game, teamLogos, statsLink, season }: { game: CupGame; teamLogos: Record<string, string>; statsLink?: string; season?: string }) {
   const { t, lang } = useLang();
   const en = lang === 'en';
   const winner = getWinner(game);
@@ -143,7 +144,7 @@ function FinalCard({ game, teamLogos, statsLink }: { game: CupGame; teamLogos: R
       <div className="flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500/10 border-b border-orange-500/20">
         <span className="text-lg">🏆</span>
         <span className="text-[11px] font-black uppercase tracking-widest text-orange-400">
-          {t('הגמר')} · {game.date || t('תאריך טרם נקבע')}{cupGameTime(game.game_time) ? <> · <span dir="ltr">{cupGameTime(game.game_time)}</span></> : null} · {game.location ? game.location : t('מגרש ניטרלי')}
+          {t('הגמר')} · {game.date ? formatCupDate(game.date, en ? 'en' : 'he', season) : t('תאריך טרם נקבע')}{cupGameTime(game.game_time) ? <> · <span dir="ltr">{cupGameTime(game.game_time)}</span></> : null} · {game.location ? game.location : t('מגרש ניטרלי')}
         </span>
       </div>
       <PostponedLine game={game} />
@@ -192,30 +193,34 @@ function FinalCard({ game, teamLogos, statsLink }: { game: CupGame; teamLogos: R
 }
 
 /* ── Round section header ────────────────────────────────────────────── */
-function RoundHeader({ label, date, count, allPlayed, isFinal }: {
-  label: string; date: string; count: number; allPlayed: boolean; isFinal: boolean;
+// dateLabel comes from all of the round's games (roundDateLabel): one day
+// ("שבת 14.11 · 20:30"), a range ("14.11 – 21.11"), or null when none is set.
+function RoundHeader({ label, dateLabel, count, allPlayed, isFinal }: {
+  label: string; dateLabel: string | null; count: number; allPlayed: boolean; isFinal: boolean;
 }) {
   const { t, lang } = useLang();
   const en = lang === 'en';
   return (
-    <div className={`flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border ${
+    <div className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3 rounded-xl border ${
       isFinal ? 'border-orange-500/30 bg-orange-500/[0.05]' : 'border-white/[0.07] bg-white/[0.03]'
     }`}>
       <div className="flex items-center gap-2.5 min-w-0">
-        <span className={`text-xs font-black uppercase tracking-widest ${isFinal ? 'text-orange-400' : 'text-[#e0c97a]'}`}>
+        <span className={`text-base font-black font-heading ${isFinal ? 'text-orange-400' : 'text-[#e0c97a]'}`}>
           {isFinal ? '🏆 ' : ''}{t(label)}
         </span>
         {allPlayed ? (
-          <span className="rounded-full bg-green-900/40 px-1.5 py-px text-[10px] font-bold text-green-400">{t('הושלם ✓')}</span>
+          <span className="rounded-full bg-green-900/40 px-2 py-0.5 text-xs font-bold text-green-400">{t('הושלם ✓')}</span>
         ) : (
-          <span className="rounded-full bg-orange-900/30 px-1.5 py-px text-[10px] font-bold text-orange-400">{t('● פעיל')}</span>
+          <span className="rounded-full bg-orange-900/30 px-2 py-0.5 text-xs font-bold text-orange-400">{t('● פעיל')}</span>
         )}
       </div>
-      <div className="flex items-center gap-3 text-[11px] font-bold text-[#5a7a9a] shrink-0">
-        {date && (
-          <span className="inline-flex items-center gap-1" dir="ltr">
-            📅 {date}
+      <div className="flex items-center gap-2.5 text-xs font-bold text-[#8aaac8] shrink-0">
+        {dateLabel ? (
+          <span className="inline-flex items-center gap-1 rounded-full border border-[#e0c97a]/25 bg-[#e0c97a]/[0.08] px-2.5 py-0.5 text-sm font-black text-[#f0e2b0] whitespace-nowrap">
+            📅 {dateLabel}
           </span>
+        ) : (
+          <span className="text-[#5a7a9a]">{t('תאריך טרם נקבע')}</span>
         )}
         <span>{count} {en ? (count === 1 ? 'game' : 'games') : (count === 1 ? 'משחק' : 'משחקים')}</span>
       </div>
@@ -268,13 +273,16 @@ export default function StageCardsBracket({
   games,
   teamLogos,
   statsGameIds = [],
+  season,
 }: {
   games: CupGame[];
   teamLogos: Record<string, string>;
   /** IDs of cup games that have box-score data; cards for these become links. */
   statsGameIds?: string[];
+  /** The season shown — gives "14.11"-style dates (Excel) their year. */
+  season?: string;
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const statsSet = new Set(statsGameIds);
 
   if (games.length === 0) {
@@ -302,14 +310,14 @@ export default function StageCardsBracket({
     <div className="space-y-3">
       {rounds.map(round => {
         const isFinal = round.label === 'גמר';
-        const date = round.games[0]?.date ?? '';
+        const dateLabel = roundDateLabel(round.games, lang === 'en' ? 'en' : 'he', season);
         const allPlayed = round.games.every(g => g.played);
 
         return (
           <section key={round.order} className="space-y-2">
             <RoundHeader
               label={round.label}
-              date={date}
+              dateLabel={dateLabel}
               count={round.games.length}
               allPlayed={allPlayed}
               isFinal={isFinal}
@@ -320,6 +328,7 @@ export default function StageCardsBracket({
                 game={round.games[0]}
                 teamLogos={teamLogos}
                 statsLink={statsSet.has(round.games[0].id) ? `/cup/game/${round.games[0].id}` : undefined}
+                season={season}
               />
             ) : (
               <div className={`grid gap-2 ${gridClassForCount(round.games.length)}`}>

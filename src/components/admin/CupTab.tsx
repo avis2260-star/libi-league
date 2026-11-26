@@ -499,6 +499,12 @@ export default function CupTab({ season, teamIds: tInit, teams, games: gInit, ro
             const commonDate = [...dateCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
             const draft = roundDate[group.round] ?? commonDate;
             const isApplying = applyingRound === group.round;
+            // The field only saves on "apply" — say so while it differs from
+            // what's stored, or while some games in the round have no date
+            // (the public bracket reads every game's date).
+            const unsaved = !!draft && draft !== commonDate;
+            const undated = group.games.filter(g => !g.date).length;
+            const needsApply = unsaved || (!!draft && undated > 0);
             return (
             <div key={group.round} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -513,17 +519,29 @@ export default function CupTab({ season, teamIds: tInit, teams, games: gInit, ro
                       type="date"
                       value={draft}
                       onChange={(e) => setRoundDate(prev => ({ ...prev, [group.round]: e.target.value }))}
-                      className="rounded-md border border-white/[0.1] bg-[#0a1525] px-2 py-1 text-xs text-white focus:border-orange-500/40 focus:outline-none"
+                      onKeyDown={(e) => { if (e.key === 'Enter' && draft) applyDateToRound(group.round, draft); }}
+                      className={`rounded-md border bg-[#0a1525] px-2 py-1 text-xs text-white focus:outline-none ${
+                        unsaved ? 'border-amber-400/70 focus:border-amber-400' : 'border-white/[0.1] focus:border-orange-500/40'
+                      }`}
                     />
                   </label>
                   <button
                     onClick={() => applyDateToRound(group.round, draft)}
                     disabled={isApplying || !draft}
                     title="עדכן את התאריך של כל המשחקים בסיבוב"
-                    className="rounded-lg border border-orange-500/40 bg-orange-500/[0.08] px-2 py-1 text-xs font-bold text-orange-300 hover:bg-orange-500/[0.15] transition disabled:opacity-40"
+                    className={`rounded-lg px-2 py-1 text-xs font-bold transition disabled:opacity-40 ${
+                      needsApply
+                        ? 'bg-orange-500 text-white hover:bg-orange-400'
+                        : 'border border-orange-500/40 bg-orange-500/[0.08] text-orange-300 hover:bg-orange-500/[0.15]'
+                    }`}
                   >
                     {isApplying ? 'מחיל...' : '↻ החל על הסיבוב'}
                   </button>
+                  {unsaved ? (
+                    <span className="text-[11px] font-bold text-amber-300">● לא נשמר — לחץ &quot;החל על הסיבוב&quot;</span>
+                  ) : draft && undated > 0 ? (
+                    <span className="text-[11px] font-bold text-amber-300">● {undated} משחקים בסיבוב בלי תאריך</span>
+                  ) : null}
                   <button
                     onClick={() => addGame(group.round, group.round_order)}
                     disabled={busyId === 'add'}

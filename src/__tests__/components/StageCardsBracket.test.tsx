@@ -42,3 +42,21 @@ describe('StageCardsBracket — time and postponed games', () => {
     expect(screen.queryByText(/⏰|⏱️/)).not.toBeInTheDocument();
   });
 });
+
+describe('StageCardsBracket — round dates', () => {
+  it("dates a round from any of its games and formats it", () => {
+    render(
+      <StageCardsBracket
+        teamLogos={{}}
+        season="2026-2027"
+        games={[
+          { ...base, id: 'q1', round: 'רבע גמר', round_order: 2, game_number: 1, home_team: 'TBD', away_team: 'TBD', date: '' },
+          { ...base, id: 'q2', round: 'רבע גמר', round_order: 2, game_number: 2, home_team: 'TBD', away_team: 'TBD', date: '2026-12-05', game_time: '20:30' },
+          { ...base, id: 's1', round: 'חצי גמר', round_order: 3, game_number: 1, home_team: 'TBD', away_team: 'TBD', date: '' },
+        ]}
+      />,
+    );
+    expect(screen.getByText('📅 שבת 05.12 · 20:30')).toBeInTheDocument();
+    expect(screen.getByText('תאריך טרם נקבע')).toBeInTheDocument(); // the semi-final has none
+  });
+});
