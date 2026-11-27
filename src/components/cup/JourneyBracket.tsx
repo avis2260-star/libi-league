@@ -29,6 +29,14 @@ const CARD_H   = 78;
 const STATS_H  = 28;
 const PAD_Y    = 8;   // also absorbs a long team name wrapping to two lines
 const GAP_X    = 40;
+const ROUND_GAP_W = 20;  // RoundGap's width (rounds that don't pair up cleanly)
+// The champion card beside the final. It's shown there only where the page is
+// wide enough for it without a sideways scroll: from 1280px the layout's
+// content is a fixed 1248px (max-w-7xl minus padding); narrower screens keep
+// the banner under the bracket.
+const CHAMP_W     = 176;
+const CHAMP_GAP   = 20;
+const PAGE_W      = 1248;
 
 /* ── Team name helpers ──────────────────────────────────────────────── */
 function normalizeName(s: string) {
@@ -282,7 +290,7 @@ function RoundHeader({ label, dateLabel, allPlayed, isFinal, gamesLeft }: {
 }
 
 /* ── Champion / TBD banners ──────────────────────────────────────────── */
-function ChampionBanner({ teamName, teamLogos, dimmed }: { teamName: string; teamLogos: Record<string, string>; dimmed: boolean }) {
+function ChampionBanner({ teamName, teamLogos, dimmed, season }: { teamName: string; teamLogos: Record<string, string>; dimmed: boolean; season?: string }) {
   const { t } = useLang();
   const url = teamLogos[teamName];
   return (
@@ -293,7 +301,7 @@ function ChampionBanner({ teamName, teamLogos, dimmed }: { teamName: string; tea
         <img src={url} alt={teamName} className="h-12 w-12 rounded-full border-2 border-yellow-400/50 object-cover shadow-lg shrink-0" />
       )}
       <div className="flex flex-col items-start">
-        <p className="text-[10px] font-black uppercase tracking-widest text-[#a08020]">{t('מחזיקת הגביע 2025–2026')}</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-[#a08020]">{t('מחזיקת הגביע')}{season ? ` ${season}` : ''}</p>
         <p className="text-lg font-black text-yellow-400">{t(teamName)}</p>
       </div>
     </div>
@@ -308,6 +316,57 @@ function TBDBanner({ dimmed }: { dimmed: boolean }) {
       <div className="flex flex-col items-start">
         <p className="text-[10px] font-black uppercase tracking-widest text-[#3a5a7a]">{t('מחזיקת הגביע')}</p>
         <p className="text-sm font-bold text-[#2a4a6a]">{t('טרם נקבע — ממתין לגמר')}</p>
+      </div>
+    </div>
+  );
+}
+
+/* ── Champion card beside the final (wide screens) ─────────────────────── */
+// A vertical take on the banners above, centred on the final card and joined
+// to it by a short line.
+function ChampionSide({ champion, teamLogos, dimmed, season, totalH }: {
+  champion: string | null; teamLogos: Record<string, string>; dimmed: boolean; season?: string; totalH: number;
+}) {
+  const { t, lang } = useLang();
+  const url = champion ? teamLogos[champion] : undefined;
+  const midY = HEADER_H + (totalH - HEADER_H) / 2;
+  return (
+    <div className="hidden min-[1280px]:flex items-stretch shrink-0" data-testid="champion-side">
+      <svg width={CHAMP_GAP} height={totalH} className="shrink-0 overflow-visible" aria-hidden>
+        <line
+          x1={0} y1={midY} x2={CHAMP_GAP} y2={midY}
+          stroke={champion ? '#facc15' : '#7aaac8'} strokeWidth={champion ? 2 : 1.5}
+          strokeDasharray={champion ? undefined : '4 4'} strokeOpacity={champion ? 0.7 : 0.35}
+        />
+      </svg>
+      <div className="flex flex-col" style={{ width: CHAMP_W, minWidth: CHAMP_W }}>
+        <div dir={lang === 'en' ? 'ltr' : 'rtl'} className="flex flex-col items-center justify-start gap-1.5 shrink-0 pb-3" style={{ height: HEADER_H }}>
+          <span className="text-lg font-black leading-tight font-heading text-yellow-400">🏆 {t('מחזיקת הגביע')}</span>
+          {season && <span className="text-xs font-bold text-[#8aaac8]">{season}</span>}
+        </div>
+        <div className="flex-1 flex items-center justify-center px-1">
+          {champion ? (
+            <div
+              dir={lang === 'en' ? 'ltr' : 'rtl'}
+              className={`flex w-full flex-col items-center gap-2 rounded-2xl border-2 border-yellow-400/40 bg-gradient-to-b from-yellow-400/10 to-transparent px-3 py-4 text-center shadow-[0_0_50px_rgba(250,204,21,0.15)] transition-opacity duration-300 ${dimmed ? 'opacity-30' : 'opacity-100'}`}
+            >
+              <span className="text-4xl leading-none">🏆</span>
+              {url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={url} alt={champion} className="h-14 w-14 rounded-full border-2 border-yellow-400/50 object-cover shadow-lg" />
+              )}
+              <p className="break-words text-lg font-black leading-tight text-yellow-400">{t(champion)}</p>
+            </div>
+          ) : (
+            <div
+              dir={lang === 'en' ? 'ltr' : 'rtl'}
+              className={`flex w-full flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-[#1e3a5f] bg-[#080f18]/60 px-3 py-4 text-center transition-opacity duration-300 ${dimmed ? 'opacity-30' : 'opacity-100'}`}
+            >
+              <span className="text-3xl leading-none opacity-80">🏆</span>
+              <p className="text-sm font-bold leading-snug text-[#4a6a8a]">{t('טרם נקבע — ממתין לגמר')}</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -623,6 +682,12 @@ export default function JourneyBracket({
     gs.reduce((h, g) => h + CARD_H + (statsSet.has(g.id) ? STATS_H : 0), 0) + (gs.length + 1) * PAD_Y;
   const bracketH = HEADER_H + Math.max(...rounds.map(r => roundH(r.games)));
 
+  // Exact row width: each round's column plus the connector after it.
+  const pairsCleanly = (i: number) => !!rounds[i + 1] && rounds[i + 1].games.length * 2 === rounds[i].games.length;
+  const rowWidth = rounds.reduce((w, r, i) =>
+    w + (r.label === 'גמר' ? 280 : 215) + (i < rounds.length - 1 ? (pairsCleanly(i) ? GAP_X : ROUND_GAP_W) : 0), 0);
+  const champBeside = rowWidth + CHAMP_GAP + CHAMP_W <= PAGE_W;
+
   // Is a given game on the focused team's path?
   function gameOnPath(g: CupGame): boolean {
     if (!focusedTeam) return false;
@@ -637,14 +702,14 @@ export default function JourneyBracket({
         <div className="overflow-x-auto pb-3">
           <div
             className="flex items-stretch"
-            style={{ height: bracketH, minWidth: rounds.length * 220 + (rounds.length - 1) * GAP_X + 80 }}
+            style={{ height: bracketH, minWidth: rowWidth }}
           >
             {rounds.map((round, idx) => {
               const isFinal    = round.label === 'גמר';
               const allPlayed  = round.games.every(g => g.played);
               const gamesLeft  = round.games.filter(g => !g.played).length;
               const nextRound  = rounds[idx + 1];
-              const cleanPair  = !!nextRound && nextRound.games.length * 2 === round.games.length;
+              const cleanPair  = pairsCleanly(idx);
               const colWidth   = isFinal ? 280 : 215;
 
               return (
@@ -693,13 +758,24 @@ export default function JourneyBracket({
                 </Fragment>
               );
             })}
+            {champBeside && (
+              <ChampionSide
+                champion={champion}
+                teamLogos={teamLogos}
+                dimmed={!!focusedTeam && !championIsFocused}
+                season={season}
+                totalH={bracketH}
+              />
+            )}
           </div>
         </div>
 
-        {champion
-          ? <ChampionBanner teamName={champion} teamLogos={teamLogos} dimmed={!!focusedTeam && !championIsFocused} />
-          : <TBDBanner dimmed={!!focusedTeam} />
-        }
+        <div className={champBeside ? 'min-[1280px]:hidden' : undefined} data-testid="champion-below">
+          {champion
+            ? <ChampionBanner teamName={champion} teamLogos={teamLogos} dimmed={!!focusedTeam && !championIsFocused} season={season} />
+            : <TBDBanner dimmed={!!focusedTeam} />
+          }
+        </div>
       </div>
 
       {focusedTeam && (
