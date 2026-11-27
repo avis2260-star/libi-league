@@ -229,7 +229,7 @@ function RoundHeader({ label, dateLabel, count, allPlayed, isFinal }: {
 }
 
 /* ── Champion / TBD banner ───────────────────────────────────────────── */
-function ChampionBanner({ teamName, teamLogos }: { teamName: string; teamLogos: Record<string, string> }) {
+function ChampionBanner({ teamName, teamLogos, season }: { teamName: string; teamLogos: Record<string, string>; season?: string }) {
   const { t } = useLang();
   const url = teamLogos[teamName];
   return (
@@ -240,7 +240,7 @@ function ChampionBanner({ teamName, teamLogos }: { teamName: string; teamLogos: 
         <img src={url} alt={teamName} className="h-12 w-12 rounded-full border-2 border-yellow-400/50 object-cover shadow-lg shrink-0" />
       )}
       <div className="flex flex-col items-start">
-        <p className="text-[10px] font-black uppercase tracking-widest text-[#a08020]">{t('מחזיקת הגביע 2025–2026')}</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-[#a08020]">{t('מחזיקת הגביע')}{season ? ` ${season}` : ''}</p>
         <p className="text-lg font-black text-yellow-400">{t(teamName)}</p>
       </div>
     </div>
@@ -346,7 +346,7 @@ export default function StageCardsBracket({
         );
       })}
 
-      {champion ? <ChampionBanner teamName={champion} teamLogos={teamLogos} /> : <TBDBanner />}
+      {champion ? <ChampionBanner teamName={champion} teamLogos={teamLogos} season={season} /> : <TBDBanner />}
     </div>
   );
 }
